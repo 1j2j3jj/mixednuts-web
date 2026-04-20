@@ -186,6 +186,7 @@ export default function AboutPage() {
             <dl className="info-table">
               <div className="info-row"><dt>Address</dt><dd>〒107-0062<br />東京都港区南青山3-8-40</dd></div>
               <div className="info-row"><dt>Contact</dt><dd><a href="mailto:hello@mixednuts-inc.com" style={{color: 'var(--navy)', textDecoration: 'underline'}}>hello@mixednuts-inc.com</a></dd></div>
+              <div className="info-row"><dt>Bank</dt><dd>三井住友銀行（メイン）<br />三菱UFJ銀行</dd></div>
               <div className="info-row"><dt>Legal Advisor</dt><dd>弁護士法人クレア法律事務所</dd></div>
               <div className="info-row"><dt>Tax Advisor</dt><dd>関野会計事務所</dd></div>
             </dl>
