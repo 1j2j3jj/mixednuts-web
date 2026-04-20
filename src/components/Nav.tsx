@@ -5,28 +5,14 @@ export default function Nav() {
     <nav className="nav">
       <div className="nav-inner">
         <Link href="/" className="logo" aria-label="mixednuts Inc. - Home">
-          <svg
-            className="logo-mark"
-            viewBox="0 0 100 260"
-            width="20"
-            height="42"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M 50 5 Q 65 10 60 30 Q 50 45 40 30 Q 35 15 50 5 Z" fill="currentColor" stroke="none" />
-            <ellipse cx="50" cy="95" rx="30" ry="40" />
-            <ellipse cx="50" cy="175" rx="36" ry="45" />
-            <line x1="20" y1="95" x2="80" y2="95" />
-            <line x1="18" y1="130" x2="82" y2="130" />
-            <line x1="14" y1="175" x2="86" y2="175" />
-            <line x1="16" y1="210" x2="84" y2="210" />
-            <line x1="50" y1="55" x2="50" y2="220" />
-          </svg>
-          <span className="logo-text">mixed<span className="accent">nuts</span></span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt="mixednuts Inc."
+            className="logo-wordmark"
+            width="200"
+            height="38"
+          />
         </Link>
         <ul className="nav-links">
           <li><Link href="/about">About</Link></li>

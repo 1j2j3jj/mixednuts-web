@@ -18,12 +18,7 @@ export default function NotFound() {
           text-align: center;
           background: var(--off-white);
         }
-        .nf-mark {
-          width: 88px; height: auto;
-          color: var(--charcoal);
-          margin-bottom: 40px;
-          opacity: 0.85;
-        }
+        .nf-mark { width: 240px; height: auto; margin-bottom: 40px; opacity: 0.95; }
         .nf-code {
           font-family: var(--font-display);
           font-size: clamp(72px, 12vw, 140px);
@@ -70,25 +65,8 @@ export default function NotFound() {
       `}</style>
 
       <section className="nf-wrap">
-        <svg
-          className="nf-mark"
-          viewBox="0 0 100 260"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M 50 5 Q 65 10 60 30 Q 50 45 40 30 Q 35 15 50 5 Z" fill="currentColor" stroke="none" />
-          <ellipse cx="50" cy="95" rx="30" ry="40" />
-          <ellipse cx="50" cy="175" rx="36" ry="45" />
-          <line x1="20" y1="95" x2="80" y2="95" />
-          <line x1="18" y1="130" x2="82" y2="130" />
-          <line x1="14" y1="175" x2="86" y2="175" />
-          <line x1="16" y1="210" x2="84" y2="210" />
-          <line x1="50" y1="55" x2="50" y2="220" />
-        </svg>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="mixednuts Inc." className="nf-mark" width="240" height="45" />
         <div className="nf-code">4<span className="accent">0</span>4</div>
         <h1 className="nf-title">ページが見つかりません。</h1>
         <p className="nf-lead">
