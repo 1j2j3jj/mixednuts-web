@@ -59,27 +59,26 @@ a { color: inherit; }
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
   padding: 22px 40px;
   display: flex; justify-content: space-between; align-items: center;
+  mix-blend-mode: difference;
   background: transparent;
   border: none;
 }
-/* mix-blend-difference applied only to menu links — logo keeps original colors */
-.nav .nav-links { mix-blend-mode: difference; }
-.nav .nav-cta { mix-blend-mode: difference; }
 .nav-inner {
   max-width: 1600px; margin: 0 auto; width: 100%;
   display: flex; justify-content: space-between; align-items: center;
   padding: 0;
 }
 .logo {
-  display: inline-flex; align-items: center;
+  font-family: var(--font-display);
+  color: #fff;
+  font-size: 22px; font-weight: 900;
+  letter-spacing: -0.02em;
   text-decoration: none;
+  display: inline-flex; align-items: center; gap: 10px;
 }
-.logo-wordmark {
-  display: block;
-  height: 32px; width: auto;
-}
-/* Only the dark (charcoal-text) logo shown — single variant is enough since bg is always light at top */
-.logo-wordmark-light { display: none; }
+.logo-mark { flex-shrink: 0; display: block; }
+.logo-text { line-height: 1; }
+.logo .accent { color: var(--cyan); }
 .nav-links { display: flex; gap: 28px; list-style: none; align-items: center; padding: 0; margin: 0; }
 .nav-links a {
   color: #fff;
@@ -411,11 +410,17 @@ a { color: inherit; }
   display: grid; grid-template-columns: 2.5fr 1fr 1fr 1fr 1fr; gap: 48px;
   margin-bottom: 56px;
 }
-.footer-wordmark {
-  display: block;
-  height: 34px; width: auto;
+.footer-brand h4 {
+  font-family: var(--font-display);
+  color: #fff;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
   margin-bottom: 16px;
+  display: inline-flex; align-items: center; gap: 10px;
 }
+.footer-brand h4 .accent { color: var(--cyan); }
+.footer-mark { flex-shrink: 0; display: block; color: var(--cyan); }
 .footer-brand p {
   font-family: var(--font-sans-jp);
   font-size: 13px;
