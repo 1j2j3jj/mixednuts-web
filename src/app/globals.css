@@ -55,10 +55,19 @@ body {
 a { color: inherit; }
 
 /* ===== NAV (v3 mix-blend-difference) ===== */
-/* IMPORTANT: mix-blend-mode must be on .nav itself (not children).
-   position:fixed + z-index:100 creates a stacking context that isolates
-   children's blending from page backdrop — applying the blend to .nav
-   makes the whole nav blend against page content behind it. */
+/* Peanut mark is rendered OUTSIDE .nav to preserve its brand colors.
+   .nav has mix-blend-mode so text/links invert against page backdrop,
+   but the mark sits on a separate fixed layer above .nav — unaffected. */
+.nav-mark {
+  position: fixed;
+  top: 22px; left: 40px;
+  z-index: 101;
+  display: block;
+  line-height: 0;
+  text-decoration: none;
+}
+.nav-mark img { display: block; height: 36px; width: auto; }
+
 .nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
   padding: 22px 40px;
@@ -72,8 +81,7 @@ a { color: inherit; }
   display: flex; justify-content: space-between; align-items: center;
   padding: 0;
 }
-.logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
-.logo-mark { display: block; height: 36px; width: auto; }
+.logo { display: inline-flex; align-items: center; text-decoration: none; padding-left: 24px; /* space for the floating peanut mark */ }
 .logo-text {
   color: #fff;
   font-family: var(--font-display, 'Noto Sans JP', sans-serif);
@@ -523,6 +531,7 @@ a { color: inherit; }
   .footer-inner { grid-template-columns: 1fr 1fr; gap: 32px; }
   .nav-links li:not(:last-child) { display: none; }
   .nav { padding: 20px 24px; }
+  .nav-mark { top: 20px; left: 24px; }
   .section { padding: 80px 24px; }
   .page-hero { padding: 140px 24px 80px; }
   .cta { padding: 120px 24px; }
