@@ -1,21 +1,71 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { members } from "@/data/members";
+import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
   title: "CEO Profile — N.I.",
   description: "mixednuts 代表取締役 N.I. の詳細プロフィール。国内大手IT企業経営企画、グローバル大手IT企業を経て2021年に創業。",
 };
 
+const personSchema = {
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "@id": "https://mixednuts-inc.com/team/ceo#person",
+  name: "N.I.",
+  jobTitle: "Founder & CEO",
+  worksFor: { "@id": "https://mixednuts-inc.com/#organization" },
+  description:
+    "戦略ファーム出身、国内大手IT企業で経営企画責任者として取締役会付議・中期戦略を統括。mixednuts 創業後は戦略×AI×マーケティングの統合提供を牽引。早稲田大学大学院 経営管理研究科 MBA。",
+  alumniOf: [
+    { "@type": "CollegeOrUniversity", name: "早稲田大学大学院 経営管理研究科" },
+  ],
+  knowsAbout: [
+    "FP&A",
+    "M&A / Valuation",
+    "AI Agent Design",
+    "LLM Implementation",
+    "Growth Marketing",
+    "SEO / AIO",
+    "Corporate Finance",
+    "Business Strategy",
+  ],
+  url: "https://mixednuts-inc.com/team/ceo",
+};
+
+const breadcrumb = buildBreadcrumbSchema([
+  { name: "Home", path: "/" },
+  { name: "Team", path: "/team" },
+  { name: "CEO Profile", path: "/team/ceo" },
+]);
+
 export default function CeoPage() {
   const ceo = members.find((m) => m.division === "leadership")!;
 
   return (
     <>
+      <JsonLd data={personSchema} />
+      <JsonLd data={breadcrumb} />
       <style>{`
         .ceo-wrap { display: grid; grid-template-columns: 1fr 2fr; gap: 80px; align-items: start; }
         .ceo-sidebar { position: sticky; top: 100px; }
-        .ceo-portrait { aspect-ratio: 3/4; background: url('/images/generated/ceo_portrait.jpg') center/cover no-repeat; border-radius: 20px; min-height: 320px; margin-bottom: 32px; }
+        .ceo-portrait {
+          aspect-ratio: 3/4; border-radius: 20px; min-height: 320px; margin-bottom: 32px;
+          background: linear-gradient(135deg, var(--charcoal) 0%, var(--charcoal-soft) 55%, #0d3c47 100%);
+          display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
+        }
+        .ceo-portrait::before {
+          content: ''; position: absolute; inset: 0;
+          background-image: radial-gradient(circle at 28% 28%, rgba(0,217,255,0.24), transparent 55%),
+                            radial-gradient(circle at 78% 82%, rgba(0,217,255,0.12), transparent 60%);
+        }
+        .ceo-portrait-initials {
+          position: relative; z-index: 2;
+          font-family: var(--font-display);
+          font-weight: 900; font-size: clamp(96px, 13vw, 200px); letter-spacing: -0.02em;
+          color: var(--off-white); line-height: 1;
+        }
+        .ceo-portrait-initials .dot { color: var(--cyan); }
         .ceo-sidebar-meta { display: flex; flex-direction: column; gap: 16px; }
         .ceo-meta-item { padding: 16px; background: #F9FAFB; border-radius: 12px; border: 1px solid var(--border, #E5E7EB); }
         .ceo-meta-label { font-size: 10px; color: #9CA3AF; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
@@ -30,9 +80,9 @@ export default function CeoPage() {
         .career-detail p { font-size: 13px; color: #4B5563; line-height: 1.7; margin: 0; }
         .skill-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
         .skill-tag { padding: 6px 14px; background: #F0F9FF; border: 1px solid rgba(0,180,216,0.2); color: #0891B2; border-radius: 999px; font-size: 12px; font-weight: 600; }
-        .quote-block { background: var(--navy); color: #fff; border-radius: 16px; padding: 40px 48px; margin: 40px 0; position: relative; }
-        .quote-block::before { content: '"'; font-family: var(--font-serif-en); font-size: 120px; color: rgba(0,180,216,0.2); position: absolute; top: -20px; left: 24px; line-height: 1; }
-        .quote-block p { font-family: var(--font-serif-jp); font-size: 20px; line-height: 1.8; position: relative; z-index: 2; margin: 0; }
+        .quote-block { background: var(--charcoal); color: var(--off-white); border-radius: 16px; padding: 40px 48px; margin: 40px 0; position: relative; }
+        .quote-block::before { content: '"'; font-family: var(--font-serif-en); font-size: 120px; color: rgba(0,217,255,0.25); position: absolute; top: -20px; left: 24px; line-height: 1; }
+        .quote-block p { font-family: var(--font-serif-jp); font-size: 20px; line-height: 1.8; position: relative; z-index: 2; margin: 0; color: var(--off-white) !important; }
         @media (max-width: 900px) {
           .ceo-wrap { grid-template-columns: 1fr; }
           .ceo-sidebar { position: static; }
@@ -47,7 +97,7 @@ export default function CeoPage() {
           </div>
           <div className="page-hero-badge">Founder & CEO</div>
           <h1><span className="accent">{ceo.initial}</span></h1>
-          <p className="lead">{ceo.role} — mixednuts, Inc. Founder</p>
+          <p className="lead">{ceo.role} — mixednuts Inc. Founder</p>
         </div>
       </section>
 
@@ -55,11 +105,13 @@ export default function CeoPage() {
         <div className="section-inner">
           <div className="ceo-wrap">
             <div className="ceo-sidebar">
-              <div className="ceo-portrait" />
+              <div className="ceo-portrait">
+                <span className="ceo-portrait-initials">N<span className="dot">.</span>I<span className="dot">.</span></span>
+              </div>
               <div className="ceo-sidebar-meta">
                 <div className="ceo-meta-item">
                   <div className="ceo-meta-label">Role</div>
-                  <div className="ceo-meta-value">Founder & CEO<br />mixednuts, Inc.</div>
+                  <div className="ceo-meta-value">Founder & CEO<br />mixednuts Inc.</div>
                 </div>
                 <div className="ceo-meta-item">
                   <div className="ceo-meta-label">Education</div>
@@ -99,7 +151,7 @@ export default function CeoPage() {
                 {[
                   {
                     period: "2021 — 現在",
-                    company: "mixednuts, Inc.",
+                    company: "mixednuts Inc.",
                     title: "Founder & CEO",
                     desc: "戦略・AI・マーケティングの統合コンサルティングファームを創業。AI-first組織設計、クライアントへの実装支援、社内120体超のAIエージェント組織の構築・運用を統括。",
                   },

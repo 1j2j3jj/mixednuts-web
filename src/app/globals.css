@@ -173,10 +173,12 @@ a { color: inherit; }
 .page-hero h1 {
   /* Japanese-dominant subpages: use Noto Sans JP Black for readable hero */
   font-family: var(--font-sans-jp), var(--font-display);
-  font-size: clamp(44px, 7.5vw, 108px);
-  line-height: 1.08;
+  font-size: clamp(44px, 7vw, 96px);
+  line-height: 1.12;
   font-weight: 900;
   margin-bottom: 28px;
+  word-break: keep-all;
+  overflow-wrap: normal;
   letter-spacing: -0.02em;
   text-transform: none;
   color: var(--charcoal);
@@ -353,9 +355,11 @@ a { color: inherit; }
 .cta-inner { position: relative; z-index: 2; max-width: 900px; margin: 0 auto; }
 .cta h2 {
   font-family: var(--font-display), var(--font-sans-jp);
-  font-size: clamp(56px, 9vw, 140px);
-  line-height: 0.95;
+  font-size: clamp(40px, 6vw, 84px);
+  line-height: 1.15;
   font-weight: 900;
+  word-break: keep-all;
+  overflow-wrap: normal;
   letter-spacing: -0.04em;
   text-transform: uppercase;
   margin-bottom: 36px;

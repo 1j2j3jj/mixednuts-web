@@ -26,7 +26,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: route === "" ? 1.0 : 0.7,
   }));
 
-  const workRoutes = works.map((w) => ({
+  const workRoutes = works.filter((w) => !w.hidden).map((w) => ({
     url: `${base}/works/${w.slug}`,
     lastModified: new Date(),
     changeFrequency: "monthly" as const,

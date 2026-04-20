@@ -1,22 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { works } from "@/data/works";
+import WorksList from "./WorksList";
+
+const visibleWorks = works.filter((w) => !w.hidden);
 
 export const metadata: Metadata = {
-  title: "Works — 数字で語る、15+ の成功事例",
-  description: "戦略・AI・マーケティングの実績一覧。業種・規模・課題別に12+ケースを掲載。全て匿名化済み。",
-};
-
-const bgClasses: Record<string, string> = {
-  ai: "case-bg-ai",
-  strategy: "case-bg-strategy",
-  marketing: "case-bg-marketing",
-};
-
-const serviceLabels: Record<string, string> = {
-  ai: "AI",
-  strategy: "Strategy",
-  marketing: "Marketing",
+  title: "Works — 数字で語る、実績ケース",
+  description:
+    "戦略・AI・マーケティングの実績一覧。業種・規模・課題別にケースを掲載。守秘義務のため全て匿名化。",
 };
 
 export default function WorksPage() {
@@ -24,41 +16,55 @@ export default function WorksPage() {
     <>
       <style>{`
         .works-filters {
-          background: #fff; padding: 32px 32px 0;
-          border-bottom: 1px solid #E5E7EB;
+          background: var(--off-white); padding: 32px 32px 0;
+          border-bottom: 1px solid rgba(10,10,10,0.08);
+          position: sticky; top: 70px; z-index: 50;
         }
         .works-filters-inner { max-width: 1280px; margin: 0 auto; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; padding-bottom: 24px; }
-        .filter-label { font-size: 11px; color: #9CA3AF; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; margin-right: 8px; }
-        .filter-tag { padding: 8px 16px; background: #fff; border: 1px solid #D1D5DB; border-radius: 999px; font-size: 13px; color: #4B5563; }
+        .filter-label { font-family: var(--font-sans-en); font-size: 11px; color: var(--gray-400); letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; margin-right: 8px; }
+        .filter-tag {
+          padding: 8px 16px; background: var(--off-white); border: 1px solid rgba(10,10,10,0.15);
+          border-radius: 999px; font-size: 13px; color: var(--gray-600); font-family: inherit;
+          cursor: pointer; transition: all 0.18s ease; display: inline-flex; align-items: center; gap: 8px;
+        }
+        .filter-tag:hover { border-color: var(--charcoal); color: var(--charcoal); }
+        .filter-tag.active { background: var(--charcoal); color: var(--off-white); border-color: var(--charcoal); }
+        .filter-count {
+          display: inline-block; font-family: var(--font-sans-en); font-size: 11px; font-weight: 700;
+          padding: 1px 7px; border-radius: 999px;
+          background: rgba(10,10,10,0.08); color: inherit;
+        }
+        .filter-tag.active .filter-count { background: rgba(245,241,232,0.2); }
+
         .cases-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
         .case-card {
-          background: #fff; border: 1px solid #E5E7EB; border-radius: 20px;
+          background: var(--off-white); border: 1px solid rgba(10,10,10,0.08); border-radius: 20px;
           overflow: hidden; transition: all 0.3s; text-decoration: none; color: inherit; display: block;
         }
-        .case-card:hover { transform: translateY(-4px); box-shadow: 0 24px 48px rgba(11,22,52,0.08); border-color: var(--navy); }
-        .case-image { aspect-ratio: 16/9; position: relative; display: flex; align-items: center; justify-content: center; font-size: 64px; color: rgba(255,255,255,0.15); overflow: hidden; }
-        .case-bg-ai { background: linear-gradient(135deg, #064A5C 0%, var(--navy) 100%); }
-        .case-bg-strategy { background: linear-gradient(135deg, var(--navy) 0%, var(--burgundy) 100%); }
-        .case-bg-marketing { background: linear-gradient(135deg, var(--burgundy) 0%, #A67B47 100%); }
-        .case-image img { width: 100%; height: 100%; object-fit: cover; opacity: 0.4; position: absolute; inset: 0; }
+        .case-card:hover { transform: translateY(-4px); box-shadow: 0 24px 48px rgba(10,10,10,0.08); border-color: var(--charcoal); }
+        .case-image { aspect-ratio: 16/9; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .case-bg-ai { background: linear-gradient(135deg, var(--charcoal) 0%, var(--charcoal-soft) 100%); }
+        .case-bg-strategy { background: linear-gradient(135deg, var(--charcoal-soft) 0%, var(--charcoal) 100%); }
+        .case-bg-marketing { background: linear-gradient(135deg, var(--charcoal) 0%, #141414 100%); }
         .case-tag-badge {
-          position: absolute; top: 16px; left: 16px;
-          background: rgba(255,255,255,0.95); color: var(--navy);
+          position: absolute; top: 16px; left: 16px; z-index: 2;
+          background: var(--off-white); color: var(--charcoal);
           padding: 4px 10px; border-radius: 4px;
-          font-size: 11px; font-weight: 700; letter-spacing: 0.05em;
+          font-size: 11px; font-weight: 700; letter-spacing: 0.05em; font-family: var(--font-sans-en);
         }
         .case-body { padding: 28px; }
-        .case-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; font-size: 12px; color: #9CA3AF; }
-        .case-industry { padding: 3px 10px; background: #F9FAFB; color: #4B5563; border-radius: 4px; font-size: 11px; font-weight: 600; }
-        .case-title { font-family: var(--font-serif-jp); font-size: 18px; font-weight: 700; margin-bottom: 14px; line-height: 1.5; min-height: 54px; color: #1A1A1A; }
-        .case-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px 0; border-top: 1px solid #E5E7EB; border-bottom: 1px solid #E5E7EB; margin-bottom: 14px; }
-        .case-metric-label { font-size: 10px; color: #9CA3AF; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
-        .case-metric-value { font-family: var(--font-serif-en); font-size: 22px; font-weight: 700; color: var(--navy); line-height: 1; }
-        .case-metric-value.gain { color: var(--success); }
-        .case-desc { font-size: 12px; color: #4B5563; line-height: 1.7; }
+        .case-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--gray-400); }
+        .case-industry { padding: 3px 10px; background: var(--off-white-alt); color: var(--gray-600); border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .case-title { font-family: 'Noto Sans JP', sans-serif; font-size: 17px; font-weight: 700; margin-bottom: 14px; line-height: 1.5; min-height: 54px; color: var(--charcoal); word-break: keep-all; }
+        .case-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px 0; border-top: 1px solid rgba(10,10,10,0.08); border-bottom: 1px solid rgba(10,10,10,0.08); margin-bottom: 14px; }
+        .case-metric-label { font-size: 10px; color: var(--gray-400); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; font-family: var(--font-sans-en); }
+        .case-metric-value { font-family: var(--font-sans-jp); font-size: 18px; font-weight: 900; color: var(--charcoal); line-height: 1.1; }
+        .case-metric-value.gain { color: var(--color-success, #10B981); }
+        .case-desc { font-size: 12px; color: var(--gray-600); line-height: 1.7; }
         @media (max-width: 900px) {
           .cases-grid { grid-template-columns: 1fr; }
-          .works-filters { display: none; }
+          .works-filters { position: static; padding: 16px 20px 0; }
+          .filter-tag { font-size: 12px; padding: 6px 12px; }
         }
       `}</style>
 
@@ -66,62 +72,24 @@ export default function WorksPage() {
         <div className="page-hero-inner">
           <div className="breadcrumb"><Link href="/">Home</Link> / Works</div>
           <div className="page-hero-badge">Case Studies</div>
-          <h1>数字で語る、<br /><span className="accent">15+ の成功事例</span>。</h1>
+          <h1>
+            <span style={{ display: "block" }}>数字で語る、</span>
+            <span style={{ display: "block" }}><span className="accent">{visibleWorks.length} の実績</span>。</span>
+          </h1>
           <p className="lead">
             業種・規模・フェーズを問わず、戦略×AI×マーケで成果を出してきました。守秘義務のため全て匿名化していますが、業種・期間・定量指標で具体性を担保しています。
           </p>
         </div>
       </section>
 
-      <div className="works-filters">
-        <div className="works-filters-inner">
-          <span className="filter-label">Service</span>
-          <span className="filter-tag">All</span>
-          <span className="filter-tag">Strategy</span>
-          <span className="filter-tag">AI Implementation</span>
-          <span className="filter-tag">Marketing &amp; Growth</span>
-        </div>
-      </div>
-
-      <section className="section" style={{background: '#F9FAFB'}}>
-        <div className="section-inner">
-          <div className="cases-grid">
-            {works.map((work) => {
-              const primaryService = work.services[0];
-              const bgClass = bgClasses[primaryService] || "case-bg-strategy";
-              const serviceLabel = work.services.map((s) => serviceLabels[s]).join(" × ");
-
-              return (
-                <Link key={work.slug} href={`/works/${work.slug}`} className="case-card">
-                  <div className={`case-image ${bgClass}`}>
-                    <img src={work.image} alt={work.title} />
-                    <span className="case-tag-badge">{serviceLabel}</span>
-                  </div>
-                  <div className="case-body">
-                    <div className="case-header">
-                      <span className="case-industry">{work.industry}</span>
-                    </div>
-                    <div className="case-title">{work.title}</div>
-                    <div className="case-metrics">
-                      {work.metric.slice(0, 2).map((m) => (
-                        <div key={m.label}>
-                          <div className="case-metric-label">{m.label}</div>
-                          <div className={`case-metric-value ${m.value.startsWith('+') || m.value.includes('x') ? 'gain' : ''}`}>{m.value}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="case-desc">{work.summary}</div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+      <WorksList works={visibleWorks} />
 
       <section className="cta">
         <div className="cta-inner">
-          <h2>次の成功事例を、<br />あなたと一緒につくりたい。</h2>
+          <h2>
+            <span style={{ display: "block" }}>次の成功事例を、</span>
+            <span style={{ display: "block" }}>あなたと一緒につくりたい。</span>
+          </h2>
           <p>まずは課題をお聞かせください。60分の無料相談で、最適なアプローチをご提案します。</p>
           <Link href="/contact" className="btn-primary">無料相談を申し込む →</Link>
         </div>

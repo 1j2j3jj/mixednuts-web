@@ -69,7 +69,7 @@ export default function LegalPage() {
           <p>特定商取引法（特定商取引に関する法律）に基づき、当社のサービス提供に関する情報を以下の通り表示します。</p>
           <table className="legal-table">
             <tbody>
-              <tr><th>販売事業者名</th><td>ミックスナッツ株式会社<br />(mixednuts, Inc.)</td></tr>
+              <tr><th>販売事業者名</th><td>ミックスナッツ株式会社<br />(mixednuts Inc.)</td></tr>
               <tr><th>代表者</th><td>代表取締役 N.I.</td></tr>
               <tr><th>所在地</th><td>〒107-0062<br />東京都港区南青山3-8-40</td></tr>
               <tr><th>電話番号</th><td>お問い合わせフォームよりご連絡ください<br />※請求があった場合は遅滞なく開示します</td></tr>

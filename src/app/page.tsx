@@ -568,7 +568,7 @@ export default function HomePage() {
             成長曲線を描きはじめる。
           </div>
           <div className="manifesto-sig">
-            <span>— mixednuts, Inc.</span>
+            <span>— mixednuts Inc.</span>
             <span>Since 2024 · Tokyo</span>
           </div>
         </div>
@@ -596,83 +596,83 @@ export default function HomePage() {
             <Link href="/works" className="btn-ghost-mega">All Works →</Link>
           </div>
           <div className="home-cases-grid">
-            <Link href="/works/fpna-ai-automation" className="case-item big">
+            <Link href="/works/livestream-fpna-ai" className="case-item big">
               <div className="case-visual case-bg-ai">
                 <div className="case-overlay">
                   <div className="case-top">
                     <span className="case-tag">AI × Strategy</span>
-                    <span className="case-meta">Entertainment · 12 months</span>
+                    <span className="case-meta">Entertainment · Ongoing</span>
                   </div>
                   <div>
-                    <h3>FP&amp;A × AI 自動化で、経営管理の意思決定を高速化。</h3>
+                    <h3>ライブ配信事業の FP&amp;A × AI 自動化。</h3>
                     <div className="case-nums">
-                      <div className="case-num"><div className="case-num-label">月次締め工数</div><div className="case-num-value highlight">-70%</div></div>
-                      <div className="case-num"><div className="case-num-label">予実精度</div><div className="case-num-value highlight">+25pt</div></div>
+                      <div className="case-num"><div className="case-num-label">取締役会付議</div><div className="case-num-value highlight">毎月実行</div></div>
+                      <div className="case-num"><div className="case-num-label">KPI 更新粒度</div><div className="case-num-value highlight">D+1</div></div>
                     </div>
                   </div>
                 </div>
               </div>
             </Link>
-            <Link href="/works/ads-campaign-restructure" className="case-item med">
+            <Link href="/works/ip-investment-dd" className="case-item med">
               <div className="case-visual case-bg-strategy">
                 <div className="case-overlay">
                   <div className="case-top">
-                    <span className="case-tag">Strategy × Marketing</span>
-                    <span className="case-meta">Insurance · Ongoing</span>
+                    <span className="case-tag">Strategy</span>
+                    <span className="case-meta">IP Investment · 取締役会承認</span>
                   </div>
                   <div>
-                    <h3>新規デジタル事業をCMO代行で立ち上げ。</h3>
+                    <h3>アニメ IP 投資、取締役会承認。</h3>
                     <div className="case-nums">
-                      <div className="case-num"><div className="case-num-label">リード単価</div><div className="case-num-value highlight">-42%</div></div>
-                      <div className="case-num"><div className="case-num-label">CV件数</div><div className="case-num-value highlight">+90%</div></div>
+                      <div className="case-num"><div className="case-num-label">承認案件</div><div className="case-num-value highlight">3件</div></div>
+                      <div className="case-num"><div className="case-num-label">投資規模</div><div className="case-num-value highlight">10億円/件</div></div>
                     </div>
                   </div>
                 </div>
               </div>
             </Link>
-            <Link href="/works/saas-growth-playbook" className="case-item sm">
+            <Link href="/works/banking-loan-acquisition" className="case-item sm">
               <div className="case-visual case-bg-marketing">
                 <div className="case-overlay">
                   <div className="case-top">
-                    <span className="case-tag">Marketing</span>
-                    <span className="case-meta">SaaS · 6mo</span>
+                    <span className="case-tag">Marketing × Strategy</span>
+                    <span className="case-meta">Banking · 1.5y</span>
                   </div>
                   <div>
-                    <h3>マーケ組織の立ち上げ。</h3>
+                    <h3>銀行ローン、審査通過率の改善。</h3>
                     <div className="case-nums">
-                      <div className="case-num"><div className="case-num-label">リード</div><div className="case-num-value highlight">+180%</div></div>
+                      <div className="case-num"><div className="case-num-label">有効契約率</div><div className="case-num-value highlight">+18%</div></div>
                     </div>
                   </div>
                 </div>
               </div>
             </Link>
-            <Link href="/works/tiktok-campaign" className="case-item sm">
+            <Link href="/works/ai-agent-organization" className="case-item sm">
               <div className="case-visual case-bg-ai">
                 <div className="case-overlay">
                   <div className="case-top">
-                    <span className="case-tag">AI × Marketing</span>
-                    <span className="case-meta">EC · 3mo</span>
+                    <span className="case-tag">AI × Strategy</span>
+                    <span className="case-meta">Internal · Ongoing</span>
                   </div>
                   <div>
-                    <h3>広告クリエイティブ AI 自動化。</h3>
+                    <h3>90体超の AI エージェント組織。</h3>
                     <div className="case-nums">
-                      <div className="case-num"><div className="case-num-label">CTR</div><div className="case-num-value highlight">+38%</div></div>
+                      <div className="case-num"><div className="case-num-label">エージェント数</div><div className="case-num-value highlight">90体超</div></div>
                     </div>
                   </div>
                 </div>
               </div>
             </Link>
-            <Link href="/works/ai-first-org-design" className="case-item sm">
+            <Link href="/works/insurance-cmo-new-biz" className="case-item sm">
               <div className="case-visual case-bg-strategy">
                 <div className="case-overlay">
                   <div className="case-top">
-                    <span className="case-tag">Strategy × AI</span>
-                    <span className="case-meta">Manufacturing · 8mo</span>
+                    <span className="case-tag">Strategy × Marketing × AI</span>
+                    <span className="case-meta">Insurance · Ongoing</span>
                   </div>
                   <div>
-                    <h3>AI-First組織設計。</h3>
+                    <h3>新規デジタル事業、CMO 代行。</h3>
                     <div className="case-nums">
-                      <div className="case-num"><div className="case-num-label">工数削減</div><div className="case-num-value highlight">-12Kh/年</div></div>
+                      <div className="case-num"><div className="case-num-label">リード目標</div><div className="case-num-value highlight">+40% 超過</div></div>
                     </div>
                   </div>
                 </div>

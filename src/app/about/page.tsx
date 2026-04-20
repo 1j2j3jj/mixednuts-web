@@ -43,7 +43,23 @@ export default function AboutPage() {
         .info-row dt { font-size: 11px; color: #9CA3AF; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; padding-top: 2px; }
         .info-row dd { font-size: 14px; color: #1A1A1A; line-height: 1.8; }
         .ceo-grid { display: grid; grid-template-columns: 1fr 1.4fr; gap: 48px; align-items: center; background: #F9FAFB; border-radius: 20px; padding: 48px; }
-        .ceo-img { aspect-ratio: 3/4; background: url('/images/generated/ceo_portrait.jpg') center/cover no-repeat; border-radius: 16px; min-height: 300px; }
+        .ceo-img {
+          aspect-ratio: 3/4; border-radius: 16px; min-height: 300px;
+          background: linear-gradient(135deg, var(--charcoal) 0%, var(--charcoal-soft) 55%, #0d3c47 100%);
+          display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
+        }
+        .ceo-img::before {
+          content: ''; position: absolute; inset: 0;
+          background-image: radial-gradient(circle at 30% 28%, rgba(0,217,255,0.22), transparent 55%),
+                            radial-gradient(circle at 76% 80%, rgba(0,217,255,0.12), transparent 60%);
+        }
+        .ceo-img-initials {
+          position: relative; z-index: 2;
+          font-family: var(--font-display);
+          font-weight: 900; font-size: clamp(80px, 11vw, 160px); letter-spacing: -0.02em;
+          color: var(--off-white); line-height: 1;
+        }
+        .ceo-img-initials .dot { color: var(--cyan); }
         @media (max-width: 900px) {
           .story-grid { grid-template-columns: 1fr; gap: 32px; }
           .values-grid, .info-grid { grid-template-columns: 1fr; }
@@ -55,8 +71,11 @@ export default function AboutPage() {
       <section className="page-hero">
         <div className="page-hero-inner">
           <div className="breadcrumb"><Link href="/">Home</Link> / About</div>
-          <div className="page-hero-badge">About mixednuts, Inc.</div>
-          <h1>才能が"<span className="accent">ミックス</span>"する瞬間、<br />事業は動き始める。</h1>
+          <div className="page-hero-badge">About mixednuts Inc.</div>
+          <h1>
+            <span style={{ display: "block" }}>才能が&quot;<span className="accent">ミックス</span>&quot;する瞬間、</span>
+            <span style={{ display: "block" }}>事業は動き始める。</span>
+          </h1>
           <p className="lead">
             広告代理店、事業会社マーケ責任者、戦略コンサル、外資系ビッグテック、SNSクリエイター——多様なバックグラウンドのプロフェッショナルが交差するファーム。戦略・AI・マーケティングの3軸で、クライアントの事業に"成長エンジン"を実装します。
           </p>
@@ -132,7 +151,9 @@ export default function AboutPage() {
 
           {/* CEO Highlight */}
           <div className="ceo-grid">
-            <div className="ceo-img" />
+            <div className="ceo-img">
+              <span className="ceo-img-initials">N<span className="dot">.</span>I<span className="dot">.</span></span>
+            </div>
             <div>
               <h3 style={{fontFamily: 'var(--font-serif-jp)', fontSize: 28, color: 'var(--navy)', marginBottom: 8, fontWeight: 700}}>
                 N.I. <span style={{fontFamily: 'var(--font-serif-en)', color: '#9CA3AF', fontSize: 18, fontWeight: 400}}>/ Founder & CEO</span>
@@ -157,7 +178,7 @@ export default function AboutPage() {
           <h2 className="section-title" style={{marginBottom: 48}}>会社概要</h2>
           <div className="info-grid">
             <dl className="info-table">
-              <div className="info-row"><dt>Name</dt><dd>ミックスナッツ株式会社<br />(mixednuts, Inc.)</dd></div>
+              <div className="info-row"><dt>Name</dt><dd>ミックスナッツ株式会社<br />(mixednuts Inc.)</dd></div>
               <div className="info-row"><dt>Founded</dt><dd>2021年4月19日</dd></div>
               <div className="info-row"><dt>CEO</dt><dd>N.I.</dd></div>
               <div className="info-row"><dt>Business</dt><dd>戦略コンサルティング事業<br />AI実装支援事業<br />マーケティング成長支援事業</dd></div>

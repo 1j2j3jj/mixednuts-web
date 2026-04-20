@@ -1,17 +1,40 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { works } from "@/data/works";
+import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
   title: "Marketing — グロースマーケティングと統合広告運用",
   description: "広告代理店シニアディレクターと事業会社マーケ責任者が、広告運用とグロース戦略を統合提供。LTV/CAC最適化、SEO/AIO、クリエイティブ戦略まで。",
 };
 
-const marketingWorks = works.filter((w) => w.services.includes("marketing")).slice(0, 3);
+const marketingWorks = works.filter((w) => !w.hidden && w.services.includes("marketing")).slice(0, 3);
+
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "@id": "https://mixednuts-inc.com/services/marketing#service",
+  name: "Marketing & Growth",
+  serviceType: "Growth Marketing / Ad Operations",
+  provider: { "@id": "https://mixednuts-inc.com/#organization" },
+  description:
+    "広告運用（Google/Meta/TikTok）、グロースマーケ設計、SEO/AIO戦略、LTV/CAC最適化、コンテンツマーケ、ブランド戦略まで統合提供。",
+  areaServed: "JP",
+  audience: { "@type": "BusinessAudience", audienceType: "Enterprise" },
+  url: "https://mixednuts-inc.com/services/marketing",
+};
+
+const breadcrumb = buildBreadcrumbSchema([
+  { name: "Home", path: "/" },
+  { name: "Services", path: "/services" },
+  { name: "Marketing", path: "/services/marketing" },
+]);
 
 export default function ServiceMarketingPage() {
   return (
     <>
+      <JsonLd data={serviceSchema} />
+      <JsonLd data={breadcrumb} />
       <style>{`
         .page-hero-marketing { background: var(--off-white); }
         .proof-bar { background: var(--navy); color: #fff; padding: 48px 32px; }

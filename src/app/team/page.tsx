@@ -33,7 +33,24 @@ export default function TeamPage() {
         .leaders { background: #F9FAFB; padding: 120px 32px; }
         .leaders-inner { max-width: 1280px; margin: 0 auto; }
         .leader-hero { display: grid; grid-template-columns: 1fr 1.4fr; gap: 64px; align-items: center; background: #fff; padding: 64px; border-radius: 24px; border: 1px solid #E5E7EB; }
-        .leader-avatar { width: 100%; aspect-ratio: 3/4; border-radius: 16px; background: url('/images/generated/ceo_portrait.jpg') center/cover no-repeat; min-height: 280px; }
+        .leader-avatar {
+          width: 100%; aspect-ratio: 3/4; border-radius: 16px; min-height: 280px;
+          background: linear-gradient(135deg, var(--charcoal) 0%, var(--charcoal-soft) 55%, #0d3c47 100%);
+          display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
+        }
+        .leader-avatar::before {
+          content: ''; position: absolute; inset: 0;
+          background-image: radial-gradient(circle at 30% 30%, rgba(0,217,255,0.22), transparent 55%),
+                            radial-gradient(circle at 75% 80%, rgba(0,217,255,0.12), transparent 60%);
+        }
+        .leader-avatar-initials {
+          position: relative; z-index: 2;
+          font-family: var(--font-display);
+          font-weight: 900; font-size: clamp(72px, 11vw, 160px); letter-spacing: -0.02em;
+          color: var(--off-white);
+          line-height: 1;
+        }
+        .leader-avatar-initials .dot { color: var(--cyan); }
         .leader-tag { display: inline-block; font-size: 11px; color: var(--cyan); letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; margin-bottom: 16px; }
         .leader-name { font-family: var(--font-serif-jp); font-size: 36px; font-weight: 700; color: var(--navy); margin-bottom: 4px; line-height: 1.2; }
         .leader-role { color: var(--cyan); font-size: 12px; letter-spacing: 0.15em; margin-bottom: 24px; font-weight: 700; text-transform: uppercase; margin-top: 8px; }
@@ -124,7 +141,9 @@ export default function TeamPage() {
             <span className="section-label">Leadership</span>
             <h2 className="section-title" style={{marginBottom: 48}}>Founder & CEO</h2>
             <div className="leader-hero">
-              <div className="leader-avatar" />
+              <div className="leader-avatar">
+                <span className="leader-avatar-initials">N<span className="dot">.</span>I<span className="dot">.</span></span>
+              </div>
               <div>
                 <div className="leader-tag">Founder & CEO</div>
                 <div className="leader-name">{ceo.initial}</div>

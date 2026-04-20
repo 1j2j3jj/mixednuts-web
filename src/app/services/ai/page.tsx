@@ -1,17 +1,40 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { works } from "@/data/works";
+import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
   title: "AI Implementation — AIと「共に働く組織」をつくる",
   description: "AIエージェント設計、LLM業務実装、データ基盤構築。自社で120体超のAIエージェント組織を運営するAI-firstファーム。",
 };
 
-const aiWorks = works.filter((w) => w.services.includes("ai")).slice(0, 3);
+const aiWorks = works.filter((w) => !w.hidden && w.services.includes("ai")).slice(0, 3);
+
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "@id": "https://mixednuts-inc.com/services/ai#service",
+  name: "AI Implementation",
+  serviceType: "AI Implementation / Agent Architecture",
+  provider: { "@id": "https://mixednuts-inc.com/#organization" },
+  description:
+    "AIエージェント設計、プロンプトエンジニアリング、LLM業務実装、MCP統合、AIガバナンスまで一気通貫の AI 導入支援。",
+  areaServed: "JP",
+  audience: { "@type": "BusinessAudience", audienceType: "Enterprise" },
+  url: "https://mixednuts-inc.com/services/ai",
+};
+
+const breadcrumb = buildBreadcrumbSchema([
+  { name: "Home", path: "/" },
+  { name: "Services", path: "/services" },
+  { name: "AI Implementation", path: "/services/ai" },
+]);
 
 export default function ServiceAIPage() {
   return (
     <>
+      <JsonLd data={serviceSchema} />
+      <JsonLd data={breadcrumb} />
       <style>{`
         .page-hero-ai { background: var(--off-white); }
         .proof-bar { background: var(--navy); color: #fff; padding: 48px 32px; }
@@ -94,8 +117,8 @@ export default function ServiceAIPage() {
               { icon: "02", title: "プロンプトエンジニアリング", desc: "再現性のある出力を実現するプロンプト設計と評価。A/Bテスト、評価ハーネス構築、継続的な改善プロセスまで。単発ではなく運用を前提に設計します。", features: ["プロンプト設計", "評価フレームワーク", "A/Bテスト", "継続改善運用"] },
               { icon: "03", title: "LLM 業務実装", desc: "月次決算、FP&A分析、顧客対応、コンテンツ生成など、業務領域ごとにAIを組み込む。既存の業務フローを破壊せず、段階的に置き換えます。", features: ["FP&A × AI", "マーケ × AI", "CS × AI", "戦略分析 × AI"] },
               { icon: "04", title: "データ基盤 / MCP 統合", desc: "MCPサーバー構築、データソース統合、ツール連携まで。Google Workspace、Slack、CRM、会計ソフト等の既存ツールとAIを繋ぎ込みます。", features: ["MCP サーバー構築", "API 連携", "データパイプライン", "既存ツール統合"] },
-              { icon: "🔒", title: "AI ガバナンス", desc: "機密情報の取り扱い、権限管理、監査ログ、ハルシネーション対策まで。エンタープライズ要件に応えるAI運用体制を構築します。", features: ["アクセス制御", "監査ログ", "NDA / 機密管理", "ハルシネーション対策"] },
-              { icon: "🎓", title: "社内 AI 活用研修", desc: "経営層・現場リーダー向けの研修プログラム。「AIで何ができるか」ではなく「自社にどう実装するか」を、ハンズオンで学ぶカリキュラムです。", features: ["経営層向けワークショップ", "現場リーダー研修", "ハンズオン実装", "継続的な運用伴走"] },
+              { icon: "05", title: "AI ガバナンス", desc: "機密情報の取り扱い、権限管理、監査ログ、ハルシネーション対策まで。エンタープライズ要件に応えるAI運用体制を構築します。", features: ["アクセス制御", "監査ログ", "NDA / 機密管理", "ハルシネーション対策"] },
+              { icon: "06", title: "社内 AI 活用研修", desc: "経営層・現場リーダー向けの研修プログラム。「AIで何ができるか」ではなく「自社にどう実装するか」を、ハンズオンで学ぶカリキュラムです。", features: ["経営層向けワークショップ", "現場リーダー研修", "ハンズオン実装", "継続的な運用伴走"] },
             ].map((s) => (
               <div key={s.title} className="solution-card">
                 <div className="s-icon">{s.icon}</div>

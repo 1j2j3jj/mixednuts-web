@@ -1,13 +1,77 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
-import { submitContact, type ContactFormState } from "./actions";
+import { useState } from "react";
+import type { FormEvent } from "react";
 
-const initialState: ContactFormState = { status: "idle" };
+type SubmitState =
+  | { status: "idle" }
+  | { status: "submitting" }
+  | { status: "success"; message: string }
+  | { status: "error"; message: string };
+
+const WEB3FORMS_ENDPOINT = "https://api.web3forms.com/submit";
 
 export default function ContactForm() {
-  const [state, formAction, pending] = useActionState(submitContact, initialState);
+  const [state, setState] = useState<SubmitState>({ status: "idle" });
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    // Honeypot — silently "succeed" without sending
+    if ((formData.get("_honey") as string | null)?.trim()) {
+      setState({ status: "success", message: "送信しました。" });
+      return;
+    }
+
+    const accessKey = process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY;
+    if (!accessKey) {
+      setState({ status: "error", message: "フォームが設定されていません。管理者にお問い合わせください。" });
+      return;
+    }
+
+    const name = (formData.get("name") as string | null)?.trim() ?? "";
+    const email = (formData.get("email") as string | null)?.trim() ?? "";
+    const message = (formData.get("message") as string | null)?.trim() ?? "";
+    if (!name || !email || !message) {
+      setState({ status: "error", message: "必須項目が未入力です。" });
+      return;
+    }
+
+    const payload: Record<string, string> = {
+      access_key: accessKey,
+      name,
+      email,
+      company: (formData.get("company") as string | null) ?? "",
+      role: (formData.get("role") as string | null) ?? "",
+      phone: (formData.get("phone") as string | null) ?? "",
+      subject: (formData.get("subject") as string | null) || `[mixednuts] ${name} 様より新規問い合わせ`,
+      budget: (formData.get("budget") as string | null) ?? "",
+      message,
+      from_name: "mixednuts-inc.com",
+      redirect: "false",
+    };
+
+    setState({ status: "submitting" });
+    try {
+      const res = await fetch(WEB3FORMS_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = (await res.json()) as { success: boolean; message?: string };
+      if (data.success) {
+        setState({ status: "success", message: "お問い合わせを受け付けました。2営業日以内にご返信いたします。" });
+        form.reset();
+        return;
+      }
+      setState({ status: "error", message: data.message || "送信に失敗しました。時間をおいて再度お試しください。" });
+    } catch {
+      setState({ status: "error", message: "ネットワークエラーが発生しました。時間をおいて再度お試しください。" });
+    }
+  }
 
   if (state.status === "success") {
     return (
@@ -16,15 +80,15 @@ export default function ContactForm() {
         <h3 style={{ fontFamily: "var(--font-serif-jp)", fontSize: 22, color: "var(--navy)", marginBottom: 12 }}>
           お問い合わせを受け付けました
         </h3>
-        <p style={{ color: "#4B5563", fontSize: 14, lineHeight: 1.8 }}>
-          {state.message ?? "2営業日以内にご返信いたします。"}
-        </p>
+        <p style={{ color: "#4B5563", fontSize: 14, lineHeight: 1.8 }}>{state.message}</p>
       </div>
     );
   }
 
+  const pending = state.status === "submitting";
+
   return (
-    <form action={formAction}>
+    <form onSubmit={handleSubmit}>
       <input type="text" name="_honey" style={{ display: "none" }} tabIndex={-1} autoComplete="off" />
 
       <div className="form-group">
@@ -49,19 +113,20 @@ export default function ContactForm() {
       </div>
       <div className="form-group">
         <label>ご関心のあるサービス <span className="req">*</span></label>
-        <select name="subject" required>
+        <select name="subject" required defaultValue="">
           <option value="">選択してください</option>
           <option value="Strategy">Strategy Consulting（戦略コンサル）</option>
           <option value="AI">AI Implementation（AI実装支援）</option>
           <option value="Marketing">Marketing &amp; Growth（マーケ成長支援）</option>
-          <option value="All">3つ全て / まだ未決</option>
+          <option value="All">3つ全てを横断で相談したい</option>
+          <option value="Undecided">まだ決めきれていない／壁打ちしたい</option>
           <option value="Other">その他・ご相談</option>
         </select>
       </div>
       <div className="form-group">
         <label>予算目安</label>
-        <select name="budget">
-          <option>選択してください</option>
+        <select name="budget" defaultValue="">
+          <option value="">選択してください</option>
           <option>〜¥100万（スポット案件）</option>
           <option>¥100万〜¥500万</option>
           <option>¥500万〜¥1,000万</option>

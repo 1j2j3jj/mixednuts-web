@@ -1,17 +1,40 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { works } from "@/data/works";
+import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
   title: "Strategy — 事業計画・投資評価・中期戦略",
   description: "戦略ファーム出身者と事業会社経営企画経験者が、経営判断の中枢で意思決定を支援。FP&A、M&A、新規事業、組織設計まで一気通貫。",
 };
 
-const strategyWorks = works.filter((w) => w.services.includes("strategy")).slice(0, 3);
+const strategyWorks = works.filter((w) => !w.hidden && w.services.includes("strategy")).slice(0, 3);
+
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "@id": "https://mixednuts-inc.com/services/strategy#service",
+  name: "Strategy Consulting",
+  serviceType: "Strategy / FP&A / M&A",
+  provider: { "@id": "https://mixednuts-inc.com/#organization" },
+  description:
+    "中期経営計画、FP&A/予実管理、M&A戦略・デューデリジェンス、新規事業立上げ、取締役会付議支援まで統合提供。",
+  areaServed: "JP",
+  audience: { "@type": "BusinessAudience", audienceType: "Enterprise" },
+  url: "https://mixednuts-inc.com/services/strategy",
+};
+
+const breadcrumb = buildBreadcrumbSchema([
+  { name: "Home", path: "/" },
+  { name: "Services", path: "/services" },
+  { name: "Strategy", path: "/services/strategy" },
+]);
 
 export default function ServiceStrategyPage() {
   return (
     <>
+      <JsonLd data={serviceSchema} />
+      <JsonLd data={breadcrumb} />
       <style>{`
         .page-hero-strategy { background: var(--off-white); }
         .proof-bar { background: var(--navy); color: #fff; padding: 48px 32px; }

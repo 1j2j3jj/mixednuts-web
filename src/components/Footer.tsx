@@ -9,7 +9,7 @@ export default function Footer() {
           <p>戦略 × AI × マーケティング。<br />3つの力で成長エンジンをつくる。</p>
           <p className="addr">
             ミックスナッツ株式会社<br />
-            Mixed Nuts Inc.
+            mixednuts Inc.
           </p>
         </div>
         <div>
@@ -45,7 +45,7 @@ export default function Footer() {
         </div>
       </div>
       <div className="footer-bottom">
-        <span>© 2026 Mixed Nuts Inc. All rights reserved.</span>
+        <span>© 2026 mixednuts Inc. All rights reserved.</span>
         <span>Built with AI, crafted with care.</span>
       </div>
     </footer>

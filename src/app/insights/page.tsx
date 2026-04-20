@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { posts } from "#site/content";
 
 export const metadata: Metadata = {
   title: "Insights — Strategy × AI × Marketing の最新知見 | mixednuts inc.",
@@ -7,20 +8,30 @@ export const metadata: Metadata = {
     "戦略・AI・マーケティング・ファイナンスの実践ノウハウを発信。AI-firstコンサルティングファームの知見を公開しています。",
 };
 
-const articles = [
+const categoryColorMap: Record<string, string> = {
+  AI: "art-ai",
+  STRATEGY: "art-strategy",
+  MARKETING: "art-marketing",
+  FINANCE: "art-finance",
+  ORGANIZATION: "art-strategy",
+};
+
+type ListItem = {
+  slug: string;
+  href: string | null;
+  category: string;
+  colorClass: string;
+  date: string;
+  readTime: string;
+  title: string;
+  excerpt: string;
+  author: string;
+};
+
+const upcomingArticles: ListItem[] = [
   {
-    slug: "ai-first-org",
-    category: "AI",
-    colorClass: "art-ai",
-    date: "2026.04.10",
-    readTime: "12分",
-    title: "AI-First 組織のつくり方: 120体のエージェントを統制する6原則",
-    excerpt:
-      "自社で運用する120体超のAIエージェント組織の設計思想を公開。C-Suite・部門Head・Workerの3階層構造、委任ルール、Calibrationルールまで解説。",
-    author: "N.I.",
-  },
-  {
-    slug: "#",
+    slug: "fpna-ai-monthly-close",
+    href: null,
     category: "AI",
     colorClass: "art-ai",
     date: "2026.03.18",
@@ -31,7 +42,8 @@ const articles = [
     author: "N.I.",
   },
   {
-    slug: "#",
+    slug: "ma-dd-ai",
+    href: null,
     category: "STRATEGY",
     colorClass: "art-strategy",
     date: "2026.03.05",
@@ -42,7 +54,8 @@ const articles = [
     author: "N.I.",
   },
   {
-    slug: "#",
+    slug: "prompt-engineering-guide",
+    href: null,
     category: "MARKETING",
     colorClass: "art-marketing",
     date: "2026.02.26",
@@ -53,7 +66,8 @@ const articles = [
     author: "N.I.",
   },
   {
-    slug: "#",
+    slug: "google-ads-ai-cpa",
+    href: null,
     category: "MARKETING",
     colorClass: "art-marketing",
     date: "2026.02.14",
@@ -64,17 +78,34 @@ const articles = [
     author: "N.I.",
   },
   {
-    slug: "#",
+    slug: "diversity-mix-ops",
+    href: null,
     category: "FINANCE",
     colorClass: "art-finance",
     date: "2026.02.12",
     readTime: "6分",
-    title: "多様性を成果に変える: 6つのバックグラウンドを&quot;ミックス&quot;する運営術",
+    title: "多様性を成果に変える: 6つのバックグラウンドを\"ミックス\"する運営術",
     excerpt:
       "広告代理店・戦略ファーム・ビッグテック・クリエイター — 異なる専門性をどうまとめるか。チーム設計の実践から学んだ知見。",
     author: "N.I.",
   },
 ];
+
+const publishedArticles: ListItem[] = [...posts]
+  .sort((a, b) => (a.date < b.date ? 1 : -1))
+  .map((p) => ({
+    slug: p.slug,
+    href: p.permalink,
+    category: p.category,
+    colorClass: categoryColorMap[p.category] ?? "art-ai",
+    date: p.date.replace(/-/g, "."),
+    readTime: p.readTime,
+    title: p.title,
+    excerpt: p.excerpt,
+    author: p.author,
+  }));
+
+const articles: ListItem[] = [...publishedArticles, ...upcomingArticles];
 
 export default function InsightsPage() {
   const featured = articles[0];
@@ -84,91 +115,91 @@ export default function InsightsPage() {
     <>
       <style>{`
         .filters {
-          background: var(--white);
+          background: var(--off-white);
           padding: 32px 32px 0;
           position: sticky; top: 70px; z-index: 50;
-          border-bottom: 1px solid #E5E7EB;
+          border-bottom: 1px solid rgba(10,10,10,0.08);
         }
         .filters-inner { max-width: 1280px; margin: 0 auto; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; padding-bottom: 24px; }
-        .filter-label { font-family: 'Inter', sans-serif; font-size: 11px; color: #9CA3AF; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; margin-right: 8px; }
-        .filter-btn { padding: 8px 16px; background: var(--white); border: 1px solid #D1D5DB; border-radius: 999px; font-size: 13px; color: #4B5563; transition: all 0.2s; text-decoration: none; }
-        .filter-btn:hover, .filter-btn.active { background: var(--navy); color: var(--white); border-color: var(--navy); }
+        .filter-label { font-family: var(--font-sans-en); font-size: 11px; color: var(--gray-400); letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; margin-right: 8px; }
+        .filter-btn { padding: 8px 16px; background: var(--off-white); border: 1px solid rgba(10,10,10,0.15); border-radius: 999px; font-size: 13px; color: var(--gray-600); transition: all 0.2s; text-decoration: none; }
+        .filter-btn:hover, .filter-btn.active { background: var(--charcoal); color: var(--off-white); border-color: var(--charcoal); }
 
-        .featured { background: var(--white); padding: 64px 32px; }
+        .featured { background: var(--off-white); padding: 64px 32px; }
         .featured-inner { max-width: 1280px; margin: 0 auto; }
         .featured-card {
           display: grid; grid-template-columns: 1fr 1fr; gap: 48px;
-          background: #F9FAFB; border-radius: 24px; overflow: hidden;
+          background: var(--off-white-alt); border-radius: 24px; overflow: hidden;
           transition: all 0.3s; text-decoration: none; color: inherit;
         }
-        .featured-card:hover { transform: translateY(-4px); box-shadow: 0 24px 48px rgba(11,22,52,0.08); }
+        .featured-card:hover { transform: translateY(-4px); box-shadow: 0 24px 48px rgba(10,10,10,0.08); }
         .featured-visual {
           aspect-ratio: 4/3;
-          background: linear-gradient(135deg, #064A5C 0%, var(--navy) 100%);
+          background: linear-gradient(135deg, var(--charcoal-soft) 0%, var(--charcoal) 100%);
           position: relative; display: flex; align-items: center; justify-content: center;
           color: rgba(255,255,255,0.4); font-size: 64px;
         }
         .featured-tag {
           position: absolute; top: 20px; left: 20px;
-          background: rgba(255,255,255,0.9); color: var(--navy);
+          background: var(--off-white); color: var(--charcoal);
           padding: 6px 14px; border-radius: 4px;
-          font-size: 11px; font-weight: 700; letter-spacing: 0.1em; font-family: 'Inter', sans-serif;
+          font-size: 11px; font-weight: 700; letter-spacing: 0.1em; font-family: var(--font-sans-en);
         }
         .featured-body { padding: 48px; display: flex; flex-direction: column; justify-content: center; }
-        .featured-meta { display: flex; gap: 16px; font-size: 12px; color: #9CA3AF; font-family: 'Inter', sans-serif; margin-bottom: 16px; letter-spacing: 0.05em; }
-        .featured-body h2 { font-family: 'Noto Serif JP', serif; font-size: 32px; line-height: 1.4; font-weight: 700; margin-bottom: 20px; color: var(--navy); }
-        .featured-body p { color: #4B5563; font-size: 14px; line-height: 1.9; margin-bottom: 32px; }
+        .featured-meta { display: flex; gap: 16px; font-size: 12px; color: var(--gray-400); font-family: var(--font-sans-en); margin-bottom: 16px; letter-spacing: 0.05em; }
+        .featured-body h2 { font-family: 'Noto Sans JP', sans-serif; font-size: 30px; line-height: 1.4; font-weight: 900; margin-bottom: 20px; color: var(--charcoal); word-break: keep-all; }
+        .featured-body p { color: var(--gray-600); font-size: 14px; line-height: 1.9; margin-bottom: 32px; }
         .featured-author { display: flex; align-items: center; gap: 12px; }
-        .featured-author-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--navy), var(--burgundy)); }
-        .featured-author-name { font-size: 13px; font-weight: 600; color: var(--navy); }
-        .featured-author-role { font-size: 11px; color: #9CA3AF; }
+        .featured-author-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--charcoal), var(--charcoal-soft)); }
+        .featured-author-name { font-size: 13px; font-weight: 600; color: var(--charcoal); }
+        .featured-author-role { font-size: 11px; color: var(--gray-400); }
 
-        .articles { background: #F9FAFB; padding: 64px 32px 120px; }
+        .articles { background: var(--off-white-alt); padding: 64px 32px 120px; }
         .articles-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 1280px; margin: 0 auto; }
         .article-card {
-          background: var(--white); border: 1px solid #E5E7EB; border-radius: 16px;
+          background: var(--off-white); border: 1px solid rgba(10,10,10,0.08); border-radius: 16px;
           overflow: hidden; text-decoration: none; color: inherit;
           transition: all 0.3s; display: flex; flex-direction: column;
         }
-        .article-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(11,22,52,0.08); border-color: var(--navy); }
+        .article-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(10,10,10,0.08); border-color: var(--charcoal); }
         .article-visual {
           aspect-ratio: 16/9; position: relative;
           display: flex; align-items: center; justify-content: center;
           color: rgba(255,255,255,0.3); font-size: 44px;
         }
-        .art-ai { background: linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%); border-bottom: 2px solid var(--cyan); }
-        .art-strategy { background: linear-gradient(135deg, #1A1A1A 0%, #0A0A0A 100%); border-bottom: 2px solid var(--cyan); }
-        .art-marketing { background: linear-gradient(135deg, #0A0A0A 0%, #141414 100%); border-bottom: 2px solid var(--cyan); }
-        .art-finance { background: linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%); border-bottom: 2px solid var(--cyan); }
+        .art-ai { background: linear-gradient(135deg, var(--charcoal) 0%, var(--charcoal-soft) 100%); border-bottom: 2px solid var(--cyan); }
+        .art-strategy { background: linear-gradient(135deg, var(--charcoal-soft) 0%, var(--charcoal) 100%); border-bottom: 2px solid var(--cyan); }
+        .art-marketing { background: linear-gradient(135deg, var(--charcoal) 0%, #141414 100%); border-bottom: 2px solid var(--cyan); }
+        .art-finance { background: linear-gradient(135deg, var(--charcoal) 0%, var(--charcoal-soft) 100%); border-bottom: 2px solid var(--cyan); }
         .article-tag-pos {
           position: absolute; top: 16px; left: 16px;
-          background: rgba(255,255,255,0.95); color: var(--navy);
+          background: var(--off-white); color: var(--charcoal);
           padding: 4px 10px; border-radius: 4px;
-          font-size: 10px; font-weight: 700; letter-spacing: 0.1em; font-family: 'Inter', sans-serif;
+          font-size: 10px; font-weight: 700; letter-spacing: 0.1em; font-family: var(--font-sans-en);
         }
         .article-body { padding: 24px; flex: 1; display: flex; flex-direction: column; }
-        .article-meta { display: flex; gap: 12px; font-size: 11px; color: #9CA3AF; font-family: 'Inter', sans-serif; margin-bottom: 10px; }
-        .article-body h3 { font-family: 'Noto Serif JP', serif; font-size: 17px; font-weight: 700; line-height: 1.5; margin-bottom: 12px; color: var(--charcoal); flex: 1; }
-        .article-excerpt { font-size: 13px; color: #4B5563; line-height: 1.7; margin-bottom: 16px; }
-        .article-author-line { font-size: 11px; color: #9CA3AF; font-family: 'Inter', sans-serif; letter-spacing: 0.05em; padding-top: 12px; border-top: 1px solid #E5E7EB; }
+        .article-meta { display: flex; gap: 12px; font-size: 11px; color: var(--gray-400); font-family: var(--font-sans-en); margin-bottom: 10px; }
+        .article-body h3 { font-family: 'Noto Sans JP', sans-serif; font-size: 16px; font-weight: 700; line-height: 1.5; margin-bottom: 12px; color: var(--charcoal); flex: 1; }
+        .article-excerpt { font-size: 12px; color: var(--gray-600); line-height: 1.7; margin-bottom: 16px; }
+        .article-author-line { font-size: 11px; color: var(--gray-400); font-family: var(--font-sans-en); letter-spacing: 0.05em; padding-top: 12px; border-top: 1px solid rgba(10,10,10,0.08); }
 
         .newsletter {
-          background: var(--navy); color: var(--white);
+          background: var(--charcoal); color: var(--off-white);
           padding: 120px 32px; position: relative; overflow: hidden;
         }
         .newsletter::before {
           content: ''; position: absolute; inset: 0;
-          background-image: radial-gradient(circle at 30% 50%, rgba(0,180,216,0.15) 0%, transparent 50%);
+          background-image: radial-gradient(circle at 30% 50%, rgba(0,217,255,0.15) 0%, transparent 50%);
         }
         .newsletter-inner { max-width: 720px; margin: 0 auto; text-align: center; position: relative; z-index: 2; }
-        .newsletter h2 { font-family: 'Noto Serif JP', serif; font-size: clamp(28px, 4vw, 42px); margin-bottom: 20px; color: var(--white); line-height: 1.3; }
-        .newsletter p { color: rgba(255,255,255,0.8); font-size: 15px; margin-bottom: 40px; line-height: 1.9; }
-        .newsletter-form { display: flex; gap: 12px; max-width: 480px; margin: 0 auto; flex-wrap: wrap; }
-        .newsletter-form input { flex: 1; min-width: 200px; padding: 14px 20px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: var(--white); border-radius: 999px; font-size: 14px; font-family: inherit; }
-        .newsletter-form input::placeholder { color: rgba(255,255,255,0.4); }
-        .newsletter-form button { padding: 14px 28px; background: var(--cyan); color: var(--navy); border: none; border-radius: 999px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
-        .newsletter-form button:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,180,216,0.4); }
-        .newsletter-disclaimer { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 16px; }
+        .newsletter h2 { font-family: 'Noto Sans JP', sans-serif; font-size: clamp(28px, 4vw, 42px); margin-bottom: 20px; color: var(--off-white); line-height: 1.3; word-break: keep-all; }
+        .newsletter p { color: rgba(245,241,232,0.8); font-size: 15px; margin-bottom: 40px; line-height: 1.9; }
+        .newsletter-form { display: flex; gap: 12px; max-width: 480px; margin: 0 auto; flex-wrap: wrap; justify-content: center; }
+        .newsletter-form input { flex: 1; min-width: 200px; padding: 14px 20px; border: 1px solid rgba(245,241,232,0.2); background: rgba(245,241,232,0.05); color: var(--off-white); border-radius: 999px; font-size: 14px; font-family: inherit; }
+        .newsletter-form input::placeholder { color: rgba(245,241,232,0.4); }
+        .newsletter-form button { padding: 14px 28px; background: var(--cyan); color: var(--charcoal); border: none; border-radius: 999px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+        .newsletter-form button:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,217,255,0.4); }
+        .newsletter-disclaimer { font-size: 11px; color: rgba(245,241,232,0.4); margin-top: 16px; }
 
         @media (max-width: 900px) {
           .featured-card { grid-template-columns: 1fr; }
@@ -177,7 +208,6 @@ export default function InsightsPage() {
         }
       `}</style>
 
-      {/* HERO */}
       <section className="page-hero">
         <div className="page-hero-inner">
           <div className="breadcrumb">
@@ -195,8 +225,8 @@ export default function InsightsPage() {
         </div>
       </section>
 
-      {/* FILTER BAR */}
-      <div className="filters">
+      {/* Category filter - implementation Coming Soon */}
+      <div className="filters" style={{ display: "none" }}>
         <div className="filters-inner">
           <span className="filter-label">Filter</span>
           <span className="filter-btn active">All</span>
@@ -208,49 +238,32 @@ export default function InsightsPage() {
         </div>
       </div>
 
-      {/* FEATURED */}
       <section className="featured">
         <div className="featured-inner">
-          <Link href={`/insights/${featured.slug}`} className="featured-card">
-            <div className="featured-visual">
-              <span className="featured-tag">{featured.category}</span>
-              
+          {featured.href ? (
+            <Link href={featured.href} className="featured-card">
+              <FeaturedInner item={featured} />
+            </Link>
+          ) : (
+            <div className="featured-card" style={{ cursor: "default", opacity: 0.78 }}>
+              <FeaturedInner item={featured} />
             </div>
-            <div className="featured-body">
-              <div className="featured-meta">
-                <span>{featured.date}</span>
-                <span>·</span>
-                <span>{featured.readTime}で読める</span>
-              </div>
-              <h2>{featured.title}</h2>
-              <p>{featured.excerpt}</p>
-              <div className="featured-author">
-                <div className="featured-author-avatar" />
-                <div>
-                  <div className="featured-author-name">{featured.author}</div>
-                  <div className="featured-author-role">CEO / FOUNDER</div>
-                </div>
-              </div>
-            </div>
-          </Link>
+          )}
         </div>
       </section>
 
-      {/* ARTICLES GRID */}
       <section className="articles">
         <div className="articles-grid">
           {rest.map((article) => {
-            const isAvailable = article.slug !== "#";
             const inner = (
               <>
                 <div className={`article-visual ${article.colorClass}`}>
                   <span className="article-tag-pos">{article.category}</span>
-                  {!isAvailable && (
-                    <span style={{ position: "absolute", top: 16, right: 16, padding: "4px 10px", background: "rgba(255,255,255,0.92)", color: "#0B1634", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", borderRadius: 999, textTransform: "uppercase" }}>
+                  {!article.href && (
+                    <span style={{ position: "absolute", top: 16, right: 16, padding: "4px 10px", background: "var(--off-white)", color: "var(--charcoal)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", borderRadius: 999, textTransform: "uppercase" }}>
                       近日公開
                     </span>
                   )}
-                  {""}
                 </div>
                 <div className="article-body">
                   <div className="article-meta">
@@ -264,15 +277,15 @@ export default function InsightsPage() {
                 </div>
               </>
             );
-            if (isAvailable) {
+            if (article.href) {
               return (
-                <Link key={article.title} href={`/insights/${article.slug}`} className="article-card">
+                <Link key={article.slug} href={article.href} className="article-card">
                   {inner}
                 </Link>
               );
             }
             return (
-              <div key={article.title} className="article-card" style={{ cursor: "default", opacity: 0.78 }}>
+              <div key={article.slug} className="article-card" style={{ cursor: "default", opacity: 0.78 }}>
                 {inner}
               </div>
             );
@@ -280,23 +293,61 @@ export default function InsightsPage() {
         </div>
       </section>
 
-      {/* NEWSLETTER */}
       <section className="newsletter">
         <div className="newsletter-inner">
-          <h2>最新の知見を、メールでお届けします。</h2>
+          <h2>メールニュースレター、準備中です。</h2>
           <p>
-            月2回程度、実践的なノウハウをまとめてお届け。
-            広告・スパムは一切なし。いつでも解除できます。
+            月2回程度、戦略・AI・マーケティングの実践ノウハウをお届けする予定。
+            広告・スパムは一切なし、いつでも解除できます。
           </p>
           <div className="newsletter-form">
-            <input type="email" placeholder="your@email.com" />
-            <button type="button">購読する</button>
+            <span style={{
+              padding: "14px 28px",
+              background: "rgba(245,241,232,0.08)",
+              border: "1px solid rgba(245,241,232,0.18)",
+              color: "rgba(245,241,232,0.85)",
+              borderRadius: 999,
+              fontWeight: 600,
+              fontSize: 14,
+              letterSpacing: "0.08em",
+            }}>Coming Soon</span>
           </div>
           <p className="newsletter-disclaimer">
-            登録することで、プライバシーポリシーに同意したものとみなされます。
+            配信開始時期のお知らせご希望の方は、Contact フォームからご連絡ください。
           </p>
         </div>
       </section>
+    </>
+  );
+}
+
+function FeaturedInner({ item }: { item: ListItem }) {
+  return (
+    <>
+      <div className="featured-visual">
+        <span className="featured-tag">{item.category}</span>
+        {!item.href && (
+          <span style={{ position: "absolute", top: 20, right: 20, padding: "4px 10px", background: "var(--off-white)", color: "var(--charcoal)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", borderRadius: 999, textTransform: "uppercase" }}>
+            近日公開
+          </span>
+        )}
+      </div>
+      <div className="featured-body">
+        <div className="featured-meta">
+          <span>{item.date}</span>
+          <span>·</span>
+          <span>{item.readTime}で読める</span>
+        </div>
+        <h2>{item.title}</h2>
+        <p>{item.excerpt}</p>
+        <div className="featured-author">
+          <div className="featured-author-avatar" />
+          <div>
+            <div className="featured-author-name">{item.author}</div>
+            <div className="featured-author-role">CEO / FOUNDER</div>
+          </div>
+        </div>
+      </div>
     </>
   );
 }

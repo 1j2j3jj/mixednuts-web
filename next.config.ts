@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  /* velite build runs via prebuild / predev scripts in package.json */
 };
 
 export default nextConfig;

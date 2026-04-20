@@ -1,5 +1,49 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { positions, CASUAL_INTERVIEW_SLUG } from "@/data/careers";
+import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+
+const faqItems = [
+  {
+    q: "副業・大手企業在籍のままの業務委託は可能ですか?",
+    a: "はい、多くのメンバーが副業形態で参画しています。週2日〜設計可能です。所属企業の副業規定を遵守いただく形で、機密性・利害関係にも配慮して進めます。",
+  },
+  {
+    q: "リモートは可能ですか?",
+    a: "業務委託は完全リモート、正社員は \"週1オフィス (南青山) + リモート\" が基本です。地方在住メンバーもいます。",
+  },
+  {
+    q: "未経験でも応募可能ですか?",
+    a: "ポジションによります。AI Implementation Engineer は AI 実装未経験でも、エンジニアリング経験があれば応募可。Senior Strategy Consultant のようなシニアポジションは相応の経験が必要です。迷ったら気軽にお問い合わせください。",
+  },
+  {
+    q: "どんな人が活躍していますか?",
+    a: "共通しているのは (1) 自律的に動ける、(2) AI を使うことへの抵抗がない、(3) 複数領域に興味がある、(4) Calibration (数字と事実を大切にする)、の4点です。専門性は多様で、広告代理店、事業会社CxO、戦略ファーム、ビッグテック、クリエイター など様々です。",
+  },
+  {
+    q: "記載されているポジション以外も応募できますか?",
+    a: "もちろんです。スキルセットやご関心がフィットしそうな方は、ぜひお問い合わせください。新しいポジションをご一緒に設計することも可能です。",
+  },
+  {
+    q: "英語は必須ですか?",
+    a: "一部のポジション (海外案件担当等) では有利ですが、必須ではありません。現在のクライアントは国内中心です。",
+  },
+];
+
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqItems.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: { "@type": "Answer", text: item.a },
+  })),
+};
+
+const breadcrumb = buildBreadcrumbSchema([
+  { name: "Home", path: "/" },
+  { name: "Careers", path: "/careers" },
+]);
 
 export const metadata: Metadata = {
   title: "Careers — AI と共に働くプロフェッショナル募集 | mixednuts inc.",
@@ -10,6 +54,8 @@ export const metadata: Metadata = {
 export default function CareersPage() {
   return (
     <>
+      <JsonLd data={faqSchema} />
+      <JsonLd data={breadcrumb} />
       <style>{`
         .page-hero-careers { background: var(--off-white); }
 
@@ -73,13 +119,22 @@ export default function CareersPage() {
         .hiring-step .days { font-size: 11px; color: var(--cyan); letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; font-family: 'Inter', sans-serif; margin-bottom: 6px; }
         .hiring-step p { font-size: 12px; color: #4B5563; line-height: 1.7; }
 
-        /* FAQ */
+        /* FAQ (details/summary accordion) */
         .careers-faq { background: var(--white); padding: 120px 32px; }
         .careers-faq-list { max-width: 900px; margin: 0 auto; }
         .faq-item { background: #F9FAFB; border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
-        .faq-q { padding: 24px 28px; font-family: 'Noto Serif JP', serif; font-size: 16px; font-weight: 700; color: var(--navy); display: flex; justify-content: space-between; align-items: center; }
-        .faq-q::after { content: '+'; font-size: 24px; color: var(--cyan); }
-        .faq-a { padding: 0 28px 24px; color: #4B5563; font-size: 14px; line-height: 1.9; }
+        .faq-item summary {
+          padding: 24px 28px; font-family: 'Noto Serif JP', serif; font-size: 16px; font-weight: 700;
+          color: var(--navy); display: flex; justify-content: space-between; align-items: center;
+          cursor: pointer; list-style: none; gap: 16px;
+        }
+        .faq-item summary::-webkit-details-marker { display: none; }
+        .faq-item summary::after {
+          content: '+'; font-size: 28px; color: var(--cyan); line-height: 1; flex-shrink: 0;
+          transition: transform 0.2s ease;
+        }
+        .faq-item[open] summary::after { transform: rotate(45deg); }
+        .faq-item .faq-a { padding: 0 28px 24px; color: #4B5563; font-size: 14px; line-height: 1.9; }
 
         @media (max-width: 900px) {
           .why-grid, .styles-grid { grid-template-columns: 1fr; }
@@ -218,63 +273,8 @@ export default function CareersPage() {
             記載以外のポジションでも、スキルセットにフィットする方は随時相談可能です。
           </p>
           <div className="position-list">
-            {[
-              {
-                title: "AI Implementation Engineer",
-                tags: ["AI", "Python/TypeScript", "MCP"],
-                type: "正社員 / 業務委託",
-                comp: "年収: 800–1500万",
-              },
-              {
-                title: "Senior Strategy Consultant",
-                tags: ["Strategy", "M&A / FP&A"],
-                type: "正社員",
-                comp: "年収: 1000–1800万",
-              },
-              {
-                title: "Growth Marketing Lead",
-                tags: ["Marketing", "Google/Meta Ads", "CVR改善"],
-                type: "正社員 / 業務委託",
-                comp: "年収: 800–1400万",
-              },
-              {
-                title: "SEO / AIO Strategist",
-                tags: ["SEO", "AIO / LLMO", "構造化データ"],
-                type: "業務委託",
-                comp: "月額: 40–80万",
-              },
-              {
-                title: "Prompt Engineer / AI Solution Designer",
-                tags: ["AI", "Prompt Engineering", "評価設計"],
-                type: "正社員 / 業務委託",
-                comp: "年収: 700–1300万",
-              },
-              {
-                title: "Content Strategist / SEO ライター",
-                tags: ["Content", "SEO", "編集"],
-                type: "業務委託",
-                comp: "月額: 30–60万",
-              },
-              {
-                title: "UI/UX Designer (Senior)",
-                tags: ["Design", "Figma", "プロトタイピング"],
-                type: "業務委託",
-                comp: "月額: 50–100万",
-              },
-              {
-                title: "Project Manager (Senior)",
-                tags: ["Operations", "PMO"],
-                type: "正社員",
-                comp: "年収: 700–1200万",
-              },
-              {
-                title: "Finance / FP&A Specialist",
-                tags: ["Finance", "FP&A", "管理会計"],
-                type: "業務委託",
-                comp: "月額: 40–80万",
-              },
-            ].map((pos) => (
-              <Link key={pos.title} href="/contact" className="position-item">
+            {positions.map((pos) => (
+              <Link key={pos.slug} href={`/careers/apply?position=${pos.slug}`} className="position-item">
                 <div className="position-main">
                   <h3>{pos.title}</h3>
                   <div className="position-tags">
@@ -293,7 +293,7 @@ export default function CareersPage() {
       </section>
 
       {/* HIRING PROCESS */}
-      <section className="hiring-process">
+      <section className="hiring-process" id="process">
         <div className="hiring-process-inner">
           <span className="section-label">Hiring Process</span>
           <h2 className="section-title" style={{ marginBottom: 16 }}>
@@ -328,36 +328,11 @@ export default function CareersPage() {
           <h2 className="section-title" style={{ marginBottom: 48 }}>
             採用に関するよくある質問
           </h2>
-          {[
-            {
-              q: "副業・大手企業在籍のままの業務委託は可能ですか?",
-              a: "はい、多くのメンバーが副業形態で参画しています。週2日〜設計可能です。所属企業の副業規定を遵守いただく形で、機密性・利害関係にも配慮して進めます。",
-            },
-            {
-              q: "リモートは可能ですか?",
-              a: "業務委託は完全リモート、正社員は \"週1オフィス (南青山) + リモート\" が基本です。地方在住メンバーもいます。",
-            },
-            {
-              q: "未経験でも応募可能ですか?",
-              a: "ポジションによります。AI Implementation Engineer は AI 実装未経験でも、エンジニアリング経験があれば応募可。Senior Strategy Consultant のようなシニアポジションは相応の経験が必要です。迷ったら気軽にお問い合わせください。",
-            },
-            {
-              q: "どんな人が活躍していますか?",
-              a: "共通しているのは (1) 自律的に動ける、(2) AI を使うことへの抵抗がない、(3) 複数領域に興味がある、(4) Calibration (数字と事実を大切にする)、の4点です。専門性は多様で、広告代理店、事業会社CxO、戦略ファーム、ビッグテック、クリエイター など様々です。",
-            },
-            {
-              q: "記載されているポジション以外も応募できますか?",
-              a: "もちろんです。スキルセットやご関心がフィットしそうな方は、ぜひお問い合わせください。新しいポジションをご一緒に設計することも可能です。",
-            },
-            {
-              q: "英語は必須ですか?",
-              a: "一部のポジション (海外案件担当等) では有利ですが、必須ではありません。現在のクライアントは国内中心です。",
-            },
-          ].map((item) => (
-            <div key={item.q} className="faq-item">
-              <div className="faq-q">{item.q}</div>
+          {faqItems.map((item) => (
+            <details key={item.q} className="faq-item">
+              <summary>{item.q}</summary>
               <div className="faq-a">{item.a}</div>
-            </div>
+            </details>
           ))}
         </div>
       </section>
@@ -367,7 +342,7 @@ export default function CareersPage() {
         <div className="cta-inner">
           <h2>まずは、話しましょう。</h2>
           <p>カジュアル面談 (30分) から始められます。応募前の質問も歓迎します。</p>
-          <Link href="/contact" className="btn-primary">
+          <Link href={`/careers/apply?position=${CASUAL_INTERVIEW_SLUG}`} className="btn-primary">
             カジュアル面談を申し込む →
           </Link>
         </div>
