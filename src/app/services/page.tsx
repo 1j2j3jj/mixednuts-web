@@ -8,9 +8,9 @@ export const metadata: Metadata = {
 };
 
 const visualConfigs = {
-  strategy: { bg: "linear-gradient(135deg, #0B1634 0%, #13224E 100%)", icon: "01", label: "STRATEGY" },
-  ai: { bg: "linear-gradient(135deg, #064A5C 0%, #0B1634 100%)", icon: "02", label: "AI" },
-  marketing: { bg: "linear-gradient(135deg, #8B2C3E 0%, #A67B47 100%)", icon: "03", label: "GROWTH" },
+  strategy: { bg: "linear-gradient(135deg, var(--charcoal) 0%, var(--charcoal-soft) 100%)", label: "STRATEGY" },
+  ai: { bg: "linear-gradient(135deg, var(--charcoal-soft) 0%, var(--charcoal) 100%)", label: "AI" },
+  marketing: { bg: "linear-gradient(135deg, var(--charcoal) 0%, #141414 100%)", label: "GROWTH" },
 };
 
 export default function ServicesPage() {
@@ -22,14 +22,14 @@ export default function ServicesPage() {
         .service-visual { aspect-ratio: 4/3; border-radius: 20px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 48px; }
         .service-visual::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 32px 32px; mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%); -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%); }
         .service-visual-inner { position: relative; z-index: 2; text-align: center; }
-        .service-visual-icon { font-size: 72px; margin-bottom: 16px; }
-        .service-visual-label { color: rgba(255,255,255,0.9); font-family: var(--font-serif-en); font-size: 24px; font-weight: 700; }
-        .service-visual-sub { color: rgba(255,255,255,0.6); font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; margin-top: 8px; }
+        .service-visual-icon { font-family: var(--font-display); font-size: 120px; font-weight: 900; color: var(--cyan); line-height: 1; margin-bottom: 24px; letter-spacing: -0.03em; }
+        .service-visual-label { color: var(--off-white); font-family: var(--font-display); font-size: 26px; font-weight: 900; letter-spacing: 0.05em; }
+        .service-visual-sub { color: rgba(245,241,232,0.85); font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; margin-top: 12px; font-weight: 600; }
         .service-text .tag { display: inline-block; color: var(--cyan); font-size: 12px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 16px; }
-        .service-text h2 { font-family: var(--font-serif-jp); font-size: 32px; font-weight: 700; color: var(--navy); margin-bottom: 20px; line-height: 1.4; }
-        .service-text p { color: #4B5563; font-size: 15px; line-height: 1.9; margin-bottom: 20px; }
+        .service-text h2 { font-family: 'Noto Sans JP', sans-serif; font-size: 28px; font-weight: 900; color: var(--charcoal); margin-bottom: 20px; line-height: 1.4; word-break: keep-all; }
+        .service-text p { color: var(--charcoal); font-size: 15px; line-height: 1.9; margin-bottom: 20px; }
         .service-capabilities { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 24px 0; padding: 0; }
-        .service-capabilities li { padding: 10px 14px; background: #F9FAFB; border: 1px solid var(--border, #E5E7EB); border-radius: 4px; font-size: 13px; color: #1A1A1A; }
+        .service-capabilities li { padding: 10px 14px; background: var(--off-white-alt); border: 1px solid rgba(10,10,10,0.08); border-radius: 4px; font-size: 13px; color: var(--charcoal); font-weight: 500; }
         .integration-section { background: var(--navy); color: #fff; padding: 120px 32px; position: relative; overflow: hidden; }
         .integration-section::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(circle at 30% 50%, rgba(0,180,216,0.1) 0%, transparent 50%); }
         .integration-inner { max-width: 1280px; margin: 0 auto; position: relative; z-index: 2; }
@@ -61,17 +61,18 @@ export default function ServicesPage() {
           {services.map((service, i) => {
             const vc = visualConfigs[service.slug];
             const isEven = i % 2 === 1;
+            const num = String(i + 1).padStart(2, "0");
             return (
               <div key={service.slug} className="service-detail">
                 <div className="service-visual" style={{background: vc.bg, order: isEven ? 1 : 0}}>
                   <div className="service-visual-inner">
-                    <div className="service-visual-icon">{vc.icon}</div>
+                    <div className="service-visual-icon">{num}</div>
                     <div className="service-visual-label">{vc.label}</div>
                     <div className="service-visual-sub">{service.tagline}</div>
                   </div>
                 </div>
                 <div className="service-text" style={{order: isEven ? 2 : 0}}>
-                  <span className="tag">0{i + 1} / {service.label}</span>
+                  <span className="tag">{num} / {service.label}</span>
                   <h2>{service.tagline}</h2>
                   <p>{service.description}</p>
                   <ul className="service-capabilities">

@@ -74,7 +74,10 @@ a { color: inherit; }
   font-size: 22px; font-weight: 900;
   letter-spacing: -0.02em;
   text-decoration: none;
+  display: inline-flex; align-items: center; gap: 10px;
 }
+.logo-mark { flex-shrink: 0; display: block; }
+.logo-text { line-height: 1; }
 .logo .accent {
   color: var(--cyan);
 }
@@ -416,7 +419,9 @@ a { color: inherit; }
   font-weight: 900;
   letter-spacing: -0.02em;
   margin-bottom: 16px;
+  display: inline-flex; align-items: center; gap: 10px;
 }
+.footer-mark { flex-shrink: 0; display: block; color: var(--cyan); }
 .footer-brand h4 .accent { color: var(--cyan); }
 .footer-brand p {
   font-family: var(--font-sans-jp);

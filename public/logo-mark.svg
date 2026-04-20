@@ -1,0 +1,19 @@
+<!-- mixednuts logo mark (peanut character with red accent). Approximated from logo PNG. -->
+<!-- currentColor 対応: 色は CSS の color で制御可能。mix-blend-difference と相性良。 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 260" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Red accent (peanut top / i-dot) -->
+  <path d="M 50 5 Q 65 10 60 30 Q 50 45 40 30 Q 35 15 50 5 Z" fill="currentColor" stroke="none" opacity="0.95"/>
+
+  <!-- Peanut body (two overlapping ellipses forming peanut shape) -->
+  <ellipse cx="50" cy="95" rx="30" ry="40" />
+  <ellipse cx="50" cy="175" rx="36" ry="45" />
+
+  <!-- Horizontal grid lines on peanut -->
+  <line x1="20" y1="95" x2="80" y2="95" />
+  <line x1="18" y1="130" x2="82" y2="130" />
+  <line x1="14" y1="175" x2="86" y2="175" />
+  <line x1="16" y1="210" x2="84" y2="210" />
+
+  <!-- Vertical grid line down the middle -->
+  <line x1="50" y1="55" x2="50" y2="220" />
+</svg>

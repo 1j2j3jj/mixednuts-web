@@ -92,8 +92,8 @@ export default async function WorkDetailPage({ params }: Props) {
         .metric-card { background: linear-gradient(135deg, var(--navy) 0%, #13224E 100%); color: #fff; border-radius: 20px; padding: 48px 32px; position: relative; overflow: hidden; }
         .metric-card::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(circle at 80% 80%, rgba(0,180,216,0.2) 0%, transparent 60%); }
         .metric-card-inner { position: relative; z-index: 2; }
-        .metric-label { font-size: 11px; color: var(--cyan); letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; margin-bottom: 16px; }
-        .metric-value { font-family: var(--font-serif-en); font-size: 72px; font-weight: 900; line-height: 1; margin-bottom: 16px; letter-spacing: -0.03em; }
+        .metric-label { font-size: 11px; color: var(--cyan); letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; margin-bottom: 16px; word-break: keep-all; }
+        .metric-value { font-family: 'Noto Sans JP', sans-serif; font-size: clamp(28px, 3.2vw, 44px); font-weight: 900; line-height: 1.1; margin-bottom: 16px; letter-spacing: -0.02em; word-break: keep-all; overflow-wrap: normal; }
         .metric-desc { font-size: 13px; color: rgba(255,255,255,0.7); line-height: 1.7; }
         .quote-box { background: #F9FAFB; border: 1px solid var(--border, #E5E7EB); padding: 32px; border-radius: 4px; margin: 40px 0; font-family: var(--font-serif-jp); font-size: 17px; line-height: 1.9; color: var(--navy); font-style: italic; }
         .phase-list { display: grid; gap: 20px; margin-top: 32px; }
