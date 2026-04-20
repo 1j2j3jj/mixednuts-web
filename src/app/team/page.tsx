@@ -68,6 +68,15 @@ export default function TeamPage() {
           .members-grid { grid-template-columns: 1fr; }
           .dept-grid { grid-template-columns: 1fr 1fr; }
         }
+        @media (max-width: 640px) {
+          .dept-grid { grid-template-columns: 1fr; gap: 16px; }
+          .leader-hero { padding: 28px 20px; }
+          .leader-name { font-size: 28px !important; }
+          .departments { padding: 80px 20px; }
+          .philosophy { padding: 80px 20px; }
+          .leaders { padding: 80px 20px; }
+          .members-section { padding: 80px 20px; }
+        }
       `}</style>
 
       <section className="page-hero">
