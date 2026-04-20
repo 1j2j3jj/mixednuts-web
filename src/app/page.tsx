@@ -596,35 +596,35 @@ export default function HomePage() {
             <Link href="/works" className="btn-ghost-mega">All Works →</Link>
           </div>
           <div className="home-cases-grid">
-            <Link href="/works/livestream-fpna-ai" className="case-item big">
-              <div className="case-visual case-bg-ai">
+            <Link href="/works/fitness-new-business" className="case-item big">
+              <div className="case-visual case-bg-strategy">
                 <div className="case-overlay">
                   <div className="case-top">
-                    <span className="case-tag">AI × Strategy</span>
-                    <span className="case-meta">Entertainment · Ongoing</span>
+                    <span className="case-tag">Strategy × Marketing</span>
+                    <span className="case-meta">Fitness · 18 months</span>
                   </div>
                   <div>
-                    <h3>ライブ配信事業の FP&amp;A × AI 自動化。</h3>
+                    <h3>大手フィットネス、新事業を 18ヶ月でローンチ。</h3>
                     <div className="case-nums">
-                      <div className="case-num"><div className="case-num-label">取締役会付議</div><div className="case-num-value highlight">毎月実行</div></div>
-                      <div className="case-num"><div className="case-num-label">KPI 更新粒度</div><div className="case-num-value highlight">D+1</div></div>
+                      <div className="case-num"><div className="case-num-label">年間マーケ予算</div><div className="case-num-value highlight">50億円</div></div>
+                      <div className="case-num"><div className="case-num-label">業態</div><div className="case-num-value highlight">新業態ゼロイチ</div></div>
                     </div>
                   </div>
                 </div>
               </div>
             </Link>
-            <Link href="/works/ip-investment-dd" className="case-item med">
+            <Link href="/works/retail-overseas-strategy" className="case-item med">
               <div className="case-visual case-bg-strategy">
                 <div className="case-overlay">
                   <div className="case-top">
-                    <span className="case-tag">Strategy</span>
-                    <span className="case-meta">IP Investment · 取締役会承認</span>
+                    <span className="case-tag">Strategy × Marketing</span>
+                    <span className="case-meta">Retail · Overseas</span>
                   </div>
                   <div>
-                    <h3>アニメ IP 投資、取締役会承認。</h3>
+                    <h3>エンタメ小売、アジア進出市場を定量選定。</h3>
                     <div className="case-nums">
-                      <div className="case-num"><div className="case-num-label">承認案件</div><div className="case-num-value highlight">3件</div></div>
-                      <div className="case-num"><div className="case-num-label">投資規模</div><div className="case-num-value highlight">10億円/件</div></div>
+                      <div className="case-num"><div className="case-num-label">分析軸</div><div className="case-num-value highlight">4軸スコア</div></div>
+                      <div className="case-num"><div className="case-num-label">成果物</div><div className="case-num-value highlight">進出スキーム</div></div>
                     </div>
                   </div>
                 </div>
