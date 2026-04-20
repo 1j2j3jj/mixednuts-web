@@ -101,17 +101,17 @@ export default function ServiceMarketingPage() {
           <p className="section-lead">クリエイティブ制作、データ分析、レポーティング——AIで自動化できる工程を徹底的に効率化し、人間はより高度な判断に集中します。</p>
           <div className="ai-features">
             <div className="ai-feature">
-              <div className="icon">🎨</div>
+              <div className="icon">02</div>
               <h3>AI クリエイティブ生成</h3>
               <p>画像・動画・テキストのクリエイティブ生成をAIで自動化。週20本以上の広告クリエイティブを低コストで量産し、勝ちパターンを素早く特定。</p>
             </div>
             <div className="ai-feature">
-              <div className="icon">📊</div>
+              <div className="icon">01</div>
               <h3>自動分析・レポーティング</h3>
               <p>Google Ads、Meta Ads、GA4のデータを自動収集・分析し、週次レポートを自動生成。分析にかかる時間を90%削減。</p>
             </div>
             <div className="ai-feature">
-              <div className="icon">🔍</div>
+              <div className="icon">03</div>
               <h3>検索意図・SEO 分析</h3>
               <p>膨大なキーワードの検索意図分類、競合コンテンツ分析、構造化データ最適化をAIで自動化。人間は戦略判断に集中。</p>
             </div>

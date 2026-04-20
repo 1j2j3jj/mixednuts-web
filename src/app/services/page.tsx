@@ -8,9 +8,9 @@ export const metadata: Metadata = {
 };
 
 const visualConfigs = {
-  strategy: { bg: "linear-gradient(135deg, #0B1634 0%, #13224E 100%)", icon: "♟", label: "STRATEGY" },
-  ai: { bg: "linear-gradient(135deg, #064A5C 0%, #0B1634 100%)", icon: "◈", label: "AI" },
-  marketing: { bg: "linear-gradient(135deg, #8B2C3E 0%, #A67B47 100%)", icon: "▶", label: "GROWTH" },
+  strategy: { bg: "linear-gradient(135deg, #0B1634 0%, #13224E 100%)", icon: "01", label: "STRATEGY" },
+  ai: { bg: "linear-gradient(135deg, #064A5C 0%, #0B1634 100%)", icon: "02", label: "AI" },
+  marketing: { bg: "linear-gradient(135deg, #8B2C3E 0%, #A67B47 100%)", icon: "03", label: "GROWTH" },
 };
 
 export default function ServicesPage() {
@@ -29,7 +29,7 @@ export default function ServicesPage() {
         .service-text h2 { font-family: var(--font-serif-jp); font-size: 32px; font-weight: 700; color: var(--navy); margin-bottom: 20px; line-height: 1.4; }
         .service-text p { color: #4B5563; font-size: 15px; line-height: 1.9; margin-bottom: 20px; }
         .service-capabilities { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 24px 0; padding: 0; }
-        .service-capabilities li { padding: 10px 14px; background: #F9FAFB; border-left: 3px solid var(--cyan); border-radius: 4px; font-size: 13px; color: #1A1A1A; }
+        .service-capabilities li { padding: 10px 14px; background: #F9FAFB; border: 1px solid var(--border, #E5E7EB); border-radius: 4px; font-size: 13px; color: #1A1A1A; }
         .integration-section { background: var(--navy); color: #fff; padding: 120px 32px; position: relative; overflow: hidden; }
         .integration-section::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(circle at 30% 50%, rgba(0,180,216,0.1) 0%, transparent 50%); }
         .integration-inner { max-width: 1280px; margin: 0 auto; position: relative; z-index: 2; }

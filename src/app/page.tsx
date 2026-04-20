@@ -453,9 +453,33 @@ export default function HomePage() {
         @media (max-width: 768px) {
           .stats-grid { grid-template-columns: 1fr; }
           .home-hero, .capabilities, .manifesto, .stats-section, .home-cases, .cta-big {
-            padding-left: 24px; padding-right: 24px;
+            padding-left: 20px; padding-right: 20px;
           }
-          .hero-badge-top { right: 24px; top: 90px; }
+          .home-hero { padding-top: 120px; padding-bottom: 60px; min-height: auto; }
+          .hero-mega { font-size: clamp(44px, 13vw, 80px); line-height: 0.9; }
+          .hero-badge-top { right: 20px; top: 80px; font-size: 9px; letter-spacing: 0.18em; }
+          .hero-sub { margin-top: 32px; flex-direction: column; align-items: flex-start; gap: 24px; }
+          .hero-tagline { font-size: 16px; }
+          .hero-lead { font-size: 13px; }
+          .hero-ctas { width: 100%; }
+          .btn-mega, .btn-ghost-mega { padding: 14px 22px; font-size: 12px; }
+          .marquee { padding: 18px 0; }
+          .marquee-item { font-size: 24px; gap: 16px; }
+          .marquee-item .dot { width: 6px; height: 6px; }
+          .capabilities, .manifesto, .stats-section, .home-cases { padding-top: 80px; padding-bottom: 80px; }
+          .cap-header { margin-bottom: 60px; gap: 24px; }
+          .cap-title, .cases-head h2, .stats-head h2 { font-size: clamp(36px, 12vw, 64px) !important; }
+          .cap-card h3 { font-size: 32px; }
+          .cap-card { padding: 32px 0; }
+          .stat-num { font-size: clamp(56px, 20vw, 96px) !important; }
+          .stat { padding: 32px 20px; }
+          .manifesto { padding: 100px 20px; }
+          .manifesto-text { font-size: clamp(24px, 6vw, 40px) !important; line-height: 1.4; }
+          .case-item h3 { font-size: 22px; }
+          .case-item.sm h3 { font-size: 18px; }
+          .case-num-value { font-size: 24px !important; }
+          .cta-big { padding: 100px 20px; }
+          .cta-big h2 { font-size: clamp(44px, 14vw, 80px) !important; }
         }
       `}</style>
 

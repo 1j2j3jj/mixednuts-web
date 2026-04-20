@@ -29,7 +29,7 @@ export default function PrivacyPage() {
         .legal-body p { font-size: 15px; line-height: 1.95; color: #1A1A1A; margin-bottom: 16px; }
         .legal-body ul, .legal-body ol.numbered { margin: 12px 0 24px 24px; }
         .legal-body ul li, .legal-body ol.numbered li { font-size: 15px; line-height: 1.95; color: #1A1A1A; margin-bottom: 8px; }
-        .info-box { background: #F9FAFB; border-left: 4px solid var(--cyan); padding: 20px 24px; border-radius: 4px; margin: 24px 0; font-size: 14px; line-height: 1.9; }
+        .info-box { background: #F9FAFB; border: 1px solid var(--border, #E5E7EB); padding: 20px 24px; border-radius: 4px; margin: 24px 0; font-size: 14px; line-height: 1.9; }
         .info-box strong { color: var(--navy); }
         .legal-body table { width: 100%; border-collapse: collapse; margin: 24px 0; border: 1px solid #E5E7EB; border-radius: 8px; overflow: hidden; }
         .legal-body table th, .legal-body table td { padding: 14px 16px; border: 1px solid #E5E7EB; font-size: 14px; text-align: left; line-height: 1.7; }

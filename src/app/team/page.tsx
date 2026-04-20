@@ -27,7 +27,7 @@ export default function TeamPage() {
         .philosophy-text h2 { font-family: var(--font-serif-jp); font-size: 36px; line-height: 1.35; font-weight: 700; margin-bottom: 24px; color: var(--navy); }
         .philosophy-text p { color: #4B5563; font-size: 15px; line-height: 1.9; margin-bottom: 16px; }
         .backgrounds-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .bg-card { padding: 24px; background: #F9FAFB; border-radius: 12px; border-left: 3px solid var(--cyan); }
+        .bg-card { padding: 24px; background: #F9FAFB; border-radius: 12px; border: 1px solid var(--border, #E5E7EB); }
         .bg-card-label { font-size: 11px; color: var(--cyan); letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; margin-bottom: 6px; }
         .bg-card-value { font-family: var(--font-serif-jp); font-size: 14px; font-weight: 700; color: var(--navy); line-height: 1.5; }
         .leaders { background: #F9FAFB; padding: 120px 32px; }
@@ -170,25 +170,25 @@ export default function TeamPage() {
           <p className="section-lead" style={{color: 'rgba(255,255,255,0.75)'}}>各部門が独立した専門性を持ちながら、プロジェクトに応じてクロスファンクショナルに動く設計です。</p>
           <div className="dept-grid">
             <div className="dept-card">
-              <div className="dept-icon">♟</div>
+              <div className="dept-icon">01</div>
               <div className="dept-name">Strategy</div>
               <div className="dept-desc">中期戦略、M&A、FP&A、新規事業。経営判断の中枢に入り込み、意思決定を支援する。</div>
               <div className="dept-count">3 MEMBERS</div>
             </div>
             <div className="dept-card">
-              <div className="dept-icon">◈</div>
+              <div className="dept-icon">02</div>
               <div className="dept-name">AI Implementation</div>
               <div className="dept-desc">エージェント設計、LLM実装、RAG構築。自社で120体超を運用してきた実装ノウハウが強み。</div>
               <div className="dept-count">3 MEMBERS</div>
             </div>
             <div className="dept-card">
-              <div className="dept-icon">▶</div>
+              <div className="dept-icon">03</div>
               <div className="dept-name">Marketing & Growth</div>
               <div className="dept-desc">広告運用、SEO/AIO、CVR改善、コンテンツ。代理店出身と事業会社出身が組んで実行する。</div>
               <div className="dept-count">3 MEMBERS</div>
             </div>
             <div className="dept-card">
-              <div className="dept-icon">◉</div>
+              <div className="dept-icon">04</div>
               <div className="dept-name">AI Agents</div>
               <div className="dept-desc">120体超のAIエージェントが24時間稼働。人間チームをサポートし、組織全体の処理能力を拡張する。</div>
               <div className="dept-count">120+ AGENTS</div>

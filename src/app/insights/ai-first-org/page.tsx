@@ -67,7 +67,7 @@ export default function InsightsAiFirstOrgPage() {
         .article-body strong { color: var(--navy); font-weight: 700; }
         .article-body blockquote {
           margin: 32px 0; padding: 24px 32px;
-          background: #F9FAFB; border-left: 4px solid var(--cyan); border-radius: 4px;
+          background: #F9FAFB; border: 1px solid var(--border, #E5E7EB); border-radius: 4px;
           font-family: 'Noto Serif JP', serif; font-size: 17px; line-height: 1.9;
           color: var(--navy); font-style: italic;
         }
@@ -378,14 +378,14 @@ export default function InsightsAiFirstOrgPage() {
                 tag: "AI",
                 date: "2026.03.18",
                 title: "FP&A × AI 自動化: 月次締め工数を70%削減した実装パターン",
-                emoji: "🤖",
+                emoji: "",
               },
               {
                 bg: "linear-gradient(135deg, rgba(0,180,216,0.3), rgba(6,74,92,0.88)), url('/images/generated/ai_hero.jpg') center/cover no-repeat",
                 tag: "AI",
                 date: "2026.02.26",
                 title: "プロンプトエンジニアリングの実務ガイド: 再現性のある出力の作り方",
-                emoji: "🤖",
+                emoji: "",
               },
               {
                 bg: "linear-gradient(135deg, rgba(11,22,52,0.9), rgba(139,44,62,0.7)), url('/images/generated/team_diverse.jpg') center/cover no-repeat",

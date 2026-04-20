@@ -70,7 +70,7 @@ export default async function WorkDetailPage({ params }: Props) {
         .metric-label { font-size: 11px; color: var(--cyan); letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; margin-bottom: 16px; }
         .metric-value { font-family: var(--font-serif-en); font-size: 72px; font-weight: 900; line-height: 1; margin-bottom: 16px; letter-spacing: -0.03em; }
         .metric-desc { font-size: 13px; color: rgba(255,255,255,0.7); line-height: 1.7; }
-        .quote-box { background: #F9FAFB; border-left: 4px solid var(--cyan); padding: 32px; border-radius: 4px; margin: 40px 0; font-family: var(--font-serif-jp); font-size: 17px; line-height: 1.9; color: var(--navy); font-style: italic; }
+        .quote-box { background: #F9FAFB; border: 1px solid var(--border, #E5E7EB); padding: 32px; border-radius: 4px; margin: 40px 0; font-family: var(--font-serif-jp); font-size: 17px; line-height: 1.9; color: var(--navy); font-style: italic; }
         .related-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 48px; }
         .related-card { background: #fff; border: 1px solid #E5E7EB; border-radius: 16px; overflow: hidden; text-decoration: none; color: inherit; transition: all 0.3s; }
         .related-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(11,22,52,0.08); border-color: var(--navy); }

@@ -214,7 +214,7 @@ export default function InsightsPage() {
           <Link href={`/insights/${featured.slug}`} className="featured-card">
             <div className="featured-visual">
               <span className="featured-tag">{featured.category}</span>
-              🤖
+              
             </div>
             <div className="featured-body">
               <div className="featured-meta">
@@ -250,7 +250,7 @@ export default function InsightsPage() {
                       近日公開
                     </span>
                   )}
-                  {article.colorClass === "art-ai" ? "🤖" : article.colorClass === "art-strategy" ? "📊" : article.colorClass === "art-marketing" ? "📈" : "💹"}
+                  {""}
                 </div>
                 <div className="article-body">
                   <div className="article-meta">
