@@ -529,6 +529,18 @@ a { color: inherit; }
 }
 @media (max-width: 640px) {
   .footer-inner { grid-template-columns: 1fr; }
-  .page-hero h1 { font-size: clamp(40px, 13vw, 80px); }
-  .section-title, .cta h2 { font-size: clamp(32px, 10vw, 60px); }
+  .page-hero { padding: 110px 20px 60px; }
+  .page-hero h1 {
+    font-size: clamp(28px, 8.5vw, 44px);
+    line-height: 1.25;
+    margin-bottom: 20px;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+  .page-hero h1 .accent { letter-spacing: 0; }
+  .page-hero .lead { font-size: 14px; line-height: 1.8; }
+  .section-title, .cta h2 { font-size: clamp(28px, 8vw, 48px); line-height: 1.2; }
+  .section-lead { font-size: 14px; line-height: 1.8; }
+  .breadcrumb { font-size: 10px; margin-bottom: 20px; }
+  .page-hero-badge { font-size: 10px; letter-spacing: 0.18em; margin-bottom: 20px; }
 }
