@@ -31,6 +31,12 @@
   --cyan-soft: rgba(0, 217, 255, 0.12);
   --gray-400: #9CA3AF;
   --gray-600: #4B5563;
+  /* ===== Legacy v2 aliases → remapped to v3-pure ===== */
+  --navy: #0A0A0A;        /* old navy → charcoal */
+  --navy-light: #1A1A1A;  /* old navy-light → charcoal-soft */
+  --burgundy: #0A0A0A;    /* old burgundy → charcoal */
+  --gold: #00D9FF;        /* old gold → cyan */
+  --white: #ffffff;
 }
 
 * { box-sizing: border-box; }

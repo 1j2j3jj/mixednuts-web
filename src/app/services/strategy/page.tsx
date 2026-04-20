@@ -13,7 +13,7 @@ export default function ServiceStrategyPage() {
   return (
     <>
       <style>{`
-        .page-hero-strategy { background: linear-gradient(135deg, rgba(11,22,52,0.88) 0%, rgba(139,44,62,0.7) 100%), url('/images/generated/strategy_hero.png') center/cover no-repeat; }
+        .page-hero-strategy { background: var(--off-white); }
         .proof-bar { background: var(--navy); color: #fff; padding: 48px 32px; }
         .proof-bar-inner { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; }
         .proof-stat { text-align: center; }

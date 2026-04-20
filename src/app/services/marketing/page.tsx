@@ -13,7 +13,7 @@ export default function ServiceMarketingPage() {
   return (
     <>
       <style>{`
-        .page-hero-marketing { background: linear-gradient(135deg, rgba(139,44,62,0.7) 0%, rgba(166,123,71,0.6) 100%), url('/images/generated/marketing_hero.png') center/cover no-repeat; }
+        .page-hero-marketing { background: var(--off-white); }
         .proof-bar { background: var(--navy); color: #fff; padding: 48px 32px; }
         .proof-bar-inner { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; }
         .proof-stat { text-align: center; }

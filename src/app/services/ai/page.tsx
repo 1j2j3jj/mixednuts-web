@@ -13,9 +13,7 @@ export default function ServiceAIPage() {
   return (
     <>
       <style>{`
-        .page-hero-ai {
-          background: linear-gradient(135deg, rgba(6,74,92,0.85) 0%, rgba(11,22,52,0.92) 60%, rgba(19,34,78,0.9) 100%), url('/images/generated/ai_hero.png') center/cover no-repeat;
-        }
+        .page-hero-ai { background: var(--off-white); }
         .proof-bar { background: var(--navy); color: #fff; padding: 48px 32px; }
         .proof-bar-inner { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; }
         .proof-stat { text-align: center; }

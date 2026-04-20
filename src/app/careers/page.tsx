@@ -11,11 +11,7 @@ export default function CareersPage() {
   return (
     <>
       <style>{`
-        .page-hero-careers {
-          background:
-            linear-gradient(135deg, rgba(11,22,52,0.82) 0%, rgba(139,44,62,0.7) 100%),
-            url('/images/generated/team_diverse.png') center/cover no-repeat;
-        }
+        .page-hero-careers { background: var(--off-white); }
 
         /* Why us */
         .why-us { background: var(--white); padding: 120px 32px; }
