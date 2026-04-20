@@ -55,18 +55,18 @@ body {
 a { color: inherit; }
 
 /* ===== NAV (v3 mix-blend-difference) ===== */
+/* IMPORTANT: mix-blend-mode must be on .nav itself (not children).
+   position:fixed + z-index:100 creates a stacking context that isolates
+   children's blending from page backdrop — applying the blend to .nav
+   makes the whole nav blend against page content behind it. */
 .nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
   padding: 22px 40px;
   display: flex; justify-content: space-between; align-items: center;
+  mix-blend-mode: difference;
   background: transparent;
   border: none;
 }
-/* Logo mark + text + menu links + CTA all adapt to bg via mix-blend-difference.
-   Brand gimmick: colors invert based on underlying section. */
-.nav .logo,
-.nav .nav-links,
-.nav .nav-cta { mix-blend-mode: difference; }
 .nav-inner {
   max-width: 1600px; margin: 0 auto; width: 100%;
   display: flex; justify-content: space-between; align-items: center;
