@@ -29,7 +29,7 @@ export default function HomePage() {
         }
         .hero-badge-top::before {
           content: ''; width: 6px; height: 6px; border-radius: 50%;
-          background: var(--cyan-bright);
+          background: var(--cyan);
           animation: home-pulse 2s infinite;
           box-shadow: 0 0 10px rgba(0,217,255,0.8);
         }
@@ -57,7 +57,7 @@ export default function HomePage() {
           font-family: var(--font-playfair), serif;
           font-style: italic; font-weight: 900;
           text-transform: lowercase;
-          color: var(--cyan-bright);
+          color: var(--cyan);
         }
         .hero-sub {
           margin-top: 48px;
@@ -83,13 +83,13 @@ export default function HomePage() {
           transition: all 0.3s; text-transform: uppercase;
           text-decoration: none;
         }
-        .btn-mega:hover { background: var(--cyan-bright); color: var(--charcoal); transform: translateY(-2px); }
+        .btn-mega:hover { background: var(--cyan); color: var(--charcoal); transform: translateY(-2px); }
         .btn-mega .arrow {
           width: 28px; height: 28px; background: #fff; color: var(--charcoal);
           border-radius: 50%; display: flex; align-items: center; justify-content: center;
           font-size: 14px; transition: transform 0.3s;
         }
-        .btn-mega:hover .arrow { transform: rotate(-45deg); background: var(--charcoal); color: var(--cyan-bright); }
+        .btn-mega:hover .arrow { transform: rotate(-45deg); background: var(--charcoal); color: var(--cyan); }
         .btn-ghost-mega {
           color: var(--charcoal);
           padding: 18px 32px; border-radius: 999px;
@@ -121,11 +121,11 @@ export default function HomePage() {
         }
         .marquee-item .dot {
           width: 10px; height: 10px;
-          background: var(--cyan-bright); border-radius: 50%;
+          background: var(--cyan); border-radius: 50%;
           display: inline-block;
         }
         .marquee-item .accent {
-          color: var(--cyan-bright); font-style: italic;
+          color: var(--cyan); font-style: italic;
           font-family: var(--font-playfair), serif;
         }
         @keyframes marquee {
@@ -143,7 +143,7 @@ export default function HomePage() {
         .cap-label {
           font-family: var(--font-inter);
           font-size: 12px; font-weight: 700;
-          letter-spacing: 0.25em; color: var(--cyan-bright);
+          letter-spacing: 0.25em; color: var(--cyan);
           text-transform: uppercase; margin-bottom: 24px;
           display: inline-flex; align-items: center; gap: 10px;
         }
@@ -230,7 +230,7 @@ export default function HomePage() {
         .manifesto-label {
           font-family: var(--font-inter);
           font-size: 12px; letter-spacing: 0.25em;
-          color: var(--cyan-bright); text-transform: uppercase;
+          color: var(--cyan); text-transform: uppercase;
           margin-bottom: 48px; font-weight: 700;
         }
         .manifesto-text {
@@ -240,7 +240,7 @@ export default function HomePage() {
           letter-spacing: -0.01em;
         }
         .manifesto-text .em {
-          color: var(--cyan-bright);
+          color: var(--cyan);
           font-family: var(--font-playfair), serif;
           font-style: italic; font-weight: 700;
         }
@@ -403,7 +403,7 @@ export default function HomePage() {
           font-size: 32px; font-weight: 900; line-height: 1;
         }
         .case-item.sm .case-num-value { font-size: 24px; }
-        .case-num-value.highlight { color: var(--cyan-bright); }
+        .case-num-value.highlight { color: var(--cyan); }
 
         /* CTA BIG */
         .cta-big {
@@ -426,7 +426,7 @@ export default function HomePage() {
         }
         .cta-big h2 .italic {
           font-family: var(--font-playfair), serif;
-          font-style: italic; color: var(--cyan-bright);
+          font-style: italic; color: var(--cyan);
           text-transform: lowercase;
         }
         .cta-big p {
@@ -438,7 +438,7 @@ export default function HomePage() {
           position: relative; z-index: 2;
           background: #fff; color: var(--charcoal);
         }
-        .cta-big .btn-mega:hover { background: var(--cyan-bright); }
+        .cta-big .btn-mega:hover { background: var(--cyan); }
 
         @media (max-width: 1024px) {
           .cap-header { grid-template-columns: 1fr; gap: 40px; }
