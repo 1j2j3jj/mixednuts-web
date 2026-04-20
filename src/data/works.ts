@@ -24,7 +24,7 @@ export const works: Work[] = [
     ],
     summary: "AIエージェントとFP&Aプロセス再設計を組み合わせ、経営管理業務の基盤を刷新。取締役会付議資料の作成リードタイムを月次締めから当日レベルまで短縮。",
     featured: true,
-    image: "/images/generated/strategy_hero.png",
+    image: "/images/generated/strategy_hero.jpg",
   },
   {
     slug: "ads-campaign-restructure",
@@ -38,7 +38,7 @@ export const works: Work[] = [
       { label: "CV件数", value: "+2.1x" },
     ],
     summary: "Google Ads / Meta Ads のキャンペーン構造を全面再設計。検索語句分析と入札戦略の最適化で、年間広告費の投資効率を大幅に改善。",
-    image: "/images/generated/marketing_hero.png",
+    image: "/images/generated/marketing_hero.jpg",
   },
   {
     slug: "ai-agent-rag",
@@ -52,7 +52,7 @@ export const works: Work[] = [
       { label: "CSAT", value: "+12pt" },
     ],
     summary: "社内の膨大なナレッジベースを対象にRAGシステムを構築。ベクトル検索 + LLM の組み合わせで、営業・運用チームの問い合わせ対応を大幅に効率化。",
-    image: "/images/generated/ai_hero.png",
+    image: "/images/generated/ai_hero.jpg",
   },
   {
     slug: "ma-dd-valuation",
@@ -66,7 +66,7 @@ export const works: Work[] = [
       { label: "Deal Close", value: "成約" },
     ],
     summary: "対象企業のDCF・マルチプル・フットボールチャート作成、財務/事業/法務DD、リスクマトリクスまで一気通貫で支援。投資意思決定の根拠を強化。",
-    image: "/images/generated/strategy_hero.png",
+    image: "/images/generated/strategy_hero.jpg",
   },
   {
     slug: "saas-growth-playbook",
@@ -80,7 +80,7 @@ export const works: Work[] = [
       { label: "Net Revenue Retention", value: "118%" },
     ],
     summary: "ICP再定義、アウトバウンド／インバウンド設計、コンテンツマーケ、プライシング改定、カスタマーサクセス設計を統合プレイブック化。",
-    image: "/images/generated/marketing_hero.png",
+    image: "/images/generated/marketing_hero.jpg",
   },
   {
     slug: "ai-first-org-design",
@@ -94,7 +94,7 @@ export const works: Work[] = [
       { label: "年間工数削減", value: "-12,000h" },
     ],
     summary: "全社的なAI活用戦略の策定から、エージェント設計、ガバナンス、評価指標の定義まで。経営層のAIリテラシー醸成も並行実施。",
-    image: "/images/generated/ai_hero.png",
+    image: "/images/generated/ai_hero.jpg",
   },
   {
     slug: "seo-aio-strategy",
@@ -108,7 +108,7 @@ export const works: Work[] = [
       { label: "コンテンツ制作効率", value: "+3.0x" },
     ],
     summary: "Google AI Overviews対応の構造化データ実装、E-E-A-T強化、LLMO対策を包括的に実行。検索経由トラフィックの回復に寄与。",
-    image: "/images/generated/marketing_hero.png",
+    image: "/images/generated/marketing_hero.jpg",
   },
   {
     slug: "board-pack-automation",
@@ -122,7 +122,7 @@ export const works: Work[] = [
       { label: "データソース", value: "12統合" },
     ],
     summary: "取締役会付議資料・経営ダッシュボードの作成を自動化。財務・運用・KPIデータを統合し、コメンタリー自動生成まで実現。",
-    image: "/images/generated/ai_hero.png",
+    image: "/images/generated/ai_hero.jpg",
   },
   {
     slug: "d2c-growth-360",
@@ -136,7 +136,7 @@ export const works: Work[] = [
       { label: "広告費効率", value: "ROAS 380%" },
     ],
     summary: "プロダクト戦略、広告運用、CRM、コンテンツまで統合的に支援。サブスク型ギフトビジネスの成長を加速。",
-    image: "/images/generated/marketing_hero.png",
+    image: "/images/generated/marketing_hero.jpg",
   },
   {
     slug: "ai-voicebot",
@@ -150,7 +150,7 @@ export const works: Work[] = [
       { label: "NPS", value: "+18pt" },
     ],
     summary: "電話の一次対応をAIボイスボットで完全自動化。バックエンドのナレッジRAGと連携し、エスカレーション判定も自動化。",
-    image: "/images/generated/ai_hero.png",
+    image: "/images/generated/ai_hero.jpg",
   },
   {
     slug: "new-biz-pmf",
@@ -164,7 +164,7 @@ export const works: Work[] = [
       { label: "PMF達成", value: "Yes" },
     ],
     summary: "仮説検証設計、MVPスコープ定義、Gate Review準備、ピボット判断支援。PMF達成後の本格投入判断まで伴走。",
-    image: "/images/generated/strategy_hero.png",
+    image: "/images/generated/strategy_hero.jpg",
   },
   {
     slug: "tiktok-campaign",
@@ -178,6 +178,6 @@ export const works: Work[] = [
       { label: "CTR", value: "+180%" },
     ],
     summary: "TikTok広告のクリエイティブ生成をAIで効率化。人間ディレクターが仕上げる2段階プロセスで、量と質を両立。",
-    image: "/images/generated/marketing_hero.png",
+    image: "/images/generated/marketing_hero.jpg",
   },
 ];

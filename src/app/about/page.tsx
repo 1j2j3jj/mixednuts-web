@@ -22,7 +22,7 @@ export default function AboutPage() {
         .value-card h3 { font-family: var(--font-serif-jp); font-size: 20px; font-weight: 700; margin-bottom: 12px; color: var(--navy); }
         .value-card p { color: #4B5563; font-size: 14px; line-height: 1.8; }
         .team-intro {
-          background: linear-gradient(135deg, rgba(11,22,52,0.88) 0%, rgba(19,34,78,0.92) 100%), url('/images/generated/team_hero.png') center/cover no-repeat;
+          background: linear-gradient(135deg, rgba(11,22,52,0.88) 0%, rgba(19,34,78,0.92) 100%), url('/images/generated/team_diverse.jpg') center/cover no-repeat;
           color: #fff; border-radius: 24px; padding: 64px 48px; margin-bottom: 48px; position: relative; overflow: hidden;
         }
         .team-intro::before {
@@ -43,7 +43,7 @@ export default function AboutPage() {
         .info-row dt { font-size: 11px; color: #9CA3AF; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; padding-top: 2px; }
         .info-row dd { font-size: 14px; color: #1A1A1A; line-height: 1.8; }
         .ceo-grid { display: grid; grid-template-columns: 1fr 1.4fr; gap: 48px; align-items: center; background: #F9FAFB; border-radius: 20px; padding: 48px; }
-        .ceo-img { aspect-ratio: 3/4; background: url('/images/generated/ceo_portrait.png') center/cover no-repeat; border-radius: 16px; min-height: 300px; }
+        .ceo-img { aspect-ratio: 3/4; background: url('/images/generated/ceo_portrait.jpg') center/cover no-repeat; border-radius: 16px; min-height: 300px; }
         @media (max-width: 900px) {
           .story-grid { grid-template-columns: 1fr; gap: 32px; }
           .values-grid, .info-grid { grid-template-columns: 1fr; }
@@ -73,7 +73,7 @@ export default function AboutPage() {
               <p>私たちは、異なる領域のプロフェッショナルを "ミックス" することで、単一の視座では生まれ得ない事業価値を創り出します。戦略は現場に届かなければ絵に描いた餅。AIは業務に溶け込まなければただのツール。マーケは戦略なしには一過性。</p>
               <p>3つを断絶させず、有機的に繋ぐ仕組みを、クライアントの事業に実装する。それが私たちのミッションです。</p>
             </div>
-            <div className="story-visual" style={{background: `url('/images/generated/strategy_hero.png') center/cover no-repeat`}} />
+            <div className="story-visual" style={{background: `url('/images/generated/strategy_hero.jpg') center/cover no-repeat`}} />
           </div>
           <div className="story-grid">
             <div className="story-text">
@@ -82,7 +82,7 @@ export default function AboutPage() {
               <p>たまたま成功した、ではなく、意図して成功させる。勘と経験ではなく、データとAIで。個人の能力依存ではなく、組織の仕組みで。</p>
               <p>私たちは、事業成長を科学する会社です。AI-firstのコンサルティングファームとして、日本企業の "勝ち筋" を再現可能にする。この営みを通じて、国内事業の競争力そのものを底上げしていきます。</p>
             </div>
-            <div className="story-visual" style={{background: `url('/images/generated/ai_hero.png') center/cover no-repeat`}} />
+            <div className="story-visual" style={{background: `url('/images/generated/ai_hero.jpg') center/cover no-repeat`}} />
           </div>
         </div>
       </section>

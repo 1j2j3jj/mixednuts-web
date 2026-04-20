@@ -47,7 +47,7 @@ export default function HomePage() {
         }
         .hero-mega .line { display: block; }
         .hero-mega .masked {
-          background-image: url("/images/generated/hero_mask.png");
+          background-image: url("/images/generated/hero_mask.jpg");
           background-size: cover; background-position: center;
           -webkit-background-clip: text; background-clip: text;
           -webkit-text-fill-color: transparent;
@@ -215,7 +215,7 @@ export default function HomePage() {
           padding: 200px 40px;
           background:
             linear-gradient(180deg, rgba(10,10,10,0.85) 0%, rgba(10,10,10,0.95) 100%),
-            url("/images/generated/manifesto_bg.png");
+            url("/images/generated/manifesto_bg.jpg");
           background-size: cover; background-position: center;
           color: #fff; position: relative; overflow: hidden;
         }
@@ -343,17 +343,17 @@ export default function HomePage() {
         .case-bg-ai {
           background:
             linear-gradient(135deg, rgba(0,217,255,0.3) 0%, rgba(11,22,52,0.85) 80%),
-            url('/images/generated/ai_hero.png') center/cover no-repeat;
+            url('/images/generated/ai_hero.jpg') center/cover no-repeat;
         }
         .case-bg-strategy {
           background:
             linear-gradient(135deg, rgba(139,44,62,0.5) 0%, rgba(11,22,52,0.88) 80%),
-            url('/images/generated/strategy_hero.png') center/cover no-repeat;
+            url('/images/generated/strategy_hero.jpg') center/cover no-repeat;
         }
         .case-bg-marketing {
           background:
             linear-gradient(135deg, rgba(212,165,116,0.4) 0%, rgba(139,44,62,0.85) 80%),
-            url('/images/generated/marketing_hero.png') center/cover no-repeat;
+            url('/images/generated/marketing_hero.jpg') center/cover no-repeat;
         }
         .case-visual::after {
           content: ''; position: absolute; inset: 0;

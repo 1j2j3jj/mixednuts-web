@@ -33,7 +33,7 @@ export default function TeamPage() {
         .leaders { background: #F9FAFB; padding: 120px 32px; }
         .leaders-inner { max-width: 1280px; margin: 0 auto; }
         .leader-hero { display: grid; grid-template-columns: 1fr 1.4fr; gap: 64px; align-items: center; background: #fff; padding: 64px; border-radius: 24px; border: 1px solid #E5E7EB; }
-        .leader-avatar { width: 100%; aspect-ratio: 3/4; border-radius: 16px; background: url('/images/generated/ceo_portrait.png') center/cover no-repeat; min-height: 280px; }
+        .leader-avatar { width: 100%; aspect-ratio: 3/4; border-radius: 16px; background: url('/images/generated/ceo_portrait.jpg') center/cover no-repeat; min-height: 280px; }
         .leader-tag { display: inline-block; font-size: 11px; color: var(--cyan); letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; margin-bottom: 16px; }
         .leader-name { font-family: var(--font-serif-jp); font-size: 36px; font-weight: 700; color: var(--navy); margin-bottom: 4px; line-height: 1.2; }
         .leader-role { color: var(--cyan); font-size: 12px; letter-spacing: 0.15em; margin-bottom: 24px; font-weight: 700; text-transform: uppercase; margin-top: 8px; }

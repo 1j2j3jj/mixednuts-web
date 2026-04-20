@@ -15,7 +15,7 @@ export default function CeoPage() {
       <style>{`
         .ceo-wrap { display: grid; grid-template-columns: 1fr 2fr; gap: 80px; align-items: start; }
         .ceo-sidebar { position: sticky; top: 100px; }
-        .ceo-portrait { aspect-ratio: 3/4; background: url('/images/generated/ceo_portrait.png') center/cover no-repeat; border-radius: 20px; min-height: 320px; margin-bottom: 32px; }
+        .ceo-portrait { aspect-ratio: 3/4; background: url('/images/generated/ceo_portrait.jpg') center/cover no-repeat; border-radius: 20px; min-height: 320px; margin-bottom: 32px; }
         .ceo-sidebar-meta { display: flex; flex-direction: column; gap: 16px; }
         .ceo-meta-item { padding: 16px; background: #F9FAFB; border-radius: 12px; border-left: 3px solid var(--cyan); }
         .ceo-meta-label { font-size: 10px; color: #9CA3AF; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }

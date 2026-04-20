@@ -43,7 +43,7 @@ export default function InsightsAiFirstOrgPage() {
         .article-featured-image {
           max-width: 1280px; margin: 0 auto 64px; padding: 0 32px;
           aspect-ratio: 21/9; border-radius: 24px;
-          background: linear-gradient(135deg, rgba(6,74,92,0.7), rgba(11,22,52,0.9)), url('/images/generated/ai_hero.png') center/cover no-repeat;
+          background: linear-gradient(135deg, rgba(6,74,92,0.7), rgba(11,22,52,0.9)), url('/images/generated/ai_hero.jpg') center/cover no-repeat;
         }
 
         .article-body { padding: 0 32px 120px; }
@@ -374,21 +374,21 @@ export default function InsightsAiFirstOrgPage() {
           <div className="related-grid">
             {[
               {
-                bg: "linear-gradient(135deg, rgba(0,180,216,0.3), rgba(6,74,92,0.88)), url('/images/generated/ai_hero.png') center/cover no-repeat",
+                bg: "linear-gradient(135deg, rgba(0,180,216,0.3), rgba(6,74,92,0.88)), url('/images/generated/ai_hero.jpg') center/cover no-repeat",
                 tag: "AI",
                 date: "2026.03.18",
                 title: "FP&A × AI 自動化: 月次締め工数を70%削減した実装パターン",
                 emoji: "🤖",
               },
               {
-                bg: "linear-gradient(135deg, rgba(0,180,216,0.3), rgba(6,74,92,0.88)), url('/images/generated/ai_hero.png') center/cover no-repeat",
+                bg: "linear-gradient(135deg, rgba(0,180,216,0.3), rgba(6,74,92,0.88)), url('/images/generated/ai_hero.jpg') center/cover no-repeat",
                 tag: "AI",
                 date: "2026.02.26",
                 title: "プロンプトエンジニアリングの実務ガイド: 再現性のある出力の作り方",
                 emoji: "🤖",
               },
               {
-                bg: "linear-gradient(135deg, rgba(11,22,52,0.9), rgba(139,44,62,0.7)), url('/images/generated/team_diverse.png') center/cover no-repeat",
+                bg: "linear-gradient(135deg, rgba(11,22,52,0.9), rgba(139,44,62,0.7)), url('/images/generated/team_diverse.jpg') center/cover no-repeat",
                 tag: "ORGANIZATION",
                 date: "2026.02.12",
                 title: "多様性を成果に変える: 6つのバックグラウンドを\"ミックス\"する運営術",
