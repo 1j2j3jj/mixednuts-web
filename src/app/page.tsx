@@ -480,6 +480,14 @@ export default function HomePage() {
           .case-num-value { font-size: 24px !important; }
           .cta-big { padding: 100px 20px; }
           .cta-big h2 { font-size: clamp(44px, 14vw, 80px) !important; }
+
+          /* Mobile: center stats numbers */
+          .stat { text-align: center !important; padding: 36px 20px !important; }
+          .stat-label { max-width: none !important; margin: 0 auto; }
+
+          /* Mobile: stack case top tag + meta vertically to prevent overlap */
+          .case-top { flex-direction: column !important; gap: 8px; align-items: flex-start !important; }
+          .case-tag { white-space: nowrap; }
         }
       `}</style>
 
