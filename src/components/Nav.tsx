@@ -7,12 +7,13 @@ export default function Nav() {
         <Link href="/" className="logo" aria-label="mixednuts Inc. - Home">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/logo.png"
-            alt="mixednuts Inc."
-            className="logo-wordmark"
-            width="200"
-            height="38"
+            src="/logo-mark.png"
+            alt=""
+            className="logo-mark"
+            width="13"
+            height="36"
           />
+          <span className="logo-text">mixednuts Inc.</span>
         </Link>
         <ul className="nav-links">
           <li><Link href="/about">About</Link></li>

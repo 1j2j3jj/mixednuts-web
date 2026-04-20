@@ -62,8 +62,9 @@ a { color: inherit; }
   background: transparent;
   border: none;
 }
-/* Menu links + CTA adapt to bg via mix-blend-difference.
-   Logo is intentionally excluded to preserve real brand colors. */
+/* Logo mark + text + menu links + CTA all adapt to bg via mix-blend-difference.
+   Brand gimmick: colors invert based on underlying section. */
+.nav .logo,
 .nav .nav-links,
 .nav .nav-cta { mix-blend-mode: difference; }
 .nav-inner {
@@ -71,7 +72,15 @@ a { color: inherit; }
   display: flex; justify-content: space-between; align-items: center;
   padding: 0;
 }
-.logo { display: inline-flex; align-items: center; text-decoration: none; }
+.logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+.logo-mark { display: block; height: 36px; width: auto; }
+.logo-text {
+  color: #fff;
+  font-family: var(--font-display, 'Noto Sans JP', sans-serif);
+  font-size: 15px; font-weight: 900; letter-spacing: -0.01em;
+  line-height: 1;
+  white-space: nowrap;
+}
 .logo-wordmark { display: block; height: 32px; width: auto; }
 .nav-links { display: flex; gap: 28px; list-style: none; align-items: center; padding: 0; margin: 0; }
 .nav-links a {
