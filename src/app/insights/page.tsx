@@ -239,28 +239,44 @@ export default function InsightsPage() {
       {/* ARTICLES GRID */}
       <section className="articles">
         <div className="articles-grid">
-          {rest.map((article) => (
-            <Link
-              key={article.title}
-              href={article.slug === "#" ? "#" : `/insights/${article.slug}`}
-              className="article-card"
-            >
-              <div className={`article-visual ${article.colorClass}`}>
-                <span className="article-tag-pos">{article.category}</span>
-                {article.colorClass === "art-ai" ? "🤖" : article.colorClass === "art-strategy" ? "📊" : article.colorClass === "art-marketing" ? "📈" : "💹"}
-              </div>
-              <div className="article-body">
-                <div className="article-meta">
-                  <span>{article.date}</span>
-                  <span>·</span>
-                  <span>{article.readTime}</span>
+          {rest.map((article) => {
+            const isAvailable = article.slug !== "#";
+            const inner = (
+              <>
+                <div className={`article-visual ${article.colorClass}`}>
+                  <span className="article-tag-pos">{article.category}</span>
+                  {!isAvailable && (
+                    <span style={{ position: "absolute", top: 16, right: 16, padding: "4px 10px", background: "rgba(255,255,255,0.92)", color: "#0B1634", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", borderRadius: 999, textTransform: "uppercase" }}>
+                      近日公開
+                    </span>
+                  )}
+                  {article.colorClass === "art-ai" ? "🤖" : article.colorClass === "art-strategy" ? "📊" : article.colorClass === "art-marketing" ? "📈" : "💹"}
                 </div>
-                <h3>{article.title}</h3>
-                <p className="article-excerpt">{article.excerpt}</p>
-                <div className="article-author-line">By {article.author}</div>
+                <div className="article-body">
+                  <div className="article-meta">
+                    <span>{article.date}</span>
+                    <span>·</span>
+                    <span>{article.readTime}</span>
+                  </div>
+                  <h3>{article.title}</h3>
+                  <p className="article-excerpt">{article.excerpt}</p>
+                  <div className="article-author-line">By {article.author}</div>
+                </div>
+              </>
+            );
+            if (isAvailable) {
+              return (
+                <Link key={article.title} href={`/insights/${article.slug}`} className="article-card">
+                  {inner}
+                </Link>
+              );
+            }
+            return (
+              <div key={article.title} className="article-card" style={{ cursor: "default", opacity: 0.78 }}>
+                {inner}
               </div>
-            </Link>
-          ))}
+            );
+          })}
         </div>
       </section>
 
