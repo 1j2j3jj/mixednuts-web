@@ -21,9 +21,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 const serviceLabels: Record<string, string> = { ai: "AI", strategy: "Strategy", marketing: "Marketing" };
 const bgMap: Record<string, string> = {
-  ai: "linear-gradient(135deg, rgba(6,74,92,0.75) 0%, rgba(11,22,52,0.92) 100%)",
-  strategy: "linear-gradient(135deg, rgba(139,44,62,0.6) 0%, rgba(11,22,52,0.92) 100%)",
-  marketing: "linear-gradient(135deg, rgba(212,165,116,0.5) 0%, rgba(139,44,62,0.88) 100%)",
+  ai: "linear-gradient(135deg, rgba(245,241,232,0.75) 0%, rgba(245,241,232,0.92) 100%)",
+  strategy: "linear-gradient(135deg, rgba(245,241,232,0.75) 0%, rgba(245,241,232,0.92) 100%)",
+  marketing: "linear-gradient(135deg, rgba(245,241,232,0.75) 0%, rgba(245,241,232,0.92) 100%)",
 };
 
 export default async function WorkDetailPage({ params }: Props) {
@@ -39,22 +39,15 @@ export default async function WorkDetailPage({ params }: Props) {
     <>
       <style>{`
         .case-hero {
-          background: ${heroBg}, url('${work.image}') center/cover no-repeat;
-          color: #fff; padding: 180px 32px 120px;
+          background: var(--off-white);
+          color: var(--charcoal); padding: 140px 32px 80px;
           position: relative; overflow: hidden;
-        }
-        .case-hero::after {
-          content: ''; position: absolute; inset: 0;
-          background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-          background-size: 56px 56px;
-          mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
-          -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
         }
         .case-hero-inner { position: relative; z-index: 2; max-width: 1280px; margin: 0 auto; }
         .case-tags-row { display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; }
-        .case-tag-pill { padding: 6px 14px; background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); border-radius: 999px; font-size: 11px; letter-spacing: 0.1em; color: #fff; font-weight: 700; text-transform: uppercase; }
-        .case-hero h1 { font-family: var(--font-serif-jp); font-size: clamp(32px, 5vw, 56px); line-height: 1.25; font-weight: 700; margin-bottom: 24px; max-width: 920px; }
-        .case-hero .lead { color: rgba(255,255,255,0.85); font-size: 17px; line-height: 1.9; max-width: 720px; }
+        .case-tag-pill { padding: 6px 14px; background: rgba(10,10,10,0.08); border-radius: 999px; font-size: 11px; letter-spacing: 0.12em; color: var(--charcoal); font-weight: 700; text-transform: uppercase; }
+        .case-hero h1 { font-family: var(--font-sans-jp); font-size: clamp(36px, 5vw, 64px); line-height: 1.15; font-weight: 900; margin-bottom: 24px; max-width: 1100px; letter-spacing: -0.02em; color: var(--charcoal); }
+        .case-hero .lead { color: #4B5563; font-size: 17px; line-height: 1.85; max-width: 720px; }
         .facts { background: var(--navy); color: #fff; padding: 40px 32px; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .facts-inner { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; }
         .fact-label { font-size: 11px; color: var(--cyan); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 8px; font-weight: 700; }

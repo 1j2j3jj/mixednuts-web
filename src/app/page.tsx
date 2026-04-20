@@ -57,6 +57,7 @@ export default function HomePage() {
           font-family: var(--font-playfair), serif;
           font-style: italic; font-weight: 900;
           text-transform: lowercase;
+          color: var(--cyan-bright);
         }
         .hero-sub {
           margin-top: 48px;

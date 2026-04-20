@@ -8,10 +8,10 @@ export const metadata: Metadata = {
 };
 
 const divisionColors: Record<string, string> = {
-  leadership: "#0B1634",
-  strategy: "#8B2C3E",
-  ai: "#064A5C",
-  marketing: "#A67B47",
+  leadership: "#0A0A0A",
+  strategy: "#1A1A1A",
+  ai: "#0A0A0A",
+  marketing: "#1A1A1A",
 };
 
 export default function TeamPage() {
@@ -144,7 +144,7 @@ export default function TeamPage() {
               <div key={member.initial} className="member-card">
                 <div
                   className="member-avatar"
-                  style={{background: `linear-gradient(135deg, ${divisionColors[member.division] || '#0B1634'} 0%, #13224E 100%)`}}
+                  style={{background: `linear-gradient(135deg, ${divisionColors[member.division] || '#0A0A0A'} 0%, #1A1A1A 100%)`, borderBottom: '2px solid var(--cyan)'}}
                 >
                   <span className="initials">{member.initial}</span>
                 </div>

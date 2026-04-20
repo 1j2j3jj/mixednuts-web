@@ -56,7 +56,7 @@ export default function ContactPage() {
         <div className="page-hero-inner">
           <div className="breadcrumb"><Link href="/">Home</Link> / Contact</div>
           <div className="page-hero-badge">Let&apos;s Talk</div>
-          <h1><span className="accent">まずは、話しましょう。</span></h1>
+          <h1>まずは、<span className="accent">話しましょう</span>。</h1>
           <p className="lead">
             初回無料相談（60分）で、貴社の課題をヒアリングし、最適なアプローチをご提案します。24時間以内にご返信します。売り込みではなく、対話からはじめましょう。
           </p>

@@ -136,10 +136,10 @@ export default function InsightsPage() {
           display: flex; align-items: center; justify-content: center;
           color: rgba(255,255,255,0.3); font-size: 44px;
         }
-        .art-ai { background: linear-gradient(135deg, #064A5C 0%, var(--navy) 100%); }
-        .art-strategy { background: linear-gradient(135deg, var(--burgundy) 0%, var(--navy) 100%); }
-        .art-marketing { background: linear-gradient(135deg, var(--gold) 0%, #A67B47 100%); }
-        .art-finance { background: linear-gradient(135deg, var(--navy) 0%, #13224E 100%); }
+        .art-ai { background: linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%); border-bottom: 2px solid var(--cyan); }
+        .art-strategy { background: linear-gradient(135deg, #1A1A1A 0%, #0A0A0A 100%); border-bottom: 2px solid var(--cyan); }
+        .art-marketing { background: linear-gradient(135deg, #0A0A0A 0%, #141414 100%); border-bottom: 2px solid var(--cyan); }
+        .art-finance { background: linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%); border-bottom: 2px solid var(--cyan); }
         .article-tag-pos {
           position: absolute; top: 16px; left: 16px;
           background: rgba(255,255,255,0.95); color: var(--navy);
