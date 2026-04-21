@@ -38,16 +38,20 @@ export interface DailyFetchResult {
 }
 
 /**
- * Column index map for HS_Raw_Ads. Matches the column order documented in
- * `projects/trans/context.md`. When the CEO finalises the master sheet
- * layout this mapping may move into `ClientConfig.dataSource`.
+ * Column index map for the Google Ads ADG-grained export sheet
+ * (HS_202410_202603 / シート1). This sheet has no 媒体 column — data is
+ * Google-only — and no Brand/General flag; we default the media to "Google"
+ * and infer Brand/General from the campaign name (contains "指名" → Brand).
+ *
+ * If the schema changes again, update this map; the rest of the pipeline
+ * stays identical.
  */
 const HS_COLS = {
-  media: 0,
-  brandGeneral: 1,
-  date: 2,
-  campaignId: 3,
-  campaignName: 4,
+  date: 0,
+  campaignId: 1,
+  campaignName: 2,
+  adgroupId: 3,
+  adgroupName: 4,
   currency: 5,
   cost: 6,
   impressions: 7,
@@ -55,6 +59,13 @@ const HS_COLS = {
   conversions: 9,
   conversionValue: 10,
 } as const;
+
+/** Infer Brand vs General from the campaign name. "指名" campaigns are brand
+ *  (e.g. "01_Google検索_指名_単体"); everything else defaults to General. */
+function inferBrandGeneral(campaignName: string): "Brand" | "General" {
+  if (!campaignName) return "General";
+  return /指名|ブランド|brand/i.test(campaignName) ? "Brand" : "General";
+}
 
 function toNumber(v: unknown): number {
   if (v == null || v === "") return 0;
@@ -133,15 +144,16 @@ export async function getDailyRows(client: ClientConfig): Promise<DailyFetchResu
   const rows: DailyRow[] = [];
   for (const r of dataRows) {
     if (r.every((c) => c == null || String(c).trim() === "")) continue;
+    const campaignName = String(r[HS_COLS.campaignName] ?? "").trim();
     rows.push({
-      media: String(r[HS_COLS.media] ?? "").trim(),
-      brandGeneral: String(r[HS_COLS.brandGeneral] ?? "").trim(),
+      // Sheet is Google-Ads-only; hard-code the media.
+      media: "Google",
+      brandGeneral: inferBrandGeneral(campaignName),
       date: normaliseDate(r[HS_COLS.date]),
       campaignId: String(r[HS_COLS.campaignId] ?? "").trim(),
-      campaignName: String(r[HS_COLS.campaignName] ?? "").trim(),
-      // Source sheet has no ADG columns today — default empty.
-      adgroupId: "",
-      adgroupName: "",
+      campaignName,
+      adgroupId: String(r[HS_COLS.adgroupId] ?? "").trim(),
+      adgroupName: String(r[HS_COLS.adgroupName] ?? "").trim(),
       currency: String(r[HS_COLS.currency] ?? "JPY").trim(),
       cost: toNumber(r[HS_COLS.cost]),
       impressions: toNumber(r[HS_COLS.impressions]),
@@ -150,10 +162,10 @@ export async function getDailyRows(client: ClientConfig): Promise<DailyFetchResu
       conversionValue: toNumber(r[HS_COLS.conversionValue]),
     });
   }
-  // Expand each (campaign × date) row into two synthetic ADGs so the
-  // drilldown UI has something to show. This path is only used when the
-  // sheet has no ADG columns; real data with ADG passes through unchanged.
-  if (rows.length > 0 && rows.every((r) => !r.adgroupId)) {
+  // Synthetic ADG expansion runs ONLY for mock data. Real data without ADG
+  // columns passes through with empty adgroupId — the drilldown will show
+  // "(no adgroup)" which is a more honest signal than a fake 60/40 split.
+  if (isMock && rows.length > 0 && rows.every((r) => !r.adgroupId)) {
     return { rows: expandWithSyntheticAdgs(rows), fetchedAt, isMock, warnings };
   }
   return { rows, fetchedAt, isMock, warnings };

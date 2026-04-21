@@ -1,11 +1,16 @@
 import "server-only";
+import { google } from "googleapis";
+import { unstable_cache } from "next/cache";
 import type { ClientConfig } from "@/config/clients";
 
 /**
- * GA4 mock source. Phase 2 will replace the mock with a real GA4 Data API
- * `runReport` call keyed by propertyId + date range. The shape here is the
- * minimum the dashboard UI needs so that swapping implementations is a
- * one-file change.
+ * GA4 data source. Real implementation uses Google Analytics Data API v1beta
+ * via the mixednuts Service Account. Falls back to a deterministic mock when
+ * `GOOGLE_SERVICE_ACCOUNT_JSON[_BASE64]` is not configured (dev scaffolding)
+ * or when the client has no ga4PropertyId.
+ *
+ * All exported functions return Promises so callers must `await` them. A
+ * 5-minute unstable_cache wraps each distinct query.
  */
 
 export type ChannelGroup =
@@ -18,7 +23,7 @@ export type ChannelGroup =
   | "Other";
 
 export interface ChannelMonth {
-  yearMonth: string; // "2026-04"
+  yearMonth: string;
   channel: ChannelGroup;
   sessions: number;
   conversions: number;
@@ -31,55 +36,304 @@ export interface Ga4Totals {
   sessions: number;
   conversions: number;
   revenue: number;
-  newCvRatio: number; // 0..1
+  newCvRatio: number;
 }
 
-const CHANNELS: ChannelGroup[] = [
-  "Paid Search",
-  "Paid Social",
-  "Organic Search",
-  "Direct",
-  "Referral",
-  "Email",
-];
-
-/** Deterministic-ish fake generator so charts look consistent across reloads. */
-function seeded(n: number): number {
-  return (Math.sin(n * 12.9898) * 43758.5453) % 1;
+export type Device = "mobile" | "desktop" | "tablet";
+export interface DeviceTotals {
+  device: Device;
+  sessions: number;
+  conversions: number;
+  revenue: number;
 }
 
-/** Generate 12 months of channel data. */
-export function getGa4MonthlyChannels(_client: ClientConfig): ChannelMonth[] {
-  // Fixed "today" = 2026-04-21 from the active CLAUDE.md frame.
-  const anchor = new Date("2026-04-21T00:00:00Z");
-  const rows: ChannelMonth[] = [];
-  for (let m = 11; m >= 0; m--) {
-    const d = new Date(anchor);
-    d.setUTCMonth(d.getUTCMonth() - m);
-    const ym = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-    const seasonal = 1 + Math.sin((d.getUTCMonth() / 12) * Math.PI * 2) * 0.25;
-    for (const ch of CHANNELS) {
-      const base = { "Paid Search": 22000, "Paid Social": 9000, "Organic Search": 35000, Direct: 18000, Referral: 6000, Email: 4500, Other: 1500 }[ch] ?? 0;
-      const cvRate = { "Paid Search": 0.028, "Paid Social": 0.012, "Organic Search": 0.018, Direct: 0.022, Referral: 0.015, Email: 0.04, Other: 0.005 }[ch] ?? 0;
-      const rpc = { "Paid Search": 5800, "Paid Social": 3200, "Organic Search": 6200, Direct: 9000, Referral: 4800, Email: 11000, Other: 2000 }[ch] ?? 0;
-      const jitter = 0.85 + Math.abs(seeded(m * 31 + ch.length)) * 0.3;
-      const sessions = Math.round(base * seasonal * jitter);
-      const conversions = Math.round(sessions * cvRate);
-      const revenue = Math.round(conversions * rpc);
-      const newRatio = 0.55 + Math.abs(seeded(m + ch.length * 7)) * 0.15;
-      rows.push({
-        yearMonth: ym,
-        channel: ch,
-        sessions,
-        conversions,
-        revenue,
-        newUsers: Math.round(sessions * newRatio),
-        returningUsers: Math.round(sessions * (1 - newRatio)),
-      });
-    }
+export interface LandingPageRow {
+  path: string;
+  sessions: number;
+  conversions: number;
+  revenue: number;
+}
+
+export interface ProductRow {
+  productName: string;
+  sku: string;
+  conversions: number;
+  revenue: number;
+  unitPrice: number;
+}
+
+/* ---------------------- auth ---------------------- */
+
+function loadSa(): Record<string, unknown> | null {
+  const b64 = process.env.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64;
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  const json = b64 ? Buffer.from(b64, "base64").toString("utf8") : raw;
+  if (!json) return null;
+  try {
+    return JSON.parse(json);
+  } catch {
+    return null;
   }
-  return rows;
 }
+
+function makeAuth() {
+  const creds = loadSa();
+  if (!creds) return null;
+  return new google.auth.GoogleAuth({
+    credentials: creds,
+    scopes: ["https://www.googleapis.com/auth/analytics.readonly"],
+  });
+}
+
+const CACHE_TTL_SECONDS = 300;
+
+/* ---------------------- helpers ---------------------- */
+
+const CHANNEL_NORMAL: Record<string, ChannelGroup> = {
+  "Paid Search": "Paid Search",
+  "Paid Social": "Paid Social",
+  "Paid Shopping": "Paid Search",
+  "Paid Video": "Paid Social",
+  "Paid Other": "Paid Social",
+  "Organic Search": "Organic Search",
+  "Organic Social": "Other",
+  "Organic Video": "Other",
+  "Organic Shopping": "Organic Search",
+  Direct: "Direct",
+  Referral: "Referral",
+  Email: "Email",
+  Affiliates: "Other",
+  "Cross-network": "Paid Search",
+  Display: "Paid Social",
+  Unassigned: "Other",
+};
+
+function normaliseChannel(ga4ChannelName: string | undefined | null): ChannelGroup {
+  if (!ga4ChannelName) return "Other";
+  return CHANNEL_NORMAL[ga4ChannelName] ?? "Other";
+}
+
+function yearMonthFromGa4(v: string): string {
+  // GA4 returns "202604" format for yearMonth.
+  if (/^\d{6}$/.test(v)) return `${v.slice(0, 4)}-${v.slice(4, 6)}`;
+  return v;
+}
+
+/* ---------------------- real calls (cached) ---------------------- */
+
+async function realChannels(propertyId: string): Promise<ChannelMonth[]> {
+  const auth = makeAuth();
+  if (!auth) throw new Error("no-ga4-auth");
+  const analyticsdata = google.analyticsdata("v1beta");
+  const res = await analyticsdata.properties.runReport({
+    property: `properties/${propertyId}`,
+    auth,
+    requestBody: {
+      dateRanges: [{ startDate: "365daysAgo", endDate: "today" }],
+      dimensions: [{ name: "yearMonth" }, { name: "sessionDefaultChannelGroup" }, { name: "newVsReturning" }],
+      metrics: [
+        { name: "sessions" },
+        { name: "conversions" },
+        { name: "totalRevenue" },
+      ],
+      limit: "1000",
+    },
+  });
+  const map = new Map<string, ChannelMonth>();
+  for (const r of res.data.rows ?? []) {
+    const ym = yearMonthFromGa4(r.dimensionValues?.[0]?.value ?? "");
+    const ch = normaliseChannel(r.dimensionValues?.[1]?.value);
+    const newVsRet = r.dimensionValues?.[2]?.value ?? "";
+    const sessions = Number(r.metricValues?.[0]?.value ?? 0);
+    const conversions = Number(r.metricValues?.[1]?.value ?? 0);
+    const revenue = Number(r.metricValues?.[2]?.value ?? 0);
+    const key = `${ym}|${ch}`;
+    const cur = map.get(key) ?? {
+      yearMonth: ym,
+      channel: ch,
+      sessions: 0,
+      conversions: 0,
+      revenue: 0,
+      newUsers: 0,
+      returningUsers: 0,
+    };
+    cur.sessions += sessions;
+    cur.conversions += conversions;
+    cur.revenue += revenue;
+    if (newVsRet === "new") cur.newUsers += sessions;
+    else if (newVsRet === "returning") cur.returningUsers += sessions;
+    map.set(key, cur);
+  }
+  return Array.from(map.values()).sort((a, b) => a.yearMonth.localeCompare(b.yearMonth));
+}
+
+async function realDevices(propertyId: string, anchor: string): Promise<DeviceTotals[]> {
+  const auth = makeAuth();
+  if (!auth) throw new Error("no-ga4-auth");
+  const ym = anchor.slice(0, 7); // yyyy-mm
+  const start = `${ym}-01`;
+  const [y, m] = ym.split("-").map(Number);
+  const end = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+  const analyticsdata = google.analyticsdata("v1beta");
+  const res = await analyticsdata.properties.runReport({
+    property: `properties/${propertyId}`,
+    auth,
+    requestBody: {
+      dateRanges: [{ startDate: start, endDate: end }],
+      dimensions: [{ name: "deviceCategory" }],
+      metrics: [
+        { name: "sessions" },
+        { name: "conversions" },
+        { name: "totalRevenue" },
+      ],
+    },
+  });
+  const result: DeviceTotals[] = [];
+  for (const r of res.data.rows ?? []) {
+    const dev = (r.dimensionValues?.[0]?.value ?? "").toLowerCase();
+    if (!["mobile", "desktop", "tablet"].includes(dev)) continue;
+    result.push({
+      device: dev as Device,
+      sessions: Number(r.metricValues?.[0]?.value ?? 0),
+      conversions: Number(r.metricValues?.[1]?.value ?? 0),
+      revenue: Number(r.metricValues?.[2]?.value ?? 0),
+    });
+  }
+  return result;
+}
+
+async function realLandingPages(propertyId: string): Promise<LandingPageRow[]> {
+  const auth = makeAuth();
+  if (!auth) throw new Error("no-ga4-auth");
+  const analyticsdata = google.analyticsdata("v1beta");
+  const res = await analyticsdata.properties.runReport({
+    property: `properties/${propertyId}`,
+    auth,
+    requestBody: {
+      dateRanges: [{ startDate: "28daysAgo", endDate: "today" }],
+      dimensions: [{ name: "landingPagePlusQueryString" }],
+      metrics: [
+        { name: "sessions" },
+        { name: "conversions" },
+        { name: "totalRevenue" },
+      ],
+      orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+      limit: "10",
+    },
+  });
+  return (res.data.rows ?? []).map((r) => ({
+    path: r.dimensionValues?.[0]?.value ?? "",
+    sessions: Number(r.metricValues?.[0]?.value ?? 0),
+    conversions: Number(r.metricValues?.[1]?.value ?? 0),
+    revenue: Number(r.metricValues?.[2]?.value ?? 0),
+  }));
+}
+
+async function realProducts(propertyId: string): Promise<ProductRow[]> {
+  const auth = makeAuth();
+  if (!auth) throw new Error("no-ga4-auth");
+  const analyticsdata = google.analyticsdata("v1beta");
+  const res = await analyticsdata.properties.runReport({
+    property: `properties/${propertyId}`,
+    auth,
+    requestBody: {
+      dateRanges: [{ startDate: "28daysAgo", endDate: "today" }],
+      dimensions: [{ name: "itemName" }, { name: "itemId" }],
+      metrics: [
+        { name: "itemsPurchased" },
+        { name: "itemRevenue" },
+      ],
+      orderBys: [{ metric: { metricName: "itemRevenue" }, desc: true }],
+      limit: "10",
+    },
+  });
+  return (res.data.rows ?? []).map((r) => {
+    const conversions = Number(r.metricValues?.[0]?.value ?? 0);
+    const revenue = Number(r.metricValues?.[1]?.value ?? 0);
+    return {
+      productName: r.dimensionValues?.[0]?.value ?? "",
+      sku: r.dimensionValues?.[1]?.value ?? "",
+      conversions,
+      revenue,
+      unitPrice: conversions > 0 ? Math.round(revenue / conversions) : 0,
+    };
+  });
+}
+
+/* ---------------------- public (cached) API ---------------------- */
+
+export async function getGa4MonthlyChannels(client: ClientConfig): Promise<ChannelMonth[]> {
+  if (!client.ga4PropertyId) return mockChannels();
+  const pid = client.ga4PropertyId;
+  return unstable_cache(
+    async () => {
+      try {
+        return await realChannels(pid);
+      } catch (err) {
+        console.error("[ga4] channels fetch failed, using mock:", err);
+        return mockChannels();
+      }
+    },
+    [`ga4-channels-${pid}`],
+    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] }
+  )();
+}
+
+export async function getDeviceTotals(client: ClientConfig, anchor: string): Promise<DeviceTotals[]> {
+  if (!client.ga4PropertyId) return mockDevices(anchor);
+  const pid = client.ga4PropertyId;
+  return unstable_cache(
+    async () => {
+      try {
+        return await realDevices(pid, anchor);
+      } catch (err) {
+        console.error("[ga4] device fetch failed, using mock:", err);
+        return mockDevices(anchor);
+      }
+    },
+    [`ga4-device-${pid}-${anchor.slice(0, 7)}`],
+    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] }
+  )();
+}
+
+export async function getTopLandingPages(client: ClientConfig): Promise<LandingPageRow[]> {
+  if (!client.ga4PropertyId) return mockLandingPages();
+  const pid = client.ga4PropertyId;
+  return unstable_cache(
+    async () => {
+      try {
+        return await realLandingPages(pid);
+      } catch (err) {
+        console.error("[ga4] lp fetch failed, using mock:", err);
+        return mockLandingPages();
+      }
+    },
+    [`ga4-lp-${pid}`],
+    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] }
+  )();
+}
+
+export async function getTopProducts(client: ClientConfig): Promise<ProductRow[]> {
+  if (!client.ga4PropertyId) return mockProducts();
+  const pid = client.ga4PropertyId;
+  return unstable_cache(
+    async () => {
+      try {
+        const rows = await realProducts(pid);
+        // If GA4 items API returns nothing (no e-commerce tagging), fall back
+        // so the dashboard isn't empty-looking.
+        return rows.length > 0 ? rows : mockProducts();
+      } catch (err) {
+        console.error("[ga4] products fetch failed, using mock:", err);
+        return mockProducts();
+      }
+    },
+    [`ga4-products-${pid}`],
+    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] }
+  )();
+}
+
+/* ---------------------- totals helper ---------------------- */
 
 export function ga4Totals(rows: ChannelMonth[]): Ga4Totals {
   let sessions = 0, conversions = 0, revenue = 0, newUsers = 0, returningUsers = 0;
@@ -99,23 +353,19 @@ export function ga4Totals(rows: ChannelMonth[]): Ga4Totals {
   };
 }
 
-/** Filter to a specific yearMonth or range. */
 export function filterByMonth(rows: ChannelMonth[], yearMonth: string): ChannelMonth[] {
   return rows.filter((r) => r.yearMonth === yearMonth);
 }
 
-/** Latest yearMonth present in the data. */
 export function latestYearMonth(rows: ChannelMonth[]): string {
   return rows.map((r) => r.yearMonth).sort().slice(-1)[0] ?? "";
 }
 
-/** Given a yearMonth, return the prior-year-same-month key. */
 export function yoyYearMonth(yearMonth: string): string {
   const [y, m] = yearMonth.split("-");
   return `${Number(y) - 1}-${m}`;
 }
 
-/** Given a yearMonth, return the prior-month key. */
 export function momYearMonth(yearMonth: string): string {
   const [y, m] = yearMonth.split("-").map(Number);
   const d = new Date(Date.UTC(y, m - 1, 1));
@@ -123,27 +373,58 @@ export function momYearMonth(yearMonth: string): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-/* ------------------------------------------------------------------ */
-/* Device / Landing page / Product mocks                              */
-/* ------------------------------------------------------------------ */
+/* ---------------------- mocks (unchanged behaviour) ---------------------- */
 
-export type Device = "mobile" | "desktop" | "tablet";
+const CHANNELS: ChannelGroup[] = [
+  "Paid Search",
+  "Paid Social",
+  "Organic Search",
+  "Direct",
+  "Referral",
+  "Email",
+];
 
-export interface DeviceTotals {
-  device: Device;
-  sessions: number;
-  conversions: number;
-  revenue: number;
+function seeded(n: number): number {
+  return (Math.sin(n * 12.9898) * 43758.5453) % 1;
 }
 
-/** Aggregate device-level totals. Device ratios are a rough-but-plausible
- *  Japanese B2C EC mix (63/32/5). */
-export function getDeviceTotals(_client: ClientConfig, anchor: string): DeviceTotals[] {
-  // Base the figures on the anchor month of the channel mock so the numbers
-  // feel consistent with the rest of the dashboard.
-  const ym = anchor.slice(0, 7);
-  const base = getGa4MonthlyChannels(_client).filter((r) => r.yearMonth === ym);
-  const sum = base.reduce(
+function mockChannels(): ChannelMonth[] {
+  const anchor = new Date("2026-04-21T00:00:00Z");
+  const rows: ChannelMonth[] = [];
+  for (let m = 11; m >= 0; m--) {
+    const d = new Date(anchor);
+    d.setUTCMonth(d.getUTCMonth() - m);
+    const ym = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    const seasonal = 1 + Math.sin((d.getUTCMonth() / 12) * Math.PI * 2) * 0.25;
+    for (const ch of CHANNELS) {
+      const base =
+        { "Paid Search": 22000, "Paid Social": 9000, "Organic Search": 35000, Direct: 18000, Referral: 6000, Email: 4500, Other: 1500 }[ch] ?? 0;
+      const cvRate =
+        { "Paid Search": 0.028, "Paid Social": 0.012, "Organic Search": 0.018, Direct: 0.022, Referral: 0.015, Email: 0.04, Other: 0.005 }[ch] ?? 0;
+      const rpc =
+        { "Paid Search": 5800, "Paid Social": 3200, "Organic Search": 6200, Direct: 9000, Referral: 4800, Email: 11000, Other: 2000 }[ch] ?? 0;
+      const jitter = 0.85 + Math.abs(seeded(m * 31 + ch.length)) * 0.3;
+      const sessions = Math.round(base * seasonal * jitter);
+      const conversions = Math.round(sessions * cvRate);
+      const revenue = Math.round(conversions * rpc);
+      const newRatio = 0.55 + Math.abs(seeded(m + ch.length * 7)) * 0.15;
+      rows.push({
+        yearMonth: ym,
+        channel: ch,
+        sessions,
+        conversions,
+        revenue,
+        newUsers: Math.round(sessions * newRatio),
+        returningUsers: Math.round(sessions * (1 - newRatio)),
+      });
+    }
+  }
+  return rows;
+}
+
+function mockDevices(anchor: string): DeviceTotals[] {
+  const rows = mockChannels().filter((r) => r.yearMonth === anchor.slice(0, 7));
+  const sum = rows.reduce(
     (s, r) => ({
       sessions: s.sessions + r.sessions,
       conversions: s.conversions + r.conversions,
@@ -152,7 +433,6 @@ export function getDeviceTotals(_client: ClientConfig, anchor: string): DeviceTo
     { sessions: 0, conversions: 0, revenue: 0 }
   );
   const split: Array<[Device, number, number, number]> = [
-    // [device, sessionShare, cvRateMultiplier, rpcMultiplier]
     ["mobile", 0.63, 0.85, 0.9],
     ["desktop", 0.32, 1.4, 1.35],
     ["tablet", 0.05, 1.0, 1.0],
@@ -165,15 +445,7 @@ export function getDeviceTotals(_client: ClientConfig, anchor: string): DeviceTo
   }));
 }
 
-export interface LandingPageRow {
-  path: string;
-  sessions: number;
-  conversions: number;
-  revenue: number;
-}
-
-/** Top landing pages. Hand-picked paths that read like a real EC site. */
-export function getTopLandingPages(_client: ClientConfig): LandingPageRow[] {
+function mockLandingPages(): LandingPageRow[] {
   const base: Array<[string, number, number]> = [
     ["/", 18500, 0.012],
     ["/category/tumbler", 12000, 0.028],
@@ -182,7 +454,7 @@ export function getTopLandingPages(_client: ClientConfig): LandingPageRow[] {
     ["/novelty", 7100, 0.034],
     ["/exhibition", 4600, 0.042],
     ["/detail/8481", 3200, 0.018],
-    ["/detail/2191", 2800, 0.001], // intentionally low to echo the real HS finding
+    ["/detail/2191", 2800, 0.001],
     ["/blog/novelty-2026", 2100, 0.006],
     ["/guide/printing", 1600, 0.009],
   ];
@@ -192,16 +464,7 @@ export function getTopLandingPages(_client: ClientConfig): LandingPageRow[] {
   });
 }
 
-export interface ProductRow {
-  productName: string;
-  sku: string;
-  conversions: number;
-  revenue: number;
-  unitPrice: number;
-}
-
-/** Top products sample. */
-export function getTopProducts(_client: ClientConfig): ProductRow[] {
+function mockProducts(): ProductRow[] {
   const base: Array<[string, string, number, number]> = [
     ["オリジナル タンブラー 300ml", "TBL-300-01", 182, 8200],
     ["エコバッグ A4", "BAG-A4-CT", 156, 4125],

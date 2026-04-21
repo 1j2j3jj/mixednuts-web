@@ -44,6 +44,10 @@ export interface ClientConfig {
   allowedUserIds: string[];
   allowedEmailDomains: string[];
   dataSource: DataSource | null;
+  /** GA4 property id (numeric string). Leave null to fall back to mock. */
+  ga4PropertyId?: string | null;
+  /** GSC site URL (including trailing slash for URL-prefix properties). */
+  gscSiteUrl?: string | null;
   currency: "JPY";
   monthlyTargets: MonthlyTargets;
 }
@@ -69,9 +73,13 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     allowedEmailDomains: ["mixednuts-inc.com"],
     dataSource: {
       kind: "google_sheets",
-      sheetId: "1b2Z_3-IrcOvyKn9diRANdSt42cHY_uuxvb3kbVitziE",
-      rawAdsRange: "HS_Raw_Ads!A:K",
+      // 2026-04 switch — dedicated Google Ads ADG-grained export
+      // (2024-10-01 → 2026-03-31 initial load; to be extended by recurring job).
+      sheetId: "1BtOId6PtE6Qeq01jtytMKKinpGPtXVzx_Yrat_6YNlU",
+      rawAdsRange: "シート1!A:K",
     },
+    ga4PropertyId: "302745512",
+    gscSiteUrl: "https://www.hansoku-style.jp/",
     currency: "JPY",
     monthlyTargets: {
       revenue: 250_000_000,

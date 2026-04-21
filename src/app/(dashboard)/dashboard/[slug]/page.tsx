@@ -62,7 +62,7 @@ export default async function Overview({
   const client = await assertUserCanAccessClientBySlug(slug);
 
   const { rows: adRows, fetchedAt, isMock } = await getDailyRows(client);
-  const ga4 = getGa4MonthlyChannels(client);
+  const ga4 = await getGa4MonthlyChannels(client);
 
   const adDates = adRows.map((r) => r.date).filter(Boolean).sort();
   const anchor =
@@ -112,10 +112,12 @@ export default async function Overview({
   const showGoals = rr.preset === "thisMonth" || rr.preset === "lastMonth";
   const tgt = client.monthlyTargets;
 
-  // Extra context modules.
-  const devices = getDeviceTotals(client, anchor);
-  const topProducts = getTopProducts(client);
-  const topQueries = getTopGscQueries(client);
+  // Extra context modules (parallel fetch for speed).
+  const [devices, topProducts, topQueries] = await Promise.all([
+    getDeviceTotals(client, anchor),
+    getTopProducts(client),
+    getTopGscQueries(client),
+  ]);
 
   const fetchedAtLabel = new Date(fetchedAt).toLocaleTimeString("ja-JP", {
     hour: "2-digit",

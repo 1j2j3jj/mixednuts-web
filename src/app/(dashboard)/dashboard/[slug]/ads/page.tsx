@@ -85,7 +85,7 @@ export default async function AdsScreen({
   // Top-level KPIs prefer GA4 for Revenue / ROAS (site-side truth). The
   // media table stays ad-platform side because only that source breaks out
   // per-media. Differences between the two are expected (attribution).
-  const ga4All = getGa4MonthlyChannels(client);
+  const ga4All = await getGa4MonthlyChannels(client);
   const curGa4 = ga4RevenueAndCv(ga4All, rr.current);
   const prevGa4 = rr.previous ? ga4RevenueAndCv(ga4All, rr.previous) : { revenue: 0, conversions: 0 };
   const curGa4RoasPct = curTotals.cost > 0 ? (curGa4.revenue / curTotals.cost) * 100 : null;
