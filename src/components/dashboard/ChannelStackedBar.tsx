@@ -7,15 +7,16 @@ import type { ChannelGroup, ChannelMonth } from "@/lib/sources/ga4";
 interface Props {
   data: ChannelMonth[];
   /** Initial metric. Defaults to sessions. */
-  defaultMetric?: "sessions" | "conversions" | "revenue";
+  defaultMetric?: "sessions" | "conversions" | "revenue" | "signUps";
 }
 
-type Metric = "sessions" | "conversions" | "revenue";
+type Metric = "sessions" | "conversions" | "revenue" | "signUps";
 
 const METRICS: Array<{ key: Metric; label: string }> = [
   { key: "sessions", label: "Sessions" },
   { key: "conversions", label: "CV" },
   { key: "revenue", label: "売上" },
+  { key: "signUps", label: "会員登録" },
 ];
 
 const CHANNEL_COLOURS: Record<ChannelGroup, string> = {
@@ -45,6 +46,8 @@ export default function ChannelStackedBar({ data, defaultMetric = "sessions" }: 
   const yTickFormat =
     metric === "revenue"
       ? (v: number) => `¥${Math.round(v / 1_000_000).toLocaleString()}M`
+      : metric === "signUps"
+      ? (v: number) => Math.round(v).toLocaleString()
       : (v: number) => `${Math.round(v / 1000).toLocaleString()}k`;
 
   const tooltipFormat = (value: unknown): [string, string] => {

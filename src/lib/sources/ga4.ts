@@ -28,6 +28,8 @@ export interface ChannelMonth {
   sessions: number;
   conversions: number;
   revenue: number;
+  /** GA4 `sign_up` event count — proxy for 会員登録数. */
+  signUps: number;
   newUsers: number;
   returningUsers: number;
 }
@@ -196,20 +198,49 @@ async function realChannels(propertyId: string): Promise<ChannelMonth[]> {
   const auth = makeAuth();
   if (!auth) throw new Error("no-ga4-auth");
   const analyticsdata = google.analyticsdata("v1beta");
-  const res = await analyticsdata.properties.runReport({
-    property: `properties/${propertyId}`,
-    auth,
-    requestBody: {
-      dateRanges: [{ startDate: "365daysAgo", endDate: "today" }],
-      dimensions: [{ name: "yearMonth" }, { name: "sessionDefaultChannelGroup" }, { name: "newVsReturning" }],
-      metrics: [
-        { name: "sessions" },
-        { name: "ecommercePurchases" },
-        { name: "purchaseRevenue" },
-      ],
-      limit: "1000",
-    },
-  });
+  const [res, signUps] = await Promise.all([
+    analyticsdata.properties.runReport({
+      property: `properties/${propertyId}`,
+      auth,
+      requestBody: {
+        dateRanges: [{ startDate: "730daysAgo", endDate: "today" }],
+        dimensions: [{ name: "yearMonth" }, { name: "sessionDefaultChannelGroup" }, { name: "newVsReturning" }],
+        metrics: [
+          { name: "sessions" },
+          { name: "ecommercePurchases" },
+          { name: "purchaseRevenue" },
+        ],
+        limit: "1000",
+      },
+    }),
+    // Parallel: sign_up event count per (yearMonth, channel). Filtered on
+    // eventName so the metric is only sign-ups — keeps the main query
+    // unaffected (it still counts all sessions).
+    analyticsdata.properties.runReport({
+      property: `properties/${propertyId}`,
+      auth,
+      requestBody: {
+        dateRanges: [{ startDate: "730daysAgo", endDate: "today" }],
+        dimensions: [{ name: "yearMonth" }, { name: "sessionDefaultChannelGroup" }],
+        metrics: [{ name: "eventCount" }],
+        dimensionFilter: {
+          filter: {
+            fieldName: "eventName",
+            stringFilter: { matchType: "EXACT", value: "sign_up" },
+          },
+        },
+        limit: "1000",
+      },
+    }),
+  ]);
+  const signUpMap = new Map<string, number>();
+  for (const r of signUps.data.rows ?? []) {
+    const ym = yearMonthFromGa4(r.dimensionValues?.[0]?.value ?? "");
+    const ch = normaliseChannel(r.dimensionValues?.[1]?.value);
+    const key = `${ym}|${ch}`;
+    signUpMap.set(key, (signUpMap.get(key) ?? 0) + Number(r.metricValues?.[0]?.value ?? 0));
+  }
+
   const map = new Map<string, ChannelMonth>();
   for (const r of res.data.rows ?? []) {
     const ym = yearMonthFromGa4(r.dimensionValues?.[0]?.value ?? "");
@@ -225,6 +256,7 @@ async function realChannels(propertyId: string): Promise<ChannelMonth[]> {
       sessions: 0,
       conversions: 0,
       revenue: 0,
+      signUps: signUpMap.get(key) ?? 0,
       newUsers: 0,
       returningUsers: 0,
     };
@@ -630,6 +662,8 @@ function mockChannels(): ChannelMonth[] {
         sessions,
         conversions,
         revenue,
+        // Mock sign-ups: ~2% of sessions for paid-search-like channels, half for others.
+        signUps: Math.round(sessions * (ch === "Paid Search" || ch === "Paid Social" ? 0.02 : 0.01)),
         newUsers: Math.round(sessions * newRatio),
         returningUsers: Math.round(sessions * (1 - newRatio)),
       });
