@@ -1,7 +1,8 @@
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getDailyRows } from "@/lib/sources/raw";
-import { getGa4MonthlyChannels, ga4Totals, filterByMonth, latestYearMonth, momYearMonth, yoyYearMonth } from "@/lib/sources/ga4";
-import { sumRows } from "@/lib/metrics";
+import { getGa4MonthlyChannels } from "@/lib/sources/ga4";
+import { resolveFromSearchParams, type DateRange } from "@/lib/range";
+import { filterByRange } from "@/lib/metrics";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
 import ChannelStackedBar from "@/components/dashboard/ChannelStackedBar";
 import GoalGauge from "@/components/dashboard/GoalGauge";
@@ -13,49 +14,94 @@ import { fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 /**
  * Screen 1 — Overview.
  *
- * 5 big KPI across advertising + organic (Blended CPA / ROAS count organic
- * conversions in the denominator). Top 5 channels for the latest month.
- * Twelve-month channel stacked bar. Month-to-date goal gauges.
- *
- * All data in Phase 1 sample is mocked (GA4) except the ad spend side which
- * reads the Sheets-backed mock already driving the Ads screen.
+ * Range-aware: aggregates ad spend (daily raw) within the selected range,
+ * and sums GA4 months overlapping the range. The 12-month stacked bar is
+ * intentionally range-independent — context, not measurement.
  */
 export const dynamic = "force-dynamic";
 
-export default async function Overview({ params }: { params: Promise<{ slug: string }> }) {
+/** Sum GA4 monthly rows whose yearMonth overlaps the [start, end] range. */
+function filterGa4ByRange<T extends { yearMonth: string }>(rows: T[], r: DateRange): T[] {
+  return rows.filter((x) => {
+    const monthStart = `${x.yearMonth}-01`;
+    const [y, m] = x.yearMonth.split("-").map(Number);
+    const monthEnd = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+    return monthStart <= r.end && monthEnd >= r.start;
+  });
+}
+
+function sumGa4(rows: Array<{ sessions: number; conversions: number; revenue: number; newUsers: number; returningUsers: number }>) {
+  let sessions = 0, conversions = 0, revenue = 0, newUsers = 0, returningUsers = 0;
+  for (const r of rows) {
+    sessions += r.sessions;
+    conversions += r.conversions;
+    revenue += r.revenue;
+    newUsers += r.newUsers;
+    returningUsers += r.returningUsers;
+  }
+  return { sessions, conversions, revenue, newUsers, returningUsers };
+}
+
+function pct(a: number, b: number): number | null {
+  if (b === 0) return null;
+  return (a - b) / b;
+}
+
+export default async function Overview({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const { slug } = await params;
+  const sp = await searchParams;
   const client = await assertUserCanAccessClientBySlug(slug);
 
-  const ga4 = getGa4MonthlyChannels(client);
-  const latest = latestYearMonth(ga4);
-  const mom = momYearMonth(latest);
-  const yoy = yoyYearMonth(latest);
-
-  const curMonth = filterByMonth(ga4, latest);
-  const prevMonth = filterByMonth(ga4, mom);
-  const yoyMonth = filterByMonth(ga4, yoy);
-
-  const cur = ga4Totals(curMonth);
-  const prev = ga4Totals(prevMonth);
-  const ya = ga4Totals(yoyMonth);
-
-  // Ad spend total for Blended CPA / ROAS (reuses mock Sheet rows).
   const { rows: adRows, fetchedAt, isMock } = await getDailyRows(client);
-  const curMonthAd = adRows.filter((r) => r.date.startsWith(latest));
-  const adTotals = sumRows(curMonthAd);
+  const ga4 = getGa4MonthlyChannels(client);
 
-  const blendedCpa = safeDiv(adTotals.cost, cur.conversions);
-  const blendedRoas = safeDiv(cur.revenue, adTotals.cost);
-  const prevMonthAdCost = adRows.filter((r) => r.date.startsWith(mom)).reduce((s, r) => s + r.cost, 0);
-  const prevBlendedCpa = safeDiv(prevMonthAdCost, prev.conversions);
-  const prevBlendedRoas = safeDiv(prev.revenue, prevMonthAdCost);
+  // Anchor: the latest date for which we have ad data (keeps "last 28 days"
+  // honest when the sheet hasn't been updated yet). Fallback to the GA4 anchor.
+  const adDates = adRows.map((r) => r.date).filter(Boolean).sort();
+  const anchor =
+    adDates[adDates.length - 1] ??
+    `${ga4[ga4.length - 1]?.yearMonth ?? new Date().toISOString().slice(0, 7)}-01`;
 
-  const pct = (a: number, b: number): number | null => (b === 0 ? null : (a - b) / b);
+  const rr = resolveFromSearchParams(sp, { preset: "last28", compare: "prev" }, anchor);
 
-  // Top 5 channels (by Revenue) in the latest month.
-  const topChannels = [...curMonth].sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+  // Current window.
+  const adCur = filterByRange(adRows, rr.current.start, rr.current.end);
+  const gaCurRows = filterGa4ByRange(ga4, rr.current);
+  const gaCur = sumGa4(gaCurRows);
+  const costCur = adCur.reduce((s, r) => s + r.cost, 0);
 
+  // Comparison window.
+  const adPrev = rr.previous ? filterByRange(adRows, rr.previous.start, rr.previous.end) : [];
+  const gaPrevRows = rr.previous ? filterGa4ByRange(ga4, rr.previous) : [];
+  const gaPrev = sumGa4(gaPrevRows);
+  const costPrev = adPrev.reduce((s, r) => s + r.cost, 0);
+
+  const blendedCpa = safeDiv(costCur, gaCur.conversions);
+  const blendedRoas = safeDiv(gaCur.revenue, costCur);
+  const blendedCpaPrev = safeDiv(costPrev, gaPrev.conversions);
+  const blendedRoasPrev = safeDiv(gaPrev.revenue, costPrev);
+
+  // Top 5 channels in the selected window (by revenue).
+  const byChannel = new Map<string, { channel: string; sessions: number; conversions: number; revenue: number }>();
+  for (const r of gaCurRows) {
+    const cur = byChannel.get(r.channel) ?? { channel: r.channel, sessions: 0, conversions: 0, revenue: 0 };
+    cur.sessions += r.sessions;
+    cur.conversions += r.conversions;
+    cur.revenue += r.revenue;
+    byChannel.set(r.channel, cur);
+  }
+  const topChannels = Array.from(byChannel.values()).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+
+  // Goals: only meaningful when the preset is a single month ("当月" or "先月").
+  const showGoals = rr.preset === "thisMonth" || rr.preset === "lastMonth";
   const tgt = client.monthlyTargets;
+
   const fetchedAtLabel = new Date(fetchedAt).toLocaleTimeString("ja-JP", {
     hour: "2-digit",
     minute: "2-digit",
@@ -63,13 +109,17 @@ export default async function Overview({ params }: { params: Promise<{ slug: str
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">Overview</div>
-          <h1 className="text-2xl font-semibold tracking-tight">{latest} 月次サマリ</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{rr.presetLabel}</h1>
           <div className="mt-1 text-sm text-muted-foreground">
-            vs {mom}（前月）/ vs {yoy}（前年同月）/ vs 目標
+            {rr.current.start} 〜 {rr.current.end}
+            {rr.previous && (
+              <span className="ml-2">
+                · {rr.compareLabel}: {rr.previous.start} 〜 {rr.previous.end}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -81,93 +131,87 @@ export default async function Overview({ params }: { params: Promise<{ slug: str
         </div>
       </div>
 
-      {/* 5 big KPI */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <BigKpiCard
           label="Revenue"
-          value={fmtJpy(cur.revenue)}
-          comparisons={[
-            { label: "vs 前月", delta: pct(cur.revenue, prev.revenue) },
-            { label: "vs 前年", delta: pct(cur.revenue, ya.revenue) },
-            { label: "vs 目標", delta: pct(cur.revenue, tgt.revenue) },
-          ]}
+          value={fmtJpy(gaCur.revenue)}
+          comparisons={
+            rr.previous
+              ? [{ label: rr.compareLabel, delta: pct(gaCur.revenue, gaPrev.revenue) }]
+              : []
+          }
         />
         <BigKpiCard
           label="CV"
-          value={fmtInt(cur.conversions)}
-          comparisons={[
-            { label: "vs 前月", delta: pct(cur.conversions, prev.conversions) },
-            { label: "vs 前年", delta: pct(cur.conversions, ya.conversions) },
-            { label: "vs 目標", delta: pct(cur.conversions, tgt.conversions) },
-          ]}
+          value={fmtInt(gaCur.conversions)}
+          comparisons={
+            rr.previous ? [{ label: rr.compareLabel, delta: pct(gaCur.conversions, gaPrev.conversions) }] : []
+          }
         />
         <BigKpiCard
           label="Sessions"
-          value={fmtInt(cur.sessions)}
-          comparisons={[
-            { label: "vs 前月", delta: pct(cur.sessions, prev.sessions) },
-            { label: "vs 前年", delta: pct(cur.sessions, ya.sessions) },
-          ]}
+          value={fmtInt(gaCur.sessions)}
+          comparisons={
+            rr.previous ? [{ label: rr.compareLabel, delta: pct(gaCur.sessions, gaPrev.sessions) }] : []
+          }
         />
         <BigKpiCard
           label="Blended CPA"
           value={blendedCpa != null ? fmtJpy(blendedCpa) : "—"}
           lowerIsBetter
-          comparisons={[
-            { label: "vs 前月", delta: blendedCpa != null && prevBlendedCpa != null ? pct(blendedCpa, prevBlendedCpa) : null },
-            { label: "vs 目標", delta: blendedCpa != null ? pct(blendedCpa, tgt.cpa) : null },
-          ]}
+          comparisons={
+            rr.previous && blendedCpa != null && blendedCpaPrev != null
+              ? [{ label: rr.compareLabel, delta: pct(blendedCpa, blendedCpaPrev) }]
+              : []
+          }
         />
         <BigKpiCard
           label="Blended ROAS"
           value={blendedRoas != null ? fmtRatioPct(blendedRoas * 100, 0) : "—"}
-          comparisons={[
-            {
-              label: "vs 前月",
-              delta: blendedRoas != null && prevBlendedRoas != null ? pct(blendedRoas, prevBlendedRoas) : null,
-            },
-            { label: "vs 目標", delta: blendedRoas != null ? pct(blendedRoas * 100, tgt.roasPct) : null },
-          ]}
+          comparisons={
+            rr.previous && blendedRoas != null && blendedRoasPrev != null
+              ? [{ label: rr.compareLabel, delta: pct(blendedRoas, blendedRoasPrev) }]
+              : []
+          }
         />
       </div>
 
-      {/* Goal gauges */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <GoalGauge
-          label="Revenue 達成"
-          actual={fmtJpy(cur.revenue)}
-          target={fmtJpy(tgt.revenue)}
-          ratio={cur.revenue / (tgt.revenue || 1)}
-        />
-        <GoalGauge
-          label="CV 達成"
-          actual={fmtInt(cur.conversions)}
-          target={fmtInt(tgt.conversions)}
-          ratio={cur.conversions / (tgt.conversions || 1)}
-        />
-        <GoalGauge
-          label="広告予算消化"
-          actual={fmtJpy(adTotals.cost)}
-          target={fmtJpy(tgt.adSpendBudget)}
-          ratio={adTotals.cost / (tgt.adSpendBudget || 1)}
-          hint={adTotals.cost > tgt.adSpendBudget ? "予算超過" : undefined}
-        />
-      </div>
+      {showGoals && (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <GoalGauge
+            label="Revenue 達成"
+            actual={fmtJpy(gaCur.revenue)}
+            target={fmtJpy(tgt.revenue)}
+            ratio={gaCur.revenue / (tgt.revenue || 1)}
+          />
+          <GoalGauge
+            label="CV 達成"
+            actual={fmtInt(gaCur.conversions)}
+            target={fmtInt(tgt.conversions)}
+            ratio={gaCur.conversions / (tgt.conversions || 1)}
+          />
+          <GoalGauge
+            label="広告予算消化"
+            actual={fmtJpy(costCur)}
+            target={fmtJpy(tgt.adSpendBudget)}
+            ratio={costCur / (tgt.adSpendBudget || 1)}
+            hint={costCur > tgt.adSpendBudget ? "予算超過" : undefined}
+          />
+        </div>
+      )}
 
-      {/* Channel stacked bar */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">月次チャネル別 Sessions（過去12ヶ月）</CardTitle>
+          <CardTitle className="text-sm">月次チャネル別 Sessions（過去12ヶ月・参考）</CardTitle>
         </CardHeader>
         <CardContent>
           <ChannelStackedBar data={ga4} metric="sessions" />
         </CardContent>
       </Card>
 
-      {/* Top 5 channels */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Top 5 チャネル · {latest}</CardTitle>
+          <CardTitle className="text-sm">Top 5 チャネル · {rr.presetLabel}</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>

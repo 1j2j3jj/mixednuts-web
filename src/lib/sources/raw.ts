@@ -17,6 +17,11 @@ export interface DailyRow {
   date: string; // ISO yyyy-mm-dd
   campaignId: string;
   campaignName: string;
+  /** Ad group id. May be empty when the source doesn't expose ADG (e.g. the
+   *  current HS_Raw_Ads sheet is campaign-grain). The mock generates two
+   *  synthetic ADGs per campaign so drilldown UX can be exercised. */
+  adgroupId: string;
+  adgroupName: string;
   currency: string;
   cost: number;
   impressions: number;
@@ -57,6 +62,33 @@ function toNumber(v: unknown): number {
   const s = String(v).replace(/,/g, "").trim();
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
+}
+
+/** Split one (campaign × date) row into two synthetic ADGs with a 60/40
+ *  spend split. Kept deterministic so the drill UI is stable across
+ *  reloads. Used only when the source sheet has no ADG columns. */
+function expandWithSyntheticAdgs(rows: DailyRow[]): DailyRow[] {
+  const out: DailyRow[] = [];
+  for (const r of rows) {
+    const base = r.campaignId || r.campaignName || "CPN";
+    const splits: Array<{ id: string; name: string; share: number }> = [
+      { id: `${base}-AG1`, name: `${r.campaignName || "CPN"} · AG1`, share: 0.6 },
+      { id: `${base}-AG2`, name: `${r.campaignName || "CPN"} · AG2`, share: 0.4 },
+    ];
+    for (const s of splits) {
+      out.push({
+        ...r,
+        adgroupId: s.id,
+        adgroupName: s.name,
+        cost: Math.round(r.cost * s.share),
+        impressions: Math.round(r.impressions * s.share),
+        clicks: Math.round(r.clicks * s.share),
+        conversions: Math.round(r.conversions * s.share),
+        conversionValue: Math.round(r.conversionValue * s.share),
+      });
+    }
+  }
+  return out;
 }
 
 function normaliseDate(v: unknown): string {
@@ -100,7 +132,6 @@ export async function getDailyRows(client: ClientConfig): Promise<DailyFetchResu
   const dataRows = values.slice(1);
   const rows: DailyRow[] = [];
   for (const r of dataRows) {
-    // Skip completely empty rows.
     if (r.every((c) => c == null || String(c).trim() === "")) continue;
     rows.push({
       media: String(r[HS_COLS.media] ?? "").trim(),
@@ -108,6 +139,9 @@ export async function getDailyRows(client: ClientConfig): Promise<DailyFetchResu
       date: normaliseDate(r[HS_COLS.date]),
       campaignId: String(r[HS_COLS.campaignId] ?? "").trim(),
       campaignName: String(r[HS_COLS.campaignName] ?? "").trim(),
+      // Source sheet has no ADG columns today — default empty.
+      adgroupId: "",
+      adgroupName: "",
       currency: String(r[HS_COLS.currency] ?? "JPY").trim(),
       cost: toNumber(r[HS_COLS.cost]),
       impressions: toNumber(r[HS_COLS.impressions]),
@@ -115,6 +149,12 @@ export async function getDailyRows(client: ClientConfig): Promise<DailyFetchResu
       conversions: toNumber(r[HS_COLS.conversions]),
       conversionValue: toNumber(r[HS_COLS.conversionValue]),
     });
+  }
+  // Expand each (campaign × date) row into two synthetic ADGs so the
+  // drilldown UI has something to show. This path is only used when the
+  // sheet has no ADG columns; real data with ADG passes through unchanged.
+  if (rows.length > 0 && rows.every((r) => !r.adgroupId)) {
+    return { rows: expandWithSyntheticAdgs(rows), fetchedAt, isMock, warnings };
   }
   return { rows, fetchedAt, isMock, warnings };
 }

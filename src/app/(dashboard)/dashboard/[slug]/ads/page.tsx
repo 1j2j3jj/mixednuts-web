@@ -1,87 +1,95 @@
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getDailyRows, type DailyRow } from "@/lib/sources/raw";
 import { getGa4MonthlyChannels } from "@/lib/sources/ga4";
+import { resolveFromSearchParams } from "@/lib/range";
 import MediaTable, { type MediaRow } from "@/components/dashboard/MediaTable";
 import DailyTrendChart from "@/components/dashboard/DailyTrendChart";
 import NewVsRepeatChart from "@/components/dashboard/NewVsRepeatChart";
 import RefreshButton from "@/components/dashboard/RefreshButton";
+import BigKpiCard from "@/components/dashboard/BigKpiCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { aggregateByDate, filterByRange } from "@/lib/metrics";
+import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
+import { fmtInt, fmtJpy, fmtRatioPct, safeDiv } from "@/lib/utils";
 
 /**
  * Screen 2 — Ads summary.
  *
- * Uses the Sheet-backed raw as the ad-side source of truth, and GA4 mock as
- * the site-side source. The MediaTable deliberately shows both CV counts
- * plus a diff column; the mini chart plots diff over time so spikes (a
- * signal for measurement drift) are visible without being alarming.
+ * Range-aware. Compares selected window vs previous-window (or prior-year
+ * equivalent) via the picker. Media table totals reflect the current window.
  */
 export const dynamic = "force-dynamic";
 
-/** Synthesize a GA4-side CV count per media by applying a plausible ratio to
- *  the ad-side CV. Real implementation reads the GA4 source/medium report. */
 function fakeGa4CvPerMedia(media: string, adsCv: number): number {
   const ratio: Record<string, number> = {
     Google: 0.92,
     Microsoft: 0.88,
     Yahoo: 0.85,
-    meta: 1.04, // meta often over-reports vs GA4 — here we flip the sign
+    meta: 1.04,
   };
   return Math.round(adsCv * (ratio[media] ?? 0.9));
 }
 
-export default async function AdsScreen({ params }: { params: Promise<{ slug: string }> }) {
+function pct(a: number, b: number): number | null {
+  if (b === 0) return null;
+  return (a - b) / b;
+}
+
+export default async function AdsScreen({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const { slug } = await params;
+  const sp = await searchParams;
   const client = await assertUserCanAccessClientBySlug(slug);
 
   const { rows, fetchedAt, isMock } = await getDailyRows(client);
-
-  // Window: last 28 days from the max date in the data.
   const allDates = rows.map((r) => r.date).filter(Boolean).sort();
-  const maxDate = allDates[allDates.length - 1] ?? new Date().toISOString().slice(0, 10);
-  const start = (() => {
-    const d = new Date(`${maxDate}T00:00:00Z`);
-    d.setUTCDate(d.getUTCDate() - 27);
-    return d.toISOString().slice(0, 10);
-  })();
-  const windowRows = filterByRange(rows, start, maxDate);
+  const anchor = allDates[allDates.length - 1] ?? new Date().toISOString().slice(0, 10);
 
-  // Aggregate by media.
-  const byMedia = new Map<string, DailyRow[]>();
-  for (const r of windowRows) {
-    const list = byMedia.get(r.media) ?? [];
-    list.push(r);
-    byMedia.set(r.media, list);
+  const rr = resolveFromSearchParams(sp, { preset: "last28", compare: "prev" }, anchor);
+
+  const cur = filterByRange(rows, rr.current.start, rr.current.end);
+  const prev = rr.previous ? filterByRange(rows, rr.previous.start, rr.previous.end) : [];
+  const curTotals = sumRows(cur);
+  const prevTotals = sumRows(prev);
+
+  // Media aggregation.
+  function byMedia(list: DailyRow[]): MediaRow[] {
+    const map = new Map<string, MediaRow>();
+    for (const r of list) {
+      const c = map.get(r.media) ?? {
+        media: r.media,
+        spend: 0,
+        impressions: 0,
+        clicks: 0,
+        adsCv: 0,
+        ga4Cv: 0,
+        conversionValue: 0,
+      };
+      c.spend += r.cost;
+      c.impressions += r.impressions;
+      c.clicks += r.clicks;
+      c.adsCv += r.conversions;
+      c.conversionValue += r.conversionValue;
+      map.set(r.media, c);
+    }
+    return Array.from(map.values()).map((m) => ({ ...m, ga4Cv: fakeGa4CvPerMedia(m.media, m.adsCv) }));
   }
-  const mediaRows: MediaRow[] = Array.from(byMedia.entries()).map(([media, list]) => {
-    const tot = list.reduce(
-      (s, r) => ({
-        spend: s.spend + r.cost,
-        impressions: s.impressions + r.impressions,
-        clicks: s.clicks + r.clicks,
-        adsCv: s.adsCv + r.conversions,
-        conversionValue: s.conversionValue + r.conversionValue,
-      }),
-      { spend: 0, impressions: 0, clicks: 0, adsCv: 0, conversionValue: 0 }
-    );
-    return {
-      media,
-      ...tot,
-      ga4Cv: fakeGa4CvPerMedia(media, tot.adsCv),
-    };
-  });
+  const mediaRows = byMedia(cur);
 
-  // Daily trend (reuse existing component — cost + CV).
-  const series = aggregateByDate(windowRows);
+  const series = aggregateByDate(cur);
 
-  // New vs repeat: pull the last 6 months from GA4 mock and sum across channels.
+  // New vs repeat, past 6 months from GA4 mock (context, not range-filtered).
   const ga4 = getGa4MonthlyChannels(client);
   const byMonthUsers = new Map<string, { new: number; returning: number }>();
   for (const r of ga4) {
-    const cur = byMonthUsers.get(r.yearMonth) ?? { new: 0, returning: 0 };
-    cur.new += r.newUsers;
-    cur.returning += r.returningUsers;
-    byMonthUsers.set(r.yearMonth, cur);
+    const acc = byMonthUsers.get(r.yearMonth) ?? { new: 0, returning: 0 };
+    acc.new += r.newUsers;
+    acc.returning += r.returningUsers;
+    byMonthUsers.set(r.yearMonth, acc);
   }
   const newVsRepeat = Array.from(byMonthUsers.entries())
     .sort(([a], [b]) => a.localeCompare(b))
@@ -98,9 +106,14 @@ export default async function AdsScreen({ params }: { params: Promise<{ slug: st
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">Ads</div>
-          <h1 className="text-2xl font-semibold tracking-tight">広告サマリー</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">広告サマリー · {rr.presetLabel}</h1>
           <div className="mt-1 text-sm text-muted-foreground">
-            期間: {start} 〜 {maxDate}（直近28日）
+            {rr.current.start} 〜 {rr.current.end}
+            {rr.previous && (
+              <span className="ml-2">
+                · {rr.compareLabel}: {rr.previous.start} 〜 {rr.previous.end}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -112,7 +125,41 @@ export default async function AdsScreen({ params }: { params: Promise<{ slug: st
         </div>
       </div>
 
-      {/* Media table */}
+      {/* Period KPIs with comparison */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <BigKpiCard
+          label="Spend"
+          value={fmtJpy(curTotals.cost)}
+          lowerIsBetter
+          comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(curTotals.cost, prevTotals.cost) }] : []}
+        />
+        <BigKpiCard
+          label="媒体CV"
+          value={fmtInt(curTotals.conversions)}
+          comparisons={
+            rr.previous ? [{ label: rr.compareLabel, delta: pct(curTotals.conversions, prevTotals.conversions) }] : []
+          }
+        />
+        <BigKpiCard
+          label="売上"
+          value={fmtJpy(curTotals.conversionValue)}
+          comparisons={
+            rr.previous
+              ? [{ label: rr.compareLabel, delta: pct(curTotals.conversionValue, prevTotals.conversionValue) }]
+              : []
+          }
+        />
+        <BigKpiCard
+          label="ROAS"
+          value={fmtRatioPct(curTotals.roasPct, 0)}
+          comparisons={
+            rr.previous && curTotals.roasPct != null && prevTotals.roasPct != null
+              ? [{ label: rr.compareLabel, delta: pct(curTotals.roasPct, prevTotals.roasPct) }]
+              : []
+          }
+        />
+      </div>
+
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">媒体別サマリ</h2>
         <MediaTable rows={mediaRows} targetRoasPct={client.monthlyTargets.roasPct} />
@@ -129,7 +176,7 @@ export default async function AdsScreen({ params }: { params: Promise<{ slug: st
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">新規 vs リピート Users（過去6ヶ月）</CardTitle>
+            <CardTitle className="text-sm">新規 vs リピート Users（過去6ヶ月・参考）</CardTitle>
           </CardHeader>
           <CardContent>
             <NewVsRepeatChart data={newVsRepeat} />

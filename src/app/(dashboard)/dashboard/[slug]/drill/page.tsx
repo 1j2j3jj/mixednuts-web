@@ -1,5 +1,7 @@
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getDailyRows, type DailyRow } from "@/lib/sources/raw";
+import { resolveFromSearchParams } from "@/lib/range";
+import { filterByRange } from "@/lib/metrics";
 import DrillFilters from "@/components/dashboard/DrillFilters";
 import DrillTable, { type DrillRow } from "@/components/dashboard/DrillTable";
 import CsvExportButton from "@/components/dashboard/CsvExportButton";
@@ -7,38 +9,30 @@ import RefreshButton from "@/components/dashboard/RefreshButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 /**
- * Screen 3 — Drilldown.
+ * Screen 3 — Drilldown. Cascade: 媒体 → キャンペーン → 広告グループ. Aggregation
+ * is always grouped by (level × bucket) so every row carries a date.
  *
- * Hierarchy: 媒体 → CPN → ADG → KW/商品. Phase 1 sample: we only have media
- * and campaign from the raw sheet, so ADG / KW are rendered via synthetic
- * sub-rows when a campaign is selected. Real drilldown arrives when the
- * master sheet + Google Ads search-term API are wired in Phase 2.
+ * Level is decided by the deepest active filter:
+ *   no filter        → media
+ *   media filter     → campaign
+ *   + campaign       → adgroup
+ *   + adgroup        → bucket (single series)
  */
 export const dynamic = "force-dynamic";
 
 function bucketKey(date: string, granularity: "day" | "week" | "month"): string {
   if (granularity === "day") return date;
   if (granularity === "month") return date.slice(0, 7);
-  // week: ISO-ish "YYYY-Www" by Monday
   const d = new Date(`${date}T00:00:00Z`);
   const day = d.getUTCDay();
-  const diff = (day + 6) % 7; // Monday = 0
+  const diff = (day + 6) % 7;
   d.setUTCDate(d.getUTCDate() - diff);
   return d.toISOString().slice(0, 10);
 }
 
-/**
- * Always aggregate by (classification × bucket) so every row has a date.
- * Classification switches based on which filters are active:
- *   - no filter          → media
- *   - media filter       → campaign
- *   - campaign filter    → campaign (single one, so effectively the bucket)
- */
-function aggregateByBucket(
-  rows: DailyRow[],
-  granularity: "day" | "week" | "month",
-  level: "media" | "campaign"
-): DrillRow[] {
+type Level = "media" | "campaign" | "adgroup" | "bucket";
+
+function aggregate(rows: DailyRow[], granularity: "day" | "week" | "month", level: Level): DrillRow[] {
   const map = new Map<string, DrillRow>();
   for (const r of rows) {
     const bucket = bucketKey(r.date, granularity);
@@ -46,11 +40,16 @@ function aggregateByBucket(
     let subKey: string | undefined;
     if (level === "media") {
       key = r.media;
-    } else {
+    } else if (level === "campaign") {
       key = r.campaignName || r.campaignId;
       subKey = r.campaignId;
+    } else if (level === "adgroup") {
+      key = r.adgroupName || r.adgroupId || "(no adgroup)";
+      subKey = r.adgroupId;
+    } else {
+      key = bucket;
     }
-    const id = `${key}|${bucket}`;
+    const id = `${level}|${key}|${bucket}`;
     const cur = map.get(id) ?? {
       key,
       subKey,
@@ -85,28 +84,46 @@ export default async function DrillScreen({
 
   const { rows, fetchedAt, isMock } = await getDailyRows(client);
 
+  const allDates = rows.map((r) => r.date).filter(Boolean).sort();
+  const anchor = allDates[allDates.length - 1] ?? new Date().toISOString().slice(0, 10);
+  const rr = resolveFromSearchParams(sp, { preset: "last28", compare: "none" }, anchor);
+
   const mediaFilter = sp.media ?? "";
   const campaignFilter = sp.campaign ?? "";
-  const bgFilter = sp.bg ?? "";
+  const adgroupFilter = sp.adgroup ?? "";
   const granularity = (sp.g as "day" | "week" | "month" | undefined) ?? "day";
 
-  let filtered = rows;
+  // Apply range first, then facet filters.
+  let filtered = filterByRange(rows, rr.current.start, rr.current.end);
   if (mediaFilter) filtered = filtered.filter((r) => r.media === mediaFilter);
   if (campaignFilter) filtered = filtered.filter((r) => r.campaignId === campaignFilter);
-  if (bgFilter) filtered = filtered.filter((r) => r.brandGeneral === bgFilter);
+  if (adgroupFilter) filtered = filtered.filter((r) => r.adgroupId === adgroupFilter);
 
-  // When media (or campaign) is filtered we classify by campaign; otherwise by
-  // media. Bucketing by the granularity toggle is orthogonal — always applied.
-  const level: "media" | "campaign" = mediaFilter || campaignFilter ? "campaign" : "media";
-  const table = aggregateByBucket(filtered, granularity, level);
+  const level: Level = adgroupFilter
+    ? "bucket"
+    : campaignFilter
+    ? "adgroup"
+    : mediaFilter
+    ? "campaign"
+    : "media";
 
-  // Filter options
-  const medias = Array.from(new Set(rows.map((r) => r.media))).sort();
+  const table = aggregate(filtered, granularity, level);
+
+  // Facet option sources (unfiltered rows within the range, so options reflect
+  // what is actually selectable in this window).
+  const rangeRows = filterByRange(rows, rr.current.start, rr.current.end);
+  const medias = Array.from(new Set(rangeRows.map((r) => r.media))).sort();
   const campaigns = Array.from(
-    new Map(rows.map((r) => [r.campaignId, { id: r.campaignId, name: r.campaignName, media: r.media }])).values()
+    new Map(rangeRows.map((r) => [r.campaignId, { id: r.campaignId, name: r.campaignName, media: r.media }])).values()
+  ).sort((a, b) => a.name.localeCompare(b.name));
+  const adgroups = Array.from(
+    new Map(
+      rangeRows
+        .filter((r) => r.adgroupId)
+        .map((r) => [r.adgroupId, { id: r.adgroupId, name: r.adgroupName, campaignId: r.campaignId }])
+    ).values()
   ).sort((a, b) => a.name.localeCompare(b.name));
 
-  // CSV payload — export current filtered table rows flat with resolved metrics.
   const csvRows = table.map((r) => ({
     date: r.date,
     label: r.key,
@@ -124,14 +141,23 @@ export default async function DrillScreen({
     minute: "2-digit",
   });
 
+  const levelLabel =
+    level === "media"
+      ? "媒体"
+      : level === "campaign"
+      ? "キャンペーン"
+      : level === "adgroup"
+      ? "広告グループ"
+      : "期間のみ";
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">Drilldown</div>
-          <h1 className="text-2xl font-semibold tracking-tight">フィルター詳細</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">フィルター詳細 · {rr.presetLabel}</h1>
           <div className="mt-1 text-sm text-muted-foreground">
-            階層: 媒体 → キャンペーン → 期間（フィルタで掘り下げ）
+            {rr.current.start} 〜 {rr.current.end} · 階層: 媒体 → キャンペーン → 広告グループ
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -147,13 +173,12 @@ export default async function DrillScreen({
         </div>
       </div>
 
-      <DrillFilters slug={slug} medias={medias} campaigns={campaigns} />
+      <DrillFilters slug={slug} medias={medias} campaigns={campaigns} adgroups={adgroups} />
 
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">
-            {level === "media" ? "媒体 × " : "キャンペーン × "}
-            {granularity === "day" ? "日" : granularity === "week" ? "週" : "月"}
+            {levelLabel} × {granularity === "day" ? "日" : granularity === "week" ? "週" : "月"}
             <span className="ml-2 text-xs font-normal text-muted-foreground">{table.length} 件</span>
           </CardTitle>
         </CardHeader>
