@@ -168,13 +168,21 @@ export default async function AdsScreen({
     return d.cost > 0 ? (rev / d.cost) * 100 : 0;
   });
 
-  // Funnel uses ad-side counts through CV, then GA4 revenue for the final
-  // stage so the shown ¥ matches the GA4-based top-KPI card above.
+  // Funnel respects the source toggle. Impressions/Clicks always come from
+  // the ad platform (GA4 has no ad-side impression metric); CV and Revenue
+  // switch per toggle so the Funnel lines up with the Big KPI cards.
   const funnelStages: Array<{ label: string; value: number; format?: "int" | "jpy" }> = [
     { label: "Impressions", value: curTotals.impressions },
     { label: "Clicks", value: curTotals.clicks },
-    { label: "Conversions", value: curTotals.conversions },
-    { label: "Revenue (GA4)", value: curGa4.revenue, format: "jpy" },
+    {
+      label: source === "ga4" ? "GA4 CV" : "媒体CV",
+      value: source === "ga4" ? curGa4.conversions : curTotals.conversions,
+    },
+    {
+      label: source === "ga4" ? "GA4 売上" : "媒体売上",
+      value: source === "ga4" ? curGa4.revenue : curTotals.conversionValue,
+      format: "jpy",
+    },
   ];
 
   const fetchedAtLabel = new Date(fetchedAt).toLocaleTimeString("ja-JP", {

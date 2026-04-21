@@ -1,6 +1,11 @@
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getDailyRows, type DailyRow } from "@/lib/sources/raw";
-import { getGa4PaidCampaigns, getGa4GoogleAdgroups } from "@/lib/sources/ga4";
+import {
+  getGa4PaidCampaigns,
+  getGa4GoogleAdgroups,
+  type Ga4CampaignRow,
+  type Ga4AdgroupRow,
+} from "@/lib/sources/ga4";
 import { getTargetsForMonth } from "@/lib/sources/target";
 import { resolveFromSearchParams } from "@/lib/range";
 import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
@@ -152,15 +157,56 @@ export default async function DrillScreen({
     ? "campaign"
     : "media";
 
-  // Fetch GA4 data. Paid campaigns are pulled on every level because the
-  // Big-KPI cards need window totals even at adgroup / bucket levels; the
-  // ADG-specific report stays level-gated (small query, cheap).
-  const [ga4Campaigns, ga4Adgroups] = await Promise.all([
+  // Build cascade scopes from the filtered sheet rows. The GA4 side is
+  // scoped via (media, campaign matchKey, adgroup id) derived from the sheet
+  // selection. This is what lets Big KPI cards stop leaking全paid revenue
+  // into a Yahoo指名 ADG view.
+  const scopeMedia = new Set(filtered.map((r) => r.media).filter(Boolean));
+  // sheetToGa4MatchKey mirrors ga4MatchKey in ga4.ts from the sheet side:
+  // Google auto-tag writes campaignId into GA4 sessionCampaignId (numeric),
+  // so matchKey=campaignId. Microsoft/Yahoo/meta auto-tag writes the
+  // platform-side campaign *name* into sessionCampaignName (sessionCampaignId
+  // often comes back as "(not set)"), so matchKey=campaignName.
+  const scopeCampaignKeys = new Set(
+    filtered.map((r) => (r.media === "Google" ? r.campaignId : r.campaignName)).filter(Boolean)
+  );
+  const scopeAdgroupIds = new Set(filtered.map((r) => r.adgroupId).filter(Boolean));
+  const isGoogleOnlyScope = scopeMedia.size === 1 && scopeMedia.has("Google");
+  const needAdgroupData = level === "adgroup" || (!!adgroupFilter && isGoogleOnlyScope);
+
+  // Fetch GA4 data. Current + previous windows in parallel so KPI deltas are
+  // real (prev was hardcoded 0 before, making GA4 deltas meaningless).
+  const [ga4Campaigns, ga4Adgroups, ga4CampaignsPrev, ga4AdgroupsPrev] = await Promise.all([
     getGa4PaidCampaigns(client, rr.current.start, rr.current.end),
-    level === "adgroup"
+    needAdgroupData
       ? getGa4GoogleAdgroups(client, rr.current.start, rr.current.end)
-      : Promise.resolve([]),
+      : Promise.resolve([] as Ga4AdgroupRow[]),
+    rr.previous
+      ? getGa4PaidCampaigns(client, rr.previous.start, rr.previous.end)
+      : Promise.resolve([] as Ga4CampaignRow[]),
+    rr.previous && needAdgroupData
+      ? getGa4GoogleAdgroups(client, rr.previous.start, rr.previous.end)
+      : Promise.resolve([] as Ga4AdgroupRow[]),
   ]);
+
+  // Apply cascade scope to GA4 rows. For Google + ADG filter we further
+  // restrict to ga4Adgroups (the only source with ADG-level grain). For
+  // non-Google ADG filter GA4 can at best answer at campaign grain, so we
+  // fall back to campaign scope with the same (media+campaign) filter.
+  function scopeGa4Campaigns(list: Ga4CampaignRow[]): Ga4CampaignRow[] {
+    let l = list;
+    if (scopeMedia.size > 0) l = l.filter((g) => scopeMedia.has(g.media));
+    if (campaignFilter) l = l.filter((g) => scopeCampaignKeys.has(g.matchKey));
+    return l;
+  }
+  function scopeGa4Adgroups(list: Ga4AdgroupRow[]): Ga4AdgroupRow[] {
+    if (!adgroupFilter) return list;
+    return list.filter((g) => scopeAdgroupIds.has(g.adgroupId));
+  }
+  const curGa4CampaignsScoped = scopeGa4Campaigns(ga4Campaigns);
+  const prevGa4CampaignsScoped = scopeGa4Campaigns(ga4CampaignsPrev);
+  const curGa4AdgroupsScoped = scopeGa4Adgroups(ga4Adgroups);
+  const prevGa4AdgroupsScoped = scopeGa4Adgroups(ga4AdgroupsPrev);
 
   // Bucket the GA4 daily rows into (identifier|bucket) → totals. For
   // week/month granularity we re-bucket GA4 days into the same bucket key
@@ -208,9 +254,13 @@ export default async function DrillScreen({
 
   const pct = (a: number, b: number): number | null => (b === 0 ? null : (a - b) / b);
 
-  // GA4-side totals for the current and previous window. Aggregated from the
-  // paid-campaign rows so the Big KPI cards match the selected source.
-  function sumGa4(list: typeof ga4Campaigns): { conversions: number; revenue: number } {
+  // GA4-side totals for the current/previous window, scoped by the cascade
+  // filter. For Google + ADG filter we use the ADG-grained source
+  // (ga4Adgroups); otherwise the campaign-grained source scoped by
+  // (media+campaign). For non-Google ADG filter the ADG-level GA4 number is
+  // not retrievable (GA4 only exposes ADG for Google Ads), so we show the
+  // campaign-level total — an honest upper bound — with a disclaimer.
+  function sumGa4Campaigns(list: Ga4CampaignRow[]): { conversions: number; revenue: number } {
     let c = 0, r = 0;
     for (const row of list) {
       c += row.conversions;
@@ -218,18 +268,25 @@ export default async function DrillScreen({
     }
     return { conversions: c, revenue: r };
   }
-  function filterByMediaKey(list: typeof ga4Campaigns) {
-    if (!mediaFilter) return list;
-    return list.filter((g) => g.media === mediaFilter);
-    // campaign / adgroup filters can't be applied on the GA4 side cleanly
-    // (different key shapes), so Big KPI falls back to media-level scope —
-    // an acceptable approximation for a toggle-only display.
+  function sumGa4Adgroups(list: Ga4AdgroupRow[]): { conversions: number; revenue: number } {
+    let c = 0, r = 0;
+    for (const row of list) {
+      c += row.conversions;
+      r += row.revenue;
+    }
+    return { conversions: c, revenue: r };
   }
-  const curGa4 = sumGa4(filterByMediaKey(ga4Campaigns));
-  // previous-window GA4: separate fetch would be ideal; for now reuse the
-  // current-window fetch and let the prev delta stay media-only for v1.
-  const prevGa4 = { conversions: 0, revenue: 0 };
+  const useAdgGa4 = !!adgroupFilter && isGoogleOnlyScope;
+  const ga4ApproxNonGoogleAdg = !!adgroupFilter && !isGoogleOnlyScope;
+  const curGa4 = useAdgGa4
+    ? sumGa4Adgroups(curGa4AdgroupsScoped)
+    : sumGa4Campaigns(curGa4CampaignsScoped);
+  const prevGa4 = useAdgGa4
+    ? sumGa4Adgroups(prevGa4AdgroupsScoped)
+    : sumGa4Campaigns(prevGa4CampaignsScoped);
   const curGa4RoasPct = curTotals.cost > 0 ? (curGa4.revenue / curTotals.cost) * 100 : null;
+  const prevGa4RoasPct =
+    rr.previous && prevTotals.cost > 0 ? (prevGa4.revenue / prevTotals.cost) * 100 : null;
 
   // Trend series — bucketed by the same granularity as the table, so the
   // chart and the table agree on their x-axis.
@@ -251,21 +308,51 @@ export default async function DrillScreen({
   }
   const series = Array.from(trendMap.values()).sort((a, b) => a.date.localeCompare(b.date));
 
-  // Sparklines: daily, with dates for hover tooltip.
+  // Sparklines: daily, with dates for hover tooltip. CV/Revenue switch per
+  // source so the sparkline matches the Big KPI card above it.
   const dailySeries = aggregateByDate(filtered);
   const daily14 = lastN(dailySeries, 14);
   const sparkDates = daily14.map((d) => d.date);
   const spend14 = daily14.map((d) => d.cost);
-  const cv14 = daily14.map((d) => d.conversions);
-  const rev14 = daily14.map((d) => d.conversionValue);
-  const roas14 = daily14.map((d) => (d.cost > 0 ? (d.conversionValue / d.cost) * 100 : 0));
 
-  // Funnel for the current filter.
+  // Build a GA4 daily totals map from the scoped data so the sparkline
+  // respects the cascade filter exactly like the Big KPI card does.
+  const ga4DailyMap = new Map<string, { conversions: number; revenue: number }>();
+  const ga4DailySource: Array<{ date: string; conversions: number; revenue: number }> = useAdgGa4
+    ? curGa4AdgroupsScoped
+    : curGa4CampaignsScoped;
+  for (const g of ga4DailySource) {
+    if (!g.date) continue;
+    const cur = ga4DailyMap.get(g.date) ?? { conversions: 0, revenue: 0 };
+    cur.conversions += g.conversions;
+    cur.revenue += g.revenue;
+    ga4DailyMap.set(g.date, cur);
+  }
+  const cv14 = daily14.map((d) =>
+    source === "ga4" ? ga4DailyMap.get(d.date)?.conversions ?? 0 : d.conversions
+  );
+  const rev14 = daily14.map((d) =>
+    source === "ga4" ? ga4DailyMap.get(d.date)?.revenue ?? 0 : d.conversionValue
+  );
+  const roas14 = daily14.map((d) => {
+    const rev = source === "ga4" ? ga4DailyMap.get(d.date)?.revenue ?? 0 : d.conversionValue;
+    return d.cost > 0 ? (rev / d.cost) * 100 : 0;
+  });
+
+  // Funnel respects the source toggle. Impressions/Clicks always come from
+  // the ad platform (GA4 has no ad-side impression metric); CV and Revenue
+  // switch per toggle. GA4 values use the same scoped totals as Big KPI.
+  const funnelCv = source === "ga4" ? curGa4.conversions : curTotals.conversions;
+  const funnelRevenue = source === "ga4" ? curGa4.revenue : curTotals.conversionValue;
   const funnelStages: Array<{ label: string; value: number; format?: "int" | "jpy" }> = [
     { label: "Impressions", value: curTotals.impressions },
     { label: "Clicks", value: curTotals.clicks },
-    { label: "Conversions", value: curTotals.conversions },
-    { label: "Revenue", value: curTotals.conversionValue, format: "jpy" },
+    { label: source === "ga4" ? "GA4 CV" : "媒体CV", value: funnelCv },
+    {
+      label: source === "ga4" ? "GA4 売上" : "媒体売上",
+      value: funnelRevenue,
+      format: "jpy",
+    },
   ];
 
   // Facet option sources (unfiltered rows within the range, so options reflect
@@ -394,8 +481,14 @@ export default async function DrillScreen({
           label={source === "ga4" ? "GA4 ROAS" : "媒体ROAS"}
           value={fmtRatioPct(source === "ga4" ? curGa4RoasPct : curTotals.roasPct, 0)}
           comparisons={
-            rr.previous && source === "media" && curTotals.roasPct != null && prevTotals.roasPct != null
-              ? [{ label: rr.compareLabel, delta: pct(curTotals.roasPct, prevTotals.roasPct) }]
+            rr.previous
+              ? source === "ga4"
+                ? curGa4RoasPct != null && prevGa4RoasPct != null
+                  ? [{ label: rr.compareLabel, delta: pct(curGa4RoasPct, prevGa4RoasPct) }]
+                  : []
+                : curTotals.roasPct != null && prevTotals.roasPct != null
+                ? [{ label: rr.compareLabel, delta: pct(curTotals.roasPct, prevTotals.roasPct) }]
+                : []
               : []
           }
           sparkline={roas14}
@@ -403,6 +496,13 @@ export default async function DrillScreen({
           sparkFormat="pct"
         />
       </div>
+
+      {ga4ApproxNonGoogleAdg && source === "ga4" && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          注: GA4 は Google Ads 以外の ADG 粒度を提供しないため、GA4 CV / 売上 / ROAS は
+          キャンペーン単位の値（上限近似）を表示しています。媒体値は広告プラットフォーム実績ベース。
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
