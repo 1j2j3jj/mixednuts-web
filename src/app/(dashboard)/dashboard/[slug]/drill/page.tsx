@@ -1,5 +1,6 @@
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getDailyRows, type DailyRow } from "@/lib/sources/raw";
+import { getGa4PaidCampaigns, getGa4GoogleAdgroups } from "@/lib/sources/ga4";
 import { resolveFromSearchParams } from "@/lib/range";
 import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
 import { lastN } from "@/lib/analysis";
@@ -38,7 +39,20 @@ function bucketKey(date: string, granularity: "day" | "week" | "month"): string 
 
 type Level = "media" | "campaign" | "adgroup" | "bucket";
 
-function aggregate(rows: DailyRow[], granularity: "day" | "week" | "month", level: Level): DrillRow[] {
+interface JoinKeys {
+  /** key → (sessions, conversions, revenue) for the full window. Per-day
+   *  GA4 data is too granular to fetch reliably; the dashboard reports the
+   *  window-level GA4 totals on each bucket row as an estimation anchor. */
+  campaignKey: Map<string, { sessions: number; conversions: number; revenue: number }>;
+  adgroupKey: Map<string, { sessions: number; conversions: number; revenue: number }>;
+}
+
+function aggregate(
+  rows: DailyRow[],
+  granularity: "day" | "week" | "month",
+  level: Level,
+  join: JoinKeys
+): DrillRow[] {
   const map = new Map<string, DrillRow>();
   for (const r of rows) {
     const bucket = bucketKey(r.date, granularity);
@@ -66,6 +80,9 @@ function aggregate(rows: DailyRow[], granularity: "day" | "week" | "month", leve
       impressions: 0,
       conversions: 0,
       conversionValue: 0,
+      ga4Sessions: null as number | null,
+      ga4Conversions: null as number | null,
+      ga4Revenue: null as number | null,
     };
     cur.spend += r.cost;
     cur.clicks += r.clicks;
@@ -73,6 +90,25 @@ function aggregate(rows: DailyRow[], granularity: "day" | "week" | "month", leve
     cur.conversions += r.conversions;
     cur.conversionValue += r.conversionValue;
     map.set(id, cur);
+  }
+  // Attach GA4 totals per key (window-level; same values repeat across
+  // buckets for the same key since the source data isn't per-day here).
+  for (const row of map.values()) {
+    if (level === "campaign" && row.subKey) {
+      const hit = join.campaignKey.get(row.subKey);
+      if (hit) {
+        row.ga4Sessions = hit.sessions;
+        row.ga4Conversions = hit.conversions;
+        row.ga4Revenue = hit.revenue;
+      }
+    } else if (level === "adgroup" && row.subKey) {
+      const hit = join.adgroupKey.get(row.subKey);
+      if (hit) {
+        row.ga4Sessions = hit.sessions;
+        row.ga4Conversions = hit.conversions;
+        row.ga4Revenue = hit.revenue;
+      }
+    }
   }
   return Array.from(map.values());
 }
@@ -113,7 +149,39 @@ export default async function DrillScreen({
     ? "campaign"
     : "media";
 
-  const table = aggregate(filtered, granularity, level);
+  // Fetch GA4 data for join (only when we're rendering campaign / adgroup).
+  const [ga4Campaigns, ga4Adgroups] = await Promise.all([
+    level === "campaign"
+      ? getGa4PaidCampaigns(client, rr.current.start, rr.current.end)
+      : Promise.resolve([]),
+    level === "adgroup"
+      ? getGa4GoogleAdgroups(client, rr.current.start, rr.current.end)
+      : Promise.resolve([]),
+  ]);
+  const join: JoinKeys = {
+    campaignKey: new Map(),
+    adgroupKey: new Map(),
+  };
+  for (const g of ga4Campaigns) {
+    const k = g.matchKey;
+    if (!k) continue;
+    const cur = join.campaignKey.get(k) ?? { sessions: 0, conversions: 0, revenue: 0 };
+    cur.sessions += g.sessions;
+    cur.conversions += g.conversions;
+    cur.revenue += g.revenue;
+    join.campaignKey.set(k, cur);
+  }
+  for (const g of ga4Adgroups) {
+    const k = g.adgroupId;
+    if (!k) continue;
+    const cur = join.adgroupKey.get(k) ?? { sessions: 0, conversions: 0, revenue: 0 };
+    cur.sessions += g.sessions;
+    cur.conversions += g.conversions;
+    cur.revenue += g.revenue;
+    join.adgroupKey.set(k, cur);
+  }
+
+  const table = aggregate(filtered, granularity, level, join);
 
   // Period KPIs (reflect the filter: facet filters narrow, so KPIs change).
   const curTotals = sumRows(filtered);

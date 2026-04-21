@@ -67,6 +67,12 @@ function inferBrandGeneral(campaignName: string): "Brand" | "General" {
   return /指名|ブランド|brand/i.test(campaignName) ? "Brand" : "General";
 }
 
+/** Strip leading/trailing brackets often present in Microsoft Ads export
+ *  (e.g. "[518730332]" → "518730332") so the JOIN key with GA4 matches. */
+function stripBrackets(s: string): string {
+  return s.replace(/^[[(]+|[\])]+$/g, "").trim();
+}
+
 function toNumber(v: unknown): number {
   if (v == null || v === "") return 0;
   if (typeof v === "number") return v;
@@ -149,9 +155,9 @@ export async function getDailyRows(client: ClientConfig): Promise<DailyFetchResu
       media: String(r[HS_COLS.media] ?? "").trim(),
       brandGeneral: inferBrandGeneral(campaignName),
       date: normaliseDate(r[HS_COLS.date]),
-      campaignId: String(r[HS_COLS.campaignId] ?? "").trim(),
+      campaignId: stripBrackets(String(r[HS_COLS.campaignId] ?? "")),
       campaignName,
-      adgroupId: String(r[HS_COLS.adgroupId] ?? "").trim(),
+      adgroupId: stripBrackets(String(r[HS_COLS.adgroupId] ?? "")),
       adgroupName: String(r[HS_COLS.adgroupName] ?? "").trim(),
       currency: String(r[HS_COLS.currency] ?? "JPY").trim(),
       cost: toNumber(r[HS_COLS.cost]),

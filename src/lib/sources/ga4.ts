@@ -62,6 +62,39 @@ export interface ProductRow {
   unitPrice: number;
 }
 
+/**
+ * GA4 row at the (source × medium × campaign) grain. `media` is the internal
+ * media name (matches the sheet's 媒体 column), derived from source/medium.
+ * `matchKey` is the key we JOIN on against the ads sheet's campaignId — for
+ * Google Ads this is the campaign id; for Microsoft / Yahoo / meta where the
+ * id surfaces as the *name* in GA4 (auto-tagging peculiarity), we fall back
+ * to the name.
+ */
+export interface Ga4CampaignRow {
+  source: string;
+  medium: string;
+  media: string;
+  campaignId: string;
+  campaignName: string;
+  matchKey: string;
+  sessions: number;
+  conversions: number;
+  revenue: number;
+}
+
+/**
+ * Google-Ads-only ADG row. `matchKey` is the raw ADG id so it joins directly
+ * against the sheet's adgroupId.
+ */
+export interface Ga4AdgroupRow {
+  campaignId: string;
+  adgroupId: string;
+  adgroupName: string;
+  sessions: number;
+  conversions: number;
+  revenue: number;
+}
+
 /* ---------------------- auth ---------------------- */
 
 function loadSa(): Record<string, unknown> | null {
@@ -88,6 +121,41 @@ function makeAuth() {
 const CACHE_TTL_SECONDS = 300;
 
 /* ---------------------- helpers ---------------------- */
+
+/** Paid-medium detector. GA4 medium varies: cpc / ppc / paid_search /
+ *  paid_social / paid_shopping / paid_video / paid_other / display. Anything
+ *  else (organic / referral / email / none) is dropped by the Ads-side
+ *  aggregation because this tab only cares about paid media. */
+function isPaidMedium(medium: string): boolean {
+  const m = medium.toLowerCase();
+  return /cpc|ppc|paid_|display|video/.test(m) && !/organic/.test(m);
+}
+
+/** Map a GA4 source to one of the internal ad media names. Returns null when
+ *  the source is not a paid-ads source we track (organic / referral / etc). */
+function normaliseAdMedia(source: string, medium: string): string | null {
+  if (!isPaidMedium(medium)) return null;
+  const s = source.toLowerCase();
+  if (s === "google" || s.startsWith("googleads")) return "Google";
+  if (s === "bing" || s === "microsoft" || s === "msn") return "Microsoft";
+  if (s === "yahoo" || s === "yhl" || s === "yss" || s === "ydn" || s.includes("yahoo")) return "Yahoo";
+  if (s === "fb" || s === "facebook" || s === "instagram" || s === "ig" || s === "meta" || s.includes("facebook")) return "meta";
+  if (s === "linkedin" || s === "li") return "LinkedIn";
+  if (s === "tiktok" || s.includes("tiktok")) return "TikTok";
+  if (s === "line" || s.includes("line.me")) return "LINE";
+  return null;
+}
+
+/** Pick the best JOIN key between GA4 and the ads sheet. Google's cid is
+ *  usually the pure numeric campaign id; for bing/yahoo/meta the id shows up
+ *  in the *name* field instead because auto-tagging writes utm_campaign from
+ *  the platform-side campaign id. */
+function ga4MatchKey(cid: string, cname: string): string {
+  const clean = (v: string) => v.replace(/^[[(]+|[\])]+$/g, "").trim();
+  const cidClean = clean(cid);
+  if (cidClean && cidClean !== "(not set)") return cidClean;
+  return clean(cname);
+}
 
 const CHANNEL_NORMAL: Record<string, ChannelGroup> = {
   "Paid Search": "Paid Search",
@@ -260,6 +328,97 @@ async function realProducts(propertyId: string): Promise<ProductRow[]> {
   });
 }
 
+/** Paid-campaign report. Returns one row per (source × medium × cid × cname)
+ *  with the computed matchKey for JOIN with the ads sheet. */
+async function realPaidCampaigns(propertyId: string, startDate: string, endDate: string): Promise<Ga4CampaignRow[]> {
+  const auth = makeAuth();
+  if (!auth) throw new Error("no-ga4-auth");
+  const analyticsdata = google.analyticsdata("v1beta");
+  const res = await analyticsdata.properties.runReport({
+    property: `properties/${propertyId}`,
+    auth,
+    requestBody: {
+      dateRanges: [{ startDate, endDate }],
+      dimensions: [
+        { name: "sessionSource" },
+        { name: "sessionMedium" },
+        { name: "sessionCampaignId" },
+        { name: "sessionCampaignName" },
+      ],
+      metrics: [
+        { name: "sessions" },
+        { name: "conversions" },
+        { name: "totalRevenue" },
+      ],
+      limit: "10000",
+    },
+  });
+  const out: Ga4CampaignRow[] = [];
+  for (const r of res.data.rows ?? []) {
+    const source = r.dimensionValues?.[0]?.value ?? "";
+    const medium = r.dimensionValues?.[1]?.value ?? "";
+    const media = normaliseAdMedia(source, medium);
+    if (!media) continue;
+    const campaignId = r.dimensionValues?.[2]?.value ?? "";
+    const campaignName = r.dimensionValues?.[3]?.value ?? "";
+    out.push({
+      source,
+      medium,
+      media,
+      campaignId,
+      campaignName,
+      matchKey: ga4MatchKey(campaignId, campaignName),
+      sessions: Number(r.metricValues?.[0]?.value ?? 0),
+      conversions: Number(r.metricValues?.[1]?.value ?? 0),
+      revenue: Number(r.metricValues?.[2]?.value ?? 0),
+    });
+  }
+  return out;
+}
+
+async function realGoogleAdgroups(propertyId: string, startDate: string, endDate: string): Promise<Ga4AdgroupRow[]> {
+  const auth = makeAuth();
+  if (!auth) throw new Error("no-ga4-auth");
+  const analyticsdata = google.analyticsdata("v1beta");
+  const res = await analyticsdata.properties.runReport({
+    property: `properties/${propertyId}`,
+    auth,
+    requestBody: {
+      dateRanges: [{ startDate, endDate }],
+      dimensions: [
+        { name: "sessionGoogleAdsCampaignId" },
+        { name: "sessionGoogleAdsAdGroupId" },
+        { name: "sessionGoogleAdsAdGroupName" },
+      ],
+      metrics: [
+        { name: "sessions" },
+        { name: "conversions" },
+        { name: "totalRevenue" },
+      ],
+      limit: "10000",
+    },
+  });
+  const out: Ga4AdgroupRow[] = [];
+  for (const r of res.data.rows ?? []) {
+    const campaignId = r.dimensionValues?.[0]?.value ?? "";
+    const adgroupId = r.dimensionValues?.[1]?.value ?? "";
+    const adgroupName = r.dimensionValues?.[2]?.value ?? "";
+    // Drop "(not set)" rows and Performance Max ADGs that always come back as
+    // a single meta-adg — those cannot JOIN cleanly against the sheet's real
+    // ADG ids. The Ads page still shows Google-level totals elsewhere.
+    if (!/^\d+$/.test(adgroupId)) continue;
+    out.push({
+      campaignId,
+      adgroupId,
+      adgroupName,
+      sessions: Number(r.metricValues?.[0]?.value ?? 0),
+      conversions: Number(r.metricValues?.[1]?.value ?? 0),
+      revenue: Number(r.metricValues?.[2]?.value ?? 0),
+    });
+  }
+  return out;
+}
+
 /* ---------------------- public (cached) API ---------------------- */
 
 export async function getGa4MonthlyChannels(client: ClientConfig): Promise<ChannelMonth[]> {
@@ -309,6 +468,48 @@ export async function getTopLandingPages(client: ClientConfig): Promise<LandingP
       }
     },
     [`ga4-lp-${pid}`],
+    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] }
+  )();
+}
+
+export async function getGa4PaidCampaigns(
+  client: ClientConfig,
+  startDate: string,
+  endDate: string
+): Promise<Ga4CampaignRow[]> {
+  if (!client.ga4PropertyId) return [];
+  const pid = client.ga4PropertyId;
+  return unstable_cache(
+    async () => {
+      try {
+        return await realPaidCampaigns(pid, startDate, endDate);
+      } catch (err) {
+        console.error("[ga4] paid campaigns fetch failed:", err);
+        return [];
+      }
+    },
+    [`ga4-paid-${pid}-${startDate}-${endDate}`],
+    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] }
+  )();
+}
+
+export async function getGa4GoogleAdgroups(
+  client: ClientConfig,
+  startDate: string,
+  endDate: string
+): Promise<Ga4AdgroupRow[]> {
+  if (!client.ga4PropertyId) return [];
+  const pid = client.ga4PropertyId;
+  return unstable_cache(
+    async () => {
+      try {
+        return await realGoogleAdgroups(pid, startDate, endDate);
+      } catch (err) {
+        console.error("[ga4] adgroups fetch failed:", err);
+        return [];
+      }
+    },
+    [`ga4-adg-${pid}-${startDate}-${endDate}`],
     { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] }
   )();
 }

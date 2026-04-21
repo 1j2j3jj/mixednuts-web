@@ -16,6 +16,11 @@ export interface DrillRow {
   impressions: number;
   conversions: number;
   conversionValue: number;
+  /** Optional GA4-side joined metrics. Populated on campaign / adgroup
+   *  levels when a JOIN key is available; left null when not. */
+  ga4Sessions?: number | null;
+  ga4Conversions?: number | null;
+  ga4Revenue?: number | null;
 }
 
 interface Props {
@@ -59,7 +64,10 @@ export default function DrillTable({ rows, targetRoasPct, targetCpa, level = "ca
 
   const showLabel = level === "campaign" || level === "adgroup";
   const labelHeader = level === "campaign" ? "キャンペーン" : level === "adgroup" ? "広告グループ" : "";
-  const colSpan = showLabel ? 11 : 10;
+  // GA4 columns only make sense at campaign / adgroup granularity.
+  const showGa4 = level === "campaign" || level === "adgroup";
+  const colSpan =
+    (showLabel ? 1 : 0) + (showGa4 ? 3 : 0) + 10;
 
   return (
     <div className="rounded-md border">
@@ -73,7 +81,10 @@ export default function DrillTable({ rows, targetRoasPct, targetCpa, level = "ca
             <TableHead className="text-right">Imp</TableHead>
             <TableHead className="text-right">Click</TableHead>
             <TableHead className="text-right">CTR</TableHead>
-            <TableHead className="text-right">CV</TableHead>
+            <TableHead className="text-right">媒体CV</TableHead>
+            {showGa4 && <TableHead className="text-right">GA4 CV</TableHead>}
+            {showGa4 && <TableHead className="text-right">GA4 Sessions</TableHead>}
+            {showGa4 && <TableHead className="text-right">GA4 売上</TableHead>}
             <TableHead className="text-right">CPA</TableHead>
             <TableHead className="text-right">ROAS</TableHead>
             <TableHead className="text-right">異常</TableHead>
@@ -140,6 +151,21 @@ export default function DrillTable({ rows, targetRoasPct, targetCpa, level = "ca
                 >
                   {fmtInt(r.conversions)}
                 </TableCell>
+                {showGa4 && (
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {r.ga4Conversions == null ? "—" : fmtInt(r.ga4Conversions)}
+                  </TableCell>
+                )}
+                {showGa4 && (
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {r.ga4Sessions == null ? "—" : fmtInt(r.ga4Sessions)}
+                  </TableCell>
+                )}
+                {showGa4 && (
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {r.ga4Revenue == null ? "—" : fmtJpy(r.ga4Revenue)}
+                  </TableCell>
+                )}
                 <TableCell className={cn("text-right tabular-nums", cpaClass(cpa, targetCpa))}>
                   {fmtJpy(cpa)}
                 </TableCell>

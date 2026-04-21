@@ -1,6 +1,6 @@
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getDailyRows, type DailyRow } from "@/lib/sources/raw";
-import { getGa4MonthlyChannels } from "@/lib/sources/ga4";
+import { getGa4MonthlyChannels, getGa4PaidCampaigns, type Ga4CampaignRow } from "@/lib/sources/ga4";
 import { resolveFromSearchParams, type DateRange } from "@/lib/range";
 import MediaTable, { type MediaRow } from "@/components/dashboard/MediaTable";
 import DailyTrendChart from "@/components/dashboard/DailyTrendChart";
@@ -22,14 +22,17 @@ import { fmtInt, fmtJpy, fmtRatioPct, safeDiv } from "@/lib/utils";
  */
 export const dynamic = "force-dynamic";
 
-function fakeGa4CvPerMedia(media: string, adsCv: number): number {
-  const ratio: Record<string, number> = {
-    Google: 0.92,
-    Microsoft: 0.88,
-    Yahoo: 0.85,
-    meta: 1.04,
-  };
-  return Math.round(adsCv * (ratio[media] ?? 0.9));
+/** Sum GA4 paid-campaign rows per internal media. */
+function ga4TotalsByMedia(rows: Ga4CampaignRow[]): Map<string, { sessions: number; conversions: number; revenue: number }> {
+  const m = new Map<string, { sessions: number; conversions: number; revenue: number }>();
+  for (const r of rows) {
+    const cur = m.get(r.media) ?? { sessions: 0, conversions: 0, revenue: 0 };
+    cur.sessions += r.sessions;
+    cur.conversions += r.conversions;
+    cur.revenue += r.revenue;
+    m.set(r.media, cur);
+  }
+  return m;
 }
 
 function pct(a: number, b: number): number | null {
@@ -92,7 +95,11 @@ export default async function AdsScreen({
   const prevGa4RoasPct =
     rr.previous && prevTotals.cost > 0 ? (prevGa4.revenue / prevTotals.cost) * 100 : null;
 
-  // Media aggregation.
+  // Pull GA4 paid-campaign data for the same window so the media table can
+  // JOIN real GA4 CV / Revenue per media (not a fake 0.9x multiplier).
+  const ga4Campaigns = await getGa4PaidCampaigns(client, rr.current.start, rr.current.end);
+  const ga4MediaTot = ga4TotalsByMedia(ga4Campaigns);
+
   function byMedia(list: DailyRow[]): MediaRow[] {
     const map = new Map<string, MediaRow>();
     for (const r of list) {
@@ -112,7 +119,10 @@ export default async function AdsScreen({
       c.conversionValue += r.conversionValue;
       map.set(r.media, c);
     }
-    return Array.from(map.values()).map((m) => ({ ...m, ga4Cv: fakeGa4CvPerMedia(m.media, m.adsCv) }));
+    return Array.from(map.values()).map((m) => {
+      const g = ga4MediaTot.get(m.media);
+      return { ...m, ga4Cv: g ? Math.round(g.conversions) : 0 };
+    });
   }
   const mediaRows = byMedia(cur);
 
