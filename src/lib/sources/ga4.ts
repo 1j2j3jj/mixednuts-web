@@ -201,8 +201,8 @@ async function realChannels(propertyId: string): Promise<ChannelMonth[]> {
       dimensions: [{ name: "yearMonth" }, { name: "sessionDefaultChannelGroup" }, { name: "newVsReturning" }],
       metrics: [
         { name: "sessions" },
-        { name: "conversions" },
-        { name: "totalRevenue" },
+        { name: "ecommercePurchases" },
+        { name: "purchaseRevenue" },
       ],
       limit: "1000",
     },
@@ -251,8 +251,8 @@ async function realDevices(propertyId: string, anchor: string): Promise<DeviceTo
       dimensions: [{ name: "deviceCategory" }],
       metrics: [
         { name: "sessions" },
-        { name: "conversions" },
-        { name: "totalRevenue" },
+        { name: "ecommercePurchases" },
+        { name: "purchaseRevenue" },
       ],
     },
   });
@@ -282,8 +282,8 @@ async function realLandingPages(propertyId: string): Promise<LandingPageRow[]> {
       dimensions: [{ name: "landingPagePlusQueryString" }],
       metrics: [
         { name: "sessions" },
-        { name: "conversions" },
-        { name: "totalRevenue" },
+        { name: "ecommercePurchases" },
+        { name: "purchaseRevenue" },
       ],
       orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
       limit: "10",
@@ -347,8 +347,8 @@ async function realPaidCampaigns(propertyId: string, startDate: string, endDate:
       ],
       metrics: [
         { name: "sessions" },
-        { name: "conversions" },
-        { name: "totalRevenue" },
+        { name: "ecommercePurchases" },
+        { name: "purchaseRevenue" },
       ],
       limit: "10000",
     },
@@ -392,8 +392,8 @@ async function realGoogleAdgroups(propertyId: string, startDate: string, endDate
       ],
       metrics: [
         { name: "sessions" },
-        { name: "conversions" },
-        { name: "totalRevenue" },
+        { name: "ecommercePurchases" },
+        { name: "purchaseRevenue" },
       ],
       limit: "10000",
     },

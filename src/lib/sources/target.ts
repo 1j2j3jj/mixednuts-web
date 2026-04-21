@@ -3,32 +3,74 @@ import { fetchSheetCached } from "@/lib/sheets";
 import type { ClientConfig, MonthlyTargets } from "@/config/clients";
 
 /**
- * Monthly targets / budgets loaded from a dedicated Sheet tab.
+ * Monthly targets source — reads the CEO's HS_計画 spreadsheet and pivots
+ * its matrix layout into per-month aggregated targets.
  *
- * Expected schema (tab: `目標`, columns A–F):
- *   A: year_month        "2026-04" or "2026/4" etc
- *   B: revenue_target    JPY
- *   C: conversions       count
- *   D: ad_spend_budget   JPY
- *   E: roas_target_pct   percentage (e.g. 1300 = 1300%)
- *   F: cpa_target        JPY
+ * Expected layout (tab `シート1`):
+ *   col A  : metric name        ("セッション" / "受注件数" / "受注金額" / "広告費用")
+ *   col B  : channel             ("organic" / "direct" / "mail" / "referral" / "広告")
+ *   col C  : "目標" / "実績"     (we read 目標 only for now)
+ *   col D+ : month labels        ("2024年9月", "2024年10月", …)
  *
- * When the sheet tab is absent or empty, we fall back to the static values
- * in ClientConfig.monthlyTargets so the dashboard keeps working.
+ * Derived per-month KPIs (matches the dashboard's definitions):
+ *   revenue       = sum(受注金額 × all channels)
+ *   conversions   = sum(受注件数 × all channels)
+ *   adSpendBudget = 広告費用 × 広告
+ *   roasPct       = 受注金額(広告) / 広告費用(広告) × 100
+ *   cpa           = 広告費用(広告) / 受注件数(広告)
+ *
+ * When the sheet is absent / empty / inaccessible, falls back to the static
+ * ClientConfig.monthlyTargets so the dashboard keeps working.
  */
 
-function normaliseYm(v: string): string {
-  const s = v.trim();
-  const m = s.match(/^(\d{4})[-/](\d{1,2})/);
-  if (!m) return "";
-  return `${m[1]}-${m[2].padStart(2, "0")}`;
+type Metric = "セッション" | "受注件数" | "受注金額" | "広告費用" | string;
+
+interface TargetPoint {
+  yearMonth: string; // YYYY-MM
+  metric: Metric;
+  channel: string;
+  value: number;
 }
 
 function toNumber(v: unknown): number {
   if (v == null || v === "") return 0;
   if (typeof v === "number") return v;
-  const n = Number(String(v).replace(/,/g, "").trim());
+  const s = String(v).replace(/[,¥]/g, "").trim();
+  const n = Number(s);
   return Number.isFinite(n) ? n : 0;
+}
+
+/** "2024年9月" → "2024-09". Returns "" when the label isn't recognisable. */
+function parseJaYm(label: string): string {
+  const s = String(label ?? "").trim();
+  const m = s.match(/^(\d{4})年(\d{1,2})月/);
+  if (m) return `${m[1]}-${m[2].padStart(2, "0")}`;
+  const m2 = s.match(/^(\d{4})[-/](\d{1,2})/);
+  if (m2) return `${m2[1]}-${m2[2].padStart(2, "0")}`;
+  return "";
+}
+
+/** Pivot the matrix into a flat list of points. */
+function pivot(values: string[][]): TargetPoint[] {
+  if (values.length < 2) return [];
+  const [header, ...rows] = values;
+  const monthKeys = header.slice(3).map((h) => parseJaYm(String(h ?? "")));
+  const out: TargetPoint[] = [];
+  for (const r of rows) {
+    const metric = String(r[0] ?? "").trim();
+    const channel = String(r[1] ?? "").trim();
+    const kind = String(r[2] ?? "").trim(); // "目標" / "実績"
+    if (!metric || !channel) continue;
+    if (kind && kind !== "目標") continue; // ignore 実績 for now
+    for (let i = 0; i < monthKeys.length; i++) {
+      const ym = monthKeys[i];
+      if (!ym) continue;
+      const v = toNumber(r[3 + i]);
+      if (v === 0) continue;
+      out.push({ yearMonth: ym, metric, channel, value: v });
+    }
+  }
+  return out;
 }
 
 export async function getTargetsForMonth(
@@ -38,24 +80,29 @@ export async function getTargetsForMonth(
   const fallback = client.monthlyTargets;
   const src = client.dataSource;
   if (!src || !src.targetsRange) return fallback;
+  const sheetId = src.targetsSheetId ?? src.sheetId;
 
   try {
-    const res = await fetchSheetCached(src.sheetId, src.targetsRange);
-    if (!res.values || res.values.length < 2) return fallback;
-    const [, ...dataRows] = res.values;
-    const target = normaliseYm(yearMonth);
-    for (const r of dataRows) {
-      const ym = normaliseYm(String(r[0] ?? ""));
-      if (ym !== target) continue;
-      return {
-        revenue: toNumber(r[1]) || fallback.revenue,
-        conversions: toNumber(r[2]) || fallback.conversions,
-        adSpendBudget: toNumber(r[3]) || fallback.adSpendBudget,
-        roasPct: toNumber(r[4]) || fallback.roasPct,
-        cpa: toNumber(r[5]) || fallback.cpa,
-      };
-    }
-    return fallback;
+    const res = await fetchSheetCached(sheetId, src.targetsRange);
+    if (!res.values || res.values.length < 2 || res.isMock) return fallback;
+    const points = pivot(res.values);
+    const monthPoints = points.filter((p) => p.yearMonth === yearMonth);
+    if (monthPoints.length === 0) return fallback;
+
+    const sumBy = (metric: Metric, channels?: string[]) =>
+      monthPoints
+        .filter((p) => p.metric === metric && (!channels || channels.includes(p.channel)))
+        .reduce((s, p) => s + p.value, 0);
+
+    const revenue = sumBy("受注金額") || fallback.revenue;
+    const conversions = sumBy("受注件数") || fallback.conversions;
+    const adSpendBudget = sumBy("広告費用", ["広告"]) || fallback.adSpendBudget;
+    const adRevenue = sumBy("受注金額", ["広告"]);
+    const adCv = sumBy("受注件数", ["広告"]);
+    const roasPct = adSpendBudget > 0 ? Math.round((adRevenue / adSpendBudget) * 100) : fallback.roasPct;
+    const cpa = adCv > 0 ? Math.round(adSpendBudget / adCv) : fallback.cpa;
+
+    return { revenue, conversions, adSpendBudget, roasPct, cpa };
   } catch (err) {
     console.error("[target] fetch failed, using fallback:", err);
     return fallback;

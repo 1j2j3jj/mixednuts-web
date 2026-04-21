@@ -18,8 +18,11 @@ export interface DataSource {
   sheetId: string;
   rawAdsRange: string;
   masterRange?: string;
-  /** Range for the monthly targets / budget tab. Optional — when absent
-   *  the dashboard falls back to ClientConfig.monthlyTargets (static). */
+  /** Optional: separate sheet id for targets. When omitted, falls back to
+   *  `sheetId`. Useful when the CEO maintains a dedicated 計画 spreadsheet. */
+  targetsSheetId?: string;
+  /** Range for the monthly targets / budget tab (matrix format — see
+   *  src/lib/sources/target.ts). Optional; falls back to static config. */
   targetsRange?: string;
 }
 
@@ -82,8 +85,11 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
       // 12 columns: 日 / 媒体 / CPN ID / CPN / ADG ID / ADG / 通貨 / 費用 /
       // imp / click / CV / CV値
       rawAdsRange: "シート1!A:L",
-      // Populated by CEO on a new tab named `目標` — see lib/sources/target.ts.
-      targetsRange: "目標!A:F",
+      // Targets live in a separate "HS_計画" spreadsheet maintained by the
+      // CEO. Matrix layout (metric × channel × month) — parsed and pivoted
+      // by src/lib/sources/target.ts.
+      targetsSheetId: "11lOnn4vRPL3QA7GK9hbh-xtCtL6eXI4Cv4RetwIARic",
+      targetsRange: "シート1!A:AA",
     },
     ga4PropertyId: "302745512",
     gscSiteUrl: "https://www.hansoku-style.jp/",
