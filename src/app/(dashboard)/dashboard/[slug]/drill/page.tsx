@@ -126,10 +126,30 @@ export default async function DrillScreen({
 
   const pct = (a: number, b: number): number | null => (b === 0 ? null : (a - b) / b);
 
-  // Daily series for the trend chart.
-  const series = aggregateByDate(filtered);
-  const spend14 = lastN(series, 14).map((d) => d.cost);
-  const cv14 = lastN(series, 14).map((d) => d.conversions);
+  // Trend series — bucketed by the same granularity as the table, so the
+  // chart and the table agree on their x-axis.
+  const trendMap = new Map<string, { date: string; cost: number; conversions: number; conversionValue: number; clicks: number }>();
+  for (const r of filtered) {
+    const bucket = bucketKey(r.date, granularity);
+    const cur = trendMap.get(bucket) ?? {
+      date: bucket,
+      cost: 0,
+      conversions: 0,
+      conversionValue: 0,
+      clicks: 0,
+    };
+    cur.cost += r.cost;
+    cur.conversions += r.conversions;
+    cur.conversionValue += r.conversionValue;
+    cur.clicks += r.clicks;
+    trendMap.set(bucket, cur);
+  }
+  const series = Array.from(trendMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+
+  // Sparklines still use daily — they're meant to be dense-and-readable.
+  const dailySeries = aggregateByDate(filtered);
+  const spend14 = lastN(dailySeries, 14).map((d) => d.cost);
+  const cv14 = lastN(dailySeries, 14).map((d) => d.conversions);
 
   // Funnel for the current filter.
   const funnelStages: Array<{ label: string; value: number; format?: "int" | "jpy" }> = [
@@ -255,7 +275,10 @@ export default async function DrillScreen({
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">日次推移（Spend / CV / CPA）</CardTitle>
+            <CardTitle className="text-sm">
+              {granularity === "day" ? "日次" : granularity === "week" ? "週次" : "月次"}
+              推移（Spend / CV / CPA）
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <DailyTrendChart data={series} />
