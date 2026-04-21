@@ -1,5 +1,4 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import type { CampaignRow } from "@/lib/metrics";
 import { fmtInt, fmtJpy, fmtPct, fmtRatioPct } from "@/lib/utils";
 
@@ -33,7 +32,6 @@ export default function CampaignTable({ rows }: Props) {
         <TableHeader>
           <TableRow>
             <TableHead>メディア</TableHead>
-            <TableHead>B/G</TableHead>
             <TableHead>キャンペーン</TableHead>
             <TableHead className="text-right">費用</TableHead>
             <TableHead className="text-right">Imp</TableHead>
@@ -48,7 +46,7 @@ export default function CampaignTable({ rows }: Props) {
         <TableBody>
           {sorted.length === 0 && (
             <TableRow>
-              <TableCell colSpan={11} className="text-center text-muted-foreground py-6">
+              <TableCell colSpan={10} className="text-center text-muted-foreground py-6">
                 データなし
               </TableCell>
             </TableRow>
@@ -57,11 +55,6 @@ export default function CampaignTable({ rows }: Props) {
             <TableRow key={`${r.media}:${r.campaignId}:${r.campaignName}`}>
               <TableCell>
                 <span className={`inline-flex rounded px-2 py-0.5 text-xs ${mediaColour(r.media)}`}>{r.media}</span>
-              </TableCell>
-              <TableCell>
-                <Badge variant={r.brandGeneral === "Brand" ? "outline" : "secondary"}>
-                  {r.brandGeneral || "—"}
-                </Badge>
               </TableCell>
               <TableCell className="font-medium">
                 <div className="max-w-xs truncate" title={r.campaignName}>

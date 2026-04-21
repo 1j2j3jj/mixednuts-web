@@ -100,44 +100,51 @@ export function fetchSheetCached(sheetId: string, range: string): Promise<SheetF
 /* ------------------------------------------------------------------ */
 
 function mockHsRawAds(): string[][] {
+  // Column order MUST match HS_COLS in src/lib/sources/raw.ts exactly:
+  // 日 / 媒体 / キャンペーン ID / キャンペーン / 広告グループ ID / 広告グループ /
+  // 通貨 / 費用 / 表示回数 / クリック数 / コンバージョン / コンバージョン値
   const header = [
-    "メディア",
-    "Brand/General",
     "日",
-    "キャンペーンID",
+    "媒体",
+    "キャンペーン ID",
     "キャンペーン",
-    "通貨",
+    "広告グループ ID",
+    "広告グループ",
+    "通貨コード",
     "費用",
     "表示回数",
     "クリック数",
     "コンバージョン",
     "コンバージョン値",
   ];
-  const medias: Array<["Google" | "Microsoft" | "Yahoo" | "meta", "Brand" | "General", string, string, number, number, number, number, number]> = [
-    ["Google", "Brand", "1_指名_単体", "CPN-G-1001", 12000, 18000, 900, 40, 1_800_000],
-    ["Google", "General", "03_展示会CPN", "CPN-G-1002", 85000, 210000, 5400, 55, 4_500_000],
-    ["Google", "General", "01_PMax_Shopping", "CPN-G-1003", 220000, 880000, 9800, 120, 12_100_000],
-    ["Microsoft", "Brand", "01_Microsoft検索_指名", "CPN-M-2001", 3000, 7200, 210, 12, 900_000],
-    ["Microsoft", "General", "16_Microsoft_Pmax_EC", "CPN-M-2002", 58000, 165000, 3400, 42, 5_800_000],
-    ["Yahoo", "Brand", "01_Yahoo検索_指名", "CPN-Y-3001", 4500, 10200, 380, 18, 1_400_000],
-    ["Yahoo", "Brand", "01_Yahoo検索_指名_かけ合わせ", "CPN-Y-3002", 2100, 4600, 150, 7, 520_000],
-    ["meta", "General", "01_meta広告_Advantage+_Shopping_媒体CV_アトリビューション", "CPN-X-4001", 95000, 520000, 8200, 38, 4_100_000],
+  type Row = [string, string, string, string, string, number, number, number, number, number];
+  // [media, campaignId, campaignName, adgroupId, adgroupName, cost, impr, clicks, cv, cvValue]
+  const templates: Row[] = [
+    ["Google", "CPN-G-1001", "01_Google検索_指名_単体", "ADG-G-1001-A", "01_Google検索_指名_単体_販促スタイル", 12000, 18000, 900, 40, 1_800_000],
+    ["Google", "CPN-G-1002", "03_Google検索_一般_ノベルティ", "ADG-G-1002-A", "03_Google検索_一般_ノベルティのみ", 85000, 210000, 5400, 55, 4_500_000],
+    ["Google", "CPN-G-1003", "16_Google_Pmax_バッグ_EC", "ADG-G-1003-A", "16_Google_Pmax_バッグ_EC_AG", 220000, 880000, 9800, 120, 12_100_000],
+    ["Microsoft", "CPN-M-2001", "01_Microsoft検索_指名", "ADG-M-2001-A", "指名検索専用広告", 3000, 7200, 210, 12, 900_000],
+    ["Microsoft", "CPN-M-2002", "16_Microsoft_Pmax_EC", "ADG-M-2002-A", "Pmax_EC_AG", 58000, 165000, 3400, 42, 5_800_000],
+    ["Yahoo", "CPN-Y-3001", "01_Yahoo検索_指名", "ADG-Y-3001-A", "Yahoo検索_指名_AG", 4500, 10200, 380, 18, 1_400_000],
+    ["Yahoo", "CPN-Y-3002", "01_Yahoo検索_指名_かけ合わせ", "ADG-Y-3002-A", "Yahoo検索_指名_かけ合わせ_AG", 2100, 4600, 150, 7, 520_000],
+    ["meta", "CPN-X-4001", "01_meta広告_Advantage+_Shopping", "ADG-X-4001-A", "meta広告_Advantage+_Shopping_AG", 95000, 520000, 8200, 38, 4_100_000],
   ];
   const rows: string[][] = [header];
   const today = new Date();
-  // Generate 90 days so last28 + prev-period comparison has data either side.
+  // 90 days so last28 + prev-period comparison has data either side.
   for (let d = 89; d >= 0; d--) {
     const date = new Date(today);
     date.setDate(today.getDate() - d);
     const iso = date.toISOString().slice(0, 10);
-    for (const [media, bg, campaign, campaignId, cost, impr, clicks, cv, cvValue] of medias) {
-      const jitter = 0.8 + ((Math.sin((d + campaign.length) * 1.7) + 1) / 2) * 0.4;
+    for (const [media, campaignId, campaignName, adgroupId, adgroupName, cost, impr, clicks, cv, cvValue] of templates) {
+      const jitter = 0.8 + ((Math.sin((d + campaignName.length) * 1.7) + 1) / 2) * 0.4;
       rows.push([
-        media,
-        bg,
         iso,
+        media,
         campaignId,
-        campaign,
+        campaignName,
+        adgroupId,
+        adgroupName,
         "JPY",
         String(Math.round(cost * jitter)),
         String(Math.round(impr * jitter)),

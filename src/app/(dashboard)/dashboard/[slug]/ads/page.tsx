@@ -1,6 +1,7 @@
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getDailyRows, type DailyRow } from "@/lib/sources/raw";
 import { getGa4MonthlyChannels, getGa4PaidCampaigns, type Ga4CampaignRow } from "@/lib/sources/ga4";
+import { getTargetsForMonth } from "@/lib/sources/target";
 import { resolveFromSearchParams, type DateRange } from "@/lib/range";
 import MediaTable, { type MediaRow } from "@/components/dashboard/MediaTable";
 import DailyTrendChart from "@/components/dashboard/DailyTrendChart";
@@ -126,6 +127,8 @@ export default async function AdsScreen({
   }
   const mediaRows = byMedia(cur);
 
+  const tgt = await getTargetsForMonth(client, anchor.slice(0, 7));
+
   const series = aggregateByDate(cur);
 
   // Sparklines: last 14 days.
@@ -229,7 +232,7 @@ export default async function AdsScreen({
             ※ 媒体別テーブルの 売上 / ROAS は媒体プラットフォーム側集計。上部 KPI は GA4 ベース。
           </span>
         </div>
-        <MediaTable rows={mediaRows} targetRoasPct={client.monthlyTargets.roasPct} />
+        <MediaTable rows={mediaRows} targetRoasPct={tgt.roasPct} />
       </section>
 
       <div className="grid gap-4 lg:grid-cols-2">

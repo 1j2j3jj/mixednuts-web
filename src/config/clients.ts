@@ -18,6 +18,9 @@ export interface DataSource {
   sheetId: string;
   rawAdsRange: string;
   masterRange?: string;
+  /** Range for the monthly targets / budget tab. Optional — when absent
+   *  the dashboard falls back to ClientConfig.monthlyTargets (static). */
+  targetsRange?: string;
 }
 
 export interface MonthlyTargets {
@@ -79,6 +82,8 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
       // 12 columns: 日 / 媒体 / CPN ID / CPN / ADG ID / ADG / 通貨 / 費用 /
       // imp / click / CV / CV値
       rawAdsRange: "シート1!A:L",
+      // Populated by CEO on a new tab named `目標` — see lib/sources/target.ts.
+      targetsRange: "目標!A:F",
     },
     ga4PropertyId: "302745512",
     gscSiteUrl: "https://www.hansoku-style.jp/",

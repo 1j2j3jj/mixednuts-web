@@ -6,6 +6,7 @@ import {
   getTopProducts,
 } from "@/lib/sources/ga4";
 import { getTopGscQueries } from "@/lib/sources/gsc";
+import { getTargetsForMonth } from "@/lib/sources/target";
 import { resolveFromSearchParams, type DateRange } from "@/lib/range";
 import { aggregateByDate, filterByRange } from "@/lib/metrics";
 import { analysePacing, lastN } from "@/lib/analysis";
@@ -110,7 +111,10 @@ export default async function Overview({
     : null;
 
   const showGoals = rr.preset === "thisMonth" || rr.preset === "lastMonth";
-  const tgt = client.monthlyTargets;
+  // Prefer the sheet-based monthly target for the anchor month; static config
+  // is the fallback. Only one month is fetched — goals are only rendered for
+  // single-month presets anyway.
+  const tgt = await getTargetsForMonth(client, anchor.slice(0, 7));
 
   // Extra context modules (parallel fetch for speed).
   const [devices, topProducts, topQueries] = await Promise.all([

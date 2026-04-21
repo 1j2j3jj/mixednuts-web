@@ -1,6 +1,7 @@
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getDailyRows, type DailyRow } from "@/lib/sources/raw";
 import { getGa4PaidCampaigns, getGa4GoogleAdgroups } from "@/lib/sources/ga4";
+import { getTargetsForMonth } from "@/lib/sources/target";
 import { resolveFromSearchParams } from "@/lib/range";
 import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
 import { lastN } from "@/lib/analysis";
@@ -182,6 +183,8 @@ export default async function DrillScreen({
   }
 
   const table = aggregate(filtered, granularity, level, join);
+
+  const tgt = await getTargetsForMonth(client, anchor.slice(0, 7));
 
   // Period KPIs (reflect the filter: facet filters narrow, so KPIs change).
   const curTotals = sumRows(filtered);
@@ -365,8 +368,8 @@ export default async function DrillScreen({
           <DrillTable
             rows={table}
             level={level}
-            targetRoasPct={client.monthlyTargets.roasPct}
-            targetCpa={client.monthlyTargets.cpa}
+            targetRoasPct={tgt.roasPct}
+            targetCpa={tgt.cpa}
           />
         </CardContent>
       </Card>

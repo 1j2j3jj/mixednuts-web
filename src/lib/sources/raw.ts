@@ -5,15 +5,12 @@ import type { ClientConfig } from "@/config/clients";
 /**
  * Normalised daily row — output of the raw-data source.
  *
- * We intentionally keep the column names close to the source sheet
- * (費用 → cost, 表示回数 → impressions, etc.) so the mental model stays
- * obvious while the master sheet / join rules are still being defined by
- * the CEO. When the master sheet arrives, `brandGeneral` will be
- * overwritten by the master join (campaign_id → flag).
+ * Column names kept close to the source sheet (費用 → cost, etc.) so the
+ * mapping stays obvious. Brand/General is not tracked per CEO decision
+ * (2026-04-22): the dashboard works off media × campaign × ADG alone.
  */
 export interface DailyRow {
-  media: "Google" | "Microsoft" | "Yahoo" | "meta" | string;
-  brandGeneral: "Brand" | "General" | string;
+  media: "Google" | "Microsoft" | "Yahoo" | "meta" | "LinkedIn" | string;
   date: string; // ISO yyyy-mm-dd
   campaignId: string;
   campaignName: string;
@@ -60,13 +57,6 @@ const HS_COLS = {
   conversionValue: 11,
 } as const;
 
-/** Infer Brand vs General from the campaign name. "指名" campaigns are brand
- *  (e.g. "01_Google検索_指名_単体"); everything else defaults to General. */
-function inferBrandGeneral(campaignName: string): "Brand" | "General" {
-  if (!campaignName) return "General";
-  return /指名|ブランド|brand/i.test(campaignName) ? "Brand" : "General";
-}
-
 /** Strip leading/trailing brackets often present in Microsoft Ads export
  *  (e.g. "[518730332]" → "518730332") so the JOIN key with GA4 matches. */
 function stripBrackets(s: string): string {
@@ -111,16 +101,16 @@ function expandWithSyntheticAdgs(rows: DailyRow[]): DailyRow[] {
 function normaliseDate(v: unknown): string {
   if (v == null) return "";
   const s = String(v).trim();
-  // Accept "2026-04-21", "2026/4/21", "4/21/2026", etc.
+  // Accept "2026-04-21", "2026/4/21".
   const m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
   if (m) {
     const [, y, mo, d] = m;
     return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
-  // If Sheets returned a JS Date-like serial, we'd need a different path;
-  // `valueRenderOption: "UNFORMATTED_VALUE"` with dateTime as FORMATTED_STRING
-  // should give us ISO-ish strings in practice.
-  return s;
+  // Unrecognised input (including the media name when column mapping is wrong
+  // on a partial import): return empty so downstream `filter(Boolean)` drops
+  // the row instead of propagating garbage to date arithmetic.
+  return "";
 }
 
 /**
@@ -153,7 +143,6 @@ export async function getDailyRows(client: ClientConfig): Promise<DailyFetchResu
     const campaignName = String(r[HS_COLS.campaignName] ?? "").trim();
     rows.push({
       media: String(r[HS_COLS.media] ?? "").trim(),
-      brandGeneral: inferBrandGeneral(campaignName),
       date: normaliseDate(r[HS_COLS.date]),
       campaignId: stripBrackets(String(r[HS_COLS.campaignId] ?? "")),
       campaignName,

@@ -3,7 +3,7 @@ import { safeDiv } from "@/lib/utils";
 
 /**
  * Pure aggregation helpers. No I/O. Kept small so that when CEO shares the
- * 突合ルール (Brand/General master + campaign-id-based join rules) we can
+ * 突合ルール (GA4 × Ads join via campaign id / ADG id — see ga4.ts) we can
  * rewrite this file without touching the UI.
  */
 
@@ -73,7 +73,6 @@ export function aggregateByDate(rows: DailyRow[]): DailySeriesPoint[] {
 
 export interface CampaignRow extends KpiTotals {
   media: string;
-  brandGeneral: string;
   campaignId: string;
   campaignName: string;
 }
@@ -88,7 +87,6 @@ export function aggregateByCampaign(rows: DailyRow[]): CampaignRow[] {
     else map.set(key, {
       meta: {
         media: r.media,
-        brandGeneral: r.brandGeneral,
         campaignId: r.campaignId,
         campaignName: r.campaignName,
       },
