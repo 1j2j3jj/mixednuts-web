@@ -84,7 +84,9 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
       sheetId: "1BtOId6PtE6Qeq01jtytMKKinpGPtXVzx_Yrat_6YNlU",
       // 12 columns: 日 / 媒体 / CPN ID / CPN / ADG ID / ADG / 通貨 / 費用 /
       // imp / click / CV / CV値
-      rawAdsRange: "シート1!A:L",
+      // Tab renamed from シート1 → Raw on 2026-04-22 after merging all
+      // media (Google / Microsoft / Yahoo / meta) into a single raw feed.
+      rawAdsRange: "Raw!A:L",
       // Targets live in a separate "HS_計画" spreadsheet maintained by the
       // CEO. Matrix layout (metric × channel × month) — parsed and pivoted
       // by src/lib/sources/target.ts.
