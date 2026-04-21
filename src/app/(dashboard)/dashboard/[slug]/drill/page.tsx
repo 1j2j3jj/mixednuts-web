@@ -41,11 +41,12 @@ function bucketKey(date: string, granularity: "day" | "week" | "month"): string 
 type Level = "media" | "campaign" | "adgroup" | "bucket";
 
 interface JoinKeys {
-  /** key → (sessions, conversions, revenue) for the full window. Per-day
-   *  GA4 data is too granular to fetch reliably; the dashboard reports the
-   *  window-level GA4 totals on each bucket row as an estimation anchor. */
-  campaignKey: Map<string, { sessions: number; conversions: number; revenue: number }>;
-  adgroupKey: Map<string, { sessions: number; conversions: number; revenue: number }>;
+  /** Keyed "<identifier>|<bucket>" → per-bucket GA4 totals. The identifier
+   *  depends on level: media name (for media level), campaign id (for
+   *  campaign level), ADG id (for adgroup level). */
+  mediaByBucket: Map<string, { sessions: number; conversions: number; revenue: number }>;
+  campaignByBucket: Map<string, { sessions: number; conversions: number; revenue: number }>;
+  adgroupByBucket: Map<string, { sessions: number; conversions: number; revenue: number }>;
 }
 
 function aggregate(
@@ -92,23 +93,21 @@ function aggregate(
     cur.conversionValue += r.conversionValue;
     map.set(id, cur);
   }
-  // Attach GA4 totals per key (window-level; same values repeat across
-  // buckets for the same key since the source data isn't per-day here).
+  // Attach per-bucket GA4 totals. Key = "<identifier>|<bucket>" so the
+  // JOIN is both by-identity and by-date — no more repeated window totals.
   for (const row of map.values()) {
-    if (level === "campaign" && row.subKey) {
-      const hit = join.campaignKey.get(row.subKey);
-      if (hit) {
-        row.ga4Sessions = hit.sessions;
-        row.ga4Conversions = hit.conversions;
-        row.ga4Revenue = hit.revenue;
-      }
+    let hit: { sessions: number; conversions: number; revenue: number } | undefined;
+    if (level === "media") {
+      hit = join.mediaByBucket.get(`${row.media}|${row.date}`);
+    } else if (level === "campaign" && row.subKey) {
+      hit = join.campaignByBucket.get(`${row.subKey}|${row.date}`);
     } else if (level === "adgroup" && row.subKey) {
-      const hit = join.adgroupKey.get(row.subKey);
-      if (hit) {
-        row.ga4Sessions = hit.sessions;
-        row.ga4Conversions = hit.conversions;
-        row.ga4Revenue = hit.revenue;
-      }
+      hit = join.adgroupByBucket.get(`${row.subKey}|${row.date}`);
+    }
+    if (hit) {
+      row.ga4Sessions = hit.sessions;
+      row.ga4Conversions = hit.conversions;
+      row.ga4Revenue = hit.revenue;
     }
   }
   return Array.from(map.values());
@@ -150,36 +149,46 @@ export default async function DrillScreen({
     ? "campaign"
     : "media";
 
-  // Fetch GA4 data for join (only when we're rendering campaign / adgroup).
+  // Fetch GA4 data for JOIN. For media/campaign levels we use the paid-
+  // campaign report; for adgroup we need the Google-Ads-specific ADG report.
   const [ga4Campaigns, ga4Adgroups] = await Promise.all([
-    level === "campaign"
+    level === "media" || level === "campaign"
       ? getGa4PaidCampaigns(client, rr.current.start, rr.current.end)
       : Promise.resolve([]),
     level === "adgroup"
       ? getGa4GoogleAdgroups(client, rr.current.start, rr.current.end)
       : Promise.resolve([]),
   ]);
+
+  // Bucket the GA4 daily rows into (identifier|bucket) → totals. For
+  // week/month granularity we re-bucket GA4 days into the same bucket key
+  // the ads side uses, so the two sides align exactly.
+  function addTo(
+    m: Map<string, { sessions: number; conversions: number; revenue: number }>,
+    key: string,
+    d: { sessions: number; conversions: number; revenue: number }
+  ) {
+    const cur = m.get(key) ?? { sessions: 0, conversions: 0, revenue: 0 };
+    cur.sessions += d.sessions;
+    cur.conversions += d.conversions;
+    cur.revenue += d.revenue;
+    m.set(key, cur);
+  }
   const join: JoinKeys = {
-    campaignKey: new Map(),
-    adgroupKey: new Map(),
+    mediaByBucket: new Map(),
+    campaignByBucket: new Map(),
+    adgroupByBucket: new Map(),
   };
   for (const g of ga4Campaigns) {
-    const k = g.matchKey;
-    if (!k) continue;
-    const cur = join.campaignKey.get(k) ?? { sessions: 0, conversions: 0, revenue: 0 };
-    cur.sessions += g.sessions;
-    cur.conversions += g.conversions;
-    cur.revenue += g.revenue;
-    join.campaignKey.set(k, cur);
+    const bucket = g.date ? bucketKey(g.date, granularity) : "";
+    if (!bucket) continue;
+    addTo(join.mediaByBucket, `${g.media}|${bucket}`, g);
+    if (g.matchKey) addTo(join.campaignByBucket, `${g.matchKey}|${bucket}`, g);
   }
   for (const g of ga4Adgroups) {
-    const k = g.adgroupId;
-    if (!k) continue;
-    const cur = join.adgroupKey.get(k) ?? { sessions: 0, conversions: 0, revenue: 0 };
-    cur.sessions += g.sessions;
-    cur.conversions += g.conversions;
-    cur.revenue += g.revenue;
-    join.adgroupKey.set(k, cur);
+    const bucket = g.date ? bucketKey(g.date, granularity) : "";
+    if (!bucket) continue;
+    if (g.adgroupId) addTo(join.adgroupByBucket, `${g.adgroupId}|${bucket}`, g);
   }
 
   const table = aggregate(filtered, granularity, level, join);

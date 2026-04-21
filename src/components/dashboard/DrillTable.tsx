@@ -64,8 +64,9 @@ export default function DrillTable({ rows, targetRoasPct, targetCpa, level = "ca
 
   const showLabel = level === "campaign" || level === "adgroup";
   const labelHeader = level === "campaign" ? "キャンペーン" : level === "adgroup" ? "広告グループ" : "";
-  // GA4 columns only make sense at campaign / adgroup granularity.
-  const showGa4 = level === "campaign" || level === "adgroup";
+  // GA4 columns available at media / campaign / adgroup levels (anywhere the
+  // JOIN identifier resolves). Hidden at bucket-only level.
+  const showGa4 = level === "media" || level === "campaign" || level === "adgroup";
   const colSpan =
     (showLabel ? 1 : 0) + (showGa4 ? 3 : 0) + 10;
 

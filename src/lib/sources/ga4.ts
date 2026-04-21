@@ -71,6 +71,8 @@ export interface ProductRow {
  * to the name.
  */
 export interface Ga4CampaignRow {
+  /** ISO date (yyyy-mm-dd) of the session. */
+  date: string;
   source: string;
   medium: string;
   media: string;
@@ -87,6 +89,7 @@ export interface Ga4CampaignRow {
  * against the sheet's adgroupId.
  */
 export interface Ga4AdgroupRow {
+  date: string;
   campaignId: string;
   adgroupId: string;
   adgroupName: string;
@@ -330,6 +333,12 @@ async function realProducts(propertyId: string): Promise<ProductRow[]> {
 
 /** Paid-campaign report. Returns one row per (source × medium × cid × cname)
  *  with the computed matchKey for JOIN with the ads sheet. */
+function ga4DateToIso(v: string): string {
+  // GA4 `date` dimension returns "20260331" format.
+  if (/^\d{8}$/.test(v)) return `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6, 8)}`;
+  return v;
+}
+
 async function realPaidCampaigns(propertyId: string, startDate: string, endDate: string): Promise<Ga4CampaignRow[]> {
   const auth = makeAuth();
   if (!auth) throw new Error("no-ga4-auth");
@@ -340,6 +349,7 @@ async function realPaidCampaigns(propertyId: string, startDate: string, endDate:
     requestBody: {
       dateRanges: [{ startDate, endDate }],
       dimensions: [
+        { name: "date" },
         { name: "sessionSource" },
         { name: "sessionMedium" },
         { name: "sessionCampaignId" },
@@ -350,18 +360,20 @@ async function realPaidCampaigns(propertyId: string, startDate: string, endDate:
         { name: "ecommercePurchases" },
         { name: "purchaseRevenue" },
       ],
-      limit: "10000",
+      limit: "50000",
     },
   });
   const out: Ga4CampaignRow[] = [];
   for (const r of res.data.rows ?? []) {
-    const source = r.dimensionValues?.[0]?.value ?? "";
-    const medium = r.dimensionValues?.[1]?.value ?? "";
+    const date = ga4DateToIso(r.dimensionValues?.[0]?.value ?? "");
+    const source = r.dimensionValues?.[1]?.value ?? "";
+    const medium = r.dimensionValues?.[2]?.value ?? "";
     const media = normaliseAdMedia(source, medium);
     if (!media) continue;
-    const campaignId = r.dimensionValues?.[2]?.value ?? "";
-    const campaignName = r.dimensionValues?.[3]?.value ?? "";
+    const campaignId = r.dimensionValues?.[3]?.value ?? "";
+    const campaignName = r.dimensionValues?.[4]?.value ?? "";
     out.push({
+      date,
       source,
       medium,
       media,
@@ -386,6 +398,7 @@ async function realGoogleAdgroups(propertyId: string, startDate: string, endDate
     requestBody: {
       dateRanges: [{ startDate, endDate }],
       dimensions: [
+        { name: "date" },
         { name: "sessionGoogleAdsCampaignId" },
         { name: "sessionGoogleAdsAdGroupId" },
         { name: "sessionGoogleAdsAdGroupName" },
@@ -395,19 +408,21 @@ async function realGoogleAdgroups(propertyId: string, startDate: string, endDate
         { name: "ecommercePurchases" },
         { name: "purchaseRevenue" },
       ],
-      limit: "10000",
+      limit: "50000",
     },
   });
   const out: Ga4AdgroupRow[] = [];
   for (const r of res.data.rows ?? []) {
-    const campaignId = r.dimensionValues?.[0]?.value ?? "";
-    const adgroupId = r.dimensionValues?.[1]?.value ?? "";
-    const adgroupName = r.dimensionValues?.[2]?.value ?? "";
+    const date = ga4DateToIso(r.dimensionValues?.[0]?.value ?? "");
+    const campaignId = r.dimensionValues?.[1]?.value ?? "";
+    const adgroupId = r.dimensionValues?.[2]?.value ?? "";
+    const adgroupName = r.dimensionValues?.[3]?.value ?? "";
     // Drop "(not set)" rows and Performance Max ADGs that always come back as
     // a single meta-adg — those cannot JOIN cleanly against the sheet's real
-    // ADG ids. The Ads page still shows Google-level totals elsewhere.
+    // ADG ids.
     if (!/^\d+$/.test(adgroupId)) continue;
     out.push({
+      date,
       campaignId,
       adgroupId,
       adgroupName,
