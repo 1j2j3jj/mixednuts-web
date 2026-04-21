@@ -1,70 +1,67 @@
 /**
  * Client configuration registry — source of truth for tenant separation.
  *
- * Access control model:
- *   - Every /dashboard/[clientId] page calls `assertUserCanAccessClient(clientId)`
- *     in its layout/page.
- *   - That helper checks the authenticated Clerk user against `allowedUserIds`
- *     and `allowedEmailDomains` on the client record.
- *   - 404 (not "forbidden") is returned on mismatch to avoid leaking which
- *     clients exist. Internal mixednuts admins (INTERNAL_ADMIN_USER_IDS) see
- *     everything.
+ * URL strategy: every client-facing dashboard lives under /dashboard/[slug]
+ * where `slug` is a short opaque string. Real client names never appear in
+ * URLs or default UI chrome.
  *
- * Adding a new client is a 3-step process:
- *   1) Add an entry here with `active: false`.
- *   2) Wire the data source (Google Sheet / DB / API).
- *   3) Flip `active: true` once the dashboard page renders real data.
+ * Access control: `assertUserCanAccessClient(clientId)` in each page checks
+ * the authenticated Clerk user against `allowedUserIds` / `allowedEmailDomains`.
+ * 404 (not 403) on deny, to avoid leaking which clients exist. Admin users
+ * (INTERNAL_ADMIN_USER_IDS) bypass per-client allow lists.
  */
 
 export type ClientId = "hs" | "msec" | "chakin" | "dozo";
 
 export interface DataSource {
-  /** Kind of source — extend as Phase 2 adds GA4/GSC/Ads API. */
   kind: "google_sheets";
-  /** Google Sheets fileId. */
   sheetId: string;
-  /** A1 notation for the raw ads tab (e.g. "HS_Raw_Ads!A:K"). */
   rawAdsRange: string;
-  /** A1 notation for the master tab (campaign / adgroup metadata). */
   masterRange?: string;
+}
+
+export interface MonthlyTargets {
+  /** Revenue target in JPY for the current month. */
+  revenue: number;
+  /** Conversion count target. */
+  conversions: number;
+  /** Ad spend budget (cap). */
+  adSpendBudget: number;
+  /** Target blended ROAS as percentage (e.g. 300 = 300%). */
+  roasPct: number;
+  /** Target blended CPA in JPY (cost / CV incl. organic). */
+  cpa: number;
 }
 
 export interface ClientConfig {
   id: ClientId;
-  /** Display name shown in sidebar, page title, etc. */
+  /** Opaque URL slug. Shared externally with the logged-in client. */
+  slug: string;
+  /** Full label. Shown only in the admin index and internal views. */
   label: string;
-  /** Short subtitle (e.g. parent company, domain). */
   subtitle: string;
-  /** When false, the dashboard route renders a "Coming soon" placeholder. */
   active: boolean;
-  /**
-   * Phase 1: gate access by exact Clerk user ID (`user_xxxxx`).
-   * Phase 2: switch to organisation/role claims once Clerk Org is provisioned.
-   */
   allowedUserIds: string[];
-  /** Optional: auto-grant access to any user whose primary email matches. */
   allowedEmailDomains: string[];
   dataSource: DataSource | null;
-  /** Currency for display formatting. MVP = JPY only. */
   currency: "JPY";
+  monthlyTargets: MonthlyTargets;
 }
 
-/**
- * Internal mixednuts admins — can see every client regardless of
- * `allowedUserIds`. Populate via Clerk dashboard once users exist.
- */
 export const INTERNAL_ADMIN_USER_IDS: string[] = [
-  // e.g. "user_2abcDEF..." (Nozomi / Ishii)
+  // e.g. "user_2abcDEF..." (Nozomi / Ishii). Populate once Clerk is live.
 ];
 
 /**
- * Client registry. HS is the Phase 1 MVP; others are placeholders
- * intentionally kept visible in the sidebar so the horizontal-expansion
- * story is legible to anyone viewing the dashboard.
+ * Client registry. Slugs are deliberately unguessable; regenerate with
+ * `openssl rand -hex 3` or similar if they need to be rotated. Inactive
+ * clients are kept visible in the admin index to signal roadmap, but are
+ * not reachable by slug until `active: true`.
  */
 export const CLIENTS: Record<ClientId, ClientConfig> = {
   hs: {
     id: "hs",
+    slug: "x7k2q9",
     label: "販促スタイル",
     subtitle: "株式会社トランス",
     active: true,
@@ -72,16 +69,21 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     allowedEmailDomains: ["mixednuts-inc.com"],
     dataSource: {
       kind: "google_sheets",
-      // Daily Report 統合 sheet. CEO is preparing a dedicated master sheet;
-      // the id here may be replaced when that is ready.
       sheetId: "1b2Z_3-IrcOvyKn9diRANdSt42cHY_uuxvb3kbVitziE",
       rawAdsRange: "HS_Raw_Ads!A:K",
-      // masterRange: "HS_Master!A:Z" — TBD by CEO
     },
     currency: "JPY",
+    monthlyTargets: {
+      revenue: 250_000_000,
+      conversions: 1_200,
+      adSpendBudget: 18_000_000,
+      roasPct: 1_300,
+      cpa: 15_000,
+    },
   },
   msec: {
     id: "msec",
+    slug: "a4m8r2",
     label: "MSEC",
     subtitle: "トレードワークス",
     active: false,
@@ -89,9 +91,11 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     allowedEmailDomains: ["mixednuts-inc.com"],
     dataSource: null,
     currency: "JPY",
+    monthlyTargets: { revenue: 0, conversions: 0, adSpendBudget: 0, roasPct: 0, cpa: 0 },
   },
   chakin: {
     id: "chakin",
+    slug: "p3w1z5",
     label: "Chakin",
     subtitle: "住友生命",
     active: false,
@@ -99,9 +103,11 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     allowedEmailDomains: ["mixednuts-inc.com"],
     dataSource: null,
     currency: "JPY",
+    monthlyTargets: { revenue: 0, conversions: 0, adSpendBudget: 0, roasPct: 0, cpa: 0 },
   },
   dozo: {
     id: "dozo",
+    slug: "n6t0f4",
     label: "dōzo",
     subtitle: "ソーシャルギフト",
     active: false,
@@ -109,6 +115,7 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     allowedEmailDomains: ["mixednuts-inc.com"],
     dataSource: null,
     currency: "JPY",
+    monthlyTargets: { revenue: 0, conversions: 0, adSpendBudget: 0, roasPct: 0, cpa: 0 },
   },
 };
 
@@ -116,5 +123,13 @@ export const CLIENT_IDS = Object.keys(CLIENTS) as ClientId[];
 
 export function getClient(id: string): ClientConfig | null {
   if (id in CLIENTS) return CLIENTS[id as ClientId];
+  return null;
+}
+
+/** Resolve slug → ClientConfig. O(n) but n is tiny. */
+export function getClientBySlug(slug: string): ClientConfig | null {
+  for (const id of CLIENT_IDS) {
+    if (CLIENTS[id].slug === slug) return CLIENTS[id];
+  }
   return null;
 }

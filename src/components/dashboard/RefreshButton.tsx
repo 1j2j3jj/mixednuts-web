@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { refreshClientData } from "@/app/(dashboard)/dashboard/[clientId]/actions";
+import { refreshClientData } from "@/app/(dashboard)/dashboard/actions";
 
 interface Props {
   clientId: string;

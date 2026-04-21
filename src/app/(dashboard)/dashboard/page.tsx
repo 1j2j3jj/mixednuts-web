@@ -4,17 +4,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 
 /**
- * Dashboard root. Shows a card per client. Clicking enters the per-client
- * page. Inactive clients are visible but disabled to tell the "horizontal
- * expansion" story at a glance.
+ * Admin index. Intentionally NOT gated to non-admins in Phase 1 sample — in
+ * Phase 2 this will be restricted to Clerk users in INTERNAL_ADMIN_USER_IDS.
+ * For now it lists every configured client by name so the CEO can click
+ * through to their slug-based URL.
  */
 export default function DashboardIndex() {
   return (
     <div className="mx-auto w-full max-w-5xl">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Admin Index</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          クライアント案件の広告パフォーマンスダッシュボード。
+          内部専用。クライアントには /dashboard/[slug] の URL のみを共有。
         </p>
       </header>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -31,15 +32,17 @@ export default function DashboardIndex() {
                     <Badge variant="secondary">Coming soon</Badge>
                   )}
                 </div>
-                <CardDescription>{c.subtitle}</CardDescription>
+                <CardDescription>
+                  {c.subtitle} · <span className="font-mono">/{c.slug}</span>
+                </CardDescription>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
-                {c.active ? "広告パフォーマンスを見る →" : "準備中"}
+                {c.active ? "ダッシュボードを開く →" : "準備中"}
               </CardContent>
             </Card>
           );
           return c.active ? (
-            <Link key={id} href={`/dashboard/${id}`}>
+            <Link key={id} href={`/dashboard/${c.slug}`}>
               {card}
             </Link>
           ) : (
