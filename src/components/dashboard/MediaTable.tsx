@@ -17,6 +17,18 @@ interface Props {
   targetRoasPct: number;
 }
 
+const MEDIA_BADGE: Record<string, string> = {
+  Google: "bg-blue-100 text-blue-800",
+  Microsoft: "bg-teal-100 text-teal-800",
+  Yahoo: "bg-purple-100 text-purple-800",
+  meta: "bg-sky-100 text-sky-800",
+  LinkedIn: "bg-indigo-100 text-indigo-800",
+};
+
+function mediaBadge(m: string): string {
+  return MEDIA_BADGE[m] ?? "bg-muted text-muted-foreground";
+}
+
 function roasClass(actualPct: number | null, targetPct: number): string {
   if (actualPct == null || !Number.isFinite(actualPct)) return "";
   if (actualPct >= targetPct) return "text-emerald-700 font-semibold";
@@ -51,7 +63,13 @@ export default function MediaTable({ rows, targetRoasPct }: Props) {
     const roasPct = r.spend > 0 ? (r.conversionValue / r.spend) * 100 : null;
     return (
       <TableRow key={r.media} className={cn(isTotal && "border-t-2 bg-muted/40 font-medium")}>
-        <TableCell>{r.media}</TableCell>
+        <TableCell>
+          {isTotal ? (
+            <span>{r.media}</span>
+          ) : (
+            <span className={`inline-flex rounded px-2 py-0.5 text-xs ${mediaBadge(r.media)}`}>{r.media}</span>
+          )}
+        </TableCell>
         <TableCell className="text-right tabular-nums">{fmtJpy(r.spend)}</TableCell>
         <TableCell className="text-right tabular-nums">{fmtInt(r.impressions)}</TableCell>
         <TableCell className="text-right tabular-nums">{fmtInt(r.clicks)}</TableCell>

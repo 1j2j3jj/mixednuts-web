@@ -17,6 +17,8 @@ function mediaColour(media: string): string {
       return "bg-purple-100 text-purple-800";
     case "meta":
       return "bg-sky-100 text-sky-800";
+    case "LinkedIn":
+      return "bg-indigo-100 text-indigo-800";
     default:
       return "bg-muted text-muted-foreground";
   }

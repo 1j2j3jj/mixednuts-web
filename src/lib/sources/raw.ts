@@ -38,26 +38,26 @@ export interface DailyFetchResult {
 }
 
 /**
- * Column index map for the Google Ads ADG-grained export sheet
- * (HS_202410_202603 / シート1). This sheet has no 媒体 column — data is
- * Google-only — and no Brand/General flag; we default the media to "Google"
- * and infer Brand/General from the campaign name (contains "指名" → Brand).
+ * Column index map for the HS ADG-grained multi-media export sheet
+ * (HS_202410_202603 / シート1). 12 columns, media values seen in the wild:
+ * Google / Yahoo / Microsoft / meta / LinkedIn.
  *
- * If the schema changes again, update this map; the rest of the pipeline
- * stays identical.
+ * Brand/General is not exported; we infer it from the campaign name
+ * (contains 指名 → Brand) so the downstream filters still work.
  */
 const HS_COLS = {
   date: 0,
-  campaignId: 1,
-  campaignName: 2,
-  adgroupId: 3,
-  adgroupName: 4,
-  currency: 5,
-  cost: 6,
-  impressions: 7,
-  clicks: 8,
-  conversions: 9,
-  conversionValue: 10,
+  media: 1,
+  campaignId: 2,
+  campaignName: 3,
+  adgroupId: 4,
+  adgroupName: 5,
+  currency: 6,
+  cost: 7,
+  impressions: 8,
+  clicks: 9,
+  conversions: 10,
+  conversionValue: 11,
 } as const;
 
 /** Infer Brand vs General from the campaign name. "指名" campaigns are brand
@@ -146,8 +146,7 @@ export async function getDailyRows(client: ClientConfig): Promise<DailyFetchResu
     if (r.every((c) => c == null || String(c).trim() === "")) continue;
     const campaignName = String(r[HS_COLS.campaignName] ?? "").trim();
     rows.push({
-      // Sheet is Google-Ads-only; hard-code the media.
-      media: "Google",
+      media: String(r[HS_COLS.media] ?? "").trim(),
       brandGeneral: inferBrandGeneral(campaignName),
       date: normaliseDate(r[HS_COLS.date]),
       campaignId: String(r[HS_COLS.campaignId] ?? "").trim(),

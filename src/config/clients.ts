@@ -76,7 +76,9 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
       // 2026-04 switch — dedicated Google Ads ADG-grained export
       // (2024-10-01 → 2026-03-31 initial load; to be extended by recurring job).
       sheetId: "1BtOId6PtE6Qeq01jtytMKKinpGPtXVzx_Yrat_6YNlU",
-      rawAdsRange: "シート1!A:K",
+      // 12 columns: 日 / 媒体 / CPN ID / CPN / ADG ID / ADG / 通貨 / 費用 /
+      // imp / click / CV / CV値
+      rawAdsRange: "シート1!A:L",
     },
     ga4PropertyId: "302745512",
     gscSiteUrl: "https://www.hansoku-style.jp/",
