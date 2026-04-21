@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { Noto_Sans_JP, Noto_Serif_JP, Playfair_Display, Inter, Archivo } from "next/font/google";
 import "./globals.css";
-import Nav from "@/components/Nav";
-import Footer from "@/components/Footer";
+import SiteChrome from "@/components/SiteChrome";
 import { JsonLd, organizationSchema, webSiteSchema } from "@/components/JsonLd";
 
 const GTM_ID = "GTM-MS76PXZZ";
@@ -60,9 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <noscript>
           <iframe src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID}`} height="0" width="0" style={{ display: "none", visibility: "hidden" }} />
         </noscript>
-        <Nav />
-        {children}
-        <Footer />
+        <SiteChrome>{children}</SiteChrome>
       </body>
     </html>
   );
