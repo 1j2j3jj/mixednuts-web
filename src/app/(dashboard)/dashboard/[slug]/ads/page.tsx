@@ -5,7 +5,6 @@ import { getTargetsForMonth } from "@/lib/sources/target";
 import { resolveFromSearchParams, type DateRange } from "@/lib/range";
 import MediaTable, { type MediaRow } from "@/components/dashboard/MediaTable";
 import DailyTrendChart from "@/components/dashboard/DailyTrendChart";
-import NewVsRepeatChart from "@/components/dashboard/NewVsRepeatChart";
 import RefreshButton from "@/components/dashboard/RefreshButton";
 import PrintButton from "@/components/dashboard/PrintButton";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
@@ -178,19 +177,6 @@ export default async function AdsScreen({
     { label: "Revenue (GA4)", value: curGa4.revenue, format: "jpy" },
   ];
 
-  // New vs repeat, past 6 months from GA4 mock (context, not range-filtered).
-  const byMonthUsers = new Map<string, { new: number; returning: number }>();
-  for (const r of ga4All) {
-    const acc = byMonthUsers.get(r.yearMonth) ?? { new: 0, returning: 0 };
-    acc.new += r.newUsers;
-    acc.returning += r.returningUsers;
-    byMonthUsers.set(r.yearMonth, acc);
-  }
-  const newVsRepeat = Array.from(byMonthUsers.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .slice(-6)
-    .map(([ym, v]) => ({ yearMonth: ym, new: v.new, returning: v.returning }));
-
   const fetchedAtLabel = new Date(fetchedAt).toLocaleTimeString("ja-JP", {
     hour: "2-digit",
     minute: "2-digit",
@@ -329,14 +315,6 @@ export default async function AdsScreen({
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">新規 vs リピート Users（過去6ヶ月・参考）</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <NewVsRepeatChart data={newVsRepeat} />
-        </CardContent>
-      </Card>
     </div>
   );
 }

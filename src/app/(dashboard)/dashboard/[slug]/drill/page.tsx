@@ -152,12 +152,11 @@ export default async function DrillScreen({
     ? "campaign"
     : "media";
 
-  // Fetch GA4 data for JOIN. For media/campaign levels we use the paid-
-  // campaign report; for adgroup we need the Google-Ads-specific ADG report.
+  // Fetch GA4 data. Paid campaigns are pulled on every level because the
+  // Big-KPI cards need window totals even at adgroup / bucket levels; the
+  // ADG-specific report stays level-gated (small query, cheap).
   const [ga4Campaigns, ga4Adgroups] = await Promise.all([
-    level === "media" || level === "campaign"
-      ? getGa4PaidCampaigns(client, rr.current.start, rr.current.end)
-      : Promise.resolve([]),
+    getGa4PaidCampaigns(client, rr.current.start, rr.current.end),
     level === "adgroup"
       ? getGa4GoogleAdgroups(client, rr.current.start, rr.current.end)
       : Promise.resolve([]),
@@ -208,6 +207,29 @@ export default async function DrillScreen({
   const prevTotals = sumRows(prevFiltered);
 
   const pct = (a: number, b: number): number | null => (b === 0 ? null : (a - b) / b);
+
+  // GA4-side totals for the current and previous window. Aggregated from the
+  // paid-campaign rows so the Big KPI cards match the selected source.
+  function sumGa4(list: typeof ga4Campaigns): { conversions: number; revenue: number } {
+    let c = 0, r = 0;
+    for (const row of list) {
+      c += row.conversions;
+      r += row.revenue;
+    }
+    return { conversions: c, revenue: r };
+  }
+  function filterByMediaKey(list: typeof ga4Campaigns) {
+    if (!mediaFilter) return list;
+    return list.filter((g) => g.media === mediaFilter);
+    // campaign / adgroup filters can't be applied on the GA4 side cleanly
+    // (different key shapes), so Big KPI falls back to media-level scope —
+    // an acceptable approximation for a toggle-only display.
+  }
+  const curGa4 = sumGa4(filterByMediaKey(ga4Campaigns));
+  // previous-window GA4: separate fetch would be ideal; for now reuse the
+  // current-window fetch and let the prev delta stay media-only for v1.
+  const prevGa4 = { conversions: 0, revenue: 0 };
+  const curGa4RoasPct = curTotals.cost > 0 ? (curGa4.revenue / curTotals.cost) * 100 : null;
 
   // Trend series — bucketed by the same granularity as the table, so the
   // chart and the table agree on their x-axis.
@@ -329,21 +351,39 @@ export default async function DrillScreen({
           sparkTone="negative"
         />
         <BigKpiCard
-          label="媒体CV"
-          value={fmtInt(curTotals.conversions)}
+          label={source === "ga4" ? "GA4 CV" : "媒体CV"}
+          value={fmtInt(source === "ga4" ? curGa4.conversions : curTotals.conversions)}
           comparisons={
-            rr.previous ? [{ label: rr.compareLabel, delta: pct(curTotals.conversions, prevTotals.conversions) }] : []
+            rr.previous
+              ? [
+                  {
+                    label: rr.compareLabel,
+                    delta: pct(
+                      source === "ga4" ? curGa4.conversions : curTotals.conversions,
+                      source === "ga4" ? prevGa4.conversions : prevTotals.conversions
+                    ),
+                  },
+                ]
+              : []
           }
           sparkline={cv14}
           sparkDates={sparkDates}
           sparkFormat="int"
         />
         <BigKpiCard
-          label="売上"
-          value={fmtJpy(curTotals.conversionValue)}
+          label={source === "ga4" ? "GA4 売上" : "媒体売上"}
+          value={fmtJpy(source === "ga4" ? curGa4.revenue : curTotals.conversionValue)}
           comparisons={
             rr.previous
-              ? [{ label: rr.compareLabel, delta: pct(curTotals.conversionValue, prevTotals.conversionValue) }]
+              ? [
+                  {
+                    label: rr.compareLabel,
+                    delta: pct(
+                      source === "ga4" ? curGa4.revenue : curTotals.conversionValue,
+                      source === "ga4" ? prevGa4.revenue : prevTotals.conversionValue
+                    ),
+                  },
+                ]
               : []
           }
           sparkline={rev14}
@@ -351,10 +391,10 @@ export default async function DrillScreen({
           sparkFormat="jpy"
         />
         <BigKpiCard
-          label="ROAS"
-          value={fmtRatioPct(curTotals.roasPct, 0)}
+          label={source === "ga4" ? "GA4 ROAS" : "媒体ROAS"}
+          value={fmtRatioPct(source === "ga4" ? curGa4RoasPct : curTotals.roasPct, 0)}
           comparisons={
-            rr.previous && curTotals.roasPct != null && prevTotals.roasPct != null
+            rr.previous && source === "media" && curTotals.roasPct != null && prevTotals.roasPct != null
               ? [{ label: rr.compareLabel, delta: pct(curTotals.roasPct, prevTotals.roasPct) }]
               : []
           }

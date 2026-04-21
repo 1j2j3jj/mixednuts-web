@@ -14,6 +14,7 @@ import { analysePacing, lastN } from "@/lib/analysis";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
 import ChannelStackedBar from "@/components/dashboard/ChannelStackedBar";
 import ChannelTrendChart from "@/components/dashboard/ChannelTrendChart";
+import NewVsRepeatChart from "@/components/dashboard/NewVsRepeatChart";
 import GoalGauge from "@/components/dashboard/GoalGauge";
 import PacingAlert from "@/components/dashboard/PacingAlert";
 import DeviceBar from "@/components/dashboard/DeviceBar";
@@ -110,6 +111,19 @@ export default async function Overview({
   // divide by daily cost. Pragmatic — precise per-day GA4 revenue would
   // require another query.
   const roasSpark = daily14.map((d) => (d.cost > 0 ? (d.conversionValue / d.cost) * 100 : 0));
+
+  // New vs repeat — past 6 months (site-wide, moved from Ads page).
+  const byMonthUsers = new Map<string, { new: number; returning: number }>();
+  for (const r of ga4) {
+    const acc = byMonthUsers.get(r.yearMonth) ?? { new: 0, returning: 0 };
+    acc.new += r.newUsers;
+    acc.returning += r.returningUsers;
+    byMonthUsers.set(r.yearMonth, acc);
+  }
+  const newVsRepeat = Array.from(byMonthUsers.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-6)
+    .map(([ym, v]) => ({ yearMonth: ym, new: v.new, returning: v.returning }));
 
   // Top 5 channels.
   const byChannel = new Map<string, { channel: string; sessions: number; conversions: number; revenue: number }>();
@@ -269,6 +283,15 @@ export default async function Overview({
         </CardHeader>
         <CardContent>
           <ChannelTrendChart data={ga4Daily} defaultMetric="sessions" defaultGranularity="day" />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">新規 vs リピート Users（過去6ヶ月・参考）</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <NewVsRepeatChart data={newVsRepeat} />
         </CardContent>
       </Card>
 
