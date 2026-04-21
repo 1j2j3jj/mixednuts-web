@@ -10,6 +10,7 @@ import RefreshButton from "@/components/dashboard/RefreshButton";
 import PrintButton from "@/components/dashboard/PrintButton";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
 import FunnelChart from "@/components/dashboard/FunnelChart";
+import SourceToggle, { readSource } from "@/components/dashboard/SourceToggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
 import { lastN } from "@/lib/analysis";
@@ -32,6 +33,19 @@ function ga4TotalsByMedia(rows: Ga4CampaignRow[]): Map<string, { sessions: numbe
     cur.conversions += r.conversions;
     cur.revenue += r.revenue;
     m.set(r.media, cur);
+  }
+  return m;
+}
+
+/** Sum GA4 paid-campaign rows per day (all media). */
+function ga4DailyTotals(rows: Ga4CampaignRow[]): Map<string, { conversions: number; revenue: number }> {
+  const m = new Map<string, { conversions: number; revenue: number }>();
+  for (const r of rows) {
+    if (!r.date) continue;
+    const cur = m.get(r.date) ?? { conversions: 0, revenue: 0 };
+    cur.conversions += r.conversions;
+    cur.revenue += r.revenue;
+    m.set(r.date, cur);
   }
   return m;
 }
@@ -73,6 +87,7 @@ export default async function AdsScreen({
 }) {
   const { slug } = await params;
   const sp = await searchParams;
+  const source = readSource(sp);
   const client = await assertUserCanAccessClientBySlug(slug);
 
   const { rows, fetchedAt, isMock } = await getDailyRows(client);
@@ -100,6 +115,7 @@ export default async function AdsScreen({
   // JOIN real GA4 CV / Revenue per media (not a fake 0.9x multiplier).
   const ga4Campaigns = await getGa4PaidCampaigns(client, rr.current.start, rr.current.end);
   const ga4MediaTot = ga4TotalsByMedia(ga4Campaigns);
+  const ga4DailyTot = ga4DailyTotals(ga4Campaigns);
 
   function byMedia(list: DailyRow[]): MediaRow[] {
     const map = new Map<string, MediaRow>();
@@ -112,6 +128,7 @@ export default async function AdsScreen({
         adsCv: 0,
         ga4Cv: 0,
         conversionValue: 0,
+        ga4Revenue: 0,
       };
       c.spend += r.cost;
       c.impressions += r.impressions;
@@ -122,7 +139,11 @@ export default async function AdsScreen({
     }
     return Array.from(map.values()).map((m) => {
       const g = ga4MediaTot.get(m.media);
-      return { ...m, ga4Cv: g ? Math.round(g.conversions) : 0 };
+      return {
+        ...m,
+        ga4Cv: g ? Math.round(g.conversions) : 0,
+        ga4Revenue: g ? g.revenue : 0,
+      };
     });
   }
   const mediaRows = byMedia(cur);
@@ -131,10 +152,21 @@ export default async function AdsScreen({
 
   const series = aggregateByDate(cur);
 
-  // Sparklines: last 14 days.
-  const spend14 = lastN(series, 14).map((d) => d.cost);
-  const cv14 = lastN(series, 14).map((d) => d.conversions);
-  const rev14 = lastN(series, 14).map((d) => d.conversionValue);
+  // Sparklines: last 14 buckets. Dates paired for tooltip.
+  const series14 = lastN(series, 14);
+  const dates14 = series14.map((d) => d.date);
+  const spend14 = series14.map((d) => d.cost);
+  // CV / Revenue series switches per source so the sparkline matches the KPI.
+  const cv14 = series14.map((d) =>
+    source === "ga4" ? ga4DailyTot.get(d.date)?.conversions ?? 0 : d.conversions
+  );
+  const rev14 = series14.map((d) =>
+    source === "ga4" ? ga4DailyTot.get(d.date)?.revenue ?? 0 : d.conversionValue
+  );
+  const roas14 = series14.map((d) => {
+    const rev = source === "ga4" ? ga4DailyTot.get(d.date)?.revenue ?? 0 : d.conversionValue;
+    return d.cost > 0 ? (rev / d.cost) * 100 : 0;
+  });
 
   // Funnel uses ad-side counts through CV, then GA4 revenue for the final
   // stage so the shown ¥ matches the GA4-based top-KPI card above.
@@ -196,43 +228,85 @@ export default async function AdsScreen({
           lowerIsBetter
           comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(curTotals.cost, prevTotals.cost) }] : []}
           sparkline={spend14}
+          sparkDates={dates14}
+          sparkFormat="jpy"
           sparkTone="negative"
         />
         <BigKpiCard
-          label="媒体CV"
-          value={fmtInt(curTotals.conversions)}
+          label={source === "ga4" ? "GA4 CV" : "媒体CV"}
+          value={fmtInt(source === "ga4" ? curGa4.conversions : curTotals.conversions)}
           comparisons={
-            rr.previous ? [{ label: rr.compareLabel, delta: pct(curTotals.conversions, prevTotals.conversions) }] : []
-          }
-          sparkline={cv14}
-        />
-        <BigKpiCard
-          label="売上 (GA4)"
-          value={fmtJpy(curGa4.revenue)}
-          comparisons={
-            rr.previous ? [{ label: rr.compareLabel, delta: pct(curGa4.revenue, prevGa4.revenue) }] : []
-          }
-          sparkline={rev14}
-        />
-        <BigKpiCard
-          label="ROAS (GA4)"
-          value={fmtRatioPct(curGa4RoasPct, 0)}
-          comparisons={
-            rr.previous && curGa4RoasPct != null && prevGa4RoasPct != null
-              ? [{ label: rr.compareLabel, delta: pct(curGa4RoasPct, prevGa4RoasPct) }]
+            rr.previous
+              ? [
+                  {
+                    label: rr.compareLabel,
+                    delta: pct(
+                      source === "ga4" ? curGa4.conversions : curTotals.conversions,
+                      source === "ga4" ? prevGa4.conversions : prevTotals.conversions
+                    ),
+                  },
+                ]
               : []
           }
+          sparkline={cv14}
+          sparkDates={dates14}
+          sparkFormat="int"
+        />
+        <BigKpiCard
+          label={source === "ga4" ? "GA4 売上" : "媒体売上"}
+          value={fmtJpy(source === "ga4" ? curGa4.revenue : curTotals.conversionValue)}
+          comparisons={
+            rr.previous
+              ? [
+                  {
+                    label: rr.compareLabel,
+                    delta: pct(
+                      source === "ga4" ? curGa4.revenue : curTotals.conversionValue,
+                      source === "ga4" ? prevGa4.revenue : prevTotals.conversionValue
+                    ),
+                  },
+                ]
+              : []
+          }
+          sparkline={rev14}
+          sparkDates={dates14}
+          sparkFormat="jpy"
+        />
+        <BigKpiCard
+          label={source === "ga4" ? "GA4 ROAS" : "媒体ROAS"}
+          value={fmtRatioPct(
+            source === "ga4" ? curGa4RoasPct : curTotals.roasPct,
+            0
+          )}
+          comparisons={
+            rr.previous
+              ? [
+                  {
+                    label: rr.compareLabel,
+                    delta:
+                      source === "ga4"
+                        ? curGa4RoasPct != null && prevGa4RoasPct != null
+                          ? pct(curGa4RoasPct, prevGa4RoasPct)
+                          : null
+                        : curTotals.roasPct != null && prevTotals.roasPct != null
+                        ? pct(curTotals.roasPct, prevTotals.roasPct)
+                        : null,
+                  },
+                ]
+              : []
+          }
+          sparkline={roas14}
+          sparkDates={dates14}
+          sparkFormat="pct"
         />
       </div>
 
       <section className="space-y-3">
-        <div className="flex items-baseline justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold">媒体別サマリ</h2>
-          <span className="text-[11px] text-muted-foreground">
-            ※ 媒体別テーブルの 売上 / ROAS は媒体プラットフォーム側集計。上部 KPI は GA4 ベース。
-          </span>
+          <SourceToggle />
         </div>
-        <MediaTable rows={mediaRows} targetRoasPct={tgt.roasPct} />
+        <MediaTable rows={mediaRows} targetRoasPct={tgt.roasPct} source={source} />
       </section>
 
       <div className="grid gap-4 lg:grid-cols-2">

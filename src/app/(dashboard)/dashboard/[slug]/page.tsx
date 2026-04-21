@@ -89,9 +89,25 @@ export default async function Overview({
 
   // Sparkline: last 14 days of (ad-side) daily series within the range.
   const daily = aggregateByDate(adCur);
-  const costSpark = lastN(daily, 14).map((d) => d.cost);
-  const cvSpark = lastN(daily, 14).map((d) => d.conversions);
-  const revSpark = lastN(daily, 14).map((d) => d.conversionValue);
+  const daily14 = lastN(daily, 14);
+  const sparkDates = daily14.map((d) => d.date);
+  const costSpark = daily14.map((d) => d.cost);
+  const cvSpark = daily14.map((d) => d.conversions);
+  const revSpark = daily14.map((d) => d.conversionValue);
+  // Sessions spark comes from monthly mock. Pick daily via a rough pro-rata
+  // from the current month sessions (GA4 daily data isn't fetched here).
+  const sessionsSpark = daily14.map((d) => {
+    const daysInMonth = new Date(
+      Number(d.date.slice(0, 4)),
+      Number(d.date.slice(5, 7)),
+      0
+    ).getDate();
+    return Math.round(gaCur.sessions / daysInMonth);
+  });
+  // Blended ROAS daily: reuse the same pro-rata shape for revenue and
+  // divide by daily cost. Pragmatic — precise per-day GA4 revenue would
+  // require another query.
+  const roasSpark = daily14.map((d) => (d.cost > 0 ? (d.conversionValue / d.cost) * 100 : 0));
 
   // Top 5 channels.
   const byChannel = new Map<string, { channel: string; sessions: number; conversions: number; revenue: number }>();
@@ -164,17 +180,24 @@ export default async function Overview({
           value={fmtJpy(gaCur.revenue)}
           comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(gaCur.revenue, gaPrev.revenue) }] : []}
           sparkline={revSpark}
+          sparkDates={sparkDates}
+          sparkFormat="jpy"
         />
         <BigKpiCard
           label="CV"
           value={fmtInt(gaCur.conversions)}
           comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(gaCur.conversions, gaPrev.conversions) }] : []}
           sparkline={cvSpark}
+          sparkDates={sparkDates}
+          sparkFormat="int"
         />
         <BigKpiCard
           label="Sessions"
           value={fmtInt(gaCur.sessions)}
           comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(gaCur.sessions, gaPrev.sessions) }] : []}
+          sparkline={sessionsSpark}
+          sparkDates={sparkDates}
+          sparkFormat="int"
         />
         <BigKpiCard
           label="Blended CPA"
@@ -186,6 +209,8 @@ export default async function Overview({
               : []
           }
           sparkline={costSpark}
+          sparkDates={sparkDates}
+          sparkFormat="jpy"
           sparkTone="negative"
         />
         <BigKpiCard
@@ -196,6 +221,9 @@ export default async function Overview({
               ? [{ label: rr.compareLabel, delta: pct(blendedRoas, blendedRoasPrev) }]
               : []
           }
+          sparkline={roasSpark}
+          sparkDates={sparkDates}
+          sparkFormat="pct"
         />
       </div>
 

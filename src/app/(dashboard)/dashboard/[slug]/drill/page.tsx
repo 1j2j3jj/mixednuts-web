@@ -13,6 +13,7 @@ import PrintButton from "@/components/dashboard/PrintButton";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
 import FunnelChart from "@/components/dashboard/FunnelChart";
 import DailyTrendChart from "@/components/dashboard/DailyTrendChart";
+import SourceToggle, { readSource } from "@/components/dashboard/SourceToggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fmtInt, fmtJpy, fmtRatioPct } from "@/lib/utils";
 
@@ -226,10 +227,14 @@ export default async function DrillScreen({
   }
   const series = Array.from(trendMap.values()).sort((a, b) => a.date.localeCompare(b.date));
 
-  // Sparklines still use daily — they're meant to be dense-and-readable.
+  // Sparklines: daily, with dates for hover tooltip.
   const dailySeries = aggregateByDate(filtered);
-  const spend14 = lastN(dailySeries, 14).map((d) => d.cost);
-  const cv14 = lastN(dailySeries, 14).map((d) => d.conversions);
+  const daily14 = lastN(dailySeries, 14);
+  const sparkDates = daily14.map((d) => d.date);
+  const spend14 = daily14.map((d) => d.cost);
+  const cv14 = daily14.map((d) => d.conversions);
+  const rev14 = daily14.map((d) => d.conversionValue);
+  const roas14 = daily14.map((d) => (d.cost > 0 ? (d.conversionValue / d.cost) * 100 : 0));
 
   // Funnel for the current filter.
   const funnelStages: Array<{ label: string; value: number; format?: "int" | "jpy" }> = [
@@ -306,7 +311,7 @@ export default async function DrillScreen({
 
       <DrillFilters slug={slug} medias={medias} campaigns={campaigns} adgroups={adgroups} />
 
-      {/* Period KPIs (reflect the filter) */}
+      {/* Period KPIs with 4 sparklines + hover date tooltip */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <BigKpiCard
           label="Spend"
@@ -314,6 +319,8 @@ export default async function DrillScreen({
           lowerIsBetter
           comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(curTotals.cost, prevTotals.cost) }] : []}
           sparkline={spend14}
+          sparkDates={sparkDates}
+          sparkFormat="jpy"
           sparkTone="negative"
         />
         <BigKpiCard
@@ -323,6 +330,8 @@ export default async function DrillScreen({
             rr.previous ? [{ label: rr.compareLabel, delta: pct(curTotals.conversions, prevTotals.conversions) }] : []
           }
           sparkline={cv14}
+          sparkDates={sparkDates}
+          sparkFormat="int"
         />
         <BigKpiCard
           label="売上"
@@ -332,6 +341,9 @@ export default async function DrillScreen({
               ? [{ label: rr.compareLabel, delta: pct(curTotals.conversionValue, prevTotals.conversionValue) }]
               : []
           }
+          sparkline={rev14}
+          sparkDates={sparkDates}
+          sparkFormat="jpy"
         />
         <BigKpiCard
           label="ROAS"
@@ -341,6 +353,9 @@ export default async function DrillScreen({
               ? [{ label: rr.compareLabel, delta: pct(curTotals.roasPct, prevTotals.roasPct) }]
               : []
           }
+          sparkline={roas14}
+          sparkDates={sparkDates}
+          sparkFormat="pct"
         />
       </div>
 

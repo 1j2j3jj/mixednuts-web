@@ -1,20 +1,28 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn, fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
+import type { MetricSource } from "./SourceToggle";
 
 export interface MediaRow {
   media: string;
   spend: number;
   impressions: number;
   clicks: number;
+  /** Ad-platform reported conversions. */
   adsCv: number;
+  /** GA4 purchase conversions (joined). */
   ga4Cv: number;
+  /** Ad-platform reported conversion value (JPY). */
   conversionValue: number;
+  /** GA4 purchase revenue (joined). 0 if unavailable. */
+  ga4Revenue?: number;
 }
 
 interface Props {
   rows: MediaRow[];
-  /** Target ROAS as percentage (e.g. 1300 = 1300%). Used for cell colouring. */
+  /** Target ROAS as percentage (e.g. 1300 = 1300%). */
   targetRoasPct: number;
+  /** "ga4" (default) → show GA4-based CV/売上/CPA/ROAS; "media" → ad-platform values. */
+  source: MetricSource;
 }
 
 const MEDIA_BADGE: Record<string, string> = {
@@ -36,7 +44,7 @@ function roasClass(actualPct: number | null, targetPct: number): string {
   return "text-rose-700";
 }
 
-export default function MediaTable({ rows, targetRoasPct }: Props) {
+export default function MediaTable({ rows, targetRoasPct, source }: Props) {
   const sorted = [...rows].sort((a, b) => b.spend - a.spend);
   const tot = sorted.reduce(
     (s, r) => ({
@@ -47,20 +55,34 @@ export default function MediaTable({ rows, targetRoasPct }: Props) {
       adsCv: s.adsCv + r.adsCv,
       ga4Cv: s.ga4Cv + r.ga4Cv,
       conversionValue: s.conversionValue + r.conversionValue,
+      ga4Revenue: (s.ga4Revenue ?? 0) + (r.ga4Revenue ?? 0),
     }),
-    { media: "合計", spend: 0, impressions: 0, clicks: 0, adsCv: 0, ga4Cv: 0, conversionValue: 0 } as MediaRow
+    {
+      media: "合計",
+      spend: 0,
+      impressions: 0,
+      clicks: 0,
+      adsCv: 0,
+      ga4Cv: 0,
+      conversionValue: 0,
+      ga4Revenue: 0,
+    } as MediaRow
   );
+
+  const cvLabel = source === "ga4" ? "GA4 CV" : "媒体CV";
+  const revLabel = source === "ga4" ? "GA4 売上" : "媒体売上";
+  const cpaLabel = source === "ga4" ? "GA4 CPA" : "媒体CPA";
+  const roasLabel = source === "ga4" ? "GA4 ROAS" : "媒体ROAS";
 
   function renderRow(r: MediaRow, isTotal = false) {
     const ctr = safeDiv(r.clicks, r.impressions);
     const cpc = safeDiv(r.spend, r.clicks);
-    // CVR / AOV are computed against the ad-side CV since this is the
-    // advertising summary; site-side (GA4) equivalents land on Overview.
-    const cvr = safeDiv(r.adsCv, r.clicks);
-    const aov = safeDiv(r.conversionValue, r.adsCv);
-    const adsCpa = safeDiv(r.spend, r.adsCv);
-    const ga4Cpa = safeDiv(r.spend, r.ga4Cv);
-    const roasPct = r.spend > 0 ? (r.conversionValue / r.spend) * 100 : null;
+    const cv = source === "ga4" ? r.ga4Cv : r.adsCv;
+    const rev = source === "ga4" ? r.ga4Revenue ?? 0 : r.conversionValue;
+    const cvr = safeDiv(cv, r.clicks);
+    const aov = safeDiv(rev, cv);
+    const cpa = safeDiv(r.spend, cv);
+    const roasPct = r.spend > 0 ? (rev / r.spend) * 100 : null;
     return (
       <TableRow key={r.media} className={cn(isTotal && "border-t-2 bg-muted/40 font-medium")}>
         <TableCell>
@@ -75,12 +97,10 @@ export default function MediaTable({ rows, targetRoasPct }: Props) {
         <TableCell className="text-right tabular-nums">{fmtInt(r.clicks)}</TableCell>
         <TableCell className="text-right tabular-nums">{fmtPct(ctr, 2)}</TableCell>
         <TableCell className="text-right tabular-nums">{fmtJpy(cpc)}</TableCell>
-        <TableCell className="text-right tabular-nums">{fmtInt(r.adsCv)}</TableCell>
-        <TableCell className="text-right tabular-nums">{fmtInt(r.ga4Cv)}</TableCell>
+        <TableCell className="text-right tabular-nums">{fmtInt(cv)}</TableCell>
         <TableCell className="text-right tabular-nums">{fmtPct(cvr, 2)}</TableCell>
-        <TableCell className="text-right tabular-nums">{fmtJpy(adsCpa)}</TableCell>
-        <TableCell className="text-right tabular-nums">{fmtJpy(ga4Cpa)}</TableCell>
-        <TableCell className="text-right tabular-nums">{fmtJpy(r.conversionValue)}</TableCell>
+        <TableCell className="text-right tabular-nums">{fmtJpy(cpa)}</TableCell>
+        <TableCell className="text-right tabular-nums">{fmtJpy(rev)}</TableCell>
         <TableCell className="text-right tabular-nums">{fmtJpy(aov)}</TableCell>
         <TableCell className={cn("text-right tabular-nums", !isTotal && roasClass(roasPct, targetRoasPct))}>
           {fmtRatioPct(roasPct, 0)}
@@ -100,14 +120,12 @@ export default function MediaTable({ rows, targetRoasPct }: Props) {
             <TableHead className="text-right">Click</TableHead>
             <TableHead className="text-right">CTR</TableHead>
             <TableHead className="text-right">CPC</TableHead>
-            <TableHead className="text-right">媒体CV</TableHead>
-            <TableHead className="text-right">GA4 CV</TableHead>
+            <TableHead className="text-right">{cvLabel}</TableHead>
             <TableHead className="text-right">CVR</TableHead>
-            <TableHead className="text-right">媒体CPA</TableHead>
-            <TableHead className="text-right">GA4 CPA</TableHead>
-            <TableHead className="text-right">売上</TableHead>
+            <TableHead className="text-right">{cpaLabel}</TableHead>
+            <TableHead className="text-right">{revLabel}</TableHead>
             <TableHead className="text-right">商品単価</TableHead>
-            <TableHead className="text-right">ROAS</TableHead>
+            <TableHead className="text-right">{roasLabel}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

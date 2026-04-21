@@ -16,6 +16,10 @@ interface Props {
   lowerIsBetter?: boolean;
   /** Optional sparkline series (e.g. last 7 days). */
   sparkline?: number[];
+  /** Dates parallel to `sparkline` — enables hover tooltip on the chart. */
+  sparkDates?: string[];
+  /** Tooltip value format. */
+  sparkFormat?: "int" | "jpy" | "pct";
   /** Sparkline tone (colour hint). */
   sparkTone?: "default" | "positive" | "negative";
 }
@@ -35,6 +39,8 @@ export default function BigKpiCard({
   comparisons = [],
   lowerIsBetter,
   sparkline,
+  sparkDates,
+  sparkFormat = "int",
   sparkTone,
 }: Props) {
   return (
@@ -48,7 +54,13 @@ export default function BigKpiCard({
         <div className="text-2xl font-semibold tracking-tight">{value}</div>
         {sparkline && sparkline.length > 1 && (
           <div className="mt-2">
-            <Sparkline values={sparkline} tone={sparkTone} height={28} />
+            <Sparkline
+              values={sparkline}
+              dates={sparkDates}
+              tone={sparkTone}
+              height={32}
+              format={sparkFormat}
+            />
           </div>
         )}
         {comparisons.length > 0 && (
