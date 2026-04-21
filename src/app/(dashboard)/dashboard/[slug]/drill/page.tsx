@@ -13,7 +13,8 @@ import PrintButton from "@/components/dashboard/PrintButton";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
 import FunnelChart from "@/components/dashboard/FunnelChart";
 import DailyTrendChart from "@/components/dashboard/DailyTrendChart";
-import SourceToggle, { readSource } from "@/components/dashboard/SourceToggle";
+import SourceToggle from "@/components/dashboard/SourceToggle";
+import { readSource } from "@/lib/source";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fmtInt, fmtJpy, fmtRatioPct } from "@/lib/utils";
 
@@ -123,6 +124,7 @@ export default async function DrillScreen({
 }) {
   const { slug } = await params;
   const sp = await searchParams;
+  const source = readSource(sp);
   const client = await assertUserCanAccessClientBySlug(slug);
 
   const { rows, fetchedAt, isMock } = await getDailyRows(client);
@@ -309,7 +311,10 @@ export default async function DrillScreen({
         </div>
       </div>
 
-      <DrillFilters slug={slug} medias={medias} campaigns={campaigns} adgroups={adgroups} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <DrillFilters slug={slug} medias={medias} campaigns={campaigns} adgroups={adgroups} />
+        <SourceToggle />
+      </div>
 
       {/* Period KPIs with 4 sparklines + hover date tooltip */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -392,6 +397,7 @@ export default async function DrillScreen({
           <DrillTable
             rows={table}
             level={level}
+            source={source}
             targetRoasPct={tgt.roasPct}
             targetCpa={tgt.cpa}
           />

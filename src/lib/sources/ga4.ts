@@ -90,6 +90,16 @@ export interface Ga4CampaignRow {
  * Google-Ads-only ADG row. `matchKey` is the raw ADG id so it joins directly
  * against the sheet's adgroupId.
  */
+/** Daily channel row (with sign-ups). Used by the "日別／週別" chart. */
+export interface ChannelDay {
+  date: string; // ISO yyyy-mm-dd
+  channel: ChannelGroup;
+  sessions: number;
+  conversions: number;
+  revenue: number;
+  signUps: number;
+}
+
 export interface Ga4AdgroupRow {
   date: string;
   campaignId: string;
@@ -519,6 +529,83 @@ export async function getTopLandingPages(client: ClientConfig): Promise<LandingP
   )();
 }
 
+/** Daily channel report (last 90 days). Includes sign_up event count via a
+ *  second filtered query, same pattern as realChannels. */
+async function realDailyChannels(propertyId: string): Promise<ChannelDay[]> {
+  const auth = makeAuth();
+  if (!auth) throw new Error("no-ga4-auth");
+  const analyticsdata = google.analyticsdata("v1beta");
+  const [res, signUps] = await Promise.all([
+    analyticsdata.properties.runReport({
+      property: `properties/${propertyId}`,
+      auth,
+      requestBody: {
+        dateRanges: [{ startDate: "90daysAgo", endDate: "today" }],
+        dimensions: [{ name: "date" }, { name: "sessionDefaultChannelGroup" }],
+        metrics: [
+          { name: "sessions" },
+          { name: "ecommercePurchases" },
+          { name: "purchaseRevenue" },
+        ],
+        limit: "10000",
+      },
+    }),
+    analyticsdata.properties.runReport({
+      property: `properties/${propertyId}`,
+      auth,
+      requestBody: {
+        dateRanges: [{ startDate: "90daysAgo", endDate: "today" }],
+        dimensions: [{ name: "date" }, { name: "sessionDefaultChannelGroup" }],
+        metrics: [{ name: "eventCount" }],
+        dimensionFilter: {
+          filter: {
+            fieldName: "eventName",
+            stringFilter: { matchType: "EXACT", value: "sign_up" },
+          },
+        },
+        limit: "10000",
+      },
+    }),
+  ]);
+  const signUpMap = new Map<string, number>();
+  for (const r of signUps.data.rows ?? []) {
+    const date = ga4DateToIso(r.dimensionValues?.[0]?.value ?? "");
+    const ch = normaliseChannel(r.dimensionValues?.[1]?.value);
+    signUpMap.set(`${date}|${ch}`, Number(r.metricValues?.[0]?.value ?? 0));
+  }
+  const out: ChannelDay[] = [];
+  for (const r of res.data.rows ?? []) {
+    const date = ga4DateToIso(r.dimensionValues?.[0]?.value ?? "");
+    const ch = normaliseChannel(r.dimensionValues?.[1]?.value);
+    out.push({
+      date,
+      channel: ch,
+      sessions: Number(r.metricValues?.[0]?.value ?? 0),
+      conversions: Number(r.metricValues?.[1]?.value ?? 0),
+      revenue: Number(r.metricValues?.[2]?.value ?? 0),
+      signUps: signUpMap.get(`${date}|${ch}`) ?? 0,
+    });
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export async function getGa4DailyChannels(client: ClientConfig): Promise<ChannelDay[]> {
+  if (!client.ga4PropertyId) return mockDailyChannels();
+  const pid = client.ga4PropertyId;
+  return unstable_cache(
+    async () => {
+      try {
+        return await realDailyChannels(pid);
+      } catch (err) {
+        console.error("[ga4] daily channels fetch failed, using mock:", err);
+        return mockDailyChannels();
+      }
+    },
+    [`ga4-daily-channels-${pid}`],
+    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] }
+  )();
+}
+
 export async function getGa4PaidCampaigns(
   client: ClientConfig,
   startDate: string,
@@ -670,6 +757,40 @@ function mockChannels(): ChannelMonth[] {
     }
   }
   return rows;
+}
+
+function mockDailyChannels(): ChannelDay[] {
+  const out: ChannelDay[] = [];
+  const anchor = new Date("2026-04-22T00:00:00Z");
+  for (let d = 89; d >= 0; d--) {
+    const day = new Date(anchor);
+    day.setUTCDate(day.getUTCDate() - d);
+    const iso = day.toISOString().slice(0, 10);
+    const dayOfWeek = day.getUTCDay();
+    // Weekday modifier: weekends slightly lower traffic
+    const weekMod = dayOfWeek === 0 || dayOfWeek === 6 ? 0.8 : 1.0;
+    for (const ch of CHANNELS) {
+      const base =
+        { "Paid Search": 730, "Paid Social": 300, "Organic Search": 1180, Direct: 600, Referral: 200, Email: 150, Other: 50 }[ch] ?? 0;
+      const cvRate =
+        { "Paid Search": 0.028, "Paid Social": 0.012, "Organic Search": 0.018, Direct: 0.022, Referral: 0.015, Email: 0.04, Other: 0.005 }[ch] ?? 0;
+      const rpc =
+        { "Paid Search": 5800, "Paid Social": 3200, "Organic Search": 6200, Direct: 9000, Referral: 4800, Email: 11000, Other: 2000 }[ch] ?? 0;
+      const jitter = 0.85 + Math.abs(seeded(d * 13 + ch.length)) * 0.3;
+      const sessions = Math.round(base * weekMod * jitter);
+      const conversions = Math.round(sessions * cvRate);
+      const revenue = Math.round(conversions * rpc);
+      out.push({
+        date: iso,
+        channel: ch,
+        sessions,
+        conversions,
+        revenue,
+        signUps: Math.round(sessions * (ch === "Paid Search" || ch === "Paid Social" ? 0.02 : 0.01)),
+      });
+    }
+  }
+  return out;
 }
 
 function mockDevices(anchor: string): DeviceTotals[] {

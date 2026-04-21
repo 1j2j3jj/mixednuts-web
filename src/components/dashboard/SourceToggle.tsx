@@ -2,8 +2,7 @@
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTransition } from "react";
-
-export type MetricSource = "ga4" | "media";
+import type { MetricSource } from "@/lib/source";
 
 /**
  * Two-state switch used on Ads / Drill to flip CV / 売上 / CPA / ROAS /
@@ -53,7 +52,3 @@ export default function SourceToggle() {
   );
 }
 
-/** Helper to read the source from a server component's searchParams. */
-export function readSource(sp: { src?: string }): MetricSource {
-  return sp.src === "media" ? "media" : "ga4";
-}

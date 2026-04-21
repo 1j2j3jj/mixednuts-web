@@ -1,6 +1,6 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn, fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
-import type { MetricSource } from "./SourceToggle";
+import type { MetricSource } from "@/lib/source";
 
 export interface MediaRow {
   media: string;

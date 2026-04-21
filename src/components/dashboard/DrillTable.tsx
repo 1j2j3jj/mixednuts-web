@@ -1,5 +1,6 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { detectAnomalies } from "@/lib/analysis";
+import type { MetricSource } from "@/lib/source";
 import { cn, fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 
 export interface DrillRow {
@@ -29,11 +30,10 @@ interface Props {
   targetRoasPct: number;
   /** Target CPA for cell colouring. */
   targetCpa: number;
-  /** Current drill level — decides whether the "ラベル" column is rendered.
-   *  - "media": row identity === 媒体, so the label column is redundant
-   *  - "bucket": row identity === date (already shown in 期間), so redundant
-   *  - "campaign" / "adgroup": label carries the breakdown name, shown */
+  /** Current drill level — decides whether the "ラベル" column is rendered. */
   level?: "media" | "campaign" | "adgroup" | "bucket";
+  /** "ga4" | "media" — which side drives CV / 売上 / CPA / ROAS cells. */
+  source?: MetricSource;
 }
 
 function roasClass(actualPct: number | null, targetPct: number): string {
@@ -50,7 +50,7 @@ function cpaClass(actual: number | null, target: number): string {
   return "text-rose-700 font-medium";
 }
 
-export default function DrillTable({ rows, targetRoasPct, targetCpa, level = "campaign" }: Props) {
+export default function DrillTable({ rows, targetRoasPct, targetCpa, level = "campaign", source = "ga4" }: Props) {
   // Primary sort: date desc (latest first). Secondary: spend desc.
   const sorted = [...rows].sort((a, b) => {
     if (a.date !== b.date) return b.date.localeCompare(a.date);
@@ -60,15 +60,16 @@ export default function DrillTable({ rows, targetRoasPct, targetCpa, level = "ca
   // Anomaly detection on Spend (±2σ). Flagged rows get a subtle
   // coloured left border and a badge — no drama.
   const spendFlags = detectAnomalies(sorted.map((r) => r.spend));
-  const cvFlags = detectAnomalies(sorted.map((r) => r.conversions));
+  // CV flags use the currently-selected source's CV for consistency.
+  const cvFlags = detectAnomalies(
+    sorted.map((r) => (source === "ga4" ? r.ga4Conversions ?? 0 : r.conversions))
+  );
 
   const showLabel = level === "campaign" || level === "adgroup";
   const labelHeader = level === "campaign" ? "キャンペーン" : level === "adgroup" ? "広告グループ" : "";
-  // GA4 columns available at media / campaign / adgroup levels (anywhere the
-  // JOIN identifier resolves). Hidden at bucket-only level.
-  const showGa4 = level === "media" || level === "campaign" || level === "adgroup";
-  const colSpan =
-    (showLabel ? 1 : 0) + (showGa4 ? 3 : 0) + 10;
+  const cvLabel = source === "ga4" ? "GA4 CV" : "媒体CV";
+  const revLabel = source === "ga4" ? "GA4 売上" : "媒体売上";
+  const colSpan = (showLabel ? 1 : 0) + 11;
 
   return (
     <div className="rounded-md border">
@@ -82,10 +83,8 @@ export default function DrillTable({ rows, targetRoasPct, targetCpa, level = "ca
             <TableHead className="text-right">Imp</TableHead>
             <TableHead className="text-right">Click</TableHead>
             <TableHead className="text-right">CTR</TableHead>
-            <TableHead className="text-right">媒体CV</TableHead>
-            {showGa4 && <TableHead className="text-right">GA4 CV</TableHead>}
-            {showGa4 && <TableHead className="text-right">GA4 Sessions</TableHead>}
-            {showGa4 && <TableHead className="text-right">GA4 売上</TableHead>}
+            <TableHead className="text-right">{cvLabel}</TableHead>
+            <TableHead className="text-right">{revLabel}</TableHead>
             <TableHead className="text-right">CPA</TableHead>
             <TableHead className="text-right">ROAS</TableHead>
             <TableHead className="text-right">異常</TableHead>
@@ -101,8 +100,10 @@ export default function DrillTable({ rows, targetRoasPct, targetCpa, level = "ca
           )}
           {sorted.map((r, i) => {
             const ctr = safeDiv(r.clicks, r.impressions);
-            const cpa = safeDiv(r.spend, r.conversions);
-            const roasPct = r.spend > 0 ? (r.conversionValue / r.spend) * 100 : null;
+            const cv = source === "ga4" ? r.ga4Conversions ?? 0 : r.conversions;
+            const rev = source === "ga4" ? r.ga4Revenue ?? 0 : r.conversionValue;
+            const cpa = safeDiv(r.spend, cv);
+            const roasPct = r.spend > 0 ? (rev / r.spend) * 100 : null;
             const spendFlag = spendFlags[i];
             const cvFlag = cvFlags[i];
             const hasAnomaly = spendFlag !== "normal" || cvFlag !== "normal";
@@ -150,23 +151,9 @@ export default function DrillTable({ rows, targetRoasPct, targetCpa, level = "ca
                     cvFlag === "low" && "text-rose-700"
                   )}
                 >
-                  {fmtInt(r.conversions)}
+                  {fmtInt(cv)}
                 </TableCell>
-                {showGa4 && (
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {r.ga4Conversions == null ? "—" : fmtInt(r.ga4Conversions)}
-                  </TableCell>
-                )}
-                {showGa4 && (
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {r.ga4Sessions == null ? "—" : fmtInt(r.ga4Sessions)}
-                  </TableCell>
-                )}
-                {showGa4 && (
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {r.ga4Revenue == null ? "—" : fmtJpy(r.ga4Revenue)}
-                  </TableCell>
-                )}
+                <TableCell className="text-right tabular-nums">{fmtJpy(rev)}</TableCell>
                 <TableCell className={cn("text-right tabular-nums", cpaClass(cpa, targetCpa))}>
                   {fmtJpy(cpa)}
                 </TableCell>

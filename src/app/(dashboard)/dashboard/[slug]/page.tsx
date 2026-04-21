@@ -2,6 +2,7 @@ import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getDailyRows } from "@/lib/sources/raw";
 import {
   getGa4MonthlyChannels,
+  getGa4DailyChannels,
   getDeviceTotals,
   getTopProducts,
 } from "@/lib/sources/ga4";
@@ -12,6 +13,7 @@ import { aggregateByDate, filterByRange } from "@/lib/metrics";
 import { analysePacing, lastN } from "@/lib/analysis";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
 import ChannelStackedBar from "@/components/dashboard/ChannelStackedBar";
+import ChannelTrendChart from "@/components/dashboard/ChannelTrendChart";
 import GoalGauge from "@/components/dashboard/GoalGauge";
 import PacingAlert from "@/components/dashboard/PacingAlert";
 import DeviceBar from "@/components/dashboard/DeviceBar";
@@ -133,10 +135,11 @@ export default async function Overview({
   const tgt = await getTargetsForMonth(client, anchor.slice(0, 7));
 
   // Extra context modules (parallel fetch for speed).
-  const [devices, topProducts, topQueries] = await Promise.all([
+  const [devices, topProducts, topQueries, ga4Daily] = await Promise.all([
     getDeviceTotals(client, anchor),
     getTopProducts(client),
     getTopGscQueries(client),
+    getGa4DailyChannels(client),
   ]);
 
   const fetchedAtLabel = new Date(fetchedAt).toLocaleTimeString("ja-JP", {
@@ -257,6 +260,15 @@ export default async function Overview({
         </CardHeader>
         <CardContent>
           <ChannelStackedBar data={ga4} defaultMetric="sessions" />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">日別/週別チャネル別（過去90日）</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChannelTrendChart data={ga4Daily} defaultMetric="sessions" defaultGranularity="day" />
         </CardContent>
       </Card>
 
