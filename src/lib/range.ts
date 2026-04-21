@@ -17,6 +17,7 @@ export const PRESETS = [
   { key: "last3m", label: "過去3ヶ月" },
   { key: "last6m", label: "過去6ヶ月" },
   { key: "last12m", label: "過去12ヶ月" },
+  { key: "custom", label: "カスタム" },
 ] as const;
 
 export const COMPARES = [
@@ -73,8 +74,9 @@ export function compareLabel(c: CompareKey): string {
 }
 
 /** Resolve a preset into a concrete DateRange anchored at `anchor` (the
- *  latest data date). End is inclusive. */
-export function resolvePreset(preset: PresetKey, anchor: string): DateRange {
+ *  latest data date). End is inclusive. For "custom" the caller must
+ *  provide explicit start/end via the custom override. */
+export function resolvePreset(preset: PresetKey, anchor: string, custom?: DateRange): DateRange {
   switch (preset) {
     case "last7":
       return { start: addDays(anchor, -6), end: anchor };
@@ -92,6 +94,10 @@ export function resolvePreset(preset: PresetKey, anchor: string): DateRange {
       return { start: addMonths(anchor, -6), end: anchor };
     case "last12m":
       return { start: addMonths(anchor, -12), end: anchor };
+    case "custom":
+      if (custom && custom.start && custom.end) return custom;
+      // Fallback when custom lacks one endpoint — treat as last28.
+      return { start: addDays(anchor, -27), end: anchor };
   }
 }
 
@@ -119,19 +125,18 @@ export interface ResolvedRange {
   presetLabel: string;
 }
 
-/** One-call resolver for server pages.
- *  @param sp    searchParams from the page
- *  @param defaults  what to use when sp is silent
- *  @param anchor    latest date present in the data (keeps "last 28 days"
- *                   honest when the sheet hasn't been updated yet) */
+/** One-call resolver for server pages. Reads `?preset=`, `?cmp=`, and when
+ *  preset=custom also `?start=` / `?end=`. */
 export function resolveFromSearchParams(
-  sp: { preset?: string; cmp?: string },
+  sp: { preset?: string; cmp?: string; start?: string; end?: string },
   defaults: { preset: PresetKey; compare: CompareKey },
   anchor: string
 ): ResolvedRange {
   const preset = (PRESETS.find((p) => p.key === sp.preset)?.key ?? defaults.preset) as PresetKey;
   const compare = (COMPARES.find((c) => c.key === sp.cmp)?.key ?? defaults.compare) as CompareKey;
-  const current = resolvePreset(preset, anchor);
+  const custom =
+    preset === "custom" && sp.start && sp.end ? { start: sp.start, end: sp.end } : undefined;
+  const current = resolvePreset(preset, anchor, custom);
   const previous = resolveCompare(compare, current);
   return {
     anchor,

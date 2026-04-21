@@ -6,6 +6,7 @@ import DrillFilters from "@/components/dashboard/DrillFilters";
 import DrillTable, { type DrillRow } from "@/components/dashboard/DrillTable";
 import CsvExportButton from "@/components/dashboard/CsvExportButton";
 import RefreshButton from "@/components/dashboard/RefreshButton";
+import PrintButton from "@/components/dashboard/PrintButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 /**
@@ -169,6 +170,7 @@ export default async function DrillScreen({
             filename={`drill-${slug}-${new Date().toISOString().slice(0, 10)}.csv`}
             rows={csvRows}
           />
+          <PrintButton />
           <RefreshButton clientId={client.id} />
         </div>
       </div>

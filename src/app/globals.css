@@ -9,6 +9,35 @@
    ============================================================ */
 @custom-variant dark (&:is(.dark *));
 
+/* Mobile + print adjustments for the dashboard scope */
+.dashboard-scope main {
+  /* Allow wide tables to scroll on narrow viewports without breaking layout */
+  max-width: 100%;
+}
+@media (max-width: 768px) {
+  .dashboard-scope main { padding: 1rem !important; }
+  .dashboard-scope h1 { font-size: 1.375rem !important; line-height: 1.25 !important; }
+  /* Hide the sidebar on mobile — admin index sits at /dashboard which is full-width anyway */
+  .dashboard-scope aside { display: none !important; }
+}
+@media print {
+  /* Hide chrome so only the main content prints. Users get browser's
+     "Save as PDF" → deliverable PDF without a separate export pipeline. */
+  .dashboard-scope aside,
+  .dashboard-scope header,
+  .dashboard-scope nav,
+  .dashboard-scope [data-print-hide="true"] { display: none !important; }
+  .dashboard-scope { background: white !important; }
+  .dashboard-scope main { padding: 0 !important; }
+  body { background: white !important; }
+  .print\:hidden { display: none !important; }
+  .print\:block { display: block !important; }
+  /* Keep charts at a readable scale when printed */
+  .recharts-wrapper { break-inside: avoid; }
+  table { break-inside: auto; }
+  tr { break-inside: avoid; break-after: auto; }
+}
+
 .dashboard-scope {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);

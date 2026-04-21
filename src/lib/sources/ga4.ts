@@ -122,3 +122,103 @@ export function momYearMonth(yearMonth: string): string {
   d.setUTCMonth(d.getUTCMonth() - 1);
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
+
+/* ------------------------------------------------------------------ */
+/* Device / Landing page / Product mocks                              */
+/* ------------------------------------------------------------------ */
+
+export type Device = "mobile" | "desktop" | "tablet";
+
+export interface DeviceTotals {
+  device: Device;
+  sessions: number;
+  conversions: number;
+  revenue: number;
+}
+
+/** Aggregate device-level totals. Device ratios are a rough-but-plausible
+ *  Japanese B2C EC mix (63/32/5). */
+export function getDeviceTotals(_client: ClientConfig, anchor: string): DeviceTotals[] {
+  // Base the figures on the anchor month of the channel mock so the numbers
+  // feel consistent with the rest of the dashboard.
+  const ym = anchor.slice(0, 7);
+  const base = getGa4MonthlyChannels(_client).filter((r) => r.yearMonth === ym);
+  const sum = base.reduce(
+    (s, r) => ({
+      sessions: s.sessions + r.sessions,
+      conversions: s.conversions + r.conversions,
+      revenue: s.revenue + r.revenue,
+    }),
+    { sessions: 0, conversions: 0, revenue: 0 }
+  );
+  const split: Array<[Device, number, number, number]> = [
+    // [device, sessionShare, cvRateMultiplier, rpcMultiplier]
+    ["mobile", 0.63, 0.85, 0.9],
+    ["desktop", 0.32, 1.4, 1.35],
+    ["tablet", 0.05, 1.0, 1.0],
+  ];
+  return split.map(([device, share, cvMul, rpcMul]) => ({
+    device,
+    sessions: Math.round(sum.sessions * share),
+    conversions: Math.round(sum.conversions * share * cvMul),
+    revenue: Math.round(sum.revenue * share * cvMul * rpcMul),
+  }));
+}
+
+export interface LandingPageRow {
+  path: string;
+  sessions: number;
+  conversions: number;
+  revenue: number;
+}
+
+/** Top landing pages. Hand-picked paths that read like a real EC site. */
+export function getTopLandingPages(_client: ClientConfig): LandingPageRow[] {
+  const base: Array<[string, number, number]> = [
+    ["/", 18500, 0.012],
+    ["/category/tumbler", 12000, 0.028],
+    ["/category/bag", 9800, 0.024],
+    ["/category/tshirt", 8200, 0.019],
+    ["/novelty", 7100, 0.034],
+    ["/exhibition", 4600, 0.042],
+    ["/detail/8481", 3200, 0.018],
+    ["/detail/2191", 2800, 0.001], // intentionally low to echo the real HS finding
+    ["/blog/novelty-2026", 2100, 0.006],
+    ["/guide/printing", 1600, 0.009],
+  ];
+  return base.map(([path, sessions, cvRate]) => {
+    const cv = Math.round(sessions * cvRate);
+    return { path, sessions, conversions: cv, revenue: Math.round(cv * 6500) };
+  });
+}
+
+export interface ProductRow {
+  productName: string;
+  sku: string;
+  conversions: number;
+  revenue: number;
+  unitPrice: number;
+}
+
+/** Top products sample. */
+export function getTopProducts(_client: ClientConfig): ProductRow[] {
+  const base: Array<[string, string, number, number]> = [
+    ["オリジナル タンブラー 300ml", "TBL-300-01", 182, 8200],
+    ["エコバッグ A4", "BAG-A4-CT", 156, 4125],
+    ["防災7点セット", "EMG-07-STD", 98, 32000],
+    ["クリアファイル A4", "CLF-A4-PP", 240, 980],
+    ["モバイルバッテリー 5000mAh", "MBT-5000-01", 71, 4800],
+    ["オリジナル Tシャツ 綿100%", "TST-CT100", 64, 2400],
+    ["ボールペン 3色", "BPN-3CL", 310, 350],
+    ["キャンバスバッグ M", "BAG-CV-M", 88, 2980],
+    ["ブランケット フリース", "BLK-FL-01", 42, 5500],
+    ["折りたたみ傘", "UMB-FLD-01", 55, 2200],
+  ];
+  return base.map(([productName, sku, cv, unitPrice]) => ({
+    productName,
+    sku,
+    conversions: cv,
+    revenue: cv * unitPrice,
+    unitPrice,
+  }));
+}

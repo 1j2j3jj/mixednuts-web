@@ -6,9 +6,12 @@ import MediaTable, { type MediaRow } from "@/components/dashboard/MediaTable";
 import DailyTrendChart from "@/components/dashboard/DailyTrendChart";
 import NewVsRepeatChart from "@/components/dashboard/NewVsRepeatChart";
 import RefreshButton from "@/components/dashboard/RefreshButton";
+import PrintButton from "@/components/dashboard/PrintButton";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
+import FunnelChart from "@/components/dashboard/FunnelChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
+import { lastN } from "@/lib/analysis";
 import { fmtInt, fmtJpy, fmtRatioPct, safeDiv } from "@/lib/utils";
 
 /**
@@ -82,6 +85,19 @@ export default async function AdsScreen({
 
   const series = aggregateByDate(cur);
 
+  // Sparklines: last 14 days.
+  const spend14 = lastN(series, 14).map((d) => d.cost);
+  const cv14 = lastN(series, 14).map((d) => d.conversions);
+  const rev14 = lastN(series, 14).map((d) => d.conversionValue);
+
+  // Funnel (current window totals across all media).
+  const funnelStages: Array<{ label: string; value: number; format?: "int" | "jpy" }> = [
+    { label: "Impressions", value: curTotals.impressions },
+    { label: "Clicks", value: curTotals.clicks },
+    { label: "Conversions", value: curTotals.conversions },
+    { label: "Revenue", value: curTotals.conversionValue, format: "jpy" },
+  ];
+
   // New vs repeat, past 6 months from GA4 mock (context, not range-filtered).
   const ga4 = getGa4MonthlyChannels(client);
   const byMonthUsers = new Map<string, { new: number; returning: number }>();
@@ -121,17 +137,20 @@ export default async function AdsScreen({
             最終取得 {fetchedAtLabel}
             {isMock && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-amber-800">MOCK</span>}
           </div>
+          <PrintButton />
           <RefreshButton clientId={client.id} />
         </div>
       </div>
 
-      {/* Period KPIs with comparison */}
+      {/* Period KPIs with comparison + sparkline */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <BigKpiCard
           label="Spend"
           value={fmtJpy(curTotals.cost)}
           lowerIsBetter
           comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(curTotals.cost, prevTotals.cost) }] : []}
+          sparkline={spend14}
+          sparkTone="negative"
         />
         <BigKpiCard
           label="媒体CV"
@@ -139,6 +158,7 @@ export default async function AdsScreen({
           comparisons={
             rr.previous ? [{ label: rr.compareLabel, delta: pct(curTotals.conversions, prevTotals.conversions) }] : []
           }
+          sparkline={cv14}
         />
         <BigKpiCard
           label="売上"
@@ -148,6 +168,7 @@ export default async function AdsScreen({
               ? [{ label: rr.compareLabel, delta: pct(curTotals.conversionValue, prevTotals.conversionValue) }]
               : []
           }
+          sparkline={rev14}
         />
         <BigKpiCard
           label="ROAS"
@@ -168,21 +189,30 @@ export default async function AdsScreen({
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
+            <CardTitle className="text-sm">ファネル（Imp → Click → CV → 売上）</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FunnelChart stages={funnelStages} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
             <CardTitle className="text-sm">日次推移（Spend / CV）</CardTitle>
           </CardHeader>
           <CardContent>
             <DailyTrendChart data={series} />
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">新規 vs リピート Users（過去6ヶ月・参考）</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <NewVsRepeatChart data={newVsRepeat} />
-          </CardContent>
-        </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">新規 vs リピート Users（過去6ヶ月・参考）</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <NewVsRepeatChart data={newVsRepeat} />
+        </CardContent>
+      </Card>
     </div>
   );
 }

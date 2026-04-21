@@ -1,10 +1,11 @@
 import { ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Sparkline from "@/components/dashboard/Sparkline";
 import { cn, fmtPct } from "@/lib/utils";
 
 interface Comparison {
-  label: string; // "vs 前月" | "vs 前年" | "vs 目標"
-  delta: number | null; // decimal ratio; null = n/a
+  label: string;
+  delta: number | null;
 }
 
 interface Props {
@@ -13,6 +14,10 @@ interface Props {
   /** Up to three comparison lines — displayed stacked under the value. */
   comparisons?: Comparison[];
   lowerIsBetter?: boolean;
+  /** Optional sparkline series (e.g. last 7 days). */
+  sparkline?: number[];
+  /** Sparkline tone (colour hint). */
+  sparkTone?: "default" | "positive" | "negative";
 }
 
 function Arrow({ delta, lowerIsBetter }: { delta: number | null; lowerIsBetter?: boolean }) {
@@ -24,7 +29,14 @@ function Arrow({ delta, lowerIsBetter }: { delta: number | null; lowerIsBetter?:
   return <Minus className="h-3 w-3" />;
 }
 
-export default function BigKpiCard({ label, value, comparisons = [], lowerIsBetter }: Props) {
+export default function BigKpiCard({
+  label,
+  value,
+  comparisons = [],
+  lowerIsBetter,
+  sparkline,
+  sparkTone,
+}: Props) {
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -34,6 +46,11 @@ export default function BigKpiCard({ label, value, comparisons = [], lowerIsBett
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-semibold tracking-tight">{value}</div>
+        {sparkline && sparkline.length > 1 && (
+          <div className="mt-2">
+            <Sparkline values={sparkline} tone={sparkTone} height={28} />
+          </div>
+        )}
         {comparisons.length > 0 && (
           <div className="mt-2 space-y-0.5 text-xs">
             {comparisons.map((c) => (

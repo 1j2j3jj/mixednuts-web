@@ -31,3 +31,38 @@ export function getGscMonthly(_client: ClientConfig): GscMonth[] {
   }
   return rows;
 }
+
+export interface GscQueryRow {
+  query: string;
+  clicks: number;
+  impressions: number;
+  ctr: number; // decimal (0.012 = 1.2%)
+  position: number;
+}
+
+/** Top search queries sample — mirrors the kind of CV-adjacent query mix
+ *  seen in B2B promotional-goods SEO. */
+export function getTopGscQueries(_client: ClientConfig): GscQueryRow[] {
+  const base: Array<[string, number, number, number]> = [
+    // [query, clicks, impressions, position]
+    ["ノベルティ 小ロット", 8200, 142_000, 3.2],
+    ["オリジナル タンブラー", 6100, 98_000, 4.1],
+    ["販促品 オーダーメイド", 4800, 71_000, 2.8],
+    ["展示会 配布品", 4200, 62_000, 3.5],
+    ["エコバッグ オリジナル", 3900, 54_000, 4.7],
+    ["ノベルティ 2026", 3400, 48_000, 2.1],
+    ["販促スタイル", 3100, 4_200, 1.0], // brand query
+    ["記念品 オリジナル", 2600, 41_000, 5.2],
+    ["粗品 印刷", 2100, 34_000, 6.4],
+    ["景品 小ロット", 1900, 29_000, 5.9],
+    ["ポロシャツ オリジナル", 1700, 28_000, 6.1],
+    ["クリアファイル 名入れ", 1400, 22_000, 4.8],
+  ];
+  return base.map(([query, clicks, impressions, position]) => ({
+    query,
+    clicks,
+    impressions,
+    ctr: clicks / impressions,
+    position,
+  }));
+}

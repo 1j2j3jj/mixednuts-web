@@ -1,4 +1,5 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { detectAnomalies } from "@/lib/analysis";
 import { cn, fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 
 export interface DrillRow {
@@ -45,6 +46,12 @@ export default function DrillTable({ rows, targetRoasPct, targetCpa }: Props) {
     if (a.date !== b.date) return b.date.localeCompare(a.date);
     return b.spend - a.spend;
   });
+
+  // Anomaly detection on Spend (±2σ). Flagged rows get a subtle
+  // coloured left border and a badge — no drama.
+  const spendFlags = detectAnomalies(sorted.map((r) => r.spend));
+  const cvFlags = detectAnomalies(sorted.map((r) => r.conversions));
+
   return (
     <div className="rounded-md border">
       <Table>
@@ -60,12 +67,13 @@ export default function DrillTable({ rows, targetRoasPct, targetCpa }: Props) {
             <TableHead className="text-right">CV</TableHead>
             <TableHead className="text-right">CPA</TableHead>
             <TableHead className="text-right">ROAS</TableHead>
+            <TableHead className="text-right">異常</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {sorted.length === 0 && (
             <TableRow>
-              <TableCell colSpan={10} className="text-center text-muted-foreground py-6">
+              <TableCell colSpan={11} className="text-center text-muted-foreground py-6">
                 フィルタに合致するデータがありません
               </TableCell>
             </TableRow>
@@ -74,8 +82,22 @@ export default function DrillTable({ rows, targetRoasPct, targetCpa }: Props) {
             const ctr = safeDiv(r.clicks, r.impressions);
             const cpa = safeDiv(r.spend, r.conversions);
             const roasPct = r.spend > 0 ? (r.conversionValue / r.spend) * 100 : null;
+            const spendFlag = spendFlags[i];
+            const cvFlag = cvFlags[i];
+            const hasAnomaly = spendFlag !== "normal" || cvFlag !== "normal";
+            const anomalyLabel =
+              spendFlag !== "normal" && cvFlag !== "normal"
+                ? "Spend+CV"
+                : spendFlag !== "normal"
+                ? "Spend"
+                : cvFlag !== "normal"
+                ? "CV"
+                : "";
             return (
-              <TableRow key={`${r.date}:${r.key}:${i}`}>
+              <TableRow
+                key={`${r.date}:${r.key}:${i}`}
+                className={cn(hasAnomaly && "bg-amber-50/60")}
+              >
                 <TableCell className="whitespace-nowrap font-mono text-xs">{r.date || "—"}</TableCell>
                 <TableCell className="font-medium">
                   <div className="max-w-md truncate" title={r.key}>
@@ -84,22 +106,48 @@ export default function DrillTable({ rows, targetRoasPct, targetCpa }: Props) {
                   {r.subKey && <div className="text-[10px] font-mono text-muted-foreground">{r.subKey}</div>}
                 </TableCell>
                 <TableCell>{r.media}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtJpy(r.spend)}</TableCell>
+                <TableCell
+                  className={cn(
+                    "text-right tabular-nums",
+                    spendFlag === "high" && "text-amber-700",
+                    spendFlag === "low" && "text-sky-700"
+                  )}
+                >
+                  {fmtJpy(r.spend)}
+                </TableCell>
                 <TableCell className="text-right tabular-nums">{fmtInt(r.impressions)}</TableCell>
                 <TableCell className="text-right tabular-nums">{fmtInt(r.clicks)}</TableCell>
                 <TableCell className="text-right tabular-nums">{fmtPct(ctr, 2)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtInt(r.conversions)}</TableCell>
+                <TableCell
+                  className={cn(
+                    "text-right tabular-nums",
+                    cvFlag === "high" && "text-emerald-700",
+                    cvFlag === "low" && "text-rose-700"
+                  )}
+                >
+                  {fmtInt(r.conversions)}
+                </TableCell>
                 <TableCell className={cn("text-right tabular-nums", cpaClass(cpa, targetCpa))}>
                   {fmtJpy(cpa)}
                 </TableCell>
                 <TableCell className={cn("text-right tabular-nums", roasClass(roasPct, targetRoasPct))}>
                   {fmtRatioPct(roasPct, 0)}
                 </TableCell>
+                <TableCell className="text-right">
+                  {hasAnomaly && (
+                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">
+                      {anomalyLabel}
+                    </span>
+                  )}
+                </TableCell>
               </TableRow>
             );
           })}
         </TableBody>
       </Table>
+      <div className="border-t bg-muted/20 p-2 text-[11px] text-muted-foreground">
+        異常 = ±2σ を超える行（Spend または CV 方向）。検出目安であって判定ではない。
+      </div>
     </div>
   );
 }

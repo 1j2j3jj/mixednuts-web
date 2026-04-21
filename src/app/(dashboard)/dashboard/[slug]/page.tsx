@@ -1,26 +1,29 @@
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getDailyRows } from "@/lib/sources/raw";
-import { getGa4MonthlyChannels } from "@/lib/sources/ga4";
+import {
+  getGa4MonthlyChannels,
+  getDeviceTotals,
+  getTopProducts,
+} from "@/lib/sources/ga4";
+import { getTopGscQueries } from "@/lib/sources/gsc";
 import { resolveFromSearchParams, type DateRange } from "@/lib/range";
-import { filterByRange } from "@/lib/metrics";
+import { aggregateByDate, filterByRange } from "@/lib/metrics";
+import { analysePacing, lastN } from "@/lib/analysis";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
 import ChannelStackedBar from "@/components/dashboard/ChannelStackedBar";
 import GoalGauge from "@/components/dashboard/GoalGauge";
+import PacingAlert from "@/components/dashboard/PacingAlert";
+import DeviceBar from "@/components/dashboard/DeviceBar";
+import ProductRanking from "@/components/dashboard/ProductRanking";
+import GscQueryTable from "@/components/dashboard/GscQueryTable";
 import RefreshButton from "@/components/dashboard/RefreshButton";
+import PrintButton from "@/components/dashboard/PrintButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 
-/**
- * Screen 1 — Overview.
- *
- * Range-aware: aggregates ad spend (daily raw) within the selected range,
- * and sums GA4 months overlapping the range. The 12-month stacked bar is
- * intentionally range-independent — context, not measurement.
- */
 export const dynamic = "force-dynamic";
 
-/** Sum GA4 monthly rows whose yearMonth overlaps the [start, end] range. */
 function filterGa4ByRange<T extends { yearMonth: string }>(rows: T[], r: DateRange): T[] {
   return rows.filter((x) => {
     const monthStart = `${x.yearMonth}-01`;
@@ -61,8 +64,6 @@ export default async function Overview({
   const { rows: adRows, fetchedAt, isMock } = await getDailyRows(client);
   const ga4 = getGa4MonthlyChannels(client);
 
-  // Anchor: the latest date for which we have ad data (keeps "last 28 days"
-  // honest when the sheet hasn't been updated yet). Fallback to the GA4 anchor.
   const adDates = adRows.map((r) => r.date).filter(Boolean).sort();
   const anchor =
     adDates[adDates.length - 1] ??
@@ -70,13 +71,11 @@ export default async function Overview({
 
   const rr = resolveFromSearchParams(sp, { preset: "last28", compare: "prev" }, anchor);
 
-  // Current window.
   const adCur = filterByRange(adRows, rr.current.start, rr.current.end);
   const gaCurRows = filterGa4ByRange(ga4, rr.current);
   const gaCur = sumGa4(gaCurRows);
   const costCur = adCur.reduce((s, r) => s + r.cost, 0);
 
-  // Comparison window.
   const adPrev = rr.previous ? filterByRange(adRows, rr.previous.start, rr.previous.end) : [];
   const gaPrevRows = rr.previous ? filterGa4ByRange(ga4, rr.previous) : [];
   const gaPrev = sumGa4(gaPrevRows);
@@ -87,7 +86,13 @@ export default async function Overview({
   const blendedCpaPrev = safeDiv(costPrev, gaPrev.conversions);
   const blendedRoasPrev = safeDiv(gaPrev.revenue, costPrev);
 
-  // Top 5 channels in the selected window (by revenue).
+  // Sparkline: last 14 days of (ad-side) daily series within the range.
+  const daily = aggregateByDate(adCur);
+  const costSpark = lastN(daily, 14).map((d) => d.cost);
+  const cvSpark = lastN(daily, 14).map((d) => d.conversions);
+  const revSpark = lastN(daily, 14).map((d) => d.conversionValue);
+
+  // Top 5 channels.
   const byChannel = new Map<string, { channel: string; sessions: number; conversions: number; revenue: number }>();
   for (const r of gaCurRows) {
     const cur = byChannel.get(r.channel) ?? { channel: r.channel, sessions: 0, conversions: 0, revenue: 0 };
@@ -98,9 +103,19 @@ export default async function Overview({
   }
   const topChannels = Array.from(byChannel.values()).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
 
-  // Goals: only meaningful when the preset is a single month ("当月" or "先月").
+  // Budget pacing — only when the preset is "当月".
+  const showPacing = rr.preset === "thisMonth";
+  const pacing = showPacing
+    ? analysePacing(costCur, client.monthlyTargets.adSpendBudget, new Date(`${anchor}T00:00:00Z`))
+    : null;
+
   const showGoals = rr.preset === "thisMonth" || rr.preset === "lastMonth";
   const tgt = client.monthlyTargets;
+
+  // Extra context modules.
+  const devices = getDeviceTotals(client, anchor);
+  const topProducts = getTopProducts(client);
+  const topQueries = getTopGscQueries(client);
 
   const fetchedAtLabel = new Date(fetchedAt).toLocaleTimeString("ja-JP", {
     hour: "2-digit",
@@ -127,33 +142,33 @@ export default async function Overview({
             最終取得 {fetchedAtLabel}
             {isMock && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-amber-800">MOCK</span>}
           </div>
+          <PrintButton />
           <RefreshButton clientId={client.id} />
         </div>
       </div>
 
+      {pacing && (
+        <PacingAlert result={pacing} actualSpend={costCur} monthlyBudget={tgt.adSpendBudget} />
+      )}
+
+      {/* 5 big KPI with sparklines */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <BigKpiCard
           label="Revenue"
           value={fmtJpy(gaCur.revenue)}
-          comparisons={
-            rr.previous
-              ? [{ label: rr.compareLabel, delta: pct(gaCur.revenue, gaPrev.revenue) }]
-              : []
-          }
+          comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(gaCur.revenue, gaPrev.revenue) }] : []}
+          sparkline={revSpark}
         />
         <BigKpiCard
           label="CV"
           value={fmtInt(gaCur.conversions)}
-          comparisons={
-            rr.previous ? [{ label: rr.compareLabel, delta: pct(gaCur.conversions, gaPrev.conversions) }] : []
-          }
+          comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(gaCur.conversions, gaPrev.conversions) }] : []}
+          sparkline={cvSpark}
         />
         <BigKpiCard
           label="Sessions"
           value={fmtInt(gaCur.sessions)}
-          comparisons={
-            rr.previous ? [{ label: rr.compareLabel, delta: pct(gaCur.sessions, gaPrev.sessions) }] : []
-          }
+          comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(gaCur.sessions, gaPrev.sessions) }] : []}
         />
         <BigKpiCard
           label="Blended CPA"
@@ -164,6 +179,8 @@ export default async function Overview({
               ? [{ label: rr.compareLabel, delta: pct(blendedCpa, blendedCpaPrev) }]
               : []
           }
+          sparkline={costSpark}
+          sparkTone="negative"
         />
         <BigKpiCard
           label="Blended ROAS"
@@ -209,38 +226,68 @@ export default async function Overview({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Top 5 チャネル · {rr.presetLabel}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>チャネル</TableHead>
-                <TableHead className="text-right">Sessions</TableHead>
-                <TableHead className="text-right">CV</TableHead>
-                <TableHead className="text-right">CVR</TableHead>
-                <TableHead className="text-right">Revenue</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {topChannels.map((c) => {
-                const cvr = safeDiv(c.conversions, c.sessions);
-                return (
-                  <TableRow key={c.channel}>
-                    <TableCell className="font-medium">{c.channel}</TableCell>
-                    <TableCell className="text-right tabular-nums">{fmtInt(c.sessions)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{fmtInt(c.conversions)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{fmtPct(cvr, 2)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{fmtJpy(c.revenue)}</TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Top 5 チャネル</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>チャネル</TableHead>
+                  <TableHead className="text-right">Sessions</TableHead>
+                  <TableHead className="text-right">CV</TableHead>
+                  <TableHead className="text-right">CVR</TableHead>
+                  <TableHead className="text-right">Revenue</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {topChannels.map((c) => {
+                  const cvr = safeDiv(c.conversions, c.sessions);
+                  return (
+                    <TableRow key={c.channel}>
+                      <TableCell className="font-medium">{c.channel}</TableCell>
+                      <TableCell className="text-right tabular-nums">{fmtInt(c.sessions)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{fmtInt(c.conversions)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{fmtPct(cvr, 2)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{fmtJpy(c.revenue)}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">デバイス別</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DeviceBar rows={devices} />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">商品別売上 Top 10</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ProductRanking rows={topProducts} limit={10} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">オーガニック検索クエリ Top 10（GSC）</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <GscQueryTable rows={topQueries} limit={10} />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
