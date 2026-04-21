@@ -6,6 +6,9 @@ export interface DrillRow {
   key: string;
   /** Secondary label, e.g. campaign id. */
   subKey?: string;
+  /** Time bucket this row represents (day / week-start / month). Empty string
+   *  when the row aggregates across the full window. */
+  date: string;
   media: string;
   spend: number;
   clicks: number;
@@ -37,12 +40,17 @@ function cpaClass(actual: number | null, target: number): string {
 }
 
 export default function DrillTable({ rows, targetRoasPct, targetCpa }: Props) {
-  const sorted = [...rows].sort((a, b) => b.spend - a.spend);
+  // Primary sort: date desc (latest first). Secondary: spend desc.
+  const sorted = [...rows].sort((a, b) => {
+    if (a.date !== b.date) return b.date.localeCompare(a.date);
+    return b.spend - a.spend;
+  });
   return (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>期間</TableHead>
             <TableHead>ラベル</TableHead>
             <TableHead>媒体</TableHead>
             <TableHead className="text-right">Spend</TableHead>
@@ -57,7 +65,7 @@ export default function DrillTable({ rows, targetRoasPct, targetCpa }: Props) {
         <TableBody>
           {sorted.length === 0 && (
             <TableRow>
-              <TableCell colSpan={9} className="text-center text-muted-foreground py-6">
+              <TableCell colSpan={10} className="text-center text-muted-foreground py-6">
                 フィルタに合致するデータがありません
               </TableCell>
             </TableRow>
@@ -67,7 +75,8 @@ export default function DrillTable({ rows, targetRoasPct, targetCpa }: Props) {
             const cpa = safeDiv(r.spend, r.conversions);
             const roasPct = r.spend > 0 ? (r.conversionValue / r.spend) * 100 : null;
             return (
-              <TableRow key={`${r.key}:${i}`}>
+              <TableRow key={`${r.date}:${r.key}:${i}`}>
+                <TableCell className="whitespace-nowrap font-mono text-xs">{r.date || "—"}</TableCell>
                 <TableCell className="font-medium">
                   <div className="max-w-md truncate" title={r.key}>
                     {r.key}

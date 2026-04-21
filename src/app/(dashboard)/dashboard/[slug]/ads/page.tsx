@@ -2,7 +2,6 @@ import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getDailyRows, type DailyRow } from "@/lib/sources/raw";
 import { getGa4MonthlyChannels } from "@/lib/sources/ga4";
 import MediaTable, { type MediaRow } from "@/components/dashboard/MediaTable";
-import DiffMiniChart from "@/components/dashboard/DiffMiniChart";
 import DailyTrendChart from "@/components/dashboard/DailyTrendChart";
 import NewVsRepeatChart from "@/components/dashboard/NewVsRepeatChart";
 import RefreshButton from "@/components/dashboard/RefreshButton";
@@ -72,16 +71,8 @@ export default async function AdsScreen({ params }: { params: Promise<{ slug: st
     };
   });
 
-  // Diff mini chart: daily (adsCv − ga4Cv totals across all media).
-  const dailyAll = aggregateByDate(windowRows);
-  const diffSeries = dailyAll.map((p) => ({
-    date: p.date,
-    adsCv: p.conversions,
-    ga4Cv: Math.round(p.conversions * 0.9), // fake ga4 cv at 0.9x ratio for the sample
-  }));
-
   // Daily trend (reuse existing component — cost + CV).
-  const series = dailyAll;
+  const series = aggregateByDate(windowRows);
 
   // New vs repeat: pull the last 6 months from GA4 mock and sum across channels.
   const ga4 = getGa4MonthlyChannels(client);
@@ -130,10 +121,10 @@ export default async function AdsScreen({ params }: { params: Promise<{ slug: st
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">媒体CV − GA4 CV 差分推移</CardTitle>
+            <CardTitle className="text-sm">日次推移（Spend / CV）</CardTitle>
           </CardHeader>
           <CardContent>
-            <DiffMiniChart data={diffSeries} />
+            <DailyTrendChart data={series} />
           </CardContent>
         </Card>
         <Card>
@@ -145,15 +136,6 @@ export default async function AdsScreen({ params }: { params: Promise<{ slug: st
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">日次推移（Spend / CV）</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DailyTrendChart data={series} />
-        </CardContent>
-      </Card>
     </div>
   );
 }

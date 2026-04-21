@@ -27,25 +27,34 @@ function bucketKey(date: string, granularity: "day" | "week" | "month"): string 
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * Always aggregate by (classification × bucket) so every row has a date.
+ * Classification switches based on which filters are active:
+ *   - no filter          → media
+ *   - media filter       → campaign
+ *   - campaign filter    → campaign (single one, so effectively the bucket)
+ */
 function aggregateByBucket(
   rows: DailyRow[],
   granularity: "day" | "week" | "month",
-  level: "media" | "campaign" | "bucket"
+  level: "media" | "campaign"
 ): DrillRow[] {
   const map = new Map<string, DrillRow>();
   for (const r of rows) {
     const bucket = bucketKey(r.date, granularity);
     let key: string;
     let subKey: string | undefined;
-    if (level === "media") key = r.media;
-    else if (level === "campaign") {
+    if (level === "media") {
+      key = r.media;
+    } else {
       key = r.campaignName || r.campaignId;
       subKey = r.campaignId;
-    } else key = bucket;
+    }
     const id = `${key}|${bucket}`;
     const cur = map.get(id) ?? {
       key,
       subKey,
+      date: bucket,
       media: r.media,
       spend: 0,
       clicks: 0,
@@ -86,13 +95,9 @@ export default async function DrillScreen({
   if (campaignFilter) filtered = filtered.filter((r) => r.campaignId === campaignFilter);
   if (bgFilter) filtered = filtered.filter((r) => r.brandGeneral === bgFilter);
 
-  // Level: if campaign filter set → aggregate by bucket (time). Else if media
-  // filter set → by campaign. Else → by media.
-  const level: "media" | "campaign" | "bucket" = campaignFilter
-    ? "bucket"
-    : mediaFilter
-    ? "campaign"
-    : "media";
+  // When media (or campaign) is filtered we classify by campaign; otherwise by
+  // media. Bucketing by the granularity toggle is orthogonal — always applied.
+  const level: "media" | "campaign" = mediaFilter || campaignFilter ? "campaign" : "media";
   const table = aggregateByBucket(filtered, granularity, level);
 
   // Filter options
@@ -103,6 +108,7 @@ export default async function DrillScreen({
 
   // CSV payload — export current filtered table rows flat with resolved metrics.
   const csvRows = table.map((r) => ({
+    date: r.date,
     label: r.key,
     subKey: r.subKey ?? "",
     media: r.media,
@@ -146,7 +152,8 @@ export default async function DrillScreen({
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">
-            {level === "media" ? "媒体別" : level === "campaign" ? "キャンペーン別" : `期間別 (${granularity})`}
+            {level === "media" ? "媒体 × " : "キャンペーン × "}
+            {granularity === "day" ? "日" : granularity === "week" ? "週" : "月"}
             <span className="ml-2 text-xs font-normal text-muted-foreground">{table.length} 件</span>
           </CardTitle>
         </CardHeader>
