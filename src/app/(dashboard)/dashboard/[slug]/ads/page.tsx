@@ -1,7 +1,7 @@
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getDailyRows, type DailyRow } from "@/lib/sources/raw";
 import { getGa4MonthlyChannels } from "@/lib/sources/ga4";
-import { resolveFromSearchParams } from "@/lib/range";
+import { resolveFromSearchParams, type DateRange } from "@/lib/range";
 import MediaTable, { type MediaRow } from "@/components/dashboard/MediaTable";
 import DailyTrendChart from "@/components/dashboard/DailyTrendChart";
 import NewVsRepeatChart from "@/components/dashboard/NewVsRepeatChart";
@@ -37,6 +37,29 @@ function pct(a: number, b: number): number | null {
   return (a - b) / b;
 }
 
+/** Sum GA4 monthly rows whose yearMonth overlaps the [start, end] range. */
+function filterGa4ByRange<T extends { yearMonth: string }>(rows: T[], r: DateRange): T[] {
+  return rows.filter((x) => {
+    const monthStart = `${x.yearMonth}-01`;
+    const [y, m] = x.yearMonth.split("-").map(Number);
+    const monthEnd = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+    return monthStart <= r.end && monthEnd >= r.start;
+  });
+}
+
+function ga4RevenueAndCv(
+  rows: Array<{ yearMonth: string; revenue: number; conversions: number }>,
+  range: DateRange
+): { revenue: number; conversions: number } {
+  let revenue = 0;
+  let conversions = 0;
+  for (const r of filterGa4ByRange(rows, range)) {
+    revenue += r.revenue;
+    conversions += r.conversions;
+  }
+  return { revenue, conversions };
+}
+
 export default async function AdsScreen({
   params,
   searchParams,
@@ -58,6 +81,16 @@ export default async function AdsScreen({
   const prev = rr.previous ? filterByRange(rows, rr.previous.start, rr.previous.end) : [];
   const curTotals = sumRows(cur);
   const prevTotals = sumRows(prev);
+
+  // Top-level KPIs prefer GA4 for Revenue / ROAS (site-side truth). The
+  // media table stays ad-platform side because only that source breaks out
+  // per-media. Differences between the two are expected (attribution).
+  const ga4All = getGa4MonthlyChannels(client);
+  const curGa4 = ga4RevenueAndCv(ga4All, rr.current);
+  const prevGa4 = rr.previous ? ga4RevenueAndCv(ga4All, rr.previous) : { revenue: 0, conversions: 0 };
+  const curGa4RoasPct = curTotals.cost > 0 ? (curGa4.revenue / curTotals.cost) * 100 : null;
+  const prevGa4RoasPct =
+    rr.previous && prevTotals.cost > 0 ? (prevGa4.revenue / prevTotals.cost) * 100 : null;
 
   // Media aggregation.
   function byMedia(list: DailyRow[]): MediaRow[] {
@@ -90,18 +123,18 @@ export default async function AdsScreen({
   const cv14 = lastN(series, 14).map((d) => d.conversions);
   const rev14 = lastN(series, 14).map((d) => d.conversionValue);
 
-  // Funnel (current window totals across all media).
+  // Funnel uses ad-side counts through CV, then GA4 revenue for the final
+  // stage so the shown ¥ matches the GA4-based top-KPI card above.
   const funnelStages: Array<{ label: string; value: number; format?: "int" | "jpy" }> = [
     { label: "Impressions", value: curTotals.impressions },
     { label: "Clicks", value: curTotals.clicks },
     { label: "Conversions", value: curTotals.conversions },
-    { label: "Revenue", value: curTotals.conversionValue, format: "jpy" },
+    { label: "Revenue (GA4)", value: curGa4.revenue, format: "jpy" },
   ];
 
   // New vs repeat, past 6 months from GA4 mock (context, not range-filtered).
-  const ga4 = getGa4MonthlyChannels(client);
   const byMonthUsers = new Map<string, { new: number; returning: number }>();
-  for (const r of ga4) {
+  for (const r of ga4All) {
     const acc = byMonthUsers.get(r.yearMonth) ?? { new: 0, returning: 0 };
     acc.new += r.newUsers;
     acc.returning += r.returningUsers;
@@ -161,28 +194,31 @@ export default async function AdsScreen({
           sparkline={cv14}
         />
         <BigKpiCard
-          label="売上"
-          value={fmtJpy(curTotals.conversionValue)}
+          label="売上 (GA4)"
+          value={fmtJpy(curGa4.revenue)}
           comparisons={
-            rr.previous
-              ? [{ label: rr.compareLabel, delta: pct(curTotals.conversionValue, prevTotals.conversionValue) }]
-              : []
+            rr.previous ? [{ label: rr.compareLabel, delta: pct(curGa4.revenue, prevGa4.revenue) }] : []
           }
           sparkline={rev14}
         />
         <BigKpiCard
-          label="ROAS"
-          value={fmtRatioPct(curTotals.roasPct, 0)}
+          label="ROAS (GA4)"
+          value={fmtRatioPct(curGa4RoasPct, 0)}
           comparisons={
-            rr.previous && curTotals.roasPct != null && prevTotals.roasPct != null
-              ? [{ label: rr.compareLabel, delta: pct(curTotals.roasPct, prevTotals.roasPct) }]
+            rr.previous && curGa4RoasPct != null && prevGa4RoasPct != null
+              ? [{ label: rr.compareLabel, delta: pct(curGa4RoasPct, prevGa4RoasPct) }]
               : []
           }
         />
       </div>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold">媒体別サマリ</h2>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-semibold">媒体別サマリ</h2>
+          <span className="text-[11px] text-muted-foreground">
+            ※ 媒体別テーブルの 売上 / ROAS は媒体プラットフォーム側集計。上部 KPI は GA4 ベース。
+          </span>
+        </div>
         <MediaTable rows={mediaRows} targetRoasPct={client.monthlyTargets.roasPct} />
       </section>
 

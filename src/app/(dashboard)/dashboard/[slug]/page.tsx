@@ -219,10 +219,10 @@ export default async function Overview({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">月次チャネル別 Sessions（過去12ヶ月・参考）</CardTitle>
+          <CardTitle className="text-sm">月次チャネル別（過去12ヶ月・参考）</CardTitle>
         </CardHeader>
         <CardContent>
-          <ChannelStackedBar data={ga4} metric="sessions" />
+          <ChannelStackedBar data={ga4} defaultMetric="sessions" />
         </CardContent>
       </Card>
 

@@ -125,8 +125,8 @@ function mockHsRawAds(): string[][] {
   ];
   const rows: string[][] = [header];
   const today = new Date();
-  // Generate 21 days of slightly-varying data so charts look real.
-  for (let d = 20; d >= 0; d--) {
+  // Generate 90 days so last28 + prev-period comparison has data either side.
+  for (let d = 89; d >= 0; d--) {
     const date = new Date(today);
     date.setDate(today.getDate() - d);
     const iso = date.toISOString().slice(0, 10);

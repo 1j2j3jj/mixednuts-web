@@ -1,13 +1,18 @@
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getDailyRows, type DailyRow } from "@/lib/sources/raw";
 import { resolveFromSearchParams } from "@/lib/range";
-import { filterByRange } from "@/lib/metrics";
+import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
+import { lastN } from "@/lib/analysis";
 import DrillFilters from "@/components/dashboard/DrillFilters";
 import DrillTable, { type DrillRow } from "@/components/dashboard/DrillTable";
 import CsvExportButton from "@/components/dashboard/CsvExportButton";
 import RefreshButton from "@/components/dashboard/RefreshButton";
 import PrintButton from "@/components/dashboard/PrintButton";
+import BigKpiCard from "@/components/dashboard/BigKpiCard";
+import FunnelChart from "@/components/dashboard/FunnelChart";
+import DailyTrendChart from "@/components/dashboard/DailyTrendChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { fmtInt, fmtJpy, fmtRatioPct } from "@/lib/utils";
 
 /**
  * Screen 3 — Drilldown. Cascade: 媒体 → キャンペーン → 広告グループ. Aggregation
@@ -110,6 +115,30 @@ export default async function DrillScreen({
 
   const table = aggregate(filtered, granularity, level);
 
+  // Period KPIs (reflect the filter: facet filters narrow, so KPIs change).
+  const curTotals = sumRows(filtered);
+  const prevFilteredAll = rr.previous ? filterByRange(rows, rr.previous.start, rr.previous.end) : [];
+  let prevFiltered = prevFilteredAll;
+  if (mediaFilter) prevFiltered = prevFiltered.filter((r) => r.media === mediaFilter);
+  if (campaignFilter) prevFiltered = prevFiltered.filter((r) => r.campaignId === campaignFilter);
+  if (adgroupFilter) prevFiltered = prevFiltered.filter((r) => r.adgroupId === adgroupFilter);
+  const prevTotals = sumRows(prevFiltered);
+
+  const pct = (a: number, b: number): number | null => (b === 0 ? null : (a - b) / b);
+
+  // Daily series for the trend chart.
+  const series = aggregateByDate(filtered);
+  const spend14 = lastN(series, 14).map((d) => d.cost);
+  const cv14 = lastN(series, 14).map((d) => d.conversions);
+
+  // Funnel for the current filter.
+  const funnelStages: Array<{ label: string; value: number; format?: "int" | "jpy" }> = [
+    { label: "Impressions", value: curTotals.impressions },
+    { label: "Clicks", value: curTotals.clicks },
+    { label: "Conversions", value: curTotals.conversions },
+    { label: "Revenue", value: curTotals.conversionValue, format: "jpy" },
+  ];
+
   // Facet option sources (unfiltered rows within the range, so options reflect
   // what is actually selectable in this window).
   const rangeRows = filterByRange(rows, rr.current.start, rr.current.end);
@@ -177,6 +206,63 @@ export default async function DrillScreen({
 
       <DrillFilters slug={slug} medias={medias} campaigns={campaigns} adgroups={adgroups} />
 
+      {/* Period KPIs (reflect the filter) */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <BigKpiCard
+          label="Spend"
+          value={fmtJpy(curTotals.cost)}
+          lowerIsBetter
+          comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(curTotals.cost, prevTotals.cost) }] : []}
+          sparkline={spend14}
+          sparkTone="negative"
+        />
+        <BigKpiCard
+          label="媒体CV"
+          value={fmtInt(curTotals.conversions)}
+          comparisons={
+            rr.previous ? [{ label: rr.compareLabel, delta: pct(curTotals.conversions, prevTotals.conversions) }] : []
+          }
+          sparkline={cv14}
+        />
+        <BigKpiCard
+          label="売上"
+          value={fmtJpy(curTotals.conversionValue)}
+          comparisons={
+            rr.previous
+              ? [{ label: rr.compareLabel, delta: pct(curTotals.conversionValue, prevTotals.conversionValue) }]
+              : []
+          }
+        />
+        <BigKpiCard
+          label="ROAS"
+          value={fmtRatioPct(curTotals.roasPct, 0)}
+          comparisons={
+            rr.previous && curTotals.roasPct != null && prevTotals.roasPct != null
+              ? [{ label: rr.compareLabel, delta: pct(curTotals.roasPct, prevTotals.roasPct) }]
+              : []
+          }
+        />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">ファネル（Imp → Click → CV → 売上）</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FunnelChart stages={funnelStages} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">日次推移（Spend / CV / CPA）</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DailyTrendChart data={series} />
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">
@@ -187,6 +273,7 @@ export default async function DrillScreen({
         <CardContent>
           <DrillTable
             rows={table}
+            level={level}
             targetRoasPct={client.monthlyTargets.roasPct}
             targetCpa={client.monthlyTargets.cpa}
           />

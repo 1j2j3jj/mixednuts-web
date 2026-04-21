@@ -24,6 +24,11 @@ interface Props {
   targetRoasPct: number;
   /** Target CPA for cell colouring. */
   targetCpa: number;
+  /** Current drill level — decides whether the "ラベル" column is rendered.
+   *  - "media": row identity === 媒体, so the label column is redundant
+   *  - "bucket": row identity === date (already shown in 期間), so redundant
+   *  - "campaign" / "adgroup": label carries the breakdown name, shown */
+  level?: "media" | "campaign" | "adgroup" | "bucket";
 }
 
 function roasClass(actualPct: number | null, targetPct: number): string {
@@ -40,7 +45,7 @@ function cpaClass(actual: number | null, target: number): string {
   return "text-rose-700 font-medium";
 }
 
-export default function DrillTable({ rows, targetRoasPct, targetCpa }: Props) {
+export default function DrillTable({ rows, targetRoasPct, targetCpa, level = "campaign" }: Props) {
   // Primary sort: date desc (latest first). Secondary: spend desc.
   const sorted = [...rows].sort((a, b) => {
     if (a.date !== b.date) return b.date.localeCompare(a.date);
@@ -52,14 +57,18 @@ export default function DrillTable({ rows, targetRoasPct, targetCpa }: Props) {
   const spendFlags = detectAnomalies(sorted.map((r) => r.spend));
   const cvFlags = detectAnomalies(sorted.map((r) => r.conversions));
 
+  const showLabel = level === "campaign" || level === "adgroup";
+  const labelHeader = level === "campaign" ? "キャンペーン" : level === "adgroup" ? "広告グループ" : "";
+  const colSpan = showLabel ? 11 : 10;
+
   return (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>期間</TableHead>
-            <TableHead>ラベル</TableHead>
             <TableHead>媒体</TableHead>
+            {showLabel && <TableHead>{labelHeader}</TableHead>}
             <TableHead className="text-right">Spend</TableHead>
             <TableHead className="text-right">Imp</TableHead>
             <TableHead className="text-right">Click</TableHead>
@@ -73,7 +82,7 @@ export default function DrillTable({ rows, targetRoasPct, targetCpa }: Props) {
         <TableBody>
           {sorted.length === 0 && (
             <TableRow>
-              <TableCell colSpan={11} className="text-center text-muted-foreground py-6">
+              <TableCell colSpan={colSpan} className="text-center text-muted-foreground py-6">
                 フィルタに合致するデータがありません
               </TableCell>
             </TableRow>
@@ -99,13 +108,17 @@ export default function DrillTable({ rows, targetRoasPct, targetCpa }: Props) {
                 className={cn(hasAnomaly && "bg-amber-50/60")}
               >
                 <TableCell className="whitespace-nowrap font-mono text-xs">{r.date || "—"}</TableCell>
-                <TableCell className="font-medium">
-                  <div className="max-w-md truncate" title={r.key}>
-                    {r.key}
-                  </div>
-                  {r.subKey && <div className="text-[10px] font-mono text-muted-foreground">{r.subKey}</div>}
-                </TableCell>
                 <TableCell>{r.media}</TableCell>
+                {showLabel && (
+                  <TableCell className="font-medium">
+                    <div className="max-w-md truncate" title={r.key}>
+                      {r.key}
+                    </div>
+                    {r.subKey && (
+                      <div className="text-[10px] font-mono text-muted-foreground">{r.subKey}</div>
+                    )}
+                  </TableCell>
+                )}
                 <TableCell
                   className={cn(
                     "text-right tabular-nums",

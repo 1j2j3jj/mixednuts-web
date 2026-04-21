@@ -1,6 +1,16 @@
 "use client";
 
-import { Line, LineChart, ResponsiveContainer, CartesianGrid, Tooltip, XAxis, YAxis, Legend } from "recharts";
+import {
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  Legend,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import type { DailySeriesPoint } from "@/lib/metrics";
 
 interface Props {
@@ -9,11 +19,21 @@ interface Props {
 
 const costAxisFormat = (v: number) => `¥${Math.round(v / 1000).toLocaleString()}k`;
 
+/**
+ * Mixed chart: Spend as a bar (magnitude emphasis) + CV and CPA as lines
+ * on a secondary axis. CPA is computed per-point (cost / CV) which is the
+ * figure managers track day-to-day.
+ */
 export default function DailyTrendChart({ data }: Props) {
+  const withCpa = data.map((d) => ({
+    ...d,
+    cpa: d.conversions > 0 ? Math.round(d.cost / d.conversions) : null,
+  }));
+
   return (
     <div className="h-72 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+        <ComposedChart data={withCpa} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
           <XAxis dataKey="date" fontSize={11} tickMargin={6} stroke="var(--muted-foreground)" />
           <YAxis
@@ -34,21 +54,20 @@ export default function DailyTrendChart({ data }: Props) {
               const num = typeof value === "number" ? value : Number(value);
               if (!Number.isFinite(num)) return [String(value ?? "—"), String(name ?? "")];
               const label = String(name ?? "");
-              if (label === "費用" || label === "CV値") {
+              if (label === "Spend" || label === "CPA") {
                 return [`¥${Math.round(num).toLocaleString()}`, label];
               }
               return [Math.round(num).toLocaleString(), label];
             }}
           />
           <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "12px" }} />
-          <Line
+          <Bar
             yAxisId="left"
-            type="monotone"
             dataKey="cost"
-            name="費用"
-            stroke="var(--chart-1)"
-            strokeWidth={2}
-            dot={false}
+            name="Spend"
+            fill="var(--chart-1)"
+            fillOpacity={0.35}
+            radius={[2, 2, 0, 0]}
           />
           <Line
             yAxisId="right"
@@ -59,7 +78,18 @@ export default function DailyTrendChart({ data }: Props) {
             strokeWidth={2}
             dot={false}
           />
-        </LineChart>
+          <Line
+            yAxisId="right"
+            type="monotone"
+            dataKey="cpa"
+            name="CPA"
+            stroke="var(--chart-5)"
+            strokeWidth={2}
+            strokeDasharray="4 3"
+            dot={false}
+            connectNulls
+          />
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   );
