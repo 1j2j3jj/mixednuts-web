@@ -4,9 +4,7 @@ import {
   getGa4MonthlyChannels,
   getGa4DailyChannels,
   getDeviceTotals,
-  getTopProducts,
 } from "@/lib/sources/ga4";
-import { getTopGscQueries } from "@/lib/sources/gsc";
 import { getTargetsForMonth } from "@/lib/sources/target";
 import { resolveFromSearchParams, type DateRange } from "@/lib/range";
 import { aggregateByDate, filterByRange } from "@/lib/metrics";
@@ -18,8 +16,6 @@ import NewVsRepeatChart from "@/components/dashboard/NewVsRepeatChart";
 import GoalGauge from "@/components/dashboard/GoalGauge";
 import PacingAlert from "@/components/dashboard/PacingAlert";
 import DeviceBar from "@/components/dashboard/DeviceBar";
-import ProductRanking from "@/components/dashboard/ProductRanking";
-import GscQueryTable from "@/components/dashboard/GscQueryTable";
 import RefreshButton from "@/components/dashboard/RefreshButton";
 import PrintButton from "@/components/dashboard/PrintButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -90,27 +86,14 @@ export default async function Overview({
   const blendedCpaPrev = safeDiv(costPrev, gaPrev.conversions);
   const blendedRoasPrev = safeDiv(gaPrev.revenue, costPrev);
 
-  // Sparkline: last 14 days of (ad-side) daily series within the range.
+  // Sparkline: last 14 days within the range. The 5 Big KPI cards above
+  // pull from mixed sources (GA4 for Revenue/CV/Sessions/ROAS, ad-side for
+  // CPA / Spend), so the sparklines must pull from the same source to match
+  // the headline number. GA4 daily data is fetched below and joined here.
   const daily = aggregateByDate(adCur);
   const daily14 = lastN(daily, 14);
   const sparkDates = daily14.map((d) => d.date);
   const costSpark = daily14.map((d) => d.cost);
-  const cvSpark = daily14.map((d) => d.conversions);
-  const revSpark = daily14.map((d) => d.conversionValue);
-  // Sessions spark comes from monthly mock. Pick daily via a rough pro-rata
-  // from the current month sessions (GA4 daily data isn't fetched here).
-  const sessionsSpark = daily14.map((d) => {
-    const daysInMonth = new Date(
-      Number(d.date.slice(0, 4)),
-      Number(d.date.slice(5, 7)),
-      0
-    ).getDate();
-    return Math.round(gaCur.sessions / daysInMonth);
-  });
-  // Blended ROAS daily: reuse the same pro-rata shape for revenue and
-  // divide by daily cost. Pragmatic — precise per-day GA4 revenue would
-  // require another query.
-  const roasSpark = daily14.map((d) => (d.cost > 0 ? (d.conversionValue / d.cost) * 100 : 0));
 
   // New vs repeat — past 6 months (site-wide, moved from Ads page).
   const byMonthUsers = new Map<string, { new: number; returning: number }>();
@@ -148,13 +131,38 @@ export default async function Overview({
   // single-month presets anyway.
   const tgt = await getTargetsForMonth(client, anchor.slice(0, 7));
 
-  // Extra context modules (parallel fetch for speed).
-  const [devices, topProducts, topQueries, ga4Daily] = await Promise.all([
+  // Extra context modules (parallel fetch for speed). Products & GSC queries
+  // now live on the /insights tab — dropped from here to declutter Overview.
+  const [devices, ga4Daily] = await Promise.all([
     getDeviceTotals(client, anchor),
-    getTopProducts(client),
-    getTopGscQueries(client),
     getGa4DailyChannels(client),
   ]);
+
+  // Build a site-wide daily GA4 map so Big KPI sparklines reflect the actual
+  // headline source. Previously sessions/ROAS sparks were faked (monthly
+  // total / days → always flat, and ad-side conversionValue / cost instead
+  // of GA4 revenue / cost → number mismatch with the KPI above it).
+  const ga4DailyMap = new Map<string, { sessions: number; conversions: number; revenue: number }>();
+  for (const r of ga4Daily) {
+    const cur = ga4DailyMap.get(r.date) ?? { sessions: 0, conversions: 0, revenue: 0 };
+    cur.sessions += r.sessions;
+    cur.conversions += r.conversions;
+    cur.revenue += r.revenue;
+    ga4DailyMap.set(r.date, cur);
+  }
+  const sessionsSpark = daily14.map((d) => ga4DailyMap.get(d.date)?.sessions ?? 0);
+  const cvSpark = daily14.map((d) => ga4DailyMap.get(d.date)?.conversions ?? 0);
+  const revSpark = daily14.map((d) => ga4DailyMap.get(d.date)?.revenue ?? 0);
+  const roasSpark = daily14.map((d) => {
+    const rev = ga4DailyMap.get(d.date)?.revenue ?? 0;
+    return d.cost > 0 ? (rev / d.cost) * 100 : 0;
+  });
+  // CPA sparkline: blended CPA = ad spend / GA4 conversions per day. Null on
+  // zero-conversion days so the chart skips rather than spiking to ∞.
+  const cpaSpark = daily14.map((d) => {
+    const conv = ga4DailyMap.get(d.date)?.conversions ?? 0;
+    return conv > 0 ? d.cost / conv : 0;
+  });
 
   const fetchedAtLabel = new Date(fetchedAt).toLocaleTimeString("ja-JP", {
     hour: "2-digit",
@@ -225,10 +233,9 @@ export default async function Overview({
               ? [{ label: rr.compareLabel, delta: pct(blendedCpa, blendedCpaPrev) }]
               : []
           }
-          sparkline={costSpark}
+          sparkline={cpaSpark}
           sparkDates={sparkDates}
           sparkFormat="jpy"
-          sparkTone="negative"
         />
         <BigKpiCard
           label="Blended ROAS"
@@ -339,24 +346,6 @@ export default async function Overview({
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">商品別売上 Top 10</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ProductRanking rows={topProducts} limit={10} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">オーガニック検索クエリ Top 10（GSC）</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <GscQueryTable rows={topQueries} limit={10} />
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }

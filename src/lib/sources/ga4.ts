@@ -331,7 +331,7 @@ async function realLandingPages(propertyId: string): Promise<LandingPageRow[]> {
         { name: "purchaseRevenue" },
       ],
       orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
-      limit: "10",
+      limit: "30",
     },
   });
   return (res.data.rows ?? []).map((r) => ({
@@ -357,7 +357,7 @@ async function realProducts(propertyId: string): Promise<ProductRow[]> {
         { name: "itemRevenue" },
       ],
       orderBys: [{ metric: { metricName: "itemRevenue" }, desc: true }],
-      limit: "10",
+      limit: "30",
     },
   });
   return (res.data.rows ?? []).map((r) => {

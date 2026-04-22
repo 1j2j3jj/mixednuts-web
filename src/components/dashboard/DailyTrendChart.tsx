@@ -21,8 +21,12 @@ const costAxisFormat = (v: number) => `¥${Math.round(v / 1000).toLocaleString()
 
 /**
  * Mixed chart: Spend as a bar (magnitude emphasis) + CV and CPA as lines
- * on a secondary axis. CPA is computed per-point (cost / CV) which is the
- * figure managers track day-to-day.
+ * on a secondary axis. CPA is computed per-point (cost / CV).
+ *
+ * Note: data is always ad-platform-side (from the sheet). Labels are
+ * explicit "媒体CV" / "媒体CPA" so the chart doesn't misrepresent itself
+ * when the page's GA4/媒体 toggle is on GA4 — those headline KPIs use
+ * GA4 but this chart stays on the ad-side daily series.
  */
 export default function DailyTrendChart({ data }: Props) {
   const withCpa = data.map((d) => ({
@@ -54,7 +58,7 @@ export default function DailyTrendChart({ data }: Props) {
               const num = typeof value === "number" ? value : Number(value);
               if (!Number.isFinite(num)) return [String(value ?? "—"), String(name ?? "")];
               const label = String(name ?? "");
-              if (label === "Spend" || label === "CPA") {
+              if (label === "Spend" || label.includes("CPA")) {
                 return [`¥${Math.round(num).toLocaleString()}`, label];
               }
               return [Math.round(num).toLocaleString(), label];
@@ -73,7 +77,7 @@ export default function DailyTrendChart({ data }: Props) {
             yAxisId="right"
             type="monotone"
             dataKey="conversions"
-            name="CV"
+            name="媒体CV"
             stroke="var(--chart-3)"
             strokeWidth={2}
             dot={false}
@@ -82,7 +86,7 @@ export default function DailyTrendChart({ data }: Props) {
             yAxisId="right"
             type="monotone"
             dataKey="cpa"
-            name="CPA"
+            name="媒体CPA"
             stroke="var(--chart-5)"
             strokeWidth={2}
             strokeDasharray="4 3"

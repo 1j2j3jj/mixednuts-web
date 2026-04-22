@@ -11,9 +11,10 @@ interface Props {
 export default function DashboardTabs({ slug }: Props) {
   const pathname = usePathname() || "";
   const tabs: Array<{ href: string; label: string }> = [
-    { href: `/dashboard/${slug}`, label: "Overview" },
-    { href: `/dashboard/${slug}/ads`, label: "Ads" },
-    { href: `/dashboard/${slug}/drill`, label: "Drilldown" },
+    { href: `/dashboard/${slug}`, label: "サマリー" },
+    { href: `/dashboard/${slug}/ads`, label: "広告詳細" },
+    { href: `/dashboard/${slug}/drill`, label: "フィルター詳細" },
+    { href: `/dashboard/${slug}/insights`, label: "商品・検索" },
   ];
   return (
     <nav className="flex gap-1 border-b">
