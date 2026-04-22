@@ -215,6 +215,79 @@ export async function listEnvStatus(): Promise<EnvStatus[]> {
   return result;
 }
 
+/** Per-client access breakdown. One row per configured role assignment,
+ *  sourced from env:
+ *    - Admin:      ADMIN_EMAILS (global, applies to every client)
+ *    - Client OAuth: CLIENT_EMAILS_<ID>  (Google identity → slug)
+ *    - Client pw:    CLIENT_AUTH_<ID>    ("user:pass" basic-auth/cookie)
+ *  No DB backing for v1 — env is the authoritative registry. */
+export interface AccessEntry {
+  kind: "admin-email" | "client-email" | "client-credential";
+  /** What to display: an email for OAuth, a username for password. */
+  label: string;
+  /** Fingerprint when the underlying value is a secret (password). */
+  preview?: string;
+}
+
+export interface ClientAccess {
+  clientId: ClientId;
+  label: string;
+  slug: string;
+  active: boolean;
+  entries: AccessEntry[];
+  /** Env var names that control this client's access, surfaced so admin
+   *  can jump to Vercel settings to edit. */
+  envKeys: {
+    oauthEmails: string;
+    credential: string;
+  };
+}
+
+function parseEmailList(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(/[,;\s]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+export async function listClientAccess(): Promise<ClientAccess[]> {
+  await assertAdmin();
+  const adminEmails = parseEmailList(process.env.ADMIN_EMAILS);
+  const out: ClientAccess[] = [];
+  for (const id of CLIENT_IDS) {
+    const c = CLIENTS[id];
+    const entries: AccessEntry[] = [];
+    for (const email of adminEmails) {
+      entries.push({ kind: "admin-email", label: email });
+    }
+    const clientEmailsRaw = process.env[`CLIENT_EMAILS_${id.toUpperCase()}`];
+    for (const email of parseEmailList(clientEmailsRaw)) {
+      entries.push({ kind: "client-email", label: email });
+    }
+    const authRaw = process.env[`CLIENT_AUTH_${id.toUpperCase()}`];
+    if (authRaw) {
+      const sep = authRaw.indexOf(":");
+      const user = sep >= 0 ? authRaw.slice(0, sep) : authRaw;
+      const pass = sep >= 0 ? authRaw.slice(sep + 1) : "";
+      const preview = pass.length <= 4 ? "•".repeat(pass.length) : `${pass.slice(0, 2)}${"•".repeat(pass.length - 4)}${pass.slice(-2)}`;
+      entries.push({ kind: "client-credential", label: user, preview });
+    }
+    out.push({
+      clientId: id,
+      label: c.label,
+      slug: c.slug,
+      active: c.active,
+      entries,
+      envKeys: {
+        oauthEmails: `CLIENT_EMAILS_${id.toUpperCase()}`,
+        credential: `CLIENT_AUTH_${id.toUpperCase()}`,
+      },
+    });
+  }
+  return out;
+}
+
 /** Generate a cryptographically-strong random password for a client
  *  credential. Returned plain (no persistence) — admin copies it and
  *  pastes into Vercel env manually. */
