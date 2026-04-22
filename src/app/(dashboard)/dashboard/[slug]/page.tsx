@@ -76,7 +76,7 @@ export default async function Overview({
     adDates[adDates.length - 1] ??
     `${ga4[ga4.length - 1]?.yearMonth ?? new Date().toISOString().slice(0, 7)}-01`;
 
-  const rr = resolveFromSearchParams(sp, { preset: "last28", compare: "prev" }, anchor);
+  const rr = resolveFromSearchParams(sp, { preset: "thisMonth", compare: "prev" }, anchor);
 
   const adCur = filterByRange(adRows, rr.current.start, rr.current.end);
   const gaCurRows = filterGa4ByRange(ga4, rr.current);

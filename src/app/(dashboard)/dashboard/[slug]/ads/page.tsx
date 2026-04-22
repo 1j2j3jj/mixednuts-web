@@ -94,7 +94,7 @@ export default async function AdsScreen({
   const allDates = rows.map((r) => r.date).filter(Boolean).sort();
   const anchor = allDates[allDates.length - 1] ?? new Date().toISOString().slice(0, 10);
 
-  const rr = resolveFromSearchParams(sp, { preset: "last28", compare: "prev" }, anchor);
+  const rr = resolveFromSearchParams(sp, { preset: "thisMonth", compare: "prev" }, anchor);
 
   const cur = filterByRange(rows, rr.current.start, rr.current.end);
   const prev = rr.previous ? filterByRange(rows, rr.previous.start, rr.previous.end) : [];

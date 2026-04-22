@@ -16,7 +16,7 @@ interface Props {
  * URL searchParams so the selection is shareable and survives hard reloads.
  */
 export default function DateRangePicker({
-  defaultPreset = "last28",
+  defaultPreset = "thisMonth",
   defaultCompare = "prev",
 }: Props) {
   const router = useRouter();

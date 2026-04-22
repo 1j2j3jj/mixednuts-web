@@ -137,7 +137,7 @@ export default async function DrillScreen({
 
   const allDates = rows.map((r) => r.date).filter(Boolean).sort();
   const anchor = allDates[allDates.length - 1] ?? new Date().toISOString().slice(0, 10);
-  const rr = resolveFromSearchParams(sp, { preset: "last28", compare: "none" }, anchor);
+  const rr = resolveFromSearchParams(sp, { preset: "thisMonth", compare: "none" }, anchor);
 
   const mediaFilter = sp.media ?? "";
   const campaignFilter = sp.campaign ?? "";
