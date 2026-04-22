@@ -1,24 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { CLIENT_IDS, CLIENTS } from "@/config/clients";
+import { verifyCredentials, anyCredentialConfigured } from "@/lib/credentials";
+import { verifySession, COOKIE_NAME } from "@/lib/auth-cookie";
 
 /**
- * Multi-tenant Basic Auth + optional Clerk.
+ * Auth stack (applied in order):
  *
- * Two credential classes:
+ *   1) Exempt routes — /login page and /api/auth/* are always open so
+ *      clients can sign in without first presenting Basic Auth.
  *
- *   1) Admin   — env BASIC_AUTH_USER / BASIC_AUTH_PASSWORD (legacy name kept).
- *                Sees admin index, sidebar account list, any /dashboard/[slug].
+ *   2) Session cookie (mn_session) — signed JSON set by the custom
+ *      /login form. HttpOnly, Secure, 7-day expiry. Preferred when
+ *      present; lets clients browse dashboards without a Basic Auth
+ *      popup (popups are UX-hostile).
  *
- *   2) Client  — env CLIENT_AUTH_{ID} = "user:pass" (one env per client).
- *                Restricted to their own /dashboard/[slug]/*. Requests to
- *                /dashboard, /dashboard/[other-slug], or the marketing pages
- *                are silently redirected to /dashboard/[own-slug] so the
- *                existence of other tenants cannot leak.
+ *   3) Basic Auth — legacy fallback. Admin creds (BASIC_AUTH_USER/_PASSWORD)
+ *      and per-client creds (CLIENT_AUTH_<ID>=user:pass) still accepted
+ *      via HTTP Authorization header. Allows bookmarked admin workflows
+ *      and existing integrations to keep working.
  *
- * Viewer kind is forwarded to the app via a custom request header
- * (`x-viewer-kind`) so layouts/pages can hide admin-only UI chrome without
- * re-running auth logic.
+ *   4) Tenant routing — clients are silently redirected to their own
+ *      /dashboard/<slug> when they hit any other path, so cross-tenant
+ *      existence never leaks in the URL space.
+ *
+ * Viewer kind is forwarded to the app via request headers
+ * (`x-viewer-kind`, `x-viewer-client-slug`) so layouts/pages can hide
+ * admin-only chrome without re-running auth logic.
  */
 
 const REALM = 'Basic realm="mixednuts-web"';
@@ -29,7 +36,15 @@ type Auth =
   | { kind: "client"; clientId: string; slug: string }
   | { kind: "deny" };
 
-function resolveAuth(request: NextRequest): Auth {
+async function resolveSessionCookie(request: NextRequest): Promise<Auth> {
+  const token = request.cookies.get(COOKIE_NAME)?.value;
+  const sess = await verifySession(token);
+  if (!sess) return { kind: "deny" };
+  if (sess.kind === "admin") return { kind: "admin" };
+  return { kind: "client", clientId: sess.clientId, slug: sess.slug };
+}
+
+function resolveBasicAuth(request: NextRequest): Auth {
   const header = request.headers.get("authorization");
   if (!header?.startsWith("Basic ")) return { kind: "deny" };
 
@@ -44,28 +59,9 @@ function resolveAuth(request: NextRequest): Auth {
   const u = decoded.slice(0, idx);
   const p = decoded.slice(idx + 1);
 
-  // Admin first. Legacy env names kept so existing deploys keep working.
-  const adminUser = process.env.BASIC_AUTH_USER;
-  const adminPass = process.env.BASIC_AUTH_PASSWORD;
-  if (adminUser && adminPass && u === adminUser && p === adminPass) {
-    return { kind: "admin" };
-  }
-
-  // Per-client credentials. Each env value is "user:pass" so a single env
-  // var carries the full credential and we can loop the registry.
-  for (const id of CLIENT_IDS) {
-    const raw = process.env[`CLIENT_AUTH_${id.toUpperCase()}`];
-    if (!raw) continue;
-    const sep = raw.indexOf(":");
-    if (sep === -1) continue;
-    const cu = raw.slice(0, sep);
-    const cp = raw.slice(sep + 1);
-    if (u === cu && p === cp) {
-      return { kind: "client", clientId: id, slug: CLIENTS[id].slug };
-    }
-  }
-
-  return { kind: "deny" };
+  const check = verifyCredentials(u, p);
+  if (check.kind === "deny") return { kind: "deny" };
+  return check;
 }
 
 function denyResponse(): NextResponse {
@@ -86,24 +82,42 @@ function passThrough(request: NextRequest, auth: Auth): NextResponse {
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
-function checkBasicAuth(request: NextRequest): NextResponse {
-  // Safety fallback: if NEITHER admin nor any client credential is set in the
-  // environment, let traffic through. Avoids locking ourselves out of a fresh
-  // deploy where envs haven't been provisioned yet.
-  const hasAnyCred =
-    Boolean(process.env.BASIC_AUTH_USER && process.env.BASIC_AUTH_PASSWORD) ||
-    CLIENT_IDS.some((id) => process.env[`CLIENT_AUTH_${id.toUpperCase()}`]);
-  if (!hasAnyCred) return NextResponse.next();
+function isExemptPath(pathname: string): boolean {
+  // Always open — clients need these to reach a login form without
+  // first satisfying Basic Auth.
+  return (
+    pathname === "/login" ||
+    pathname.startsWith("/login/") ||
+    pathname.startsWith("/api/auth/") ||
+    pathname === "/favicon.ico" ||
+    pathname === "/robots.txt"
+  );
+}
 
-  const auth = resolveAuth(request);
+async function checkAuth(request: NextRequest): Promise<NextResponse> {
+  const { pathname } = request.nextUrl;
+
+  // 1. Exempt routes (login page, auth API) — always open.
+  if (isExemptPath(pathname)) return NextResponse.next();
+
+  // Safety fallback: if no credential env is set at all, let traffic
+  // through. Avoids locking ourselves out on a fresh deploy.
+  if (!anyCredentialConfigured()) return NextResponse.next();
+
+  // 2. Session cookie takes precedence — lets /login users browse
+  //    without the Basic Auth popup ever showing.
+  const cookie = await resolveSessionCookie(request);
+  const auth = cookie.kind !== "deny" ? cookie : resolveBasicAuth(request);
+
+  // 3. Reject if neither path authenticated.
   if (auth.kind === "deny") return denyResponse();
+
+  // 4. Admin: full passthrough.
   if (auth.kind === "admin") return passThrough(request, auth);
 
-  // auth.kind === "client" — tenant scoping.
-  const { pathname } = request.nextUrl;
+  // 5. Client: tenant-scope all paths. Redirects are silent (no 403) so
+  //    cross-tenant existence doesn't leak via error pages.
   const ownDash = `/dashboard/${auth.slug}`;
-
-  // /dashboard, /dashboard/, or any slug that isn't theirs → own dashboard.
   if (pathname === "/dashboard" || pathname === "/dashboard/") {
     const url = request.nextUrl.clone();
     url.pathname = ownDash;
@@ -121,8 +135,7 @@ function checkBasicAuth(request: NextRequest): NextResponse {
   }
 
   // Non-dashboard paths (marketing site, admin-only areas): clients get
-  // bounced to their own dashboard. This is deliberately silent — a 403
-  // would still reveal that a marketing site exists behind the portal.
+  // bounced to their own dashboard.
   const url = request.nextUrl.clone();
   url.pathname = ownDash;
   return NextResponse.redirect(url);
@@ -135,17 +148,17 @@ const clerkConfigured = Boolean(process.env.CLERK_SECRET_KEY);
 
 const middleware = clerkConfigured
   ? clerkMiddleware(async (auth, req) => {
-      const basicResponse = checkBasicAuth(req);
-      // If Basic Auth blocked or redirected, skip Clerk.
-      if (basicResponse.status === 401 || basicResponse.headers.get("location")) {
-        return basicResponse;
+      const authResponse = await checkAuth(req);
+      // If auth blocked (401) or redirected, skip Clerk.
+      if (authResponse.status === 401 || authResponse.headers.get("location")) {
+        return authResponse;
       }
       if (isProtectedRoute(req)) {
         await auth.protect();
       }
-      return basicResponse;
+      return authResponse;
     })
-  : (req: NextRequest) => checkBasicAuth(req);
+  : async (req: NextRequest) => checkAuth(req);
 
 export default middleware;
 

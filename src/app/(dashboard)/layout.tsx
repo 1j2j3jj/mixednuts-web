@@ -60,6 +60,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
               Admin index
             </Link>
           )}
+          {(viewerKind === "admin" || viewerKind === "client") && (
+            <Link
+              href="/api/auth/logout"
+              prefetch={false}
+              className="text-xs text-muted-foreground hover:underline"
+            >
+              Logout
+            </Link>
+          )}
           {clerkConfigured &&
             (signedInState === "in" ? (
               <UserButton />
