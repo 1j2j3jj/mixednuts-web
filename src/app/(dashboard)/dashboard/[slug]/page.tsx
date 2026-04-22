@@ -363,7 +363,11 @@ export default async function Overview({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">月次チャネル別（過去12ヶ月・参考）</CardTitle>
+          <CardTitle className="text-sm">月次チャネル別（GA4 · 過去12ヶ月・参考）</CardTitle>
+          <div className="mt-1 text-xs text-muted-foreground">
+            チャネル別内訳は GA4 のみ。売上・CV は GA4 `purchaseRevenue` /
+            `ecommercePurchases`（上の表示値トグルには非連動）
+          </div>
         </CardHeader>
         <CardContent>
           <ChannelStackedBar data={ga4} defaultMetric="sessions" />
@@ -372,7 +376,7 @@ export default async function Overview({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">日別/週別チャネル別（過去90日）</CardTitle>
+          <CardTitle className="text-sm">日別/週別チャネル別（GA4 · 過去90日）</CardTitle>
         </CardHeader>
         <CardContent>
           <ChannelTrendChart data={ga4Daily} defaultMetric="sessions" defaultGranularity="day" />
@@ -381,7 +385,7 @@ export default async function Overview({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">新規 vs リピート Users（過去6ヶ月・参考）</CardTitle>
+          <CardTitle className="text-sm">新規 vs リピート Users（GA4 · 過去6ヶ月・参考）</CardTitle>
         </CardHeader>
         <CardContent>
           <NewVsRepeatChart data={newVsRepeat} />
@@ -391,7 +395,7 @@ export default async function Overview({
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Top 5 チャネル</CardTitle>
+            <CardTitle className="text-sm">Top 5 チャネル（GA4）</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
