@@ -1,47 +1,52 @@
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import {
   type ClientConfig,
   type ClientId,
   getClient,
   getClientBySlug,
-  INTERNAL_ADMIN_USER_IDS,
 } from "@/config/clients";
 
-interface CurrentUser {
-  userId: string | null;
-  primaryEmail?: string | null;
+/**
+ * Access control for /dashboard/[slug]/*. Middleware
+ * (src/middleware.ts) is the authoritative gate — this helper trusts
+ * its viewer-identity headers (x-viewer-kind / x-viewer-client-slug)
+ * and just decides whether the *specific* slug the page was called
+ * with is permitted for the current viewer.
+ *
+ *   admin  → any slug permitted
+ *   client → only own slug (redirected elsewhere by middleware anyway;
+ *            defense in depth here)
+ *   none   → dev fallback (no credential env configured); allow so
+ *            local scaffolding works.
+ *
+ * Historical note: an earlier Clerk-only implementation called `auth()`
+ * from @clerk/nextjs here and notFound()'d any viewer not signed in
+ * to Clerk. That broke every Basic-Auth / cookie session once Clerk
+ * keys were added to env (Clerk session was absent → 404). Fixed by
+ * moving the identity read to the middleware headers, which reflect
+ * whichever auth succeeded.
+ */
+
+async function viewer(): Promise<{ kind: "admin" | "client" | "none"; slug?: string }> {
+  const h = await headers();
+  const kind = h.get("x-viewer-kind");
+  if (kind === "admin") return { kind: "admin" };
+  if (kind === "client") return { kind: "client", slug: h.get("x-viewer-client-slug") ?? undefined };
+  return { kind: "none" };
 }
 
-async function getCurrentUser(): Promise<CurrentUser> {
-  const { auth, currentUser } = await import("@clerk/nextjs/server");
-  const { userId } = await auth();
-  if (!userId) return { userId: null };
-  const user = await currentUser();
-  const primaryEmail = user?.primaryEmailAddress?.emailAddress ?? null;
-  return { userId, primaryEmail };
-}
-
-export function canUserAccessClient(user: CurrentUser, client: ClientConfig): boolean {
-  if (!user.userId) return false;
-  if (INTERNAL_ADMIN_USER_IDS.includes(user.userId)) return true;
-  if (client.allowedUserIds.includes(user.userId)) return true;
-  if (user.primaryEmail) {
-    const domain = user.primaryEmail.split("@")[1]?.toLowerCase();
-    if (domain && client.allowedEmailDomains.map((d) => d.toLowerCase()).includes(domain)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/** Resolve a slug into a ClientConfig the current user is allowed to view. */
+/** Resolve a slug into a ClientConfig the current viewer can access. */
 export async function assertUserCanAccessClientBySlug(slug: string): Promise<ClientConfig> {
   const client = getClientBySlug(slug);
   if (!client) notFound();
-  const clerkConfigured = Boolean(process.env.CLERK_SECRET_KEY);
-  if (!clerkConfigured) return client; // dev mode: no gate
-  const user = await getCurrentUser();
-  if (!canUserAccessClient(user, client)) notFound();
+  const v = await viewer();
+  if (v.kind === "admin") return client;
+  if (v.kind === "client") {
+    if (v.slug === slug) return client;
+    notFound();
+  }
+  // No middleware auth configured — dev scaffolding. Allow.
   return client;
 }
 
@@ -49,19 +54,13 @@ export async function assertUserCanAccessClientBySlug(slug: string): Promise<Cli
 export async function assertUserCanAccessClient(clientId: string): Promise<ClientConfig> {
   const client = getClient(clientId);
   if (!client) notFound();
-  const clerkConfigured = Boolean(process.env.CLERK_SECRET_KEY);
-  if (!clerkConfigured) return client;
-  const user = await getCurrentUser();
-  if (!canUserAccessClient(user, client)) notFound();
+  const v = await viewer();
+  if (v.kind === "admin") return client;
+  if (v.kind === "client") {
+    if (v.slug === client.slug) return client;
+    notFound();
+  }
   return client;
-}
-
-export async function listAccessibleClients(): Promise<ClientConfig[]> {
-  const user = await getCurrentUser();
-  const { CLIENTS } = await import("@/config/clients");
-  return (Object.values(CLIENTS) as ClientConfig[]).filter((c) =>
-    canUserAccessClient(user, c)
-  );
 }
 
 export type { ClientId };
