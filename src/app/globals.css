@@ -214,13 +214,13 @@ a { color: inherit; }
 .nav-cta {
   display: inline-flex; align-items: center; gap: 10px;
   color: #fff;
-  padding: 13px 32px;
+  padding: 14px 38px;
   border: 1px solid #fff;
   border-radius: 999px;
   text-decoration: none;
   font-weight: 600; font-size: 13px;
-  letter-spacing: 0.03em;
-  margin-left: 16px;
+  letter-spacing: 0.02em;
+  margin-left: 20px;
   transition: all 0.2s;
 }
 .nav-cta:hover { background: #fff; color: var(--charcoal); mix-blend-mode: normal; }
