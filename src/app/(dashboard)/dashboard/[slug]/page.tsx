@@ -5,10 +5,13 @@ import {
   getGa4DailyChannels,
   getDeviceTotals,
 } from "@/lib/sources/ga4";
+import { getEccubeDaily, sumEccubeRange } from "@/lib/sources/eccube";
 import { getTargetsForMonth } from "@/lib/sources/target";
 import { resolveFromSearchParams, type DateRange } from "@/lib/range";
-import { aggregateByDate, filterByRange } from "@/lib/metrics";
+import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
 import { analysePacing, lastN } from "@/lib/analysis";
+import { readSource } from "@/lib/source";
+import SourceToggle from "@/components/dashboard/SourceToggle";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
 import ChannelStackedBar from "@/components/dashboard/ChannelStackedBar";
 import ChannelTrendChart from "@/components/dashboard/ChannelTrendChart";
@@ -60,10 +63,13 @@ export default async function Overview({
 }) {
   const { slug } = await params;
   const sp = await searchParams;
+  const source = readSource(sp);
   const client = await assertUserCanAccessClientBySlug(slug);
 
   const { rows: adRows, fetchedAt, isMock } = await getDailyRows(client);
   const ga4 = await getGa4MonthlyChannels(client);
+  const eccube = await getEccubeDaily(client);
+  const hasEccube = eccube.rows.length > 0;
 
   const adDates = adRows.map((r) => r.date).filter(Boolean).sort();
   const anchor =
@@ -82,10 +88,54 @@ export default async function Overview({
   const gaPrev = sumGa4(gaPrevRows);
   const costPrev = adPrev.reduce((s, r) => s + r.cost, 0);
 
-  const blendedCpa = safeDiv(costCur, gaCur.conversions);
-  const blendedRoas = safeDiv(gaCur.revenue, costCur);
-  const blendedCpaPrev = safeDiv(costPrev, gaPrev.conversions);
-  const blendedRoasPrev = safeDiv(gaPrev.revenue, costPrev);
+  // ECCUBE aggregates within the current/previous window.
+  const eccubeCur = sumEccubeRange(eccube.rows, rr.current.start, rr.current.end);
+  const eccubePrev = rr.previous
+    ? sumEccubeRange(eccube.rows, rr.previous.start, rr.previous.end)
+    : { conversions: 0, revenue: 0, avgOrderValue: null };
+
+  // Ad-side totals for CV/Revenue — needed for the 媒体 source path.
+  const adTotals = sumRows(adCur);
+  const adTotalsPrev = sumRows(adPrev);
+
+  // Select the effective CV/Revenue per source. Cost always comes from ad
+  // rows — it's not a revenue-side metric. Blended CPA/ROAS are computed
+  // against whichever source is active so the card math is internally
+  // consistent (ROAS uses the same numerator source as the Revenue card).
+  const pickCv = (src: "ga4" | "media" | "eccube"): number =>
+    src === "ga4"
+      ? gaCur.conversions
+      : src === "media"
+      ? adTotals.conversions
+      : eccubeCur.conversions;
+  const pickRev = (src: "ga4" | "media" | "eccube"): number =>
+    src === "ga4"
+      ? gaCur.revenue
+      : src === "media"
+      ? adTotals.conversionValue
+      : eccubeCur.revenue;
+  const pickCvPrev = (src: "ga4" | "media" | "eccube"): number =>
+    src === "ga4"
+      ? gaPrev.conversions
+      : src === "media"
+      ? adTotalsPrev.conversions
+      : eccubePrev.conversions;
+  const pickRevPrev = (src: "ga4" | "media" | "eccube"): number =>
+    src === "ga4"
+      ? gaPrev.revenue
+      : src === "media"
+      ? adTotalsPrev.conversionValue
+      : eccubePrev.revenue;
+
+  const effectiveCv = pickCv(source);
+  const effectiveRev = pickRev(source);
+  const effectiveCvPrev = pickCvPrev(source);
+  const effectiveRevPrev = pickRevPrev(source);
+
+  const blendedCpa = safeDiv(costCur, effectiveCv);
+  const blendedRoas = safeDiv(effectiveRev, costCur);
+  const blendedCpaPrev = safeDiv(costPrev, effectiveCvPrev);
+  const blendedRoasPrev = safeDiv(effectiveRevPrev, costPrev);
 
   // Sparkline: last 14 days within the range. The 5 Big KPI cards above
   // pull from mixed sources (GA4 for Revenue/CV/Sessions/ROAS, ad-side for
@@ -151,17 +201,42 @@ export default async function Overview({
     cur.revenue += r.revenue;
     ga4DailyMap.set(r.date, cur);
   }
+  // Media + ECCUBE daily maps for source-aware sparklines.
+  const mediaDailyMap = new Map<string, { conversions: number; revenue: number }>();
+  for (const d of daily) {
+    mediaDailyMap.set(d.date, { conversions: d.conversions, revenue: d.conversionValue });
+  }
+  const eccubeDailyMap = new Map<string, { conversions: number; revenue: number }>();
+  for (const r of eccube.rows) {
+    eccubeDailyMap.set(r.date, { conversions: r.conversions, revenue: r.revenue });
+  }
+  function cvAt(date: string, src: "ga4" | "media" | "eccube"): number {
+    return src === "ga4"
+      ? ga4DailyMap.get(date)?.conversions ?? 0
+      : src === "media"
+      ? mediaDailyMap.get(date)?.conversions ?? 0
+      : eccubeDailyMap.get(date)?.conversions ?? 0;
+  }
+  function revAt(date: string, src: "ga4" | "media" | "eccube"): number {
+    return src === "ga4"
+      ? ga4DailyMap.get(date)?.revenue ?? 0
+      : src === "media"
+      ? mediaDailyMap.get(date)?.revenue ?? 0
+      : eccubeDailyMap.get(date)?.revenue ?? 0;
+  }
+
+  // Sessions is always GA4 — no per-source equivalent (media has clicks but
+  // that's not sessions; ECCUBE has no traffic dim).
   const sessionsSpark = daily14.map((d) => ga4DailyMap.get(d.date)?.sessions ?? 0);
-  const cvSpark = daily14.map((d) => ga4DailyMap.get(d.date)?.conversions ?? 0);
-  const revSpark = daily14.map((d) => ga4DailyMap.get(d.date)?.revenue ?? 0);
+  const cvSpark = daily14.map((d) => cvAt(d.date, source));
+  const revSpark = daily14.map((d) => revAt(d.date, source));
   const roasSpark = daily14.map((d) => {
-    const rev = ga4DailyMap.get(d.date)?.revenue ?? 0;
+    const rev = revAt(d.date, source);
     return d.cost > 0 ? (rev / d.cost) * 100 : 0;
   });
-  // CPA sparkline: blended CPA = ad spend / GA4 conversions per day. Null on
-  // zero-conversion days so the chart skips rather than spiking to ∞.
+  // CPA sparkline: blended CPA = ad spend / effective-source CV per day.
   const cpaSpark = daily14.map((d) => {
-    const conv = ga4DailyMap.get(d.date)?.conversions ?? 0;
+    const conv = cvAt(d.date, source);
     return conv > 0 ? d.cost / conv : 0;
   });
 
@@ -187,11 +262,23 @@ export default async function Overview({
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <SourceToggle sources={hasEccube ? ["ga4", "media", "eccube"] : ["ga4", "media"]} />
           <div className="text-xs text-muted-foreground">最終取得 {fetchedAtLabel}</div>
           <PrintButton />
           <RefreshButton clientId={client.id} />
         </div>
       </div>
+      {source === "eccube" && hasEccube && (
+        <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+          表示値: ECCUBE 購入実績（shop DB 直接）。データ開始日:
+          <span className="ml-1 font-mono">{eccube.rows[0].date}</span>
+          {rr.current.start < eccube.rows[0].date && (
+            <span className="ml-2">
+              · この期間の一部は ECCUBE データ未取得のため売上・CV が過小表示されている可能性あり。
+            </span>
+          )}
+        </div>
+      )}
 
       {pacing && (
         <PacingAlert result={pacing} actualSpend={costCur} monthlyBudget={tgt.adSpendBudget} />
@@ -200,17 +287,17 @@ export default async function Overview({
       {/* 5 big KPI with sparklines */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <BigKpiCard
-          label="Revenue"
-          value={fmtJpy(gaCur.revenue)}
-          comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(gaCur.revenue, gaPrev.revenue) }] : []}
+          label={source === "ga4" ? "Revenue (GA4)" : source === "media" ? "Revenue (媒体)" : "Revenue (ECCUBE)"}
+          value={fmtJpy(effectiveRev)}
+          comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(effectiveRev, effectiveRevPrev) }] : []}
           sparkline={revSpark}
           sparkDates={sparkDates}
           sparkFormat="jpy"
         />
         <BigKpiCard
-          label="CV"
-          value={fmtInt(gaCur.conversions)}
-          comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(gaCur.conversions, gaPrev.conversions) }] : []}
+          label={source === "ga4" ? "CV (GA4)" : source === "media" ? "CV (媒体)" : "CV (ECCUBE)"}
+          value={fmtInt(effectiveCv)}
+          comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(effectiveCv, effectiveCvPrev) }] : []}
           sparkline={cvSpark}
           sparkDates={sparkDates}
           sparkFormat="int"
@@ -254,15 +341,15 @@ export default async function Overview({
         <div className="grid gap-4 sm:grid-cols-3">
           <GoalGauge
             label="Revenue 達成"
-            actual={fmtJpy(gaCur.revenue)}
+            actual={fmtJpy(effectiveRev)}
             target={fmtJpy(tgt.revenue)}
-            ratio={gaCur.revenue / (tgt.revenue || 1)}
+            ratio={effectiveRev / (tgt.revenue || 1)}
           />
           <GoalGauge
             label="CV 達成"
-            actual={fmtInt(gaCur.conversions)}
+            actual={fmtInt(effectiveCv)}
             target={fmtInt(tgt.conversions)}
-            ratio={gaCur.conversions / (tgt.conversions || 1)}
+            ratio={effectiveCv / (tgt.conversions || 1)}
           />
           <GoalGauge
             label="広告予算消化"

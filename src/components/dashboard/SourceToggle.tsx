@@ -4,17 +4,33 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTransition } from "react";
 import type { MetricSource } from "@/lib/source";
 
+interface Props {
+  /**
+   * Which sources the current page can show. Default is 2-way (Ads / Drill
+   * don't have ECCUBE data). Overview passes ["ga4","media","eccube"] to
+   * surface the 3-way choice. When ECCUBE sheet isn't configured for the
+   * client, caller should omit "eccube" so the button isn't shown.
+   */
+  sources?: MetricSource[];
+}
+
 /**
- * Two-state switch used on Ads / Drill to flip CV / 売上 / CPA / ROAS /
- * 商品単価 between GA4-side (default) and 媒体-side (ad-platform reported)
- * values. Writes to `?src=ga4|media` so deep-link / reload preserves choice.
+ * Source-of-truth toggle. Writes to `?src=ga4|media|eccube` so deep-link /
+ * reload preserves the choice. Each page decides which cards respect the
+ * toggle (MediaTable / BigKpiCard / Funnel etc. read it via readSource).
  */
-export default function SourceToggle() {
+export default function SourceToggle({ sources = ["ga4", "media"] }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
   const [pending, startTransition] = useTransition();
   const src = (sp.get("src") as MetricSource) ?? "ga4";
+
+  const labelFor: Record<MetricSource, string> = {
+    ga4: "GA4",
+    media: "媒体",
+    eccube: "ECCUBE",
+  };
 
   function set(v: MetricSource) {
     const params = new URLSearchParams(sp.toString());
@@ -29,12 +45,7 @@ export default function SourceToggle() {
     <div className="inline-flex items-center gap-1 text-xs" data-print-hide="true">
       <span className="text-muted-foreground">表示値</span>
       <div className="inline-flex overflow-hidden rounded-md border">
-        {(
-          [
-            { v: "ga4" as const, label: "GA4" },
-            { v: "media" as const, label: "媒体" },
-          ]
-        ).map(({ v, label }) => (
+        {sources.map((v) => (
           <button
             key={v}
             type="button"
@@ -43,7 +54,7 @@ export default function SourceToggle() {
               src === v ? "bg-primary text-primary-foreground" : "hover:bg-accent"
             }`}
           >
-            {label}
+            {labelFor[v]}
           </button>
         ))}
       </div>

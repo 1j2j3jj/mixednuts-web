@@ -24,6 +24,11 @@ export interface DataSource {
   /** Range for the monthly targets / budget tab (matrix format — see
    *  src/lib/sources/target.ts). Optional; falls back to static config. */
   targetsRange?: string;
+  /** ECCUBE daily aggregate sheet (shop-DB truth). Columns: 期間, 購入件数,
+   *  性別内訳…, 購入合計, 購入平均. Used by src/lib/sources/eccube.ts.
+   *  Omit for clients without an ECCUBE shop. */
+  eccubeSheetId?: string;
+  eccubeRange?: string;
 }
 
 export interface MonthlyTargets {
@@ -101,6 +106,10 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
       // by src/lib/sources/target.ts.
       targetsSheetId: "11lOnn4vRPL3QA7GK9hbh-xtCtL6eXI4Cv4RetwIARic",
       targetsRange: "シート1!A:AA",
+      // ECCUBE daily aggregate (shop DB). Data currently starts 2026-04-01.
+      // Columns: 期間 / 購入件数 / 男/女/不明 / 会員×性別… / 購入合計 / 購入平均
+      eccubeSheetId: "13zRWRzw8AEmrGi_0ubpp6Dqc8D_MnZJrJ3CHfI5lMXU",
+      eccubeRange: "シート1!A:K",
     },
     ga4PropertyId: "302745512",
     gscSiteUrl: "https://www.hansoku-style.jp/",
