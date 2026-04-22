@@ -194,23 +194,50 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     id: "ogc",
     slug: "c5h9j2",
     label: "OGC",
-    subtitle: "オリジナル&ギフト事業",
-    active: false,
+    subtitle: "オリジナルグッズドットコム",
+    active: true,
     allowedUserIds: [],
     allowedEmailDomains: ["mixednuts-inc.com"],
-    dataSource: null,
+    dataSource: {
+      kind: "google_sheets",
+      // Produced by scripts/integrations/google_ads/export_ogc_adgroup_daily.py
+      // Google Ads ADG daily (2024-10-01 → rolling). 4,972 rows as of 2026-04-22.
+      // Yahoo / Microsoft / Meta to be layered in later via Windsor.ai.
+      sheetId: "1M7kBdmfZjwWdBuhwEpjtazKk5sH-5Gx9dmNvwWHhg7k",
+      rawAdsRange: "Google_AdGroup_Raw!A:L",
+      // Targets matrix (metric × channel × month) — structure only, CEO imports values later.
+      targetsSheetId: "1wFQFpYZKNgx79QJfiTOT739vUVjlpqSPklhnSj1q8f4",
+      targetsRange: "シート1!A:AA",
+      // ECCUBE integration: Phase 2.5 — eccubeSheetId TBD
+    },
+    ga4PropertyId: "355191254",
+    // URL-prefix property (trailing slash present) — SA has access.
+    gscSiteUrl: "https://original-goods.com/",
     currency: "JPY",
+    // CEO to import targets via the Google Sheet; static fallback is zero
+    // so achievement gauges render at 0% until the matrix is populated.
     monthlyTargets: { revenue: 0, conversions: 0, adSpendBudget: 0, roasPct: 0, cpa: 0 },
   },
   ogp: {
     id: "ogp",
     slug: "g8f1b6",
     label: "OGP",
-    subtitle: "販促プロ事業",
-    active: false,
+    subtitle: "originalgoods.press",
+    active: true,
     allowedUserIds: [],
     allowedEmailDomains: ["mixednuts-inc.com"],
-    dataSource: null,
+    dataSource: {
+      kind: "google_sheets",
+      // Produced by scripts/integrations/google_ads/export_ogp_adgroup_daily.py
+      // Google Ads ADG daily (2024-10-01 → rolling). 5,011 rows as of 2026-04-22.
+      // Yahoo / Microsoft / Meta to be layered in later via Windsor.ai.
+      sheetId: "14UGdtURCkmL1FY-5zY7rcpIry4zpcPRyVEYQQHFmrZA",
+      rawAdsRange: "Google_AdGroup_Raw!A:L",
+      targetsSheetId: "13mastxx3QNv1FJ4KbbKgzi_e-IEgaaoPAkiqjVW5X7U",
+      targetsRange: "シート1!A:AA",
+    },
+    ga4PropertyId: "302724388",
+    gscSiteUrl: "https://originalgoods.press/",
     currency: "JPY",
     monthlyTargets: { revenue: 0, conversions: 0, adSpendBudget: 0, roasPct: 0, cpa: 0 },
   },
