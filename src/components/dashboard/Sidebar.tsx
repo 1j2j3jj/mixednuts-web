@@ -5,22 +5,29 @@ import { usePathname } from "next/navigation";
 import { CLIENTS, CLIENT_IDS, type ClientId } from "@/config/clients";
 import { cn } from "@/lib/utils";
 
+type ViewerKind = "admin" | "client" | "none";
+
 interface Props {
-  /**
-   * Which clients the signed-in user may see. Empty = dev mode (Clerk off) —
-   * show everything. Populated = filter the list.
-   */
-  accessibleClientIds: string[];
+  /** Admin viewers see every active account and the Admin index link.
+   *  Client viewers see only the account that matches their credential
+   *  (clientSlug) — no other tenants leak into the sidebar.
+   *  "none" is the dev-time fallback (no auth configured) and shows the
+   *  full list so scaffolding still works. */
+  viewerKind: ViewerKind;
+  /** Slug of the currently-authenticated client (required when kind="client"). */
+  clientSlug?: string | null;
 }
 
-/**
- * Sidebar entries never display the real client name. Clients know their
- * slug from the invite email; CEO / internal admins browse via /dashboard
- * (admin index) which does show names.
- */
-export default function DashboardSidebar({ accessibleClientIds }: Props) {
+export default function DashboardSidebar({ viewerKind, clientSlug }: Props) {
   const pathname = usePathname() || "";
-  const hasGate = accessibleClientIds.length > 0;
+
+  // Compute the visible accounts list. For clients, scope to own tenant only.
+  const visibleIds: ClientId[] =
+    viewerKind === "client"
+      ? CLIENT_IDS.filter((id) => CLIENTS[id].slug === clientSlug)
+      : CLIENT_IDS;
+
+  const showAdminLink = viewerKind === "admin" || viewerKind === "none";
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r bg-card">
@@ -32,18 +39,18 @@ export default function DashboardSidebar({ accessibleClientIds }: Props) {
 
       <nav className="flex-1 overflow-y-auto p-3">
         <div className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Accounts
+          {viewerKind === "client" ? "Dashboard" : "Accounts"}
         </div>
         <ul className="space-y-0.5">
-          {CLIENT_IDS.map((id: ClientId) => {
+          {visibleIds.map((id) => {
             const c = CLIENTS[id];
-            const allowed = !hasGate || accessibleClientIds.includes(id);
-            if (!allowed) return null;
             const href = c.active ? `/dashboard/${c.slug}` : undefined;
             const isActive = pathname.startsWith(`/dashboard/${c.slug}`);
-            // Last 4 chars of slug only — identifiable for admins who know
-            // the mapping but meaningless to casual viewers.
-            const label = `Account · ${c.slug.slice(-4)}`;
+            // Admin sees opaque slug tails (avoids inadvertently shoulder
+            // -surfing tenant names off the CEO's screen). Clients see their
+            // own name since they already know who they are.
+            const label =
+              viewerKind === "client" ? c.label : `Account · ${c.slug.slice(-4)}`;
             const base =
               "flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors";
             const inner = (
@@ -76,15 +83,17 @@ export default function DashboardSidebar({ accessibleClientIds }: Props) {
           })}
         </ul>
 
-        <div className="mt-4 px-2 text-xs">
-          <Link href="/dashboard" className="text-muted-foreground hover:underline">
-            ← Admin index
-          </Link>
-        </div>
+        {showAdminLink && (
+          <div className="mt-4 px-2 text-xs">
+            <Link href="/dashboard" className="text-muted-foreground hover:underline">
+              ← Admin index
+            </Link>
+          </div>
+        )}
       </nav>
 
       <div className="border-t p-3 text-[10px] leading-relaxed text-muted-foreground">
-        Phase 1 sample · mock data
+        Phase 1 · multi-tenant
       </div>
     </aside>
   );

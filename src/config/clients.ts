@@ -11,7 +11,7 @@
  * (INTERNAL_ADMIN_USER_IDS) bypass per-client allow lists.
  */
 
-export type ClientId = "hs" | "msec" | "chakin" | "dozo";
+export type ClientId = "hs" | "chakin" | "dozo" | "msec" | "ogc" | "ogp";
 
 export interface DataSource {
   kind: "google_sheets";
@@ -68,6 +68,15 @@ export const INTERNAL_ADMIN_USER_IDS: string[] = [
  * clients are kept visible in the admin index to signal roadmap, but are
  * not reachable by slug until `active: true`.
  */
+/**
+ * Rollout order (confirmed 2026-04-22):
+ *   1. hs      — 販促スタイル (live)
+ *   2. chakin  — 住友生命 Chakin (next)
+ *   3. dozo    — dōzo ソーシャルギフト (next)
+ *   4. msec    — トレードワークス (後続)
+ *   5. ogc     — Trans OGC サイト (後続)
+ *   6. ogp     — Trans OGP サイト (後続)
+ */
 export const CLIENTS: Record<ClientId, ClientConfig> = {
   hs: {
     id: "hs",
@@ -104,18 +113,6 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
       cpa: 15_000,
     },
   },
-  msec: {
-    id: "msec",
-    slug: "a4m8r2",
-    label: "MSEC",
-    subtitle: "トレードワークス",
-    active: false,
-    allowedUserIds: [],
-    allowedEmailDomains: ["mixednuts-inc.com"],
-    dataSource: null,
-    currency: "JPY",
-    monthlyTargets: { revenue: 0, conversions: 0, adSpendBudget: 0, roasPct: 0, cpa: 0 },
-  },
   chakin: {
     id: "chakin",
     slug: "p3w1z5",
@@ -133,6 +130,42 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     slug: "n6t0f4",
     label: "dōzo",
     subtitle: "ソーシャルギフト",
+    active: false,
+    allowedUserIds: [],
+    allowedEmailDomains: ["mixednuts-inc.com"],
+    dataSource: null,
+    currency: "JPY",
+    monthlyTargets: { revenue: 0, conversions: 0, adSpendBudget: 0, roasPct: 0, cpa: 0 },
+  },
+  msec: {
+    id: "msec",
+    slug: "a4m8r2",
+    label: "MSEC",
+    subtitle: "トレードワークス",
+    active: false,
+    allowedUserIds: [],
+    allowedEmailDomains: ["mixednuts-inc.com"],
+    dataSource: null,
+    currency: "JPY",
+    monthlyTargets: { revenue: 0, conversions: 0, adSpendBudget: 0, roasPct: 0, cpa: 0 },
+  },
+  ogc: {
+    id: "ogc",
+    slug: "c5h9j2",
+    label: "OGC",
+    subtitle: "オリジナル&ギフト事業",
+    active: false,
+    allowedUserIds: [],
+    allowedEmailDomains: ["mixednuts-inc.com"],
+    dataSource: null,
+    currency: "JPY",
+    monthlyTargets: { revenue: 0, conversions: 0, adSpendBudget: 0, roasPct: 0, cpa: 0 },
+  },
+  ogp: {
+    id: "ogp",
+    slug: "g8f1b6",
+    label: "OGP",
+    subtitle: "販促プロ事業",
     active: false,
     allowedUserIds: [],
     allowedEmailDomains: ["mixednuts-inc.com"],

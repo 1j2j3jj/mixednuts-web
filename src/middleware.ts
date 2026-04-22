@@ -1,47 +1,131 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { CLIENT_IDS, CLIENTS } from "@/config/clients";
 
 /**
- * Two-layer protection:
- *   1) Basic Auth — blanket lock on the whole origin while the site is
- *      still in construction. Applied to every request.
- *   2) Clerk — tenant-level auth for /dashboard/*. Only activated when
- *      CLERK_SECRET_KEY is present (so local/dev without a Clerk account
- *      can still boot).
+ * Multi-tenant Basic Auth + optional Clerk.
  *
- * Public marketing pages stay open after Basic Auth passes.
+ * Two credential classes:
+ *
+ *   1) Admin   — env BASIC_AUTH_USER / BASIC_AUTH_PASSWORD (legacy name kept).
+ *                Sees admin index, sidebar account list, any /dashboard/[slug].
+ *
+ *   2) Client  — env CLIENT_AUTH_{ID} = "user:pass" (one env per client).
+ *                Restricted to their own /dashboard/[slug]/*. Requests to
+ *                /dashboard, /dashboard/[other-slug], or the marketing pages
+ *                are silently redirected to /dashboard/[own-slug] so the
+ *                existence of other tenants cannot leak.
+ *
+ * Viewer kind is forwarded to the app via a custom request header
+ * (`x-viewer-kind`) so layouts/pages can hide admin-only UI chrome without
+ * re-running auth logic.
  */
 
-const REALM = 'Basic realm="mixednuts-web (construction)"';
+const REALM = 'Basic realm="mixednuts-web"';
 const isProtectedRoute = createRouteMatcher(["/dashboard(.*)"]);
 
-function checkBasicAuth(request: NextRequest): NextResponse | null {
-  const user = process.env.BASIC_AUTH_USER;
-  const pass = process.env.BASIC_AUTH_PASSWORD;
+type Auth =
+  | { kind: "admin" }
+  | { kind: "client"; clientId: string; slug: string }
+  | { kind: "deny" };
 
-  // If Basic Auth is not configured, let traffic through (safety fallback).
-  if (!user || !pass) return null;
+function resolveAuth(request: NextRequest): Auth {
+  const header = request.headers.get("authorization");
+  if (!header?.startsWith("Basic ")) return { kind: "deny" };
 
-  const authHeader = request.headers.get("authorization");
-  if (authHeader?.startsWith("Basic ")) {
-    const encoded = authHeader.slice(6).trim();
-    try {
-      const decoded = atob(encoded);
-      const idx = decoded.indexOf(":");
-      if (idx !== -1) {
-        const u = decoded.slice(0, idx);
-        const p = decoded.slice(idx + 1);
-        if (u === user && p === pass) return null; // pass
-      }
-    } catch {
-      // fall through to 401
+  let decoded: string;
+  try {
+    decoded = atob(header.slice(6).trim());
+  } catch {
+    return { kind: "deny" };
+  }
+  const idx = decoded.indexOf(":");
+  if (idx === -1) return { kind: "deny" };
+  const u = decoded.slice(0, idx);
+  const p = decoded.slice(idx + 1);
+
+  // Admin first. Legacy env names kept so existing deploys keep working.
+  const adminUser = process.env.BASIC_AUTH_USER;
+  const adminPass = process.env.BASIC_AUTH_PASSWORD;
+  if (adminUser && adminPass && u === adminUser && p === adminPass) {
+    return { kind: "admin" };
+  }
+
+  // Per-client credentials. Each env value is "user:pass" so a single env
+  // var carries the full credential and we can loop the registry.
+  for (const id of CLIENT_IDS) {
+    const raw = process.env[`CLIENT_AUTH_${id.toUpperCase()}`];
+    if (!raw) continue;
+    const sep = raw.indexOf(":");
+    if (sep === -1) continue;
+    const cu = raw.slice(0, sep);
+    const cp = raw.slice(sep + 1);
+    if (u === cu && p === cp) {
+      return { kind: "client", clientId: id, slug: CLIENTS[id].slug };
     }
   }
 
+  return { kind: "deny" };
+}
+
+function denyResponse(): NextResponse {
   return new NextResponse("Authentication required", {
     status: 401,
     headers: { "WWW-Authenticate": REALM },
   });
+}
+
+function passThrough(request: NextRequest, auth: Auth): NextResponse {
+  const requestHeaders = new Headers(request.headers);
+  if (auth.kind === "admin") requestHeaders.set("x-viewer-kind", "admin");
+  else if (auth.kind === "client") {
+    requestHeaders.set("x-viewer-kind", "client");
+    requestHeaders.set("x-viewer-client-id", auth.clientId);
+    requestHeaders.set("x-viewer-client-slug", auth.slug);
+  }
+  return NextResponse.next({ request: { headers: requestHeaders } });
+}
+
+function checkBasicAuth(request: NextRequest): NextResponse {
+  // Safety fallback: if NEITHER admin nor any client credential is set in the
+  // environment, let traffic through. Avoids locking ourselves out of a fresh
+  // deploy where envs haven't been provisioned yet.
+  const hasAnyCred =
+    Boolean(process.env.BASIC_AUTH_USER && process.env.BASIC_AUTH_PASSWORD) ||
+    CLIENT_IDS.some((id) => process.env[`CLIENT_AUTH_${id.toUpperCase()}`]);
+  if (!hasAnyCred) return NextResponse.next();
+
+  const auth = resolveAuth(request);
+  if (auth.kind === "deny") return denyResponse();
+  if (auth.kind === "admin") return passThrough(request, auth);
+
+  // auth.kind === "client" — tenant scoping.
+  const { pathname } = request.nextUrl;
+  const ownDash = `/dashboard/${auth.slug}`;
+
+  // /dashboard, /dashboard/, or any slug that isn't theirs → own dashboard.
+  if (pathname === "/dashboard" || pathname === "/dashboard/") {
+    const url = request.nextUrl.clone();
+    url.pathname = ownDash;
+    return NextResponse.redirect(url);
+  }
+  if (pathname.startsWith("/dashboard/")) {
+    const segments = pathname.split("/").filter(Boolean);
+    const requestedSlug = segments[1];
+    if (requestedSlug && requestedSlug !== auth.slug) {
+      const url = request.nextUrl.clone();
+      url.pathname = ownDash;
+      return NextResponse.redirect(url);
+    }
+    return passThrough(request, auth);
+  }
+
+  // Non-dashboard paths (marketing site, admin-only areas): clients get
+  // bounced to their own dashboard. This is deliberately silent — a 403
+  // would still reveal that a marketing site exists behind the portal.
+  const url = request.nextUrl.clone();
+  url.pathname = ownDash;
+  return NextResponse.redirect(url);
 }
 
 // When Clerk is not configured (no CLERK_SECRET_KEY at build/runtime), the
@@ -51,19 +135,17 @@ const clerkConfigured = Boolean(process.env.CLERK_SECRET_KEY);
 
 const middleware = clerkConfigured
   ? clerkMiddleware(async (auth, req) => {
-      const basicDeny = checkBasicAuth(req);
-      if (basicDeny) return basicDeny;
-
+      const basicResponse = checkBasicAuth(req);
+      // If Basic Auth blocked or redirected, skip Clerk.
+      if (basicResponse.status === 401 || basicResponse.headers.get("location")) {
+        return basicResponse;
+      }
       if (isProtectedRoute(req)) {
         await auth.protect();
       }
-      return NextResponse.next();
+      return basicResponse;
     })
-  : (req: NextRequest) => {
-      const basicDeny = checkBasicAuth(req);
-      if (basicDeny) return basicDeny;
-      return NextResponse.next();
-    };
+  : (req: NextRequest) => checkBasicAuth(req);
 
 export default middleware;
 

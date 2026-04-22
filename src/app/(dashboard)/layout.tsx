@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { ClerkProvider, SignInButton, UserButton } from "@clerk/nextjs";
 import DashboardSidebar from "@/components/dashboard/Sidebar";
-import { listAccessibleClients } from "@/lib/access";
 
 /**
  * Route group layout for /dashboard/*. Wraps the tree in:
@@ -40,13 +40,21 @@ async function getSignedInState(): Promise<"in" | "out"> {
 }
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const accessibleClients = clerkConfigured ? await listAccessibleClients() : [];
+  // Read viewer identity from headers set by middleware. Admin sees all,
+  // client is scoped to their own slug. Dev fallback ("none") leaves the
+  // sidebar in its open-directory state so scaffolding still works.
+  const h = await headers();
+  const kind = h.get("x-viewer-kind");
+  const viewerKind: "admin" | "client" | "none" =
+    kind === "admin" ? "admin" : kind === "client" ? "client" : "none";
+  const viewerSlug = h.get("x-viewer-client-slug");
+
   const signedInState = await getSignedInState();
 
   const shell = (
     <div className="dashboard-scope min-h-screen bg-background text-foreground">
       <div className="flex min-h-screen">
-        <DashboardSidebar accessibleClientIds={accessibleClients.map((c) => c.id)} />
+        <DashboardSidebar viewerKind={viewerKind} clientSlug={viewerSlug} />
         <div className="flex flex-1 flex-col">
           <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/80 px-6 backdrop-blur">
             <div className="text-sm font-medium text-muted-foreground">mixednuts client dashboard</div>
