@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { signSession, COOKIE_NAME, TTL_SECONDS } from "@/lib/auth-cookie";
 import { resolveRoleByEmail } from "@/lib/role-resolver";
 import { auth } from "@/lib/auth";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 /**
  * Post-OAuth landing page. Fires after Better Auth (Google sign-in) hands
@@ -11,56 +12,86 @@ import { auth } from "@/lib/auth";
  * bridges into our own mn_session cookie — so the rest of the app
  * doesn't have to be Better Auth-aware. The middleware reads only mn_session.
  *
- * Wrapped with defensive error handling because the cross-domain cookie
- * round-trip can land users here with partial auth state, and Next.js's
- * production error page is opaque. On any error we redirect back to /login
- * with a diagnostic query param.
+ * Defensive handling: everything that isn't a Next.js redirect is caught,
+ * logged to stderr, and surfaced to the user via /login?error=bridge:<msg>
+ * so Vercel production never shows the opaque "server error occurred"
+ * generic error page for auth-bridge failures.
  */
 export const dynamic = "force-dynamic";
 
-async function getSessionEmail(): Promise<{ email: string | null; error?: string }> {
+async function runBridge(): Promise<{ redirectTo: string; setCookie?: { name: string; token: string } }> {
+  // 1) Read BA session — has its own try/catch so a DB hiccup becomes a
+  //    redirect-to-login, not a 500.
+  let email: string | null = null;
   try {
-    const hdrs = await headers();
+    const hdrsReadonly = await headers();
+    // Next.js's ReadonlyHeaders is accepted by Better Auth but we
+    // normalise to a mutable Headers just in case a future BA version
+    // tightens the type.
+    const hdrs = new Headers();
+    for (const [k, v] of hdrsReadonly.entries()) hdrs.set(k, v);
     const session = await auth.api.getSession({ headers: hdrs });
-    if (!session) return { email: null, error: "no_session" };
-    const email = session.user?.email ?? null;
-    return { email, error: email ? undefined : "no_email_on_user" };
+    email = session?.user?.email ?? null;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.error("[login/success] Better Auth getSession failed:", msg);
-    return { email: null, error: `ba_error:${msg.slice(0, 80)}` };
+    console.error("[login/success] getSession threw:", msg, e);
+    return { redirectTo: `/login?error=${encodeURIComponent("ba_error:" + msg.slice(0, 80))}` };
   }
-}
-
-export default async function OAuthSuccessPage() {
-  const { email, error } = await getSessionEmail();
 
   if (!email) {
-    // Unauthenticated or BA fetch failed — send user back to /login
-    // with a hint. The user can click Google again from /login to retry.
-    const code = error ?? "oauth_no_email";
-    redirect(`/login?error=${encodeURIComponent(code)}`);
+    return { redirectTo: "/login?error=no_session" };
   }
 
   const role = resolveRoleByEmail(email);
   if (role.kind === "deny") {
-    redirect(`/login?error=not_allowed&email=${encodeURIComponent(role.email)}`);
+    return { redirectTo: `/login?error=not_allowed&email=${encodeURIComponent(role.email)}` };
   }
 
-  const token =
-    role.kind === "admin"
-      ? await signSession({ kind: "admin" })
-      : await signSession({ kind: "client", clientId: role.clientId, slug: role.slug });
+  let token: string;
+  try {
+    token =
+      role.kind === "admin"
+        ? await signSession({ kind: "admin" })
+        : await signSession({ kind: "client", clientId: role.clientId, slug: role.slug });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[login/success] signSession threw:", msg, e);
+    return { redirectTo: `/login?error=${encodeURIComponent("sign_error:" + msg.slice(0, 80))}` };
+  }
 
-  const jar = await cookies();
-  jar.set(COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    maxAge: TTL_SECONDS,
-    path: "/",
-  });
+  return {
+    redirectTo: role.kind === "admin" ? "/dashboard" : `/dashboard/${role.slug}`,
+    setCookie: { name: COOKIE_NAME, token },
+  };
+}
 
-  const redirectTo = role.kind === "admin" ? "/dashboard" : `/dashboard/${role.slug}`;
-  redirect(redirectTo);
+export default async function OAuthSuccessPage() {
+  let plan: Awaited<ReturnType<typeof runBridge>>;
+  try {
+    plan = await runBridge();
+  } catch (e) {
+    if (isRedirectError(e)) throw e;
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[login/success] unhandled:", msg, e);
+    redirect(`/login?error=${encodeURIComponent("bridge:" + msg.slice(0, 80))}`);
+  }
+
+  if (plan.setCookie) {
+    try {
+      const jar = await cookies();
+      jar.set(plan.setCookie.name, plan.setCookie.token, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax",
+        maxAge: TTL_SECONDS,
+        path: "/",
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[login/success] cookie set threw:", msg, e);
+      redirect(`/login?error=${encodeURIComponent("cookie_error:" + msg.slice(0, 80))}`);
+    }
+  }
+
+  redirect(plan.redirectTo);
 }
