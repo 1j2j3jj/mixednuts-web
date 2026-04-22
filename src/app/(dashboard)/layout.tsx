@@ -4,18 +4,16 @@ import { headers } from "next/headers";
 import { ClerkProvider, SignInButton, UserButton } from "@clerk/nextjs";
 
 /**
- * Route group layout for /dashboard/*. Sidebar-less shell (removed
- * 2026-04-22 at CEO request — the Accounts list was chrome clients didn't
- * need, and the admin index at /dashboard already handles cross-tenant
- * navigation). Header carries:
+ * Route group layout for /dashboard/*. Sidebar-less shell. Header carries:
  *   - brand mark
- *   - current client label (from URL slug / viewer header)
  *   - admin-only "Admin index" link (hidden from client viewers)
- *   - sign-in state (when Clerk is configured)
+ *   - Clerk sign-in state (only when CLERK_SECRET_KEY is set — optional
+ *     in the Basic Auth multi-tenant model we actually use)
  *
- * Per-client pages 404 unauthorised viewers — intentional to avoid leaking
- * which clients exist. Middleware (src/middleware.ts) does the first pass
- * via Basic Auth + per-tenant redirect.
+ * Auth: Basic Auth multi-tenant via middleware (src/middleware.ts) is the
+ * primary gate. Clerk is optional; without it we do NOT show a "dev mode"
+ * chip because Basic Auth IS production auth. Per-client pages 404
+ * unauthorised viewers to avoid leaking which clients exist.
  */
 
 export const metadata: Metadata = {
@@ -62,19 +60,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
               Admin index
             </Link>
           )}
-          {clerkConfigured ? (
-            signedInState === "in" ? (
+          {clerkConfigured &&
+            (signedInState === "in" ? (
               <UserButton />
             ) : (
               <SignInButton mode="modal">
                 <button className="text-sm underline">Sign in</button>
               </SignInButton>
-            )
-          ) : (
-            <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
-              dev mode
-            </span>
-          )}
+            ))}
         </div>
       </header>
       <main className="p-6">{children}</main>
