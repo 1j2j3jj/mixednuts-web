@@ -224,6 +224,25 @@ a { color: inherit; }
   transition: all 0.2s;
 }
 .nav-cta:hover { background: #fff; color: var(--charcoal); mix-blend-mode: normal; }
+/* Client login — subtle secondary treatment so it doesn't compete with
+   the Contact CTA. Ghost pill, smaller padding, fades on hover. */
+.nav-links a.nav-login {
+  display: inline-flex; align-items: center;
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+  font-size: 12px; font-weight: 500;
+  letter-spacing: 0.05em;
+  color: #fff;
+  text-decoration: none;
+  margin-left: 8px;
+  transition: all 0.2s;
+}
+.nav-links a.nav-login:hover {
+  opacity: 1;
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
 .dropdown { position: relative; }
 .dropdown-menu {
   position: absolute; top: calc(100% + 4px); left: 0;

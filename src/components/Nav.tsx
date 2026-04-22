@@ -28,6 +28,13 @@ export default function Nav() {
             <li><Link href="/insights">Insights</Link></li>
             <li><Link href="/team">Team</Link></li>
             <li><Link href="/careers">Careers</Link></li>
+            {/* Login + Contact both sit OUTSIDE <li> so the mobile
+                nav-links `li:not(:last-child) { display: none }` rule
+                doesn't hide them. Existing clients click Login to jump
+                to /dashboard; middleware routes unauth → Basic Auth
+                popup, client → own-slug, admin → admin index. Will flip
+                to Google OAuth automatically once Clerk is wired. */}
+            <Link href="/dashboard" className="nav-login">Login</Link>
             <Link href="/contact" className="nav-cta">Contact →</Link>
           </ul>
         </div>
