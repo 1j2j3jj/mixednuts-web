@@ -2,11 +2,25 @@ import "server-only";
 import { google } from "googleapis";
 import { unstable_cache } from "next/cache";
 import type { ClientConfig } from "@/config/clients";
+import type { OAuth2Client, GoogleAuth } from "google-auth-library";
 
 /**
- * GSC source. Real implementation uses the Search Console v1 API via the
- * mixednuts Service Account. Falls back to mock when
- * `GOOGLE_SERVICE_ACCOUNT_JSON` isn't set or the client has no gscSiteUrl.
+ * GSC source. Follows the SA → OAuth fallback rule defined in
+ * `.claude/rules/data-access.md`:
+ *
+ *   1. Try Service Account first (fast, no refresh token management)
+ *   2. On 401/403/404 permission errors, fall back to the shared OAuth
+ *      refresh token — SA is often not added as a siteRestrictedUser on
+ *      customer Search Console properties, while OAuth uses the human
+ *      account that provisioned the GSC access originally.
+ *
+ * Falls back to mock only when neither SA nor OAuth credentials are set,
+ * or both genuinely fail.
+ *
+ * Vercel env contract:
+ *   GOOGLE_SERVICE_ACCOUNT_JSON_BASE64  — SA creds (required for GA4 etc.)
+ *   GOOGLE_OAUTH_TOKEN_JSON_BASE64      — full `_secrets/google-oauth.json`
+ *                                          (client_id/secret/refresh_token)
  */
 
 export interface GscMonth {
@@ -24,6 +38,8 @@ export interface GscQueryRow {
   position: number;
 }
 
+type AuthLike = GoogleAuth | OAuth2Client;
+
 function loadSa(): Record<string, unknown> | null {
   const b64 = process.env.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64;
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
@@ -36,13 +52,73 @@ function loadSa(): Record<string, unknown> | null {
   }
 }
 
-function makeAuth() {
+function makeSaAuth(): GoogleAuth | null {
   const creds = loadSa();
   if (!creds) return null;
   return new google.auth.GoogleAuth({
     credentials: creds,
     scopes: ["https://www.googleapis.com/auth/webmasters.readonly"],
   });
+}
+
+interface OAuthTokenFile {
+  client_id?: string;
+  client_secret?: string;
+  refresh_token?: string;
+  token?: string;
+  installed?: { client_id?: string; client_secret?: string };
+  // google-auth-library authorized_user format may also appear.
+  type?: string;
+}
+
+function loadOauthCreds(): OAuthTokenFile | null {
+  const b64 = process.env.GOOGLE_OAUTH_TOKEN_JSON_BASE64;
+  const raw = process.env.GOOGLE_OAUTH_TOKEN_JSON;
+  const json = b64 ? Buffer.from(b64, "base64").toString("utf8") : raw;
+  if (!json) return null;
+  try {
+    return JSON.parse(json) as OAuthTokenFile;
+  } catch {
+    return null;
+  }
+}
+
+function makeOAuth(): OAuth2Client | null {
+  const creds = loadOauthCreds();
+  if (!creds) return null;
+  const clientId = creds.client_id ?? creds.installed?.client_id;
+  const clientSecret = creds.client_secret ?? creds.installed?.client_secret;
+  const refreshToken = creds.refresh_token;
+  if (!clientId || !clientSecret || !refreshToken) return null;
+  const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
+  oauth2.setCredentials({ refresh_token: refreshToken });
+  return oauth2;
+}
+
+function isPermissionError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as { code?: number; status?: number; response?: { status?: number } };
+  const code = e.code ?? e.status ?? e.response?.status;
+  return code === 401 || code === 403 || code === 404;
+}
+
+/**
+ * Runs a GSC API call with SA first, falling back to OAuth on permission
+ * errors. Throws if both fail — callers catch and revert to mock.
+ */
+async function withAuthFallback<T>(run: (auth: AuthLike) => Promise<T>): Promise<T> {
+  const sa = makeSaAuth();
+  if (sa) {
+    try {
+      return await run(sa);
+    } catch (err) {
+      if (!isPermissionError(err)) throw err;
+      console.warn("[gsc] SA denied, trying OAuth fallback:", (err as Error).message);
+    }
+  }
+  const oauth = makeOAuth();
+  if (!oauth) throw new Error("no-gsc-auth-available");
+  return await run(oauth);
 }
 
 const CACHE_TTL_SECONDS = 300;
@@ -54,21 +130,23 @@ function isoDaysAgo(n: number): string {
 }
 
 async function realMonthly(siteUrl: string): Promise<GscMonth[]> {
-  const auth = makeAuth();
-  if (!auth) throw new Error("no-gsc-auth");
   const sc = google.searchconsole("v1");
   const start = isoDaysAgo(365);
   const end = isoDaysAgo(1);
-  const res = await sc.searchanalytics.query({
-    auth,
-    siteUrl,
-    requestBody: {
-      startDate: start,
-      endDate: end,
-      dimensions: ["date"],
-      rowLimit: 25000,
-    },
-  });
+  const res = await withAuthFallback((auth) =>
+    sc.searchanalytics.query({
+      // googleapis accepts GoogleAuth or OAuth2Client; cast to satisfy the
+      // overload set (first positional parameter type carries `auth`).
+      auth: auth as never,
+      siteUrl,
+      requestBody: {
+        startDate: start,
+        endDate: end,
+        dimensions: ["date"],
+        rowLimit: 25000,
+      },
+    })
+  );
   const map = new Map<string, GscMonth>();
   for (const r of res.data.rows ?? []) {
     const date = (r.keys?.[0] ?? "").slice(0, 10);
@@ -92,21 +170,23 @@ async function realMonthly(siteUrl: string): Promise<GscMonth[]> {
 }
 
 async function realQueries(siteUrl: string): Promise<GscQueryRow[]> {
-  const auth = makeAuth();
-  if (!auth) throw new Error("no-gsc-auth");
   const sc = google.searchconsole("v1");
   const start = isoDaysAgo(28);
   const end = isoDaysAgo(1);
-  const res = await sc.searchanalytics.query({
-    auth,
-    siteUrl,
-    requestBody: {
-      startDate: start,
-      endDate: end,
-      dimensions: ["query"],
-      rowLimit: 50,
-    },
-  });
+  const res = await withAuthFallback((auth) =>
+    sc.searchanalytics.query({
+      // googleapis accepts GoogleAuth or OAuth2Client; cast to satisfy the
+      // overload set (first positional parameter type carries `auth`).
+      auth: auth as never,
+      siteUrl,
+      requestBody: {
+        startDate: start,
+        endDate: end,
+        dimensions: ["query"],
+        rowLimit: 50,
+      },
+    })
+  );
   return (res.data.rows ?? []).map((r) => ({
     query: r.keys?.[0] ?? "",
     clicks: Number(r.clicks ?? 0),
