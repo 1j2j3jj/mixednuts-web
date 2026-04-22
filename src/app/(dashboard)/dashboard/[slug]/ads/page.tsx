@@ -4,6 +4,7 @@ import { getGa4MonthlyChannels, getGa4PaidCampaigns, type Ga4CampaignRow } from 
 import { getTargetsForMonth } from "@/lib/sources/target";
 import { resolveFromSearchParams, type DateRange } from "@/lib/range";
 import MediaTable, { type MediaRow } from "@/components/dashboard/MediaTable";
+import MediaCampaignTable, { type MediaCampaignRow } from "@/components/dashboard/MediaCampaignTable";
 import DailyTrendChart from "@/components/dashboard/DailyTrendChart";
 import RefreshButton from "@/components/dashboard/RefreshButton";
 import PrintButton from "@/components/dashboard/PrintButton";
@@ -117,6 +118,57 @@ export default async function AdsScreen({
   const ga4MediaTot = ga4TotalsByMedia(ga4Campaigns);
   const ga4DailyTot = ga4DailyTotals(ga4Campaigns);
 
+  // GA4 totals per (media, campaign matchKey) — used for the campaign-grain JOIN.
+  // Sheet-side campaignId is the canonical join key for Google; for
+  // Microsoft/Yahoo/meta where the ad-platform id is only surfaced as name
+  // through GA4 auto-tagging, `ga4MatchKey()` (in ga4.ts) already falls back
+  // to the campaignName at build time. Here we just aggregate to (media, key).
+  const ga4CampaignTot = new Map<string, { conversions: number; revenue: number }>();
+  for (const r of ga4Campaigns) {
+    const key = `${r.media}|${r.matchKey}`;
+    const cur = ga4CampaignTot.get(key) ?? { conversions: 0, revenue: 0 };
+    cur.conversions += r.conversions;
+    cur.revenue += r.revenue;
+    ga4CampaignTot.set(key, cur);
+  }
+
+  function byMediaCampaign(list: DailyRow[]): MediaCampaignRow[] {
+    const map = new Map<string, MediaCampaignRow>();
+    for (const r of list) {
+      const key = `${r.media}|${r.campaignId || r.campaignName}`;
+      const c = map.get(key) ?? {
+        media: r.media,
+        campaignId: r.campaignId,
+        campaignName: r.campaignName,
+        spend: 0,
+        impressions: 0,
+        clicks: 0,
+        adsCv: 0,
+        ga4Cv: 0,
+        conversionValue: 0,
+        ga4Revenue: 0,
+      };
+      c.spend += r.cost;
+      c.impressions += r.impressions;
+      c.clicks += r.clicks;
+      c.adsCv += r.conversions;
+      c.conversionValue += r.conversionValue;
+      map.set(key, c);
+    }
+    // JOIN GA4 by (media, campaignId) first; fallback to (media, campaignName)
+    // for non-Google media where GA4 surfaces the id in the name slot.
+    return Array.from(map.values()).map((m) => {
+      const g =
+        ga4CampaignTot.get(`${m.media}|${m.campaignId}`) ??
+        ga4CampaignTot.get(`${m.media}|${m.campaignName}`);
+      return {
+        ...m,
+        ga4Cv: g ? Math.round(g.conversions) : 0,
+        ga4Revenue: g ? g.revenue : 0,
+      };
+    });
+  }
+
   function byMedia(list: DailyRow[]): MediaRow[] {
     const map = new Map<string, MediaRow>();
     for (const r of list) {
@@ -147,6 +199,7 @@ export default async function AdsScreen({
     });
   }
   const mediaRows = byMedia(cur);
+  const mediaCampaignRows = byMediaCampaign(cur);
 
   const tgt = await getTargetsForMonth(client, anchor.slice(0, 7));
 
@@ -283,6 +336,22 @@ export default async function AdsScreen({
           <SourceToggle />
         </div>
         <MediaTable rows={mediaRows} targetRoasPct={tgt.roasPct} source={source} />
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold">媒体別キャンペーンサマリ</h2>
+            <p className="text-xs text-muted-foreground">
+              媒体 × CPN 単位で横比較。ボタンで媒体を絞り込み。KPI は上部の {source === "ga4" ? "GA4" : "媒体"} ソース切替と連動
+            </p>
+          </div>
+        </div>
+        <MediaCampaignTable
+          rows={mediaCampaignRows}
+          targetRoasPct={tgt.roasPct}
+          source={source}
+        />
       </section>
 
       <Card>
