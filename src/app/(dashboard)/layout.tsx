@@ -1,22 +1,21 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { headers } from "next/headers";
 import { ClerkProvider, SignInButton, UserButton } from "@clerk/nextjs";
-import DashboardSidebar from "@/components/dashboard/Sidebar";
 
 /**
- * Route group layout for /dashboard/*. Wraps the tree in:
- *   - ClerkProvider  (auth context)
- *   - .dashboard-scope (scoped shadcn CSS variables; see globals.css)
- *   - DashboardSidebar / header shell
+ * Route group layout for /dashboard/*. Sidebar-less shell (removed
+ * 2026-04-22 at CEO request — the Accounts list was chrome clients didn't
+ * need, and the admin index at /dashboard already handles cross-tenant
+ * navigation). Header carries:
+ *   - brand mark
+ *   - current client label (from URL slug / viewer header)
+ *   - admin-only "Admin index" link (hidden from client viewers)
+ *   - sign-in state (when Clerk is configured)
  *
- * Gating: the sidebar and each page individually call the `access.ts` helpers
- * so a user who is signed in but not on any client allow-list still sees a
- * shell with an empty sidebar (not a 500). Per-client pages 404 unauthorised
- * viewers — intentional to avoid leaking which clients exist.
- *
- * Clerk v7 removed the <SignedIn>/<SignedOut> components; we derive sign-in
- * state server-side via `auth()` instead, which is also faster (no extra
- * client-side hydration for the header).
+ * Per-client pages 404 unauthorised viewers — intentional to avoid leaking
+ * which clients exist. Middleware (src/middleware.ts) does the first pass
+ * via Basic Auth + per-tenant redirect.
  */
 
 export const metadata: Metadata = {
@@ -40,41 +39,45 @@ async function getSignedInState(): Promise<"in" | "out"> {
 }
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  // Read viewer identity from headers set by middleware. Admin sees all,
-  // client is scoped to their own slug. Dev fallback ("none") leaves the
-  // sidebar in its open-directory state so scaffolding still works.
+  // Viewer identity from middleware. Admin sees an "Admin index" affordance;
+  // clients see only brand + their own dashboard (the admin index URL
+  // redirects them away anyway but showing the link would hint at its
+  // existence).
   const h = await headers();
-  const kind = h.get("x-viewer-kind");
-  const viewerKind: "admin" | "client" | "none" =
-    kind === "admin" ? "admin" : kind === "client" ? "client" : "none";
-  const viewerSlug = h.get("x-viewer-client-slug");
+  const viewerKind = h.get("x-viewer-kind"); // "admin" | "client" | null
 
   const signedInState = await getSignedInState();
 
   const shell = (
     <div className="dashboard-scope min-h-screen bg-background text-foreground">
-      <div className="flex min-h-screen">
-        <DashboardSidebar viewerKind={viewerKind} clientSlug={viewerSlug} />
-        <div className="flex flex-1 flex-col">
-          <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/80 px-6 backdrop-blur">
-            <div className="text-sm font-medium text-muted-foreground">mixednuts client dashboard</div>
-            {clerkConfigured ? (
-              signedInState === "in" ? (
-                <UserButton />
-              ) : (
-                <SignInButton mode="modal">
-                  <button className="text-sm underline">Sign in</button>
-                </SignInButton>
-              )
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/80 px-6 backdrop-blur">
+        <Link href="/" className="flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-mark.png" alt="mixednuts Inc." className="h-6 w-auto" />
+          <span className="text-sm font-semibold tracking-tight">mixednuts</span>
+        </Link>
+        <div className="flex items-center gap-4">
+          {viewerKind === "admin" && (
+            <Link href="/dashboard" className="text-xs text-muted-foreground hover:underline">
+              Admin index
+            </Link>
+          )}
+          {clerkConfigured ? (
+            signedInState === "in" ? (
+              <UserButton />
             ) : (
-              <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
-                Clerk not configured (dev mode)
-              </span>
-            )}
-          </header>
-          <main className="flex-1 p-6">{children}</main>
+              <SignInButton mode="modal">
+                <button className="text-sm underline">Sign in</button>
+              </SignInButton>
+            )
+          ) : (
+            <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+              dev mode
+            </span>
+          )}
         </div>
-      </div>
+      </header>
+      <main className="p-6">{children}</main>
     </div>
   );
 
