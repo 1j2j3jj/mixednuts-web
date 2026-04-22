@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 import { verifyCredentials, anyCredentialConfigured } from "@/lib/credentials";
 import { verifySession, COOKIE_NAME } from "@/lib/auth-cookie";
 
@@ -29,7 +29,6 @@ import { verifySession, COOKIE_NAME } from "@/lib/auth-cookie";
  */
 
 const REALM = 'Basic realm="mixednuts-web"';
-const isProtectedRoute = createRouteMatcher(["/dashboard(.*)"]);
 
 type Auth =
   | { kind: "admin" }
@@ -84,11 +83,16 @@ function passThrough(request: NextRequest, auth: Auth): NextResponse {
 
 function isExemptPath(pathname: string): boolean {
   // Always open — clients need these to reach a login form without
-  // first satisfying Basic Auth.
+  // first satisfying Basic Auth. Also the Clerk OAuth callback path
+  // (/login/success) must be reachable before our cookie exists, and
+  // Clerk's own sign-in / sign-up pages must be accessible for the
+  // Google OAuth round trip.
   return (
     pathname === "/login" ||
     pathname.startsWith("/login/") ||
     pathname.startsWith("/api/auth/") ||
+    pathname.startsWith("/sign-in") ||
+    pathname.startsWith("/sign-up") ||
     pathname === "/favicon.ico" ||
     pathname === "/robots.txt"
   );
@@ -147,16 +151,14 @@ async function checkAuth(request: NextRequest): Promise<NextResponse> {
 const clerkConfigured = Boolean(process.env.CLERK_SECRET_KEY);
 
 const middleware = clerkConfigured
-  ? clerkMiddleware(async (auth, req) => {
-      const authResponse = await checkAuth(req);
-      // If auth blocked (401) or redirected, skip Clerk.
-      if (authResponse.status === 401 || authResponse.headers.get("location")) {
-        return authResponse;
-      }
-      if (isProtectedRoute(req)) {
-        await auth.protect();
-      }
-      return authResponse;
+  ? clerkMiddleware(async (_auth, req) => {
+      // Clerk wrapping is ONLY to make `auth()` / `currentUser()`
+      // available to server components that need the Clerk identity
+      // (e.g. /login/success). We do not call auth.protect() — our
+      // own cookie+Basic-Auth middleware is the actual gate. This
+      // lets clients who haven't set up Clerk still reach everything
+      // via cookie or Basic Auth.
+      return checkAuth(req);
     })
   : async (req: NextRequest) => checkAuth(req);
 
