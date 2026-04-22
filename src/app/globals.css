@@ -212,14 +212,14 @@ a { color: inherit; }
 }
 .nav-links a:hover { opacity: 0.55; }
 .nav-cta {
-  display: inline-flex; align-items: center; gap: 8px;
+  display: inline-flex; align-items: center; gap: 10px;
   color: #fff;
-  padding: 11px 26px;
+  padding: 13px 32px;
   border: 1px solid #fff;
   border-radius: 999px;
   text-decoration: none;
   font-weight: 600; font-size: 13px;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
   margin-left: 16px;
   transition: all 0.2s;
 }
