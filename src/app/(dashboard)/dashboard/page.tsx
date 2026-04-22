@@ -12,11 +12,19 @@ import { Badge } from "@/components/ui/badge";
 export default function DashboardIndex() {
   return (
     <div className="mx-auto w-full max-w-5xl">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Admin Index</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          内部専用。クライアントには /dashboard/[slug] の URL のみを共有。
-        </p>
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Admin Index</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            内部専用。クライアントには /dashboard/[slug] の URL のみを共有。
+          </p>
+        </div>
+        <Link
+          href="/dashboard/admin"
+          className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium hover:bg-neutral-50"
+        >
+          管理パネル →
+        </Link>
       </header>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {CLIENT_IDS.map((id) => {
