@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import LoginForm from "./LoginForm";
 
 export const metadata: Metadata = {
@@ -6,20 +7,15 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-/**
- * Public login page — exempt from Basic Auth via middleware matcher.
- * Lets existing clients log in with their per-client credentials without
- * seeing the browser's native Basic Auth popup. Admin can also log in
- * here instead of triggering the popup on the marketing site.
- *
- * Future: "Continue with Google" button will appear here once Clerk /
- * Google OAuth is wired. Internal users (mixednuts staff) will use OAuth;
- * external clients will keep the ID/PW form.
- */
+// LoginForm uses useSearchParams (reads `?next=`) which requires a
+// Suspense boundary when the page is statically rendered. The boundary
+// also keeps the static shell displayable while the form's JS hydrates.
 export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-neutral-50 p-4">
-      <LoginForm />
+      <Suspense fallback={<div className="text-sm text-neutral-500">Loading…</div>}>
+        <LoginForm />
+      </Suspense>
     </div>
   );
 }
