@@ -10,35 +10,46 @@ import { resolveRoleByEmail } from "@/lib/role-resolver";
  * bridges into our own mn_session cookie — so the rest of the app
  * doesn't have to be Clerk-aware.
  *
- * When Clerk is not configured, or Clerk says no user, we fall through
- * to /login?error=oauth.
+ * Wrapped with defensive error handling because cross-origin Clerk
+ * session transfer can land users here with partial auth state, and
+ * Next.js's production error page is opaque. On any error we redirect
+ * back to /login with a diagnostic query param.
  */
 export const dynamic = "force-dynamic";
 
-async function getClerkEmail(): Promise<string | null> {
-  if (!process.env.CLERK_SECRET_KEY) return null;
+async function getClerkEmail(): Promise<{ email: string | null; error?: string }> {
+  if (!process.env.CLERK_SECRET_KEY) return { email: null, error: "clerk_not_configured" };
   try {
-    const { currentUser } = await import("@clerk/nextjs/server");
-    const u = await currentUser();
-    return u?.primaryEmailAddress?.emailAddress ?? u?.emailAddresses?.[0]?.emailAddress ?? null;
-  } catch {
-    return null;
+    const mod = await import("@clerk/nextjs/server");
+    const u = await mod.currentUser();
+    if (!u) return { email: null, error: "no_session" };
+    const email =
+      u.primaryEmailAddress?.emailAddress ?? u.emailAddresses?.[0]?.emailAddress ?? null;
+    return { email, error: email ? undefined : "no_email_on_user" };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[login/success] Clerk currentUser() failed:", msg);
+    return { email: null, error: `clerk_error:${msg.slice(0, 80)}` };
   }
 }
 
 export default async function OAuthSuccessPage() {
-  const email = await getClerkEmail();
-  if (!email) redirect("/login?error=oauth_no_email");
+  const { email, error } = await getClerkEmail();
+
+  if (!email) {
+    // Unauthenticated or Clerk fetch failed — send user back to /login
+    // with a hint. Clerk's cross-domain session transfer sometimes
+    // doesn't land here on the first hit; the user can click Google
+    // again from /login to retry.
+    const code = error ?? "oauth_no_email";
+    redirect(`/login?error=${encodeURIComponent(code)}`);
+  }
 
   const role = resolveRoleByEmail(email);
   if (role.kind === "deny") {
-    // Don't throw — show a friendly page via query param so the user
-    // lands back on /login with context.
     redirect(`/login?error=not_allowed&email=${encodeURIComponent(role.email)}`);
   }
 
-  // Set our HttpOnly session cookie. Same session shape as ID/PW login
-  // so middleware treats both identically from here on.
   const token =
     role.kind === "admin"
       ? await signSession({ kind: "admin" })
@@ -53,7 +64,6 @@ export default async function OAuthSuccessPage() {
     path: "/",
   });
 
-  const redirectTo =
-    role.kind === "admin" ? "/dashboard" : `/dashboard/${role.slug}`;
+  const redirectTo = role.kind === "admin" ? "/dashboard" : `/dashboard/${role.slug}`;
   redirect(redirectTo);
 }
