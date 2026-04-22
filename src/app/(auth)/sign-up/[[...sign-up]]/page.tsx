@@ -1,28 +1,16 @@
-import { SignUp } from "@clerk/nextjs";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { clerkAccountPortalHost } from "@/lib/clerk-url";
 
 export const dynamic = "force-dynamic";
 
-/**
- * Clerk's sign-up page. We don't actively promote self sign-up
- * (access is gated via email allowlist in /login/success), but the
- * page exists so Clerk's flows that redirect here work without a 404.
- * Users who sign up with an un-allowlisted email see our friendly
- * denial banner on /login after Clerk hands control back.
- */
+/** Mirror of /sign-in — redirects to Clerk's hosted Account Portal.
+ *  Self sign-up isn't promoted in our UI, but Clerk's flows may route
+ *  users here after e.g. email-link verification; keeping the same
+ *  Portal redirect keeps the experience consistent. */
 export default function SignUpPage() {
-  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) notFound();
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-50 p-4">
-      <SignUp
-        appearance={{
-          elements: {
-            rootBox: "shadow-none",
-          },
-        }}
-        fallbackRedirectUrl="/login/success"
-        signInUrl="/sign-in"
-      />
-    </div>
-  );
+  const host = clerkAccountPortalHost();
+  if (!host) notFound();
+  const url = new URL(`https://${host}/sign-up`);
+  url.searchParams.set("redirect_url", "https://www.mixednuts-inc.com/login/success");
+  redirect(url.toString());
 }
