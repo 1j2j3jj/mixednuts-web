@@ -33,7 +33,7 @@ export default function Nav() {
                 doesn't hide them. Existing clients click Login to jump
                 to the custom /login page (Basic Auth exempt) where they
                 enter ID/PW and get a session cookie. Google OAuth
-                button appears on the same page once Clerk is wired. */}
+                button on the same page is wired via Better Auth. */}
             <Link href="/login" className="nav-login">Login</Link>
             <Link href="/contact" className="nav-cta">Contact →</Link>
           </ul>

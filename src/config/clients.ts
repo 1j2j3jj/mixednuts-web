@@ -5,10 +5,11 @@
  * where `slug` is a short opaque string. Real client names never appear in
  * URLs or default UI chrome.
  *
- * Access control: `assertUserCanAccessClient(clientId)` in each page checks
- * the authenticated Clerk user against `allowedUserIds` / `allowedEmailDomains`.
- * 404 (not 403) on deny, to avoid leaking which clients exist. Admin users
- * (INTERNAL_ADMIN_USER_IDS) bypass per-client allow lists.
+ * Access control: middleware + assertUserCanAccessClientBySlug() in
+ * src/lib/access.ts gate every page. Identity arrives via mn_session
+ * cookie (set by either ID/PW form or the Better Auth → mn_session
+ * bridge at /login/success) or by Basic Auth (legacy fallback).
+ * notFound() (not 403) on deny, to avoid leaking which clients exist.
  */
 
 export type ClientId = "hs" | "chakin" | "dozo" | "msec" | "ogc" | "ogp";
@@ -64,7 +65,9 @@ export interface ClientConfig {
 }
 
 export const INTERNAL_ADMIN_USER_IDS: string[] = [
-  // e.g. "user_2abcDEF..." (Nozomi / Ishii). Populate once Clerk is live.
+  // Reserved for future per-user admin override list. Currently empty —
+  // admin status is decided at sign-in time via env ADMIN_EMAILS (see
+  // src/lib/role-resolver.ts).
 ];
 
 /**

@@ -236,8 +236,12 @@ export default async function AdminPanelPage() {
             >
               Vercel Settings
             </a>
-            で該当 env を編集 → 保存すれば即時反映（Redeploy 不要）。Phase 3 で
-            Clerk ユーザー管理 / DB ベースの招待フローに移行予定。
+            で該当 env を編集 → 保存すれば即時反映（Redeploy 不要）。Better Auth
+            の Organization 招待フローへの移行は{" "}
+            <Link href="/dashboard/admin/invites" className="underline">
+              /dashboard/admin/invites
+            </Link>{" "}
+            から段階的に。
           </div>
         </CardContent>
       </Card>

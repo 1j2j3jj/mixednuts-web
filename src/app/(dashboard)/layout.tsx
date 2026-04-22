@@ -5,13 +5,12 @@ import { headers } from "next/headers";
 /**
  * Route group layout for /dashboard/*. Sidebar-less shell.
  *
- * Auth model (post-Clerk cleanup): Basic Auth / cookie session via
- * middleware (src/middleware.ts) is the sole gate. Clerk's role is
- * reduced to a hosted OAuth detour (Account Portal); after sign-in
- * Clerk redirects to /login/success which bridges into our HttpOnly
- * mn_session cookie. No Clerk React components are mounted here, so
- * no ClerkProvider / SignInButton / UserButton — the header only
- * carries our brand mark, Admin-index link (admin only), and Logout.
+ * Auth model: Basic Auth / cookie session via middleware
+ * (src/middleware.ts) is the sole gate. Better Auth runs the Google
+ * OAuth round-trip; after sign-in /login/success bridges the BA
+ * session into our HttpOnly mn_session cookie. No BA React components
+ * are mounted here — the header only carries our brand mark, Admin-
+ * index link (admin only), and Logout.
  */
 
 export const metadata: Metadata = {

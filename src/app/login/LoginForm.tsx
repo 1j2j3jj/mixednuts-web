@@ -3,34 +3,44 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { signIn } from "@/lib/auth-client";
 
 /**
- * Client-side login form. POSTs to /api/auth/login which sets an
- * HttpOnly session cookie and returns a redirect target (admin →
- * /dashboard, client → /dashboard/<own-slug>).
+ * Client-side login form. Two paths:
  *
- * When NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is set, renders a "Continue
- * with Google" button that kicks off Clerk's OAuth flow. The post-OAuth
- * bridge lives at /login/success which maps the verified email to a
- * role and sets the same mn_session cookie as the ID/PW path.
+ *  1) ID/PW (legacy CLIENT_AUTH_<ID> env-based) — POSTs to /api/auth/login
+ *     which sets the mn_session cookie directly. Used by HS today.
+ *
+ *  2) Google OAuth (Better Auth) — calls authClient.signIn.social() which
+ *     redirects to Google, comes back to /api/auth/callback/google
+ *     (Better Auth handler), then to /login/success which reads the BA
+ *     session, maps the email to a role, and sets mn_session.
+ *
+ * Once Chakin/DOZO move to invitation flow (Better Auth Email/PW in DB
+ * instead of CLIENT_AUTH_<ID> env), the ID/PW form below will route to
+ * authClient.signIn.email() instead. Keeping both for now to avoid
+ * breaking HS.
  */
 export default function LoginForm() {
   const sp = useSearchParams();
   const redirectParam = sp.get("next");
   const oauthError = sp.get("error");
   const deniedEmail = sp.get("email");
-  const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+  const googleEnabled = Boolean(process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED);
 
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
   const [error, setError] = useState<string | null>(
     oauthError === "not_allowed"
       ? `Google アカウント${deniedEmail ? `(${deniedEmail})` : ""} はこのダッシュボードへのアクセス権限がありません。ID/PW でログインするか、管理者にお問い合わせください。`
-      : oauthError === "oauth_no_email"
+      : oauthError === "oauth_no_email" || oauthError === "no_session"
       ? "Google ログインが完了しませんでした。再試行してください。"
+      : oauthError?.startsWith("ba_error:")
+      ? "認証サーバーでエラーが発生しました。時間を置いて再試行してください。"
       : null
   );
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -55,6 +65,25 @@ export default function LoginForm() {
     } catch {
       setError("通信エラーが発生しました。しばらくしてから再度お試しください。");
       setLoading(false);
+    }
+  }
+
+  async function onGoogle() {
+    setError(null);
+    setOauthLoading(true);
+    try {
+      // Better Auth redirects to Google, then to /api/auth/callback/google,
+      // then to callbackURL. /login/success reads the BA session and bridges
+      // it into our mn_session cookie.
+      await signIn.social({
+        provider: "google",
+        callbackURL: "/login/success",
+        errorCallbackURL: "/login?error=oauth_no_email",
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(`Google サインインに失敗しました: ${msg}`);
+      setOauthLoading(false);
     }
   }
 
@@ -129,28 +158,30 @@ export default function LoginForm() {
           {loading ? "サインイン中…" : "サインイン"}
         </button>
 
-        {/* OAuth section — real button when Clerk keys are live, disabled
-            stub otherwise. Clerk handles the Google dance and redirects
-            to /login/success which maps the email to a role and sets
-            our HttpOnly session cookie (same path as ID/PW login). */}
+        {/* OAuth section — Better Auth signIn.social() handles the Google
+            round-trip; the post-OAuth bridge at /login/success maps the
+            verified email to a role and sets the same mn_session cookie
+            as the ID/PW path. */}
         <div className="flex items-center gap-2 pt-2 text-xs text-neutral-400">
           <div className="h-px flex-1 bg-neutral-200" />
           <span>または</span>
           <div className="h-px flex-1 bg-neutral-200" />
         </div>
-        {clerkEnabled ? (
-          <a
-            href="/sign-in?redirect_url=%2Flogin%2Fsuccess"
-            className="flex w-full items-center justify-center gap-2 rounded-md border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-50"
+        {googleEnabled ? (
+          <button
+            type="button"
+            onClick={onGoogle}
+            disabled={oauthLoading}
+            className="flex w-full items-center justify-center gap-2 rounded-md border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <GoogleIcon />
-            Google でサインイン
-          </a>
+            {oauthLoading ? "リダイレクト中…" : "Google でサインイン"}
+          </button>
         ) : (
           <button
             type="button"
             disabled
-            title="準備中 — Clerk の環境変数を設定すると有効化されます"
+            title="準備中 — Google OAuth Client ID/Secret を設定すると有効化されます"
             className="flex w-full items-center justify-center gap-2 rounded-md border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-400 disabled:cursor-not-allowed"
           >
             <GoogleIcon />

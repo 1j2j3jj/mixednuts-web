@@ -4,7 +4,7 @@ import { CLIENTS, CLIENT_IDS } from "@/config/clients";
 /**
  * Google OAuth → internal role mapping.
  *
- * Ownership model (Phase 2, with Clerk):
+ * Ownership model:
  *   - Admin  — email in env ADMIN_EMAILS (comma-separated list).
  *   - Client — email → clientId lookup via env CLIENT_EMAILS_<ID>=(list).
  *              A single OAuth identity can belong to exactly one client
@@ -13,10 +13,11 @@ import { CLIENTS, CLIENT_IDS } from "@/config/clients";
  *   - Deny   — email not recognised. Login page shows "access denied,
  *              contact admin" with a support link.
  *
- * This resolver is Clerk-agnostic; Clerk's role here is only to verify
- * "does this Google identity really own this email". The mapping to
- * our tenant model stays in our code so role changes don't require
- * redeploying Clerk metadata.
+ * Better Auth verifies the Google identity owns the email; this
+ * resolver maps the verified email to our tenant model. Future:
+ * once invitation flow (Better Auth Organization plugin) is live for
+ * Chakin etc., the env-based CLIENT_EMAILS_<ID> lookup will be
+ * superseded by a DB-backed `member` table query.
  */
 
 export type RoleResolution =

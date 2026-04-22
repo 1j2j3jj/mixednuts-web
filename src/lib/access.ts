@@ -20,12 +20,10 @@ import {
  *   none   → dev fallback (no credential env configured); allow so
  *            local scaffolding works.
  *
- * Historical note: an earlier Clerk-only implementation called `auth()`
- * from @clerk/nextjs here and notFound()'d any viewer not signed in
- * to Clerk. That broke every Basic-Auth / cookie session once Clerk
- * keys were added to env (Clerk session was absent → 404). Fixed by
- * moving the identity read to the middleware headers, which reflect
- * whichever auth succeeded.
+ * Identity origin: middleware accepts mn_session (cookie set by ID/PW
+ * login or by the Better Auth → mn_session bridge at /login/success)
+ * or Basic Auth as a legacy fallback. Whichever authenticates first
+ * is reflected in the x-viewer-* headers we read here.
  */
 
 async function viewer(): Promise<{ kind: "admin" | "client" | "none"; slug?: string }> {

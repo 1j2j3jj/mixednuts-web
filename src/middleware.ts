@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clerkMiddleware } from "@clerk/nextjs/server";
 import { verifyCredentials, anyCredentialConfigured } from "@/lib/credentials";
 import { verifySession, COOKIE_NAME } from "@/lib/auth-cookie";
 
@@ -7,12 +6,14 @@ import { verifySession, COOKIE_NAME } from "@/lib/auth-cookie";
  * Auth stack (applied in order):
  *
  *   1) Exempt routes — /login page and /api/auth/* are always open so
- *      clients can sign in without first presenting Basic Auth.
+ *      clients can sign in without first presenting Basic Auth. The
+ *      Better Auth handler also lives under /api/auth/* and needs to
+ *      reach social callbacks unauthenticated.
  *
- *   2) Session cookie (mn_session) — signed JSON set by the custom
- *      /login form. HttpOnly, Secure, 7-day expiry. Preferred when
- *      present; lets clients browse dashboards without a Basic Auth
- *      popup (popups are UX-hostile).
+ *   2) Session cookie (mn_session) — signed JSON set by /api/auth/login
+ *      (ID/PW) and /login/success (post-OAuth bridge). HttpOnly, Secure,
+ *      7-day expiry. Preferred when present; lets clients browse
+ *      dashboards without a Basic Auth popup.
  *
  *   3) Basic Auth — legacy fallback. Admin creds (BASIC_AUTH_USER/_PASSWORD)
  *      and per-client creds (CLIENT_AUTH_<ID>=user:pass) still accepted
@@ -26,6 +27,12 @@ import { verifySession, COOKIE_NAME } from "@/lib/auth-cookie";
  * Viewer kind is forwarded to the app via request headers
  * (`x-viewer-kind`, `x-viewer-client-slug`) so layouts/pages can hide
  * admin-only chrome without re-running auth logic.
+ *
+ * Better Auth note: the BA session lives in its own cookie
+ * (`better-auth.session_token`) and is read by /login/success to map
+ * the verified OAuth email to a role + set our mn_session. The
+ * middleware itself never reads BA's cookie — we keep mn_session as
+ * the single source of truth for tenant gating.
  */
 
 const REALM = 'Basic realm="mixednuts-web"';
@@ -83,16 +90,13 @@ function passThrough(request: NextRequest, auth: Auth): NextResponse {
 
 function isExemptPath(pathname: string): boolean {
   // Always open — clients need these to reach a login form without
-  // first satisfying Basic Auth. Also the Clerk OAuth callback path
-  // (/login/success) must be reachable before our cookie exists, and
-  // Clerk's own sign-in / sign-up pages must be accessible for the
-  // Google OAuth round trip.
+  // first satisfying Basic Auth. Better Auth's social OAuth callback
+  // and the post-OAuth bridge at /login/success must be reachable
+  // before our cookie exists.
   return (
     pathname === "/login" ||
     pathname.startsWith("/login/") ||
     pathname.startsWith("/api/auth/") ||
-    pathname.startsWith("/sign-in") ||
-    pathname.startsWith("/sign-up") ||
     pathname === "/favicon.ico" ||
     pathname === "/robots.txt"
   );
@@ -145,24 +149,9 @@ async function checkAuth(request: NextRequest): Promise<NextResponse> {
   return NextResponse.redirect(url);
 }
 
-// When Clerk is not configured (no CLERK_SECRET_KEY at build/runtime), the
-// Clerk wrapper would throw. Fall back to Basic-Auth-only middleware in that
-// case so scaffolding works before keys are provisioned.
-const clerkConfigured = Boolean(process.env.CLERK_SECRET_KEY);
-
-const middleware = clerkConfigured
-  ? clerkMiddleware(async (_auth, req) => {
-      // Clerk wrapping is ONLY to make `auth()` / `currentUser()`
-      // available to server components that need the Clerk identity
-      // (e.g. /login/success). We do not call auth.protect() — our
-      // own cookie+Basic-Auth middleware is the actual gate. This
-      // lets clients who haven't set up Clerk still reach everything
-      // via cookie or Basic Auth.
-      return checkAuth(req);
-    })
-  : async (req: NextRequest) => checkAuth(req);
-
-export default middleware;
+export default async function middleware(req: NextRequest): Promise<NextResponse> {
+  return checkAuth(req);
+}
 
 export const config = {
   matcher: [

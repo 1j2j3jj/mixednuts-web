@@ -4,10 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 
 /**
- * Admin index. Intentionally NOT gated to non-admins in Phase 1 sample — in
- * Phase 2 this will be restricted to Clerk users in INTERNAL_ADMIN_USER_IDS.
- * For now it lists every configured client by name so the CEO can click
- * through to their slug-based URL.
+ * Admin index. Middleware already redirects non-admin viewers (cookie /
+ * Basic Auth client tier) to their own /dashboard/<slug>, so the page
+ * itself doesn't need an extra gate. Lists every configured client by
+ * name so the CEO can click through to the slug-based URL.
  */
 export default function DashboardIndex() {
   return (
