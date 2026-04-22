@@ -18,6 +18,7 @@ import PacingAlert from "@/components/dashboard/PacingAlert";
 import DeviceBar from "@/components/dashboard/DeviceBar";
 import RefreshButton from "@/components/dashboard/RefreshButton";
 import PrintButton from "@/components/dashboard/PrintButton";
+import MockBanner from "@/components/dashboard/MockBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
@@ -171,6 +172,7 @@ export default async function Overview({
 
   return (
     <div className="space-y-6">
+      <MockBanner isMock={isMock} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">Overview</div>
@@ -185,10 +187,7 @@ export default async function Overview({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-xs text-muted-foreground">
-            最終取得 {fetchedAtLabel}
-            {isMock && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-amber-800">MOCK</span>}
-          </div>
+          <div className="text-xs text-muted-foreground">最終取得 {fetchedAtLabel}</div>
           <PrintButton />
           <RefreshButton clientId={client.id} />
         </div>

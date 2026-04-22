@@ -51,7 +51,9 @@ export default function BigKpiCard({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-semibold tracking-tight">{value}</div>
+        <div className="text-xl font-semibold tracking-tight tabular-nums md:text-2xl">
+          {value}
+        </div>
         {sparkline && sparkline.length > 1 && (
           <div className="mt-2">
             <Sparkline

@@ -25,15 +25,26 @@ const GRAN: Array<{ key: Granularity; label: string }> = [
   { key: "week", label: "週" },
 ];
 
+// Kept in sync with ChannelStackedBar — same hues, same stack order.
 const CHANNEL_COLOURS: Record<ChannelGroup, string> = {
-  "Paid Search": "var(--chart-1)",
-  "Paid Social": "var(--chart-2)",
-  "Organic Search": "var(--chart-3)",
-  Direct: "var(--chart-4)",
-  Referral: "var(--chart-5)",
-  Email: "#9b8cff",
-  Other: "#cbd5e1",
+  "Paid Search": "#2563eb",
+  "Paid Social": "#f97316",
+  "Organic Search": "#16a34a",
+  Direct: "#8b5cf6",
+  Referral: "#0891b2",
+  Email: "#ec4899",
+  Other: "#94a3b8",
 };
+
+const CHANNEL_ORDER: ChannelGroup[] = [
+  "Paid Search",
+  "Paid Social",
+  "Organic Search",
+  "Direct",
+  "Referral",
+  "Email",
+  "Other",
+];
 
 /** Monday-start week bucket. "2026-04-22" (Wed) → "2026-04-20" (Mon). */
 function weekBucket(iso: string): string {
@@ -63,7 +74,8 @@ export default function ChannelTrendChart({
   const wide = Array.from(byBucket.values()).sort((a, b) =>
     String(a.bucket).localeCompare(String(b.bucket))
   );
-  const channels = Array.from(new Set(data.map((r) => r.channel)));
+  const presentChannels = new Set(data.map((r) => r.channel));
+  const channels = CHANNEL_ORDER.filter((c) => presentChannels.has(c));
 
   const yTickFormat =
     metric === "revenue"

@@ -7,8 +7,8 @@ import MediaTable, { type MediaRow } from "@/components/dashboard/MediaTable";
 import DailyTrendChart from "@/components/dashboard/DailyTrendChart";
 import RefreshButton from "@/components/dashboard/RefreshButton";
 import PrintButton from "@/components/dashboard/PrintButton";
+import MockBanner from "@/components/dashboard/MockBanner";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
-import FunnelChart from "@/components/dashboard/FunnelChart";
 import SourceToggle from "@/components/dashboard/SourceToggle";
 import { readSource } from "@/lib/source";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -168,23 +168,6 @@ export default async function AdsScreen({
     return d.cost > 0 ? (rev / d.cost) * 100 : 0;
   });
 
-  // Funnel respects the source toggle. Impressions/Clicks always come from
-  // the ad platform (GA4 has no ad-side impression metric); CV and Revenue
-  // switch per toggle so the Funnel lines up with the Big KPI cards.
-  const funnelStages: Array<{ label: string; value: number; format?: "int" | "jpy" }> = [
-    { label: "Impressions", value: curTotals.impressions },
-    { label: "Clicks", value: curTotals.clicks },
-    {
-      label: source === "ga4" ? "GA4 CV" : "媒体CV",
-      value: source === "ga4" ? curGa4.conversions : curTotals.conversions,
-    },
-    {
-      label: source === "ga4" ? "GA4 売上" : "媒体売上",
-      value: source === "ga4" ? curGa4.revenue : curTotals.conversionValue,
-      format: "jpy",
-    },
-  ];
-
   const fetchedAtLabel = new Date(fetchedAt).toLocaleTimeString("ja-JP", {
     hour: "2-digit",
     minute: "2-digit",
@@ -192,6 +175,7 @@ export default async function AdsScreen({
 
   return (
     <div className="space-y-6">
+      <MockBanner isMock={isMock} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">Ads</div>
@@ -206,10 +190,7 @@ export default async function AdsScreen({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-xs text-muted-foreground">
-            最終取得 {fetchedAtLabel}
-            {isMock && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-amber-800">MOCK</span>}
-          </div>
+          <div className="text-xs text-muted-foreground">最終取得 {fetchedAtLabel}</div>
           <PrintButton />
           <RefreshButton clientId={client.id} />
         </div>
@@ -304,24 +285,14 @@ export default async function AdsScreen({
         <MediaTable rows={mediaRows} targetRoasPct={tgt.roasPct} source={source} />
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">ファネル（Imp → Click → CV → 売上）</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FunnelChart stages={funnelStages} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">日次推移（Spend / CV）</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DailyTrendChart data={series} />
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">日次推移（Spend / 媒体CV / 媒体CPA）</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DailyTrendChart data={series} />
+        </CardContent>
+      </Card>
 
     </div>
   );

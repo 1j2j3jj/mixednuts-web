@@ -19,15 +19,34 @@ const METRICS: Array<{ key: Metric; label: string }> = [
   { key: "signUps", label: "会員登録" },
 ];
 
+/**
+ * Hand-picked hue palette. `--chart-1..5` are all blue-cyan variants, so
+ * using them here made Paid Search and Paid Social nearly identical.
+ * Replaced with 7 distinct hues (blue / orange / green / violet / teal /
+ * pink / gray) and locked to a fixed channel→color map so the Legend does
+ * not reshuffle when the data changes date range.
+ */
 const CHANNEL_COLOURS: Record<ChannelGroup, string> = {
-  "Paid Search": "var(--chart-1)",
-  "Paid Social": "var(--chart-2)",
-  "Organic Search": "var(--chart-3)",
-  Direct: "var(--chart-4)",
-  Referral: "var(--chart-5)",
-  Email: "#9b8cff",
-  Other: "#cbd5e1",
+  "Paid Search": "#2563eb",      // blue-600
+  "Paid Social": "#f97316",      // orange-500
+  "Organic Search": "#16a34a",   // green-600
+  Direct: "#8b5cf6",             // violet-500
+  Referral: "#0891b2",           // cyan-600
+  Email: "#ec4899",              // pink-500
+  Other: "#94a3b8",              // slate-400
 };
+
+// Fixed channel order for stack + legend so rearranging the data's insertion
+// order does not shuffle the visual stack.
+const CHANNEL_ORDER: ChannelGroup[] = [
+  "Paid Search",
+  "Paid Social",
+  "Organic Search",
+  "Direct",
+  "Referral",
+  "Email",
+  "Other",
+];
 
 export default function ChannelStackedBar({ data, defaultMetric = "sessions" }: Props) {
   const [metric, setMetric] = useState<Metric>(defaultMetric);
@@ -41,7 +60,11 @@ export default function ChannelStackedBar({ data, defaultMetric = "sessions" }: 
   const wide = Array.from(byMonth.values()).sort((a, b) =>
     String(a.yearMonth).localeCompare(String(b.yearMonth))
   );
-  const channels = Array.from(new Set(data.map((r) => r.channel)));
+  // Use the fixed canonical order and filter to channels actually present
+  // in the data. This means the bar stack never reshuffles when date range
+  // changes — Paid Search is always on the bottom, Other always on top.
+  const presentChannels = new Set(data.map((r) => r.channel));
+  const channels = CHANNEL_ORDER.filter((c) => presentChannels.has(c));
 
   const yTickFormat =
     metric === "revenue"

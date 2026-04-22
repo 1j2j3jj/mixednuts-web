@@ -17,6 +17,7 @@ import RefreshButton from "@/components/dashboard/RefreshButton";
 import PrintButton from "@/components/dashboard/PrintButton";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
 import FunnelChart from "@/components/dashboard/FunnelChart";
+import MockBanner from "@/components/dashboard/MockBanner";
 import DailyTrendChart from "@/components/dashboard/DailyTrendChart";
 import SourceToggle from "@/components/dashboard/SourceToggle";
 import { readSource } from "@/lib/source";
@@ -398,6 +399,7 @@ export default async function DrillScreen({
 
   return (
     <div className="space-y-6">
+      <MockBanner isMock={isMock} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">Drilldown</div>
@@ -407,10 +409,7 @@ export default async function DrillScreen({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-xs text-muted-foreground">
-            最終取得 {fetchedAtLabel}
-            {isMock && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-amber-800">MOCK</span>}
-          </div>
+          <div className="text-xs text-muted-foreground">最終取得 {fetchedAtLabel}</div>
           <CsvExportButton
             filename={`drill-${slug}-${new Date().toISOString().slice(0, 10)}.csv`}
             rows={csvRows}

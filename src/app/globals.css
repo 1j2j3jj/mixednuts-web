@@ -14,6 +14,15 @@
   /* Allow wide tables to scroll on narrow viewports without breaking layout */
   max-width: 100%;
 }
+
+/* Keyboard focus ring — previously no :focus-visible style, so tab-nav users
+   saw browser default on top of the transition-colors. Ring uses the scope's
+   shadcn --ring token so it adapts to dark mode later. */
+.dashboard-scope :focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 @media (max-width: 768px) {
   .dashboard-scope main { padding: 1rem !important; }
   .dashboard-scope h1 { font-size: 1.375rem !important; line-height: 1.25 !important; }
