@@ -154,12 +154,41 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     slug: "a4m8r2",
     label: "MSEC",
     subtitle: "トレードワークス",
-    active: false,
+    active: true,
     allowedUserIds: [],
     allowedEmailDomains: ["mixednuts-inc.com"],
-    dataSource: null,
+    dataSource: {
+      kind: "google_sheets",
+      // MSEC Google Ads ADG-grained export produced by
+      // scripts/integrations/google_ads/export_msec_adgroup_daily.py
+      // (2025-08-06 first spend date → rolling to today).
+      sheetId: "1BiKvl6UwzdFEVSGuhYHtpP4Pn2TFQylTWInVPptL63E",
+      rawAdsRange: "Google_AdGroup_Raw!A:L",
+      // Targets matrix (metric × channel × month) — same format as HS_計画,
+      // pivoted by src/lib/sources/target.ts. Initial values seeded from
+      // projects/msec/context.md KGI (月 ¥47.5M revenue / ¥1M ad spend)
+      // and are CEO-adjustable directly in the Sheet.
+      targetsSheetId: "1VR3ZtV5tJT9ouPCR2e1lTlDItvjc3BhJaGrN8bovaQg",
+      targetsRange: "シート1!A:AA",
+      // No ECCUBE integration for MSEC Phase 1 — tracked for Phase 2.
+    },
+    ga4PropertyId: "283300882",
+    // ⚠ markless.jp is an sc-domain property; SA currently returns 403 because
+    // it has not been added as a siteRestrictedUser. Until CEO adds
+    // ai-agent@ai-agent-mixednuts.iam.gserviceaccount.com as "Restricted"
+    // to the markless.jp Search Console property, this field will silently
+    // fall back to mock data (see src/lib/sources/gsc.ts error handler).
+    gscSiteUrl: "sc-domain:markless.jp",
     currency: "JPY",
-    monthlyTargets: { revenue: 0, conversions: 0, adSpendBudget: 0, roasPct: 0, cpa: 0 },
+    // KGI from projects/msec/context.md — online direct sales target
+    // 5.7億 per year (+1.1億 YoY) → ¥47.5M/month assumption.
+    monthlyTargets: {
+      revenue: 47_500_000,
+      conversions: 60,
+      adSpendBudget: 1_000_000,
+      roasPct: 4_750, // ¥47.5M attributed revenue / ¥1M spend
+      cpa: 16_667,    // ¥1M / 60 conv
+    },
   },
   ogc: {
     id: "ogc",
