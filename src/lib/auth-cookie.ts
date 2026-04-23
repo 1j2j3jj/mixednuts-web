@@ -17,7 +17,9 @@ export const TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 export type Session =
   | { kind: "admin" }
-  | { kind: "client"; clientId: string; slug: string };
+  | { kind: "client"; clientId: string; slug: string }
+  /** Agency / multi-client staff: one login, multiple accessible tenants. */
+  | { kind: "client-multi"; currentSlug: string; availableSlugs: string[] };
 
 interface SignedPayload extends Record<string, unknown> {
   /** Unix seconds. */
@@ -90,6 +92,18 @@ export async function verifySession(token: string | undefined | null): Promise<S
     typeof payload.slug === "string"
   ) {
     return { kind: "client", clientId: payload.clientId, slug: payload.slug };
+  }
+  if (
+    payload.kind === "client-multi" &&
+    typeof payload.currentSlug === "string" &&
+    Array.isArray(payload.availableSlugs) &&
+    payload.availableSlugs.every((s) => typeof s === "string")
+  ) {
+    return {
+      kind: "client-multi",
+      currentSlug: payload.currentSlug,
+      availableSlugs: payload.availableSlugs as string[],
+    };
   }
   return null;
 }
