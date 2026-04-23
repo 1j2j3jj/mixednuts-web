@@ -163,7 +163,14 @@ body {
   overflow-x: hidden;
 }
 
-a { color: inherit; }
+/* Scope the anchor color reset to @layer base so Tailwind utilities
+   (text-white, text-muted-foreground, etc.) applied directly on <a>
+   take precedence. Without this wrapper, unlayered element selectors
+   beat Tailwind's @layer utilities and break e.g. dark buttons on the
+   admin index where the text renders black-on-black. */
+@layer base {
+  a { color: inherit; }
+}
 
 /* ===== NAV (v3 mix-blend-difference) ===== */
 /* Peanut mark is rendered OUTSIDE .nav to preserve its brand colors.
