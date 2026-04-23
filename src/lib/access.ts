@@ -26,11 +26,24 @@ import {
  * is reflected in the x-viewer-* headers we read here.
  */
 
-async function viewer(): Promise<{ kind: "admin" | "client" | "none"; slug?: string }> {
+async function viewer(): Promise<{
+  kind: "admin" | "client" | "client-multi" | "none";
+  slug?: string;
+  availableSlugs?: string[];
+}> {
   const h = await headers();
   const kind = h.get("x-viewer-kind");
   if (kind === "admin") return { kind: "admin" };
   if (kind === "client") return { kind: "client", slug: h.get("x-viewer-client-slug") ?? undefined };
+  if (kind === "client-multi") {
+    const slugHeader = h.get("x-viewer-available-slugs") ?? "";
+    const availableSlugs = slugHeader.split(",").filter(Boolean);
+    return {
+      kind: "client-multi",
+      slug: h.get("x-viewer-client-slug") ?? undefined,
+      availableSlugs,
+    };
+  }
   return { kind: "none" };
 }
 
@@ -42,6 +55,10 @@ export async function assertUserCanAccessClientBySlug(slug: string): Promise<Cli
   if (v.kind === "admin") return client;
   if (v.kind === "client") {
     if (v.slug === slug) return client;
+    notFound();
+  }
+  if (v.kind === "client-multi") {
+    if (v.availableSlugs?.includes(slug)) return client;
     notFound();
   }
   // No middleware auth configured — dev scaffolding. Allow.
@@ -58,7 +75,21 @@ export async function assertUserCanAccessClient(clientId: string): Promise<Clien
     if (v.slug === client.slug) return client;
     notFound();
   }
+  if (v.kind === "client-multi") {
+    if (v.availableSlugs?.includes(client.slug)) return client;
+    notFound();
+  }
   return client;
+}
+
+/**
+ * Returns the list of available slugs for a multi-client viewer,
+ * or null for admin/single-client viewers (they don't need the picker).
+ */
+export async function getAvailableSlugsIfMulti(): Promise<string[] | null> {
+  const v = await viewer();
+  if (v.kind === "client-multi") return v.availableSlugs ?? null;
+  return null;
 }
 
 export type { ClientId };

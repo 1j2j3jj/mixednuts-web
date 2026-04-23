@@ -40,6 +40,7 @@ const REALM = 'Basic realm="mixednuts-web"';
 type Auth =
   | { kind: "admin" }
   | { kind: "client"; clientId: string; slug: string }
+  | { kind: "client-multi"; currentSlug: string; availableSlugs: string[] }
   | { kind: "deny" };
 
 async function resolveSessionCookie(request: NextRequest): Promise<Auth> {
@@ -47,6 +48,13 @@ async function resolveSessionCookie(request: NextRequest): Promise<Auth> {
   const sess = await verifySession(token);
   if (!sess) return { kind: "deny" };
   if (sess.kind === "admin") return { kind: "admin" };
+  if (sess.kind === "client-multi") {
+    return {
+      kind: "client-multi",
+      currentSlug: sess.currentSlug,
+      availableSlugs: sess.availableSlugs,
+    };
+  }
   return { kind: "client", clientId: sess.clientId, slug: sess.slug };
 }
 
@@ -79,11 +87,18 @@ function denyResponse(): NextResponse {
 
 function passThrough(request: NextRequest, auth: Auth): NextResponse {
   const requestHeaders = new Headers(request.headers);
-  if (auth.kind === "admin") requestHeaders.set("x-viewer-kind", "admin");
-  else if (auth.kind === "client") {
+  if (auth.kind === "admin") {
+    requestHeaders.set("x-viewer-kind", "admin");
+  } else if (auth.kind === "client") {
     requestHeaders.set("x-viewer-kind", "client");
     requestHeaders.set("x-viewer-client-id", auth.clientId);
     requestHeaders.set("x-viewer-client-slug", auth.slug);
+  } else if (auth.kind === "client-multi") {
+    // Downstream pages see "client-multi" kind; current slug is forwarded so
+    // layout chrome can display the active tenant and show the switch link.
+    requestHeaders.set("x-viewer-kind", "client-multi");
+    requestHeaders.set("x-viewer-client-slug", auth.currentSlug);
+    requestHeaders.set("x-viewer-available-slugs", auth.availableSlugs.join(","));
   }
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
@@ -123,8 +138,44 @@ async function checkAuth(request: NextRequest): Promise<NextResponse> {
   // 4. Admin: full passthrough.
   if (auth.kind === "admin") return passThrough(request, auth);
 
-  // 5. Client: tenant-scope all paths. Redirects are silent (no 403) so
-  //    cross-tenant existence doesn't leak via error pages.
+  // 5. Multi-client: allow /dashboard/select and any slug in availableSlugs.
+  if (auth.kind === "client-multi") {
+    const { currentSlug, availableSlugs } = auth;
+
+    if (pathname === "/dashboard/select") return passThrough(request, auth);
+
+    if (pathname === "/dashboard" || pathname === "/dashboard/") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard/select";
+      return NextResponse.redirect(url);
+    }
+
+    if (pathname.startsWith("/dashboard/")) {
+      const segments = pathname.split("/").filter(Boolean);
+      const requestedSlug = segments[1];
+      // If the user navigated to a slug they have access to, honour it
+      // by updating the active slug in the forwarded headers. The session
+      // cookie itself is NOT re-signed here; the select page action does
+      // that when the user actively switches. For passive navigation the
+      // effective slug is derived from the URL.
+      if (requestedSlug && availableSlugs.includes(requestedSlug)) {
+        const adjusted: Auth = { kind: "client-multi", currentSlug: requestedSlug, availableSlugs };
+        return passThrough(request, adjusted);
+      }
+      // Slug not in their access list — bounce to select.
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard/select";
+      return NextResponse.redirect(url);
+    }
+
+    // Non-dashboard paths: bounce to select.
+    const url = request.nextUrl.clone();
+    url.pathname = `/dashboard/${currentSlug}`;
+    return NextResponse.redirect(url);
+  }
+
+  // 6. Single-client: tenant-scope all paths. Redirects are silent (no 403)
+  //    so cross-tenant existence doesn't leak via error pages.
   const ownDash = `/dashboard/${auth.slug}`;
   if (pathname === "/dashboard" || pathname === "/dashboard/") {
     const url = request.nextUrl.clone();
