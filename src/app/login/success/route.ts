@@ -60,11 +60,24 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   // 3) Sign mn_session.
   let token: string;
+  let target: string;
   try {
-    token =
-      role.kind === "admin"
-        ? await signSession({ kind: "admin" })
-        : await signSession({ kind: "client", clientId: role.clientId, slug: role.slug });
+    if (role.kind === "admin") {
+      token = await signSession({ kind: "admin" });
+      target = "/dashboard";
+    } else if (role.kind === "client") {
+      token = await signSession({ kind: "client", clientId: role.clientId, slug: role.slug });
+      target = `/dashboard/${role.slug}`;
+    } else {
+      // multi-client: first match becomes the initial currentSlug
+      const availableSlugs = role.matches.map((m) => m.slug);
+      token = await signSession({
+        kind: "client-multi",
+        currentSlug: availableSlugs[0],
+        availableSlugs,
+      });
+      target = "/dashboard/select";
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[login/success] signSession threw:", msg);
@@ -72,7 +85,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   // 4) Build redirect response, then attach the cookie to it.
-  const target = role.kind === "admin" ? "/dashboard" : `/dashboard/${role.slug}`;
   const res = redirect(req, target);
   res.cookies.set(COOKIE_NAME, token, {
     httpOnly: true,
