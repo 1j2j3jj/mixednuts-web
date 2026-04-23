@@ -90,6 +90,28 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
   );
 }
 
+export function CopyLinkButton({ link }: { link: string }) {
+  const [copied, setCopied] = useState(false);
+  async function doCopy() {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // ignore — clipboard blocked in some contexts
+    }
+  }
+  return (
+    <button
+      type="button"
+      onClick={doCopy}
+      className="shrink-0 rounded border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-50"
+    >
+      {copied ? "コピー済 ✓" : "コピー"}
+    </button>
+  );
+}
+
 export function RevokeButton({ id }: { id: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();

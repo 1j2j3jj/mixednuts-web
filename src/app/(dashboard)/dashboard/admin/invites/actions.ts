@@ -112,6 +112,7 @@ export async function ensureOrgForClient(clientId: ClientId): Promise<OrgSummary
 
 export interface InviteRow {
   id: string;
+  organizationId: string;
   email: string;
   role: string | null;
   status: string;
@@ -126,6 +127,7 @@ export async function listPendingInvites(): Promise<InviteRow[]> {
   const rows = await db
     .select({
       id: invitation.id,
+      organizationId: invitation.organizationId,
       email: invitation.email,
       role: invitation.role,
       status: invitation.status,
@@ -138,6 +140,7 @@ export async function listPendingInvites(): Promise<InviteRow[]> {
     .orderBy(desc(invitation.expiresAt));
   return rows.map((r) => ({
     id: r.id,
+    organizationId: r.organizationId,
     email: r.email,
     role: r.role,
     status: r.status,
@@ -145,6 +148,51 @@ export async function listPendingInvites(): Promise<InviteRow[]> {
     inviterEmail: r.inviterEmail,
     link: `${baseURL}/api/auth/accept-invitation?id=${r.id}`,
   }));
+}
+
+// ----- Members ----------------------------------------------------------------
+
+export interface MemberRow {
+  id: string;
+  userId: string;
+  email: string;
+  name: string;
+  role: string;
+  joinedAt: Date;
+}
+
+/** List org members for a specific client (by client slug). */
+export async function listOrgMembersForClient(clientSlug: string): Promise<MemberRow[]> {
+  await assertAdmin();
+  const orgs = await db.select().from(organization).where(eq(organization.slug, clientSlug));
+  if (!orgs.length) return [];
+  const orgId = orgs[0].id;
+  const rows = await db
+    .select({
+      id: member.id,
+      userId: member.userId,
+      email: userTable.email,
+      name: userTable.name,
+      role: member.role,
+      joinedAt: member.createdAt,
+    })
+    .from(member)
+    .leftJoin(userTable, eq(member.userId, userTable.id))
+    .where(eq(member.organizationId, orgId));
+  return rows.map((r) => ({
+    id: r.id,
+    userId: r.userId,
+    email: r.email ?? "",
+    name: r.name ?? "",
+    role: r.role,
+    joinedAt: r.joinedAt,
+  }));
+}
+
+export async function removeMember(memberId: string): Promise<{ ok: boolean; error?: string }> {
+  await assertAdmin();
+  await db.delete(member).where(eq(member.id, memberId));
+  return { ok: true };
 }
 
 export interface CreateInviteInput {

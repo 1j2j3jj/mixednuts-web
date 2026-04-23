@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CLIENTS, CLIENT_IDS } from "@/config/clients";
-import InviteForm, { RevokeButton } from "./InviteForm";
+import InviteForm, { RevokeButton, CopyLinkButton } from "./InviteForm";
 import { listOrganisations, listPendingInvites, type OrgSummary } from "./actions";
 
 /**
@@ -15,9 +15,7 @@ import { listOrganisations, listPendingInvites, type OrgSummary } from "./action
  * and provides a form to issue new invitations. Auto-creates an org
  * for each active client on first invite (handled inside `createInvite`).
  *
- * Email sending is stubbed for v1 — the admin copy/pastes the magic
- * link from the table to send via Slack / mail. Once Resend is wired
- * the pending-invites table will say "Sent" instead of "Copy link".
+ * Phase 2: Added CopyLinkButton next to each pending invite link.
  */
 export const dynamic = "force-dynamic";
 
@@ -49,6 +47,13 @@ export default async function InvitesPage() {
           発行直後はリンクが画面に表示されるので、Slack / メールで送付してください
           （メール自動送信は今後実装予定）。
         </p>
+        <div className="mt-2 text-xs text-neutral-500">
+          クライアント別の招待は{" "}
+          <Link href="/dashboard/admin/clients" className="underline">
+            クライアント設定
+          </Link>
+          {" "}の「アクセス管理」タブからも発行できます。
+        </div>
       </header>
 
       <Card>
@@ -73,6 +78,7 @@ export default async function InvitesPage() {
                 <TableHead className="text-right">メンバー</TableHead>
                 <TableHead className="text-right">承認待ち</TableHead>
                 <TableHead className="text-right">ステータス</TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -96,6 +102,14 @@ export default async function InvitesPage() {
                       ) : (
                         <Badge variant="outline">未作成</Badge>
                       )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Link
+                        href={`/dashboard/admin/clients/${id}?tab=access`}
+                        className="text-xs underline text-neutral-500 hover:text-neutral-900"
+                      >
+                        設定 →
+                      </Link>
                     </TableCell>
                   </TableRow>
                 );
@@ -135,9 +149,12 @@ export default async function InvitesPage() {
                       {p.expiresAt.toLocaleDateString("ja-JP")}
                     </TableCell>
                     <TableCell>
-                      <code className="block max-w-md truncate rounded bg-neutral-50 px-2 py-1 text-xs text-neutral-700">
-                        {p.link}
-                      </code>
+                      <div className="flex items-center gap-2">
+                        <code className="block max-w-xs truncate rounded bg-neutral-50 px-2 py-1 text-xs text-neutral-700">
+                          {p.link}
+                        </code>
+                        <CopyLinkButton link={p.link} />
+                      </div>
                     </TableCell>
                     <TableCell>
                       <RevokeButton id={p.id} />
