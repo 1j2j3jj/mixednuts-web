@@ -130,10 +130,24 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     slug: "p3w1z5",
     label: "Chakin",
     subtitle: "住友生命",
-    active: false,
+    active: true,
     allowedUserIds: [],
     allowedEmailDomains: ["mixednuts-inc.com"],
-    dataSource: null,
+    dataSource: {
+      kind: "google_sheets",
+      // Header-only sheet — dashboard renders "no data" / "pending" state
+      // until export_chakin_adgroup_daily.py is created (awaiting CEO to
+      // provide the Google Ads customer ID; FUSION/ラクスル operate the ads).
+      sheetId: "1-BAW0ZfucnifZlZY7D12lqajQuUfxk31JPZrASESoN0",
+      rawAdsRange: "Google_AdGroup_Raw!A:L",
+      targetsSheetId: "1HqiMv8TE39DYdrnroGMIfHMzLD9cLKXXqRRfwkqAGlE",
+      targetsRange: "シート1!A:AA",
+      // NOTE: Chakin is lead-gen (申込), not e-commerce.
+      // CV definition = "lead", not "purchase".
+      // No GSC (gscSiteUrl: null). No ECCUBE — uses Graphene CRM (Phase 2).
+    },
+    ga4PropertyId: "263217673",
+    gscSiteUrl: null, // GSC not provided by client
     currency: "JPY",
     monthlyTargets: { revenue: 0, conversions: 0, adSpendBudget: 0, roasPct: 0, cpa: 0 },
   },
@@ -142,10 +156,23 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     slug: "n6t0f4",
     label: "dōzo",
     subtitle: "ソーシャルギフト",
-    active: false,
+    active: true,
     allowedUserIds: [],
     allowedEmailDomains: ["mixednuts-inc.com"],
-    dataSource: null,
+    dataSource: {
+      kind: "google_sheets",
+      // Produced by scripts/integrations/google_ads/export_dozo_adgroup_daily.py
+      // Google Ads ADG daily (2025-01-01 → rolling). 1,210 rows as of 2026-04-23.
+      // Yahoo / Meta / Microsoft to be layered in later via Windsor.ai.
+      sheetId: "1P__iGeogJ14z9mP8PV7bs9I3YOWlITpW965iZMRNjJQ",
+      rawAdsRange: "Google_AdGroup_Raw!A:L",
+      // Targets matrix (metric × channel × month) — structure only, CEO imports values later.
+      targetsSheetId: "1vcGAG20YTq1jm9DsNEYusmzqddVLK0hWGt7_2CfXm7k",
+      targetsRange: "シート1!A:AA",
+      // No ECCUBE integration — Shopify-based sales source (Phase 2.5).
+    },
+    ga4PropertyId: "311951480",
+    gscSiteUrl: "https://dozo-gift.com/",
     currency: "JPY",
     monthlyTargets: { revenue: 0, conversions: 0, adSpendBudget: 0, roasPct: 0, cpa: 0 },
   },
