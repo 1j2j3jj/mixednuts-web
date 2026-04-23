@@ -23,7 +23,11 @@ export const metadata: Metadata = {
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const h = await headers();
-  const viewerKind = h.get("x-viewer-kind"); // "admin" | "client" | null
+  const viewerKind = h.get("x-viewer-kind"); // "admin" | "client" | "client-multi" | null
+  // For multi-client sessions: show "Switch client" link if 2+ slugs are available.
+  const isMultiClient = viewerKind === "client-multi";
+  const availableSlugsHeader = isMultiClient ? (h.get("x-viewer-available-slugs") ?? "") : "";
+  const hasMultipleClients = isMultiClient && availableSlugsHeader.split(",").filter(Boolean).length >= 2;
 
   return (
     <div className="dashboard-scope min-h-screen bg-background text-foreground">
@@ -39,7 +43,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
               Admin index
             </Link>
           )}
-          {(viewerKind === "admin" || viewerKind === "client") && (
+          {hasMultipleClients && (
+            <Link
+              href="/dashboard/select"
+              className="text-xs text-muted-foreground hover:underline"
+            >
+              別のクライアントを開く
+            </Link>
+          )}
+          {(viewerKind === "admin" || viewerKind === "client" || viewerKind === "client-multi") && (
             <Link
               href="/api/auth/logout"
               prefetch={false}
