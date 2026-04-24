@@ -29,6 +29,8 @@ type ListItem = {
   excerpt: string;
   author: string;
   hero?: string;
+  thumbNumber?: string;
+  thumbLabel?: string;
 };
 
 const upcomingArticles: ListItem[] = [
@@ -107,6 +109,8 @@ const publishedArticles: ListItem[] = [...posts]
     excerpt: p.excerpt,
     author: p.author,
     hero: p.hero,
+    thumbNumber: p.thumbNumber,
+    thumbLabel: p.thumbLabel,
   }));
 
 // upcomingArticles は当面非表示（16 本の published 記事が揃ったため）
@@ -182,6 +186,50 @@ export default function InsightsPage() {
           background: var(--off-white); color: var(--charcoal);
           padding: 4px 10px; border-radius: 4px;
           font-size: 10px; font-weight: 700; letter-spacing: 0.1em; font-family: var(--font-sans-en);
+        }
+        .thumb-overlay {
+          position: absolute; right: 18px; bottom: 14px;
+          display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+          color: var(--off-white);
+          text-shadow: 0 2px 12px rgba(10,10,10,0.45);
+          pointer-events: none;
+        }
+        .thumb-number {
+          font-family: 'Archivo', 'Noto Sans JP', sans-serif;
+          font-size: clamp(28px, 3.4vw, 44px);
+          font-weight: 900;
+          line-height: 1; letter-spacing: -0.02em;
+          color: var(--cyan, #00D9FF);
+        }
+        .thumb-label {
+          font-family: 'Noto Sans JP', sans-serif;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          color: rgba(255,255,255,0.96);
+          text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+        }
+        .featured-overlay {
+          position: absolute; right: 28px; bottom: 28px;
+          display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+          color: var(--off-white);
+          text-shadow: 0 2px 12px rgba(10,10,10,0.5);
+          pointer-events: none;
+        }
+        .featured-overlay-num {
+          font-family: 'Archivo', 'Noto Sans JP', sans-serif;
+          font-size: clamp(40px, 5.5vw, 72px);
+          font-weight: 900;
+          line-height: 1; letter-spacing: -0.03em;
+          color: var(--cyan, #00D9FF);
+        }
+        .featured-overlay-label {
+          font-family: 'Noto Sans JP', sans-serif;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          color: rgba(255,255,255,0.96);
+          text-shadow: 0 1px 4px rgba(0,0,0,0.6);
         }
         .article-body { padding: 24px; flex: 1; display: flex; flex-direction: column; }
         .article-meta { display: flex; gap: 12px; font-size: 11px; color: var(--gray-400); font-family: var(--font-sans-en); margin-bottom: 10px; }
@@ -268,7 +316,7 @@ export default function InsightsPage() {
                   style={
                     article.hero
                       ? {
-                          backgroundImage: `linear-gradient(180deg, rgba(10,10,10,0.08) 0%, rgba(10,10,10,0.28) 100%), url('${article.hero}')`,
+                          backgroundImage: `linear-gradient(180deg, rgba(10,10,10,0.04) 0%, rgba(10,10,10,0.32) 100%), url('${article.hero}')`,
                           backgroundSize: "cover",
                           backgroundPosition: "center",
                         }
@@ -276,6 +324,12 @@ export default function InsightsPage() {
                   }
                 >
                   <span className="article-tag-pos">{article.category}</span>
+                  {article.thumbNumber && (
+                    <div className="thumb-overlay">
+                      <span className="thumb-number">{article.thumbNumber}</span>
+                      {article.thumbLabel && <span className="thumb-label">{article.thumbLabel}</span>}
+                    </div>
+                  )}
                   {!article.href && (
                     <span style={{ position: "absolute", top: 16, right: 16, padding: "4px 10px", background: "var(--off-white)", color: "var(--charcoal)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", borderRadius: 999, textTransform: "uppercase" }}>
                       近日公開
@@ -346,7 +400,7 @@ function FeaturedInner({ item }: { item: ListItem }) {
         style={
           item.hero
             ? {
-                backgroundImage: `linear-gradient(135deg, rgba(10,10,10,0.05) 0%, rgba(10,10,10,0.25) 100%), url('${item.hero}')`,
+                backgroundImage: `linear-gradient(135deg, rgba(10,10,10,0.04) 0%, rgba(10,10,10,0.28) 100%), url('${item.hero}')`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
               }
@@ -354,6 +408,12 @@ function FeaturedInner({ item }: { item: ListItem }) {
         }
       >
         <span className="featured-tag">{item.category}</span>
+        {item.thumbNumber && (
+          <div className="featured-overlay">
+            <span className="featured-overlay-num">{item.thumbNumber}</span>
+            {item.thumbLabel && <span className="featured-overlay-label">{item.thumbLabel}</span>}
+          </div>
+        )}
         {!item.href && (
           <span style={{ position: "absolute", top: 20, right: 20, padding: "4px 10px", background: "var(--off-white)", color: "var(--charcoal)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", borderRadius: 999, textTransform: "uppercase" }}>
             近日公開

@@ -145,7 +145,6 @@ export default function TeamPage() {
                 <span className="leader-avatar-initials">N<span className="dot">.</span>I<span className="dot">.</span></span>
               </div>
               <div>
-                <div className="leader-tag">Founder & CEO</div>
                 <div className="leader-name">石井 希実</div>
                 <div className="leader-role">{ceo.role}</div>
                 <p className="leader-bio">{ceo.bio}</p>

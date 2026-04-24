@@ -19,6 +19,8 @@ const posts = defineCollection({
       tags: s.array(s.string()).default([]),
       hero: s.string().optional(),
       subtitle: s.string().optional(),
+      thumbNumber: s.string().optional(),
+      thumbLabel: s.string().optional(),
       metadata: s.metadata(),
       body: s.mdx(),
     })

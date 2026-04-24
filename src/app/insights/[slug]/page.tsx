@@ -2,9 +2,42 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import * as runtime from "react/jsx-runtime";
+import fs from "node:fs";
+import path from "node:path";
 import { posts } from "#site/content";
 import { mdxComponents } from "@/components/mdx-components";
 import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { ReadingProgressBar } from "@/components/ReadingProgressBar";
+import { StickyToc } from "@/components/StickyToc";
+
+/**
+ * Extract FAQ Q&A pairs from raw MDX content.
+ * Matches the pattern:  **Q. ...?**\nA. ...
+ * Returns array of {question, answer}.
+ */
+function extractFaqPairs(slug: string): { question: string; answer: string }[] {
+  const mdxPath = path.join(process.cwd(), "content", "insights", `${slug}.mdx`);
+  let raw = "";
+  try {
+    raw = fs.readFileSync(mdxPath, "utf-8");
+  } catch {
+    return [];
+  }
+  const out: { question: string; answer: string }[] = [];
+  // Split by section "## FAQ" (or "FAQ" heading) and parse Q/A within
+  const faqSection = raw.split(/\n##\s+FAQ\b/i)[1];
+  if (!faqSection) return out;
+  // Stop at next "---" (Sources section) or "## "
+  const scope = faqSection.split(/\n(?:---|##\s)/)[0];
+  const re = /\*\*Q\.\s*(.+?)\*\*\s*\nA\.\s*([\s\S]+?)(?=\n\n\*\*Q\.|\n\n$|$)/g;
+  let m;
+  while ((m = re.exec(scope)) !== null) {
+    const question = m[1].trim();
+    const answer = m[2].trim().replace(/\s+/g, " ");
+    if (question && answer) out.push({ question, answer });
+  }
+  return out;
+}
 
 type Params = { slug: string };
 
@@ -75,10 +108,29 @@ export default async function InsightsArticlePage({ params }: { params: Promise<
     { name: post.title, path: post.permalink },
   ]);
 
+  const faqPairs = extractFaqPairs(post.slug);
+  const faqPageSchema =
+    faqPairs.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "@id": `https://mixednuts-inc.com${post.permalink}#faq`,
+          mainEntity: faqPairs.map((p) => ({
+            "@type": "Question",
+            name: p.question,
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: p.answer,
+            },
+          })),
+        }
+      : null;
+
   return (
     <>
       <JsonLd data={articleSchema} />
       <JsonLd data={breadcrumb} />
+      {faqPageSchema && <JsonLd data={faqPageSchema} />}
       <style>{`
         .article-hero { background: var(--off-white); padding: 140px 32px 64px; }
         .article-hero-inner { max-width: 860px; margin: 0 auto; }
@@ -116,7 +168,17 @@ export default async function InsightsArticlePage({ params }: { params: Promise<
         }
 
         .article-body { padding: 0 32px 120px; background: var(--off-white); }
-        .article-body-inner { max-width: 720px; margin: 0 auto; }
+        .article-body-wrap {
+          max-width: 1120px; margin: 0 auto;
+          display: grid; grid-template-columns: 220px minmax(0, 720px);
+          gap: 64px; align-items: start;
+        }
+        .article-side { padding-top: 12px; }
+        .article-body-inner { max-width: 720px; min-width: 0; }
+        @media (max-width: 1100px) {
+          .article-body-wrap { grid-template-columns: 1fr; max-width: 720px; gap: 0; }
+          .article-side { display: none; }
+        }
         .article-body h2 {
           font-family: 'Noto Sans JP', sans-serif; font-size: 26px; line-height: 1.4;
           font-weight: 900; color: var(--charcoal); margin: 56px 0 20px;
@@ -221,9 +283,15 @@ export default async function InsightsArticlePage({ params }: { params: Promise<
 
       <div className="article-featured-image" />
 
-      <article className="article-body">
-        <div className="article-body-inner">
-          <MDXContent code={post.body} />
+      <ReadingProgressBar />
+
+      <article className="article-body" data-reading-target>
+        <div className="article-body-wrap">
+          <aside className="article-side">
+            <StickyToc />
+          </aside>
+          <div className="article-body-inner">
+            <MDXContent code={post.body} />
 
           <div className="article-tags">
             {post.tags.map((tag) => (
@@ -235,6 +303,7 @@ export default async function InsightsArticlePage({ params }: { params: Promise<
             <h3>AI-first 組織の構築にご関心ありませんか?</h3>
             <p>私たちの知見をあなたの事業に実装します。60分の無料相談をご予約ください。</p>
             <Link href="/contact" className="btn-cta">無料相談を申し込む →</Link>
+          </div>
           </div>
         </div>
       </article>
