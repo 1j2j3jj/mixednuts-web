@@ -1,0 +1,177 @@
+---
+title: "Jarvis Pattern — 定常 2-Hop / 非定常 3-Hop の Adaptive Delegation 判断フレーム"
+excerpt: "AI エージェント組織で、ユーザーの指示を「定常業務 vs 非定常業務」で振り分け、2-Hop / 3-Hop の委任パスを使い分ける Adaptive Delegation の判断フレーム。"
+subtitle: "MARVEL のジャービスのように「自然に適切な層に処理が流れる」状態を目指した委任設計。123 体 AI 組織の v5.5 で確立した Adaptive Delegation フレーム — 定常業務は CEO → Worker に直接 (2-Hop)、非定常業務は CEO → C-Suite → Head/Worker (3-Hop)。判断軸と運用ルールを公開。"
+date: 2026-04-12
+readTime: "9分"
+category: "AI"
+author: "石井 希実"
+authorRole: "CEO / FOUNDER"
+tags: ["AI", "Jarvis Pattern", "Delegation", "Agent Architecture", "Organization Design"]
+hero: "/images/generated/insights/jarvis-adaptive-delegation.png"
+---
+
+<Tldr>
+AI エージェント 123 体を束ねるにあたり、全タスクに C-Suite Lead を挟むと動作が重く、全部 Worker に直接委任だと非定常判断が歪む。解決策が **Adaptive Delegation = Jarvis Pattern**。定常業務 (週次レビュー、月次締め) は **2-Hop (CEO → Worker)**、非定常業務 (方針転換、複数部門協調) は **3-Hop (CEO → C-Suite → Head/Worker)**。判断軸は 「定型か」「複数部門か」「状況流動的か」の 3 つ。v5.5 で確立し、安定運用中。
+</Tldr>
+
+## なぜ Adaptive Delegation が必要か
+
+エージェント組織が 50 体を超えると、委任パスの設計が組織性能を決めます。
+
+### 選択肢 A: フラット (CEO → 全エージェント直接)
+
+CEO が全 123 体に直接指示。速いが、非定常判断が混線する。誰が「状況変化」を解釈するのか曖昧。
+
+### 選択肢 B: 全部 C-Suite 経由
+
+CEO → C-Suite Lead → Head → Worker の 4-Hop 強制。精度は上がるが、**毎回 4 層通るのでトークンコストが膨らみ、応答が遅い**。定型作業に毎回 C-Suite の解釈が入るのは過剰。
+
+### 選択肢 C: Adaptive (Jarvis Pattern)
+
+定常業務は 2-Hop で速く、非定常業務は 3-Hop で丁寧に。タスクの性質で経路を切り替え。
+
+MARVEL のジャービスをイメージしました。単純な要求 (「今日の天気は？」) には直接答え、複雑な戦略判断 (「スタークインダストリーを救うには」) には多層の思考を通す。**用途に応じて認知コストを動的に変える**。
+
+## 判断フロー
+
+```
+CEO の指示を受ける
+  ↓
+Q1: この指示は定型作業か？ (週次レビュー、月次締め、定例レポート)
+  ├ YES → 2-Hop: Worker に直接委任
+  │        例: 「HS の広告振り返り」→ Task(campaign-analyst)
+  │
+  └ NO  → 非定常ルート: 状況の解釈が必要
+          ↓
+        Q2: 複数部門にまたがるか？ or 状況が流動的か？
+          ├ YES → 3-Hop: C-Suite Lead に委任
+          │        例: 「Chakin の座組が変わった」→ Task(cos-chief-of-staff)
+          │        例: 「Pococha の経営会議で方針転換」→ Task(cfo-treasurer)
+          │
+          └ NO  → 2-Hop: 単一専門領域の Head/Worker に委任
+                   例: 「この契約書おかしくない？」→ Task(global-counsel)
+                   例: 「FeedForge のアーキ変更したい」→ Task(cto-architect)
+```
+
+## C-Suite Lead を経由すべきケース (3-Hop)
+
+| トリガー | 委任先 C-Suite | 理由 |
+|---------|---------------|------|
+| クライアント状況変化・座組変更・緊急対応 | **cos-chief-of-staff** | 複数 PO/Worker の協調が必要 |
+| 複数案件にまたがる横断指示 | **cos-chief-of-staff** | 案件間の優先順位判断 |
+| 経営判断を伴う財務変更 (予算変更、価格改定) | **cfo-treasurer** | 財務インパクト評価が先 |
+| 新規技術導入・アーキテクチャ変更 | **cto-architect** | Build vs Buy 判断 |
+| 投資判断・M&A 関連の新情報 | **ma-hunter** | リスク・リターン評価 |
+| 売上戦略の転換・新規市場参入 | **cro-revenue** | RevOps + Growth + BizDev の協調 |
+| セキュリティインシデント・システム障害 | **coo-operations** | 緊急対応フロー |
+
+## Worker に直接委任してよいケース (2-Hop)
+
+以下は定常業務または単一専門領域。C-Suite を経由する必要なし:
+
+- 定例レポート生成 (週次広告レビュー、月次 FP&A)
+- 単一キーワードで特定できる専門相談 (契約書チェック → `global-counsel`)
+- データ取得タスク (GA4 から数字取る、GSC のクエリ分析)
+- 決まったフォーマットの成果物生成 (提案書、議事録、ダッシュボード)
+
+## 3 つのキー・原則
+
+<Principle num="01" heading="迷ったら 3-Hop" />
+
+「定常か非定常か」判断に迷ったら C-Suite 経由を選ぶ。非定常だった場合の判断ミスは、定常だった場合の応答遅延より損失が大きい。
+
+<Principle num="02" heading="C-Suite は 「解釈」 と 「分解」 だけを担当する" />
+
+C-Suite Lead は自分でコードを書かない、ファイルを直接編集しない。指示の意図を解釈し、適切な Head/Worker に分解して委任するだけ。
+
+<Principle num="03" heading="Worker は自分の専門外のタスクを引き受けない" />
+
+Worker 間の直接通信は禁止。必要なら C-Suite or Head 経由で調整する。「越境する Worker」は Anti-pattern。
+
+## 実装 — `.claude/rules/jarvis-pattern.md`
+
+mixednuts では `.claude/rules/` 配下に分散配置しているルールの 1 つとして、Jarvis Pattern を運用ルール化。全エージェントが必ず読む `CLAUDE.md` から参照される構造。
+
+```markdown
+## Jarvis Pattern (v5.5: Adaptive Delegation)
+
+定常業務 → 2-Hop: CEO → Worker に直接委任 (auto-delegation テーブル参照)
+非定常業務 → 3-Hop: CEO → C-Suite Lead (解釈・分解) → Head/Worker
+
+Lead (Opus) = Thinker → 非定常の指示を解釈・分解し、適切な先に委任。
+Head (Sonnet+Task) = Coordinator → 部門内の Worker を束ね、結果を統合。
+Worker (Sonnet/Haiku) = Doer → 実行・報告。他の Worker に手を出さない。
+```
+
+## 成果 — 認知コストの動的調整
+
+Adaptive Delegation 導入前は、全タスクに C-Suite を経由させていて:
+
+- 平均応答時間: 2 分 / タスク
+- トークン消費: 1 タスクあたり 15,000-25,000
+- CEO のイライラ: 高 (簡単な質問に遅い返事)
+
+導入後:
+
+- 定常タスクの応答: 30 秒 (2-Hop)
+- 非定常タスクの応答: 2-3 分 (3-Hop、質は上がる)
+- トークン消費: 定常 5,000 / 非定常 20,000
+- CEO の体感: 「ジャービスっぽい」
+
+## 類似パターンとの比較
+
+### LangGraph の Supervisor Pattern
+
+LangGraph の Supervisor も似ている。ただし LangGraph は「常に Supervisor を通す」構造。Jarvis Pattern は「Supervisor を通すかどうかを動的判定」する点が異なる。
+
+### AutoGen の Group Chat
+
+AutoGen は全エージェントが対話する Group Chat が中心。Jarvis Pattern は **Star Topology** (中央から放射状) で、並列対話を起こさない。大規模化したときのトークンコスト爆発を防ぐ。
+
+### Swarm
+
+OpenAI の Swarm は軽量な Handoff Pattern。Jarvis Pattern の「非定常 3-Hop」に近いが、「定常 2-Hop」の明示的な分岐がない。Jarvis はそこを明確にしている。
+
+---
+
+## FAQ
+
+**Q. C-Suite Lead を Opus、Worker を Sonnet/Haiku にする意味は？**
+A. C-Suite は「非定常判断 = 高品質な解釈」が必要なので Opus。Worker は「定型作業の実行」が多いので Sonnet/Haiku で十分。モデル階層とエージェント階層を揃えることで、コストと品質が両立する。[Opus / Sonnet / Haiku モデル階層](/insights/opus-sonnet-haiku-tiering) で詳述。
+
+**Q. Head (Sonnet+Task) は何のため？**
+A. C-Suite と Worker の中間層。部門 (Finance, Growth, Engineering 等) ごとに Head を置き、Head が配下の Worker 複数体を束ねる。Head なしでは C-Suite が Worker 全体の状況を把握しきれない。
+
+**Q. エージェント数が少ない組織 (10-20 体) でも Jarvis Pattern を採用すべきか？**
+A. 20 体未満なら Jarvis Pattern は過剰。CEO → 専門エージェントの 2-Hop で十分。50 体を超えたあたりから C-Suite 層の導入を検討。
+
+**Q. 定常/非定常の判断を AI 自身にさせると、判断ミスが発生するのでは？**
+A. 発生する。対策として「迷ったら 3-Hop を選ぶ」原則を入れ、さらに定期的にログを監査して「本来 3-Hop が必要だったのに 2-Hop で済まされた」ケースを特定し、キーワード検出ルールを強化。
+
+**Q. 人間の組織論との違いは？**
+A. 人間の組織では「上司は常に介在する」ことが前提だが、AI 組織は「上司を介在させるかどうかを動的に選べる」。これは人間組織にはない強み。
+
+---
+
+## 参考文献 / Sources
+
+**マルチエージェント組織設計:**
+- [Building agents with MCP (Anthropic)](https://claude.com/blog/building-agents-that-reach-production-systems-with-mcp)
+- [Claude Code 複数エージェントシステム完全ガイド 2026 (eesel AI)](https://www.eesel.ai/ja/blog/claude-code-multiple-agent-systems-complete-2026-guide)
+- [multi-agent-shogun (GitHub)](https://github.com/yohey-w/multi-agent-shogun/blob/main/README_ja.md)
+- [うさぎでもわかるマルチエージェントAI (Zenn)](https://zenn.dev/taku_sid/articles/20250416_multi_agents)
+- [AIME紹介 (Zenn)](https://zenn.dev/mkj/articles/e2612cb8bb9d5b)
+
+**類似 Supervisor Pattern:**
+- [LangGraph Multi-Agent Supervisor](https://langchain-ai.github.io/langgraph/tutorials/multi_agent/agent_supervisor/)
+- [AutoGen Group Chat Manager](https://microsoft.github.io/autogen/docs/reference/agentchat/groupchat)
+- [OpenAI Swarm Handoffs](https://github.com/openai/swarm) — 軽量 Handoff
+
+**mixednuts 内部ルール:**
+- `.claude/rules/jarvis-pattern.md` — Adaptive Delegation 完全版
+- `.claude/rules/auto-delegation.md` — Worker 直接委任テーブル
+
+**関連記事:**
+- [Opus / Sonnet / Haiku モデル階層](/insights/opus-sonnet-haiku-tiering)
+- [Task ツール強制委任](/insights/task-forced-delegation)

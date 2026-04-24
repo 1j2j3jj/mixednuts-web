@@ -1,0 +1,214 @@
+---
+title: "Cognitive Modes — Planning / Execution / Analysis / Reflection / Synthesis の切替設計"
+excerpt: "AI エージェントが今どの 「認知モード」 にいるかを明示的に切り替える設計。思考と実行を混ぜない運用ルール。"
+subtitle: "AI エージェントに「計画と実行を同時にやらせる」と破綻する。Planning / Execution / Analysis / Reflection / Synthesis の 5 モードを明示的に切り替える運用設計。Claude Code の Skill 単位でモード指定、Plan / Execute を混ぜない原則、実運用での効果。"
+date: 2026-04-21
+readTime: "7分"
+category: "AI"
+author: "石井 希実"
+authorRole: "CEO / FOUNDER"
+tags: ["AI", "Agent Architecture", "Cognitive Science", "Prompt Engineering"]
+hero: "/images/generated/insights/cognitive-modes.png"
+---
+
+<Tldr>
+AI エージェントは "思考 + 実行" を同時にやらせると精度が落ちる。mixednuts では 5 つの Cognitive Mode を明示的に切り替える運用に: **(1) Planning** = 計画策定、変更なし / **(2) Execution** = 実装・実行 / **(3) Analysis** = 分析のみ、変更なし / **(4) Reflection** = 振り返り / **(5) Synthesis** = 統合・文書化。各 Skill に Mode を対応付け、Plan 中は Execute しない、という原則で出力品質が向上。
+</Tldr>
+
+## なぜ Mode 分離が必要か
+
+AI エージェント (LLM) は「計画」と「実行」を **同時にやらせると破綻する** 傾向があります。
+
+具体例:
+
+- 「このバグを直して」→ 計画なしで実装開始 → 根本原因を掴まずに症状対処して再発
+- 「リサーチして」→ リサーチ途中で早まって結論を出す → 浅い分析で次アクションまで提示
+- 「振り返って」→ 振り返り中に新しいアクションを提案 → 振り返り本来の目的がぼやける
+
+これは人間にも起きる問題ですが、**LLM は特に "役立ちたい" バイアスで暴走しやすい**。計画モードで居るべきときに実行を始めてしまう。
+
+## 5 つの Cognitive Modes
+
+Claude Code の組み込みモード (Plan mode) にインスパイアされつつ、mixednuts 独自で 5 モードを定義:
+
+<Principle num="01" heading="Planning — 計画策定、変更なし" />
+
+目的: アーキテクチャ設計、実装計画、戦略立案。
+禁止: ファイル編集、コマンド実行、永続的な変更。
+
+該当 Skill: `/plan-ceo-review`, `/plan-eng-review`
+
+実行者は「計画の提示」で止める。CEO の承認を経てから Execute モードに移行。
+
+<Principle num="02" heading="Execution — 実装・実行" />
+
+目的: コード実装、デプロイ、データ処理、API 呼び出し。
+条件: Plan が承認済みであること。
+
+該当 Skill: `/ship`, `/qa`, `/browse`, `/weekly-ad-review`
+
+Plan のスコープを逸脱しない。追加の設計判断が必要なら一度 Plan に戻る。
+
+<Principle num="03" heading="Analysis — 分析のみ、変更なし" />
+
+目的: データ分析、バグ調査、コードレビュー、市場調査。
+禁止: 実装・修正 (Analysis と Execution の混同を防ぐ)。
+
+該当 Skill: `/qa-only`, `/review`, `/deep-research`, `/competitive-analysis`
+
+結論と推奨アクションを提示するが、**アクション自体は実行しない**。「ここを修正すべき」は言うが「修正する」は次フェーズ。
+
+<Principle num="04" heading="Reflection — 振り返り" />
+
+目的: 過去の成果物・意思決定の振り返り、学びの抽出。
+焦点: What went well / What didn't / Action items。
+
+該当 Skill: `/retro`
+
+「過去を見つめる」モード。新規タスクや計画策定を混ぜない。抽出した Action items は後続の Planning モードで扱う。
+
+<Principle num="05" heading="Synthesis — 統合・文書化" />
+
+目的: 複数の情報源を統合、ドキュメント化、レポート生成。
+該当 Skill: `/document-release`, `/client-report`, `/session-close`
+
+既存情報の統合に徹する。新規分析や判断を加えない。
+
+## Mode 切替の実装
+
+Skill 定義に Mode をマッピング:
+
+```markdown
+---
+name: plan-ceo-review
+mode: Planning
+description: "CEO/Founder 視点で問題を再定義する"
+---
+
+# Plan CEO Review
+
+## Rules
+- Planning mode: ファイル編集禁止、コマンド実行禁止
+- 成果物は計画文書のみ
+- 実装フェーズに進む前に CEO 承認必須
+```
+
+エージェント側のシステムプロンプトに Mode が注入され、Execution 系のツール (Edit, Write, Bash 等) が抑制される。
+
+## Planning と Execution を混ぜない原則
+
+最も重要なのが Planning と Execution の分離です。
+
+### 混ぜた場合の典型的な失敗
+
+```
+User: データベースのパフォーマンス改善してほしい
+
+AI (混ぜた思考):
+  1. データベースを分析 (Analysis)
+  2. インデックスを貼ると良さそう (Planning)
+  3. インデックス追加 (Execution)
+  4. あれ、テーブル構造もおかしい。これも直そう (Planning?)
+  5. カラム追加 (Execution)
+  6. でも他のクエリに影響が... (Analysis?)
+```
+
+→ 途中で計画が変わり、関連する変更が散発的に発生、結果として全体像が見えないまま複数の変更が入る。
+
+### 分離した場合
+
+```
+User: データベースのパフォーマンス改善してほしい
+
+AI (Analysis mode):
+  - 現状の問題: N+1 クエリ、インデックス欠損、テーブル正規化不足
+  - 推奨アクション: 3 つの選択肢 (A/B/C)
+
+CEO: 選択肢 B で進めて
+
+AI (Planning mode):
+  - 実装計画: (1) インデックス追加 / (2) クエリ修正 / (3) テスト
+  - 影響範囲: ...
+  - 承認お願いします
+
+CEO: OK
+
+AI (Execution mode):
+  - (1) 実行 → 成功
+  - (2) 実行 → 成功
+  - (3) 実行 → 成功
+```
+
+→ 各フェーズが独立し、CEO が各段階で判断を下せる。**失敗時のロールバックも容易**。
+
+## Plan Mode が標準化された意義
+
+Claude Code の Plan Mode (組み込み機能) が標準化されたことで、**Planning と Execution の境界が明示的に可視化** されました。
+
+Plan Mode の特徴:
+
+- ExitPlanMode という専用ツールがあり、計画提示 → ユーザー承認 → Execution に移行
+- 計画フェーズ中は Edit / Write / Bash が抑制される
+- 「計画してから実行する」が、ハーネスレベルで強制される
+
+これを mixednuts では "5 モード" に拡張し、Analysis / Reflection / Synthesis も同じ原則で分離しました。
+
+## 実運用での効果
+
+Cognitive Modes 導入後 (2026-02) の変化:
+
+- **再実装・ロールバック率が激減**: 計画承認後の実装なので、手戻りが 5 分の 1 に
+- **CEO の判断負荷が下がった**: フェーズごとに判断するので、各判断が小さい
+- **成果物の品質向上**: 各 Mode が単一責任で実行されるので、混在による劣化がなくなった
+
+## Mode 切替のチェックリスト
+
+タスクを受けたときの自己チェック:
+
+- [ ] 今は Planning / Execution / Analysis / Reflection / Synthesis のどれか？
+- [ ] 前フェーズからの移行は CEO の承認を経たか？
+- [ ] このモードで禁止されている操作 (Execution 系ツール等) を使いかけていないか？
+- [ ] 次フェーズに進む必要があるなら、明示的に宣言しているか？
+
+---
+
+## FAQ
+
+**Q. Reflection と Synthesis は何が違う？**
+A. Reflection は「過去を見つめて学びを抽出」、Synthesis は「現在の情報を統合してアウトプットに形成」。前者は内省、後者は情報整理。
+
+**Q. Analysis と Planning の境界は？**
+A. Analysis は「現状を理解する」、Planning は「未来をどう作るか決める」。Analysis の結果を受けて Planning が始まる、という順序関係。
+
+**Q. 全タスクを 5 モードに厳密に分類する必要があるか？**
+A. 必要ない。ほとんどのタスクは明確にどれか 1 つ。境界が曖昧なタスク (例: ブレインストーミングは Planning か Synthesis か) は、ユーザーに確認するか、主要モードで進める。
+
+**Q. 人間のチーム運用に応用できる？**
+A. できる。実際、コンサルティングの "診断 → 設計 → 実行" の 3 フェーズはこの Mode 分離に近い。AI にも人間にも共通して有効な認知フレーム。
+
+**Q. LangGraph / AutoGen などのフレームワークでも同じ設計可能？**
+A. 可能。LangGraph の node をモード単位で分割、各モードで使えるツールを絞る、という実装で同じ効果が出る。
+
+---
+
+## 参考文献 / Sources
+
+**Claude Code Plan Mode:**
+- [Claude Code Plan Mode](https://docs.claude.com/en/docs/claude-code/plan-mode) — ExitPlanMode ツール仕様
+- [Claude Code Modes Overview](https://docs.claude.com/en/docs/claude-code/modes)
+
+**認知フレーム (一般):**
+- [Kahneman: Thinking Fast and Slow](https://us.macmillan.com/books/9780374533557/thinkingfastandslow) — System 1 / System 2 の認知二重過程
+- [Agile Retrospectives Framework](https://www.agilealliance.org/glossary/heartbeat-retrospective/) — Reflection モードの根拠
+
+**フレームワーク比較:**
+- [LangGraph State-based flows](https://langchain-ai.github.io/langgraph/concepts/low_level/#state) — node 単位のモード管理
+- [AutoGen Task-Phase Separation](https://microsoft.github.io/autogen/docs/tutorial/)
+
+**mixednuts 内部:**
+- `CLAUDE.md` の Cognitive Modes セクション
+- `.claude/skills/` — 各 Skill の mode 対応
+
+**関連記事:**
+- [Skills as Microservices](/insights/skills-as-microservices)
+- [Task ツール強制委任](/insights/task-forced-delegation)

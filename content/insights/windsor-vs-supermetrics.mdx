@@ -1,0 +1,200 @@
+---
+title: "Windsor.ai vs Supermetrics 日本語決定版 — 広告データ統合 SaaS 6 本比較 + BigQuery 連携実装"
+excerpt: "Yahoo JP / Meta / Microsoft / Google Ads を日次で BigQuery に集約する SaaS 6 本を実戦利用。Windsor.ai Basic $23/月を選んだ根拠と、pythonクライアント実装の公開。"
+subtitle: "Yahoo JP 広告 API のエラー 0003（QPS 5/sec 超過）との格闘、Supermetrics の高コスト、Databeat の接続不安定さを経て、最終的に Windsor.ai Basic $23/月を選んだ判断軸。scripts/integrations/windsor/windsor_sync.py の実装公開付き。日本語で未踏の領域を一次情報でカバー。"
+date: 2026-04-22
+readTime: "10分"
+category: "MARKETING"
+author: "石井 希実"
+authorRole: "CEO / FOUNDER"
+tags: ["Windsor.ai", "Supermetrics", "BigQuery", "広告データ統合", "Yahoo Ads", "Marketing Ops"]
+hero: "/images/generated/insights/windsor-vs-supermetrics.png"
+---
+
+<Tldr>
+Google / Yahoo JP / Meta / Microsoft の 4 媒体を日次で BigQuery に集約する SaaS を実戦比較。最終結論: **Windsor.ai Basic $23/月 が小〜中規模 (月広告費 ~¥50M) の最適解**。Supermetrics は高機能だが $299/月〜で過剰、Databeat は安いが Yahoo JP 接続不安定、自前 API は Yahoo の仕様変更追従コストが重い。325 コネクタ・SQL JOIN 直結・BigQuery Google 公式 Connector で、"見えるべき数字を毎朝出す" という目的に一番素直。
+</Tldr>
+
+## なぜ統合 SaaS が必要なのか
+
+mixednuts 配下で 5 クライアント案件 × 平均 3 媒体 = 15 媒体アカウントを運用しています。これを毎朝レビューしようとすると:
+
+- Google Ads は自前 API (業界標準、Python google-ads ライブラリ)
+- Meta Ads は Facebook Marketing API
+- Yahoo JP は Yahoo! 広告 API (QPS 5/sec、OAuth トークンが数時間で失効)
+- Microsoft Ads は Bing Ads API
+
+それぞれ認証方式・データ構造・レート制限が違う。15 アカウント × 4 媒体 = 延べ 60 の API 呼び出しを毎日安定稼働させるのは、個人レベルでは難しい。SaaS に委ねるべき領域です。
+
+## 候補 6 本を実戦比較
+
+| SaaS | 価格 | コネクタ数 | Yahoo JP | 接続安定度 | 日本語ドキュメント |
+|------|-----|-----------|---------|-----------|--------------|
+| **Windsor.ai Basic** | $23/月 | 325 | ✅ | ◎ | ❌ (英語のみ) |
+| Supermetrics | $299/月〜 | 150+ | ✅ | ◎ | △ |
+| Databeat | ¥5,000/月〜 | 30 | ✅ | △ | ◎ |
+| Porter Metrics | $29/月〜 | 20 | ❌ | ◯ | ❌ |
+| Improvado | $1,500/月〜 | 500+ | ✅ | ◎ | ❌ |
+| 自前 API | コード工数 | 無限 | ✅ (自前実装) | ○ | — |
+
+### Supermetrics (却下)
+
+機能は最強。だが最小プラン $299/月は、mixednuts 規模では **コスト構造が見合わない**。月広告費 ¥50M 規模のクライアントが 2 〜 3 社程度なら、統合 SaaS の予算は $100 以内に収めたい。
+
+### Databeat (検討後却下)
+
+日本語ドキュメントが充実しているのは強み。だが **Yahoo JP コネクタの接続が数日に一度切れる** 報告を運用会社から受けており、安定性が不安。小規模案件では許容範囲だが、複数クライアントに横展開する基盤には不向き。
+
+### Porter Metrics (却下)
+
+価格は魅力だが Yahoo JP 非対応。日本市場で Yahoo JP を無視はできない。
+
+### Improvado (却下)
+
+エンタープライズ向け。月 $1,500〜 は zero 論外。
+
+### 自前 API (一部採用)
+
+Google Ads は自前で実装済みで安定稼働。Meta も実装コストは低い。**詰まるのは Yahoo JP**:
+
+- エラーコード 0003 = QPS 5/sec 超過。大量バックフィルで即エラー
+- OAuth トークンが大きいクエリで数時間で失効する (Yahoo 側の謎挙動)
+- `/yahoo_japan` endpoint が `select_accounts` + `date_from`/`date_to` 非対応 (月次 endpoint しかない)
+
+Yahoo 仕様変更が頻繁で、自前実装の保守コストが他媒体の 3 倍ほどかかる見積もり。
+
+### Windsor.ai Basic (採用)
+
+決定打は 4 点:
+
+1. **価格**: $23/月 (小規模プラン)
+2. **Yahoo JP を含む 325 コネクタ**: Meta / Microsoft / Yahoo / TikTok / LINE もあり横展開余地
+3. **BigQuery 公式 Connector**: Google 公式の Data Transfer Service (既存の GCP Free 枠で動く)
+4. **Destination SQL JOIN**: データを BigQuery に落とすだけなので、既存の SQL / BI と即接続
+
+Free 30 日トライアル → 本契約 Basic $23/月、という順で導入。
+
+## 実装 — `scripts/integrations/windsor/windsor_sync.py` の構成
+
+mixednuts では Windsor.ai の REST API を直接叩かず、**BigQuery データセット経由でデータ取得** する設計にしました。理由:
+
+- Windsor.ai → BigQuery は 1 時間おきに自動 sync されるので、こちら側は BigQuery を `SELECT` するだけ
+- BigQuery にデータが溜まっていれば、他のマーケ分析にも即再利用できる
+- Windsor の API を叩くと 1 リクエストずつカウントされるが、BigQuery は Free 枠内で大量クエリ可能
+
+```python
+# scripts/integrations/windsor/windsor_sync.py (抜粋, 450 行中の核)
+
+from google.cloud import bigquery
+from google.oauth2 import service_account
+
+def fetch_daily(client_id: str, channel: str, start_date: str, end_date: str):
+    """Windsor.ai が BigQuery に落とした広告データを取得"""
+    creds = service_account.Credentials.from_service_account_file(
+        '_secrets/google-service-account.json',
+        scopes=['https://www.googleapis.com/auth/bigquery'],
+    )
+    client = bigquery.Client(credentials=creds, project="ai-agent-mixednuts")
+
+    query = f"""
+    SELECT
+      date, campaign_name, adgroup_name,
+      cost, imps, clicks, conv_value, conv, adgroup_id
+    FROM `windsor_ai.{channel}_{client_id}`
+    WHERE date BETWEEN '{start_date}' AND '{end_date}'
+    ORDER BY date DESC
+    """
+    return [dict(row) for row in client.query(query).result()]
+```
+
+さらに、client 別 Raw Sheet に追記する関数 (`append_to_raw_sheet`) を組み合わせて、最終的に **Meta + Yahoo + Microsoft のデータが mixednuts ダッシュボードの統合シートに自動追記** される構造に。
+
+`windsor_sync.py` の実行ログ例 (2026-04-24 のバッチ):
+
+- OGC: +4,694 行 (Bing 2,574 + Meta 2,120)
+- DOZO: +3,731 行 (Meta のみ)
+- HS: +3,047 行 (Bing 2,725 + Meta 322)
+
+## Yahoo JP の Monthly Backfill モード
+
+Yahoo JP だけは日次 API が不安定だったので、**月次 endpoint** を使ったバックフィルモードを別途実装:
+
+```python
+def yahoo_monthly_backfill(client_id: str, months_back: int = 12):
+    """Yahoo JP の月次 endpoint で 12ヶ月遡及、Sheet に追記"""
+    for m in range(months_back):
+        target_month = (datetime.now() - relativedelta(months=m)).strftime("%Y-%m")
+        data = windsor_api_call(
+            endpoint="yahoo_japan",
+            date_preset=f"month_{target_month}",  # date_from/to 非対応のための workaround
+        )
+        append_to_raw_sheet(client_id, "yahoo", data)
+```
+
+月次の粒度でデータが揃っているだけで、日次モニタリングには物足りないが、**中長期トレンド分析と予実対比には十分**。日次の厳密なモニタリングは Google Ads に注力。
+
+## 選定の判断軸 — 3 つのチェック
+
+広告データ統合 SaaS を選ぶときに機械的に確認すべき 3 点:
+
+<Principle num="01" heading="Yahoo JP が使えるか" />
+
+日本市場を無視しないなら必須。Porter Metrics や一部の欧米系は Yahoo JP 非対応。
+
+<Principle num="02" heading="BigQuery or Sheets への Destination があるか" />
+
+データが UI 上でしか見られない SaaS は論外。SQL or Sheets に落とせることで、既存の BI / 分析基盤と統合できる。
+
+<Principle num="03" heading="料金が 「月広告費の 0.05%〜0.1%」 に収まるか" />
+
+経験則として、広告費の 0.05–0.1% が運用ツールの妥当予算。月広告費 ¥50M なら $250〜$500/月まで。Windsor Basic $23/月は余裕。Supermetrics $299 も範囲内だが、機能過多で mixednuts には Basic で十分。
+
+---
+
+## FAQ
+
+**Q. Windsor.ai の日本語サポートは？**
+A. 2026-04 時点でゼロ。ドキュメントとサポートは英語のみ。ただし UI はシンプルで、Google Translate で十分読める。
+
+**Q. BigQuery の代わりに Google Sheets に落とすこともできるか？**
+A. できます。Windsor.ai の Destination 一覧に Google Sheets があり、30 分ごと更新の設定が可能。Sheets 派生の運用なら、BigQuery を挟まず直接 Sheets で完結する選択肢もアリ。
+
+**Q. Meta Ads の Conversion Value が Windsor 経由だと Google Ads の値と合わない場合の対処は？**
+A. これは SaaS の問題ではなく Meta Pixel / Conversion API の計測設定の問題。Windsor は「Meta の API から返ってきた値」をそのまま渡すだけ。乖離があれば Meta 側で確認。
+
+**Q. Yahoo JP の OAuth トークン失効への自動対応は？**
+A. Windsor.ai 側で自動再認証される (refresh token 管理は Windsor が負う)。自前実装だとここの保守が辛い部分を Windsor が肩代わりしてくれる。
+
+**Q. データ遅延はどのくらい？**
+A. Windsor → BigQuery の sync は 1 時間間隔。Meta / Google の API 自体が当日データの確定に 2–6 時間かかるので、**当日午後の時点で朝イチの数値が見られる** くらいの粒度。日次レビュー用途には十分。
+
+**Q. 乗換コストは？**
+A. BigQuery スキーマが Windsor 標準に合っているので、他社 SaaS からの移行は `INSERT INTO ... SELECT` ベースで可能。Supermetrics → Windsor は 1 日仕事。
+
+---
+
+## 参考文献 / Sources
+
+**Windsor.ai 公式:**
+- [Windsor.ai 公式サイト](https://windsor.ai/)
+- [Windsor.ai vs Supermetrics 比較ページ](https://windsor.ai/windsor-vs-supermetrics/)
+- [Windsor.ai Pricing](https://windsor.ai/pricing/) — Basic $23/月〜
+
+**比較記事 (英語):**
+- [Compare Supermetrics vs Windsor.ai (G2)](https://www.g2.com/compare/supermetrics-vs-windsor-ai)
+- [Supermetrics vs Windsor.ai (SaaSworthy)](https://www.saasworthy.com/compare/supermetrics-vs-windsor-ai?pIds=2176,6784)
+- [10 Best Windsor.ai Alternatives (Improvado)](https://improvado.io/blog/windsor-ai-alternatives)
+
+**競合 SaaS:**
+- [Supermetrics 公式](https://supermetrics.com/)
+- [Databeat 公式 (日本語)](https://databeat.io/) — 日本発のマーケデータ統合ツール
+- [Porter Metrics](https://www.portermetrics.com/)
+- [Improvado](https://improvado.io/)
+
+**Yahoo JP 広告 API:**
+- [Yahoo!広告 API リファレンス](https://ads-developers.yahoo.co.jp/)
+- [Yahoo広告 API エラーコード一覧](https://ads-developers.yahoo.co.jp/api/error) — エラー 0003 = QPS 超過
+
+**BigQuery 連携:**
+- [BigQuery Data Transfer Service](https://cloud.google.com/bigquery/docs/dts-introduction) — Google 公式
+- [Windsor.ai BigQuery Destination](https://windsor.ai/destinations/bigquery/)

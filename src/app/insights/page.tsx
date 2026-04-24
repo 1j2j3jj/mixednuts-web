@@ -13,6 +13,8 @@ const categoryColorMap: Record<string, string> = {
   STRATEGY: "art-strategy",
   MARKETING: "art-marketing",
   FINANCE: "art-finance",
+  ENGINEERING: "art-ai",
+  "SEO / AIO": "art-marketing",
   ORGANIZATION: "art-strategy",
 };
 
@@ -105,7 +107,9 @@ const publishedArticles: ListItem[] = [...posts]
     author: p.author,
   }));
 
-const articles: ListItem[] = [...publishedArticles, ...upcomingArticles];
+// upcomingArticles は当面非表示（16 本の published 記事が揃ったため）
+const articles: ListItem[] = [...publishedArticles];
+void upcomingArticles; // 将来の予告枠として温存
 
 export default function InsightsPage() {
   const featured = articles[0];

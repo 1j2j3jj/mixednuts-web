@@ -1,0 +1,192 @@
+---
+title: "Clerk から Better Auth への完全移行 — Neon Postgres × Next.js 15 × Organization 招待まで"
+excerpt: "Clerk dev instance の本番ドメイン制約に詰まり、Better Auth + Neon Postgres に全面移行した実装ログ。Organization 招待 UI まで含めた日本語唯一の実戦記録。"
+subtitle: "Clerk の Account Portal が `after_sign_in_url` を無視する既知挙動に詰まり、Better Auth + Neon Postgres へ深夜 5 時間で完全移行した記録。移行判断軸・コード変更点・Next.js 15 の cookie 制約対応・Organization 招待 UI の実装まで、日本語でほぼ未踏の領域を一次情報でまとめました。"
+date: 2026-04-23
+readTime: "10分"
+category: "ENGINEERING"
+author: "石井 希実"
+authorRole: "CEO / FOUNDER"
+tags: ["Better Auth", "Clerk", "Next.js", "Neon", "Authentication", "SaaS"]
+hero: "/images/generated/insights/clerk-to-better-auth.png"
+---
+
+<Tldr>
+2026-04-22 深夜、Clerk dev instance (`pk_test_`) が本番ドメインで `after_sign_in_url` を既存セッション時に無視する既知バグに詰まり、Better Auth + Neon Postgres (AWS Singapore) に **5 時間で全面移行**。Organization プラグインで招待 UI まで配線。結論: **小〜中規模 B2B SaaS なら Clerk より Better Auth が筋が良い**。理由は (1) 永続無料 OSS、(2) データ主権 (自社 Postgres)、(3) Auth.js v5 公式後継、(4) 移行コスト低。Next.js 15 の `cookies().set()` 制約には Route Handler 化で対応。
+</Tldr>
+
+## なぜ Clerk をやめたのか
+
+mixednuts-inc.com のクライアント向けダッシュボードを立ち上げるとき、最初の選択肢は Clerk でした。ドキュメントの厚さ、UI コンポーネントの完成度、Google OAuth 配線の簡便さ。Auth.js v5 よりも運用が楽そうだと判断しました。
+
+問題は **dev instance (`pk_test_`) の本番挙動** にありました。
+
+- Clerk の `pk_test_` インスタンスは本番ドメイン (`mixednuts-inc.com`) で完全サポートされない
+- Account Portal の `after_sign_in_url` が **既存セッション時に無視される** 既知挙動 ([GitHub issue #2595](https://github.com/clerk/javascript/issues/2595))
+- 結果として、ログイン後に `/user` で詰まり、クライアント側ダッシュボードに辿り着けない
+
+Production instance (`pk_live_`) に切り替えれば解決しますが、それには:
+
+1. 専用ドメイン (`clerk.mixednuts-inc.com`, `accounts.mixednuts-inc.com` 等) の CNAME 4-5 本を DNS に追加
+2. 有料プラン移行 ($25/月〜、MAU 課金発生)
+3. Lock-in の深化 (Clerk Organizations, Clerk Webhooks, etc.)
+
+**対して Better Auth は**:
+
+1. **永続無料 OSS** — コードが自分のリポジトリにある
+2. **データ主権** — セッション・ユーザー・組織情報は自社 Neon Postgres に格納される
+3. **Auth.js v5 公式後継** (2025/9 〜) — エコシステムとして持続性が担保される
+4. **ドメイン検証不要** — 自前のアプリサーバーがそのまま認証サーバーになる
+
+この 4 点が決定打でした。「Clerk の有料化コスト + Lock-in を回避するための一時コスト」として深夜 5 時間を投下。
+
+## 移行判断軸 — 5 つのチェックリスト
+
+認証プロバイダーを乗り換えるかどうか、以下の 5 項目で機械的に判定できます。
+
+<Principle num="01" heading="1 MAU あたりのコストが月 $1 を超えているか、超える見込みか" />
+
+Clerk は Free 枠 10,000 MAU 超で MAU 課金。小規模でも $25/月のミニマムがかかり、スケールすると予想外のコストに。Better Auth は Neon Postgres の Free 枠 (500MB, 191 compute-hour/月) で数千 MAU まで実質無料。
+
+<Principle num="02" heading="ユーザーデータを自社 DB に置きたい要件があるか" />
+
+freee 経理データ、CRM、分析基盤との JOIN を SQL で一発で回したい場合、Clerk の外部 DB 同期は余計な一段になります。Better Auth なら同じ Postgres 内で `JOIN user ON invoice.user_id = user.id` が直接書ける。データ主権は長期的に巨大な差になります。
+
+<Principle num="03" heading="Organizations / Multi-tenant 要件があるか" />
+
+Clerk Organizations は有料プラン。Better Auth の Organization プラグインは無料で、招待 → 自動組織作成 → 招待リンク発行 → 取消まで標準実装されています。B2B SaaS では必須機能。
+
+<Principle num="04" heading="開発者 1〜3 名で運用するか" />
+
+Clerk の強みは「UI コンポーネントをそのまま使えば認証画面が完成する」点。逆に小規模チームでは、カスタマイズ要件が増えたときに Clerk の抽象化が足枷になります。Better Auth は React コンポーネントを自分で書くことになるが、小規模チームには「薄くて分かる」方が保守しやすい。
+
+<Principle num="05" heading="Lock-in を許容できるか" />
+
+Clerk → 他社への移行は User テーブルを丸ごと移す必要があり、実質ロックされます。Better Auth は Drizzle ORM + Postgres なので、他の認証ライブラリ (Auth.js, Lucia 等) にも乗換可能。
+
+**3 つ以上 Yes なら Better Auth 推奨**。mixednuts は 5 つ全て Yes でした。
+
+## 実装 — 深夜 5 時間のタイムライン
+
+### Phase 1 (0:00–1:30): Neon + Drizzle スキーマ
+
+Neon (AWS ap-southeast-1 Singapore, 500MB Free) でインスタンス作成。Drizzle ORM で Better Auth が要求するテーブル (`user`, `session`, `account`, `verification`, `organization`, `member`, `invitation`) を定義し、`drizzle-kit push` で Neon に反映。
+
+`DATABASE_URL` と `BETTER_AUTH_SECRET` (ランダム 32 byte hex) を Vercel env に登録。
+
+### Phase 2 (1:30–3:00): Better Auth サーバー & クライアント
+
+`src/lib/auth.ts` で Better Auth サーバーを定義。Google OAuth + Email/Password + `admin` + `organization` の 4 プラグインを有効化。
+
+```typescript
+// src/lib/auth.ts (抜粋)
+import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { admin, organization } from "better-auth/plugins";
+
+export const auth = betterAuth({
+  database: drizzleAdapter(db, { provider: "pg" }),
+  emailAndPassword: { enabled: true },
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_OAUTH_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET!,
+    },
+  },
+  plugins: [admin(), organization()],
+});
+```
+
+`src/lib/auth-client.ts` で `createAuthClient` に `adminClient` + `organizationClient` を合成。`/api/auth/[...all]/route.ts` に BA のハンドラーを mount。
+
+### Phase 3 (3:00–4:00): middleware + `/login` UI 書き換え
+
+middleware から `@clerk/nextjs` の wrapper を削除し、`mn_session` cookie + Basic Auth の二段ゲートだけに。`/login` ページを `authClient.signIn.social({ provider: "google" })` に置き換え。
+
+### Phase 4 (4:00–5:00): Organization 招待 UI
+
+`/dashboard/admin/invites` 画面を作成。管理者がメールアドレスを入力 → `authClient.organization.inviteMember()` → 招待リンク発行 → コピーボタン → 取消機能まで。自動組織作成ヘルパー (`auto-org-create`) を Server Action で実装。
+
+### Phase 5 (4:30–5:00): Clerk の完全撤去
+
+```bash
+npm uninstall @clerk/nextjs
+rm -rf src/app/(auth) src/lib/clerk-url.ts
+# Vercel env から CLERK_* 3 本を削除 (API 経由)
+```
+
+本番デプロイ → `/login` 200 → `/dashboard/admin/invites` 401 → admin 認証で 200。**動作確認終了、5 時間で完了**。
+
+## Next.js 15 の罠 — `cookies().set()` 制約
+
+Better Auth 本体の実装はほぼスムーズだったのですが、1 点だけ詰まりました。
+
+OAuth コールバック後の `/login/success` ページで、`auth.api.getSession()` の結果を独自の `mn_session` cookie にも書き出す処理が必要でした。当初 Server Component として実装したところ、**Next.js 15 から `cookies().set()` が Server Component では禁止** になっていて失敗。
+
+解決は **Route Handler 化**:
+
+```typescript
+// src/app/login/success/route.ts
+export async function GET(req: Request) {
+  const session = await auth.api.getSession({ headers: req.headers });
+  const response = NextResponse.redirect(new URL("/dashboard", req.url));
+  response.cookies.set("mn_session", signSessionJwt(session), { httpOnly: true, secure: true });
+  return response;
+}
+```
+
+Route Handler では `NextResponse.cookies.set()` が使えます。Server Component ではなく Route Handler を使う、というのが Next.js 15 以降の原則。
+
+## 振り返り — 移行を即決できた理由
+
+深夜 5 時間で全面移行を決められたのは、Clerk の問題が **「設定を詰めれば直る」系ではなく「設計思想由来の既知挙動」** だったから。同じ理由で、他の認証ライブラリが破綻したときも移行判断は早いほど得です。
+
+判断の原則:
+
+1. **問題がドキュメント化されている (GitHub issue で追えている) なら、解決コストは可視化できる**
+2. **解決コストが乗換コストを超えるなら、乗り換えたほうが長期的に安い**
+3. **Lock-in が深い技術は「辞めるときの痛み」で判断する**
+
+---
+
+## FAQ
+
+**Q. Better Auth は本番環境で使っていいのか？**
+A. 2025/9 の v1 安定版リリース後、本番投入事例が増加しています。Auth.js v5 の公式後継として Auth.js コアチームが支持している点も大きい。ただし Clerk のような 24/7 サポートは期待できないので、認証障害時に自力で調査できる DevOps スキルは必要。
+
+**Q. Clerk から Better Auth へユーザーデータを移行するには？**
+A. Clerk の User Export API で JSON をダウンロード → `password_hash` は Clerk が bcrypt ラップしているので、Better Auth の `account` テーブルに `providerId: "credential"` で流し込めば OK。ソーシャルログインのみのユーザーは再認証で自動リンクされる。
+
+**Q. Neon じゃなくて Supabase でも動く？**
+A. 動きます。Better Auth は Postgres 互換なら何でも OK。Supabase は Auth 機能が別にあるので二重管理になりますが、データベースだけ使うのは問題なし。Neon を選んだのは Free 枠の `compute-hour` が長めで、AWS Singapore リージョンが東京レイテンシ ~50ms で実用的なため。
+
+**Q. Google OAuth の reverse proxy 構成 (www → apex) で動かない問題は？**
+A. `BETTER_AUTH_URL` を apex ドメイン固定 (`https://mixednuts-inc.com`) に env 設定し、Google Console に `https://mixednuts-inc.com/api/auth/callback/google` + `https://www.mixednuts-inc.com/api/auth/callback/google` 両方を承認済み URI に登録。www → apex の 301 redirect は Vercel domain API で設定。
+
+**Q. Clerk の UI コンポーネント (SignIn, UserProfile) の代替は？**
+A. Better Auth は UI コンポーネントを提供しないので、自前で React 書く前提。ただし `@better-auth/ui` という OSS コンポーネントライブラリが育ってきています。もしくは shadcn/ui + Tailwind で 30 分で組める。
+
+---
+
+## 参考文献 / Sources
+
+**Better Auth 公式情報:**
+- [Better Auth Documentation](https://www.better-auth.com/docs) — 公式ドキュメント
+- [Better Auth Organization Plugin](https://www.better-auth.com/docs/plugins/organization) — Organization 招待機能
+- [Better Auth Admin Plugin](https://www.better-auth.com/docs/plugins/admin) — 管理者ロール設定
+
+**Clerk 関連の既知挙動:**
+- [Clerk issue #2595: `after_sign_in_url` ignored on existing session](https://github.com/clerk/javascript/issues/2595) — 本記事で言及した既知バグ
+- [Clerk Development Instances docs](https://clerk.com/docs/deployments/overview#development-instances) — dev instance の本番挙動制約
+
+**比較記事 (英語圏):**
+- [Better Auth vs Clerk vs NextAuth 2026 SaaS Showdown (StarterPick)](https://starterpick.com/blog/better-auth-clerk-nextauth-saas-showdown-2026)
+- [better-auth vs NextAuth vs Clerk (supastarter)](https://supastarter.dev/blog/better-auth-vs-nextauth-vs-clerk)
+- [I tested every major auth library for Next.js in 2026 (LogRocket)](https://blog.logrocket.com/best-auth-library-nextjs-2026/)
+
+**Neon Postgres:**
+- [Neon Free Tier](https://neon.tech/pricing) — 500MB + 191 compute-hour/月
+- [Drizzle ORM + Neon Guide](https://orm.drizzle.team/docs/tutorials/drizzle-with-neon)
+
+**Next.js 15 cookie 制約:**
+- [Next.js cookies().set() in Server Components](https://nextjs.org/docs/app/api-reference/functions/cookies#cookiessetname-value-options) — Route Handler 必須の背景

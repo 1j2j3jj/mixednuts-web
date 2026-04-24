@@ -1,0 +1,161 @@
+---
+title: "Context Hygiene — 500 行で警告、800 行で強制トリム。context.md が組織を壊した日"
+excerpt: "プロジェクトの状態を管理する context.md が 640 行まで肥大化し、毎セッションのコンテキスト消費を圧迫していた事件と、その後の運用ルール化。"
+subtitle: "11 プロジェクトを並行運用する AI 組織で、各案件の context.md は「現在の状態 + TODO」を正本として毎セッション読み込まれる。片案件で 640 行まで膨れ上がった結果、全案件で数千行のコンテキスト消費が発生。Latest Status 1 世代ルールと 500 / 800 行の閾値による Context Hygiene 設計。"
+date: 2026-04-22
+readTime: "7分"
+category: "AI"
+author: "石井 希実"
+authorRole: "CEO / FOUNDER"
+tags: ["AI", "Context Management", "Documentation", "Operations"]
+hero: "/images/generated/insights/context-hygiene-500-lines.png"
+---
+
+<Tldr>
+11 案件を並行運用する AI 組織では、各 `projects/{案件}/context.md` がプロジェクト状態の正本。毎セッション読み込まれるので、肥大化すると全体のコンテキストコストを圧迫する。2026-04-21、trans 案件の context.md が **640 行** まで膨れていたインシデントから、Context Hygiene ルール策定: **(1) Latest Status は 1 世代だけ / (2) 500 行で警告 / (3) 800 行で強制トリム / (4) 詳細は _reports/ にスナップショット化**。
+</Tldr>
+
+## 事件 — 640 行の context.md
+
+2026-04-21、trans 案件 (クライアント広告運用) の定例レポートを生成しようとして、AI エージェントの応答が遅くなっていることに気づきました。
+
+調べてみると `projects/trans/context.md` が **640 行** に膨張していました。これを全 AI エージェントが毎セッション読み込んでいた。結果:
+
+- メインセッションの初期コンテキストが重い (3 万トークン超、context.md だけで)
+- 他の案件 (11 件) の context.md も似たような状況 → 組織全体で数千〜1 万行級のコンテキスト消費
+- 長期記憶のコンパクション (圧縮) が発生して、重要な情報が落ちるリスク
+- トークンコストが地味に増えている
+
+## context.md の本来の役割
+
+11 案件を並行運用する AI 組織で、`projects/{案件}/context.md` は:
+
+- **現在の状態** (Latest Status)
+- **TODO 一覧**
+- **Current Focus**
+- **不変リファレンス** (client 情報、API キー、主要決定)
+
+これが「毎セッション必ず読み込まれる正本」。だから **履歴や詳細データを入れるべきではない**。
+
+## 何が膨張していたか — 3 世代の Latest Status 並列
+
+trans の 640 行の内訳を分析したら、主因が判明:
+
+- `## Latest Status (2026-04-03)` — 65 行
+- `## Latest Status (2026-04-07)` — 82 行
+- `## Latest Status (2026-04-21)` — 78 行
+- その他 (TODO、Background、Goals 等): 415 行
+
+**3 世代の Latest Status が並列で残っていた**。過去の詳細スナップショットは `_reports/2026-04-03_trans-weekly-review.md` などに別途保存されているのに、context.md からも消されていなかった。
+
+原因は運用ルールの不備: "Latest Status を更新するときに古いものを消す" という明示的ルールがなかった。結果、セッションごとに新しい "Latest Status (YYYY-MM-DD)" が追加されて、古いのも残っていた。
+
+## 対策 — Context Hygiene ルール 4 ヶ条
+
+事件翌日に `.claude/rules/context-hygiene.md` として以下を策定:
+
+<Principle num="01" heading="Latest Status は 1 世代だけ" />
+
+新しい "Latest Status (YYYY-MM-DD)" を追加する時は、**古い同名セクションを削除** する。
+
+- NG: `## Latest Status (4/3)` `## Latest Status (4/7)` `## Latest Status (4/21)` の 3 世代並列
+- OK: `## Latest Status (4/21)` 1 つ + 過去は `_reports/` リンク
+
+古い内容で残したいものは、`_reports/YYYY-MM-DD_*.md` にスナップショット化して、context.md からはリンクで参照。
+
+<Principle num="02" heading="行数ガイドラインを持つ — 300 / 500 / 800" />
+
+- **目標**: 300 行以内
+- **警戒**: 500 行超
+- **強制トリム**: 800 行超 (session-close skill で警告 → 古い Latest Status を削除)
+
+300 行目標、500 行で警告、800 行で強制対応。
+
+<Principle num="03" heading="書かないものを決める" />
+
+context.md に書かないもの:
+
+- 単発分析の詳細データ (テーブル・KPI 数値の羅列) → `_reports/`
+- 議事録・MTG 詳細メモ → auto-memory
+- 広告配信の ADG/KW 一覧 (運用詳細) → Google Sheets / `_reports/`
+- 過去レポートの要約 (リンクだけで十分)
+
+<Principle num="04" heading="加筆時のルール" />
+
+- 既存セクションを更新する → 既存を上書き
+- 新セクションを追加する → 同種の古いセクションを削除する
+
+## session-close skill で自動検査
+
+手動でルール遵守は破綻するので、`/session-close` スキルの中で自動検査:
+
+1. context.md が 500 行超なら警告出力
+2. "Latest Status" セクションが 2 つ以上あれば、最古を削除候補として提示
+3. 800 行超なら自動でトリム提案を出す
+
+これで、**"context.md に加筆してはいけない状況" を、エージェントが気づけなかった人間に代わって発見** してくれる。
+
+## 他のドキュメントとの境界
+
+context.md は「現在の状態」。他の知識ストアとは役割が違う:
+
+| Store | パス | 何を書く |
+|-------|------|---------|
+| **context.md** | `projects/*/context.md` | TODO 一覧、Current Focus、Latest Status |
+| **memory/** | `memory/*.md` | 意思決定ログ、PMO 横串 (組織横断) |
+| **auto-memory** | `~/.claude/projects/.../memory/` | ユーザー嗜好、MTG 詳細、セッション横断 |
+| **_reports/** | `_reports/YYYY-MM-DD_*.md` | 分析結果 (不変スナップショット) |
+
+詳しくは [Knowledge Store 4 層設計](/insights/knowledge-store-4-layers) で詳述。
+
+## 教訓 — 肥大化は気づきにくい
+
+Context Hygiene の厄介なところは、**肥大化が徐々に起きる** こと。1 回のセッションで 10 行ずつ増えても、気づかない。3 ヶ月で 300 行増えていたとしても、普段使うのは Latest Status だけなので支障がない。
+
+でも AI 組織全体の処理コストは着実に増え続けている。**明示的なルールと自動検査なしでは、この肥大化は止まらない**。
+
+対策のポイント:
+
+- 数値ガイドライン (300 / 500 / 800 行) を明示する
+- 加筆時に削除を同時実行する (更新 = 上書き、追加 = 同種削除)
+- 定期的にスキルで自動検査する (session-close)
+
+---
+
+## FAQ
+
+**Q. CLAUDE.md も同じように肥大化しない？**
+A. する。CLAUDE.md (ルート) は別のスコープで `.claude/rules/` に分散配置することで肥大化を抑える運用にしている。ルートは「索引」、詳細は個別ファイルへ。
+
+**Q. 11 案件すべてで 300 行以内は現実的？**
+A. 可能。特に「Latest Status を 1 世代に絞る」と「詳細を _reports/ に逃がす」をやれば、300 行以下は維持できる。むしろ "300 行で収まらない複雑な状態" が必要な案件は、状態管理の設計自体を見直すべき。
+
+**Q. context.md の削除で情報が失われないか？**
+A. 失われない。削除した古い Latest Status は `_reports/YYYY-MM-DD_*.md` にスナップショットとして残る。過去の状態を振り返りたいなら `_reports/` を参照。context.md は「現在」のみ。
+
+**Q. 小規模プロジェクト (1-2 案件) でも context.md は必要？**
+A. 小規模でも有用。TODO 一覧と Current Focus があるだけで、AI エージェントの判断精度が上がる。ただし 200 行を超えたら「それは本当に必要な情報か」を問い直す。
+
+**Q. 他のフレームワーク (LangGraph / AutoGen) でも同じ問題は起きるか？**
+A. 起きる。むしろ LangGraph は state を dict で持つので、膨張がより見えにくい。Context Hygiene の考え方は agent framework 非依存で有効。
+
+---
+
+## 参考文献 / Sources
+
+**mixednuts 内部ルール:**
+- `.claude/rules/context-hygiene.md` — 完全版ルール
+- `.claude/rules/knowledge-store.md` — 知識ストア分離ルール
+- 2026-04-21 trans context.md 640 行インシデント (auto-memory)
+
+**関連: Claude Code コンテキスト管理:**
+- [Claude Code Context Compaction](https://docs.claude.com/en/docs/claude-code/memory) — 自動圧縮の挙動
+- [CLAUDE.md Best Practices](https://docs.claude.com/en/docs/claude-code/memory#claude-md)
+
+**文書設計の原則 (一般):**
+- [Dave Rupert: Keeping README files short](https://daverupert.com/)
+- [Write The Docs](https://www.writethedocs.org/) — 技術文書のガイド
+
+**関連記事:**
+- [Knowledge Store 4 層設計](/insights/knowledge-store-4-layers)
+- [Skills as Microservices](/insights/skills-as-microservices)

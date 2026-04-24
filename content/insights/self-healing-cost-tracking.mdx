@@ -1,0 +1,190 @@
+---
+title: "Self-Healing + Cost Tracking — エージェント暴走と $200/月 Max Plan の運用"
+excerpt: "123 体 AI エージェントを 24/7 稼働させる上で、エージェント暴走を自動修復する仕組みと、トークン使用量を Max Plan 内に収める運用ログ。"
+subtitle: "AI エージェントは放置すると暴走・コスト爆発するリスクがある。4 時間周期の `self-healer` による自動修復、エージェント別トークン追跡、月額 Max Plan $200 を超えない運用ルール、3 回連続失敗時のエスカレーション設計。24/7 自律稼働を支えるオペレーション基盤を公開。"
+date: 2026-04-18
+readTime: "7分"
+category: "AI"
+author: "石井 希実"
+authorRole: "CEO / FOUNDER"
+tags: ["AI", "Operations", "Cost Management", "Self-Healing", "Monitoring"]
+hero: "/images/generated/insights/self-healing-cost-tracking.png"
+---
+
+<Tldr>
+AI エージェント 123 体を 24/7 で動かす上で必須の運用インフラ 2 点: **(1) Self-Healing** = 4h 周期で `self_healer.py` が全エージェントのヘルスチェック + 自動修復、3 回連続失敗でエスカレーション。**(2) Cost Tracking** = エージェント別トークン使用量を `cost-tracker` で日次集計、Max Plan $200/月を超えないよう予算管理。階層化 (Opus/Sonnet/Haiku) と合わせて、安定稼働 + 予算内運用を両立。
+</Tldr>
+
+## 24/7 稼働で起きる 2 つの問題
+
+AI エージェントを常時稼働させると、避けられない問題が 2 つあります。
+
+### 問題 A: サイレントな失敗
+
+エージェント定義の YAML 構文エラー、依存パッケージの破壊、ログファイルの肥大化、API の OAuth トークン失効 — どれも単発では目立たないが、蓄積すると「ある日突然全部動かない」状態になる。
+
+### 問題 B: コスト爆発
+
+Task ツール委任で複数エージェントが並列起動すると、想定外のトークン消費が発生。特に Opus 4.7 は単価が高い (Sonnet の 5 倍、Haiku の 15 倍)。気づかないと月 $500 超えて Max Plan が破綻する。
+
+対策として運用しているのが **Self-Healing** と **Cost Tracking** の 2 つのインフラです。
+
+## Self-Healing — 4 時間周期の自動修復
+
+`scripts/agentops/self_healer.py` を 4 時間ごとに launchd (今は Routines) で実行。内容:
+
+<Principle num="01" heading="全エージェント定義の YAML 構文チェック" />
+
+`.claude/agents/*.md` の frontmatter YAML を全件パース。構文エラーがあれば自動修復を試みる:
+
+- Indentation 不整合 → 修正
+- Quote 漏れ → 修正
+- 型不一致 (model: opus → model: "opus") → 修正
+
+自動修復できないエラーは `memory/agent-health.md` に記録し、エスカレーション。
+
+<Principle num="02" heading="依存パッケージの健全性" />
+
+`package.json` と `requirements.txt` の差分で、実際にインストールされていないパッケージを検出。`pip install` / `npm install` を自動実行。
+
+<Principle num="03" heading="ログファイルの肥大化防止" />
+
+`_reports/` 配下で 30 日超のファイルを `_reports/archive/` に移動、90 日超は purge。`memory/report-index.md` で索引を維持。
+
+<Principle num="04" heading="API OAuth トークンの自動更新確認" />
+
+Google OAuth (43 スコープ) の refresh token が有効か確認。期限切れ間近 (残り 7 日以下) ならアラート。freee は 90 日サイクルで切れるため、早期警告が特に重要。
+
+### エスカレーション — 3 回連続失敗ルール
+
+同じエラーが 3 回連続で発生したら、自動修復を止めて Slack 通知:
+
+```
+Self-Healer escalation: campaign-analyst agent has failed 3 times.
+Last error: "Google Ads API auth failed (invalid refresh token)"
+Action required: manual intervention.
+```
+
+3 回でエスカレーションする理由: **1 回は偶発、2 回は偶然、3 回はパターン**。自動修復で解けない構造的問題なので、人間 (CEO) に判断を委ねる。
+
+## Cost Tracking — Max Plan $200 を超えない運用
+
+`cost-tracker` エージェント (Haiku 軽量) を毎日 18:00 に起動し、その日のトークン消費を集計:
+
+- 各エージェント別 (Opus / Sonnet / Haiku 単価換算)
+- 各 Skill 別 (呼ばれた回数 × 平均消費)
+- 各時間帯別 (朝 / 日中 / 夜)
+
+日次レポートは `_reports/YYYY-MM-DD_cost-report.md` に保存。Slack にも BLUF 形式で通知:
+
+```
+[Daily Cost] 2026-04-17
+Today:       $5.40 (Opus: $2.10, Sonnet: $2.80, Haiku: $0.50)
+MTD:         $87.20 / $200 (43.6%)
+Projected:   $162 / mo (within budget)
+Top 3 agents: cos-chief-of-staff, fpna-architect, campaign-analyst
+```
+
+### 予算超過アラート
+
+月次予算 $200 に対して:
+
+- MTD 60% 超 → 黄色アラート
+- MTD 80% 超 → 赤アラート + Opus 使用の一時停止候補を提示
+- MTD 100% 超 → Opus の全エージェントを Sonnet に一時降格 (Cost Tracker が提案、CEO が承認)
+
+2026-04 時点で MTD 100% 超には到達していないが、降格フローは想定済み。
+
+## 具体的なコスト削減アクション
+
+Cost Tracker が異常を検知した際の定型アクション:
+
+<Principle num="01" heading="重複起動の検出" />
+
+同一 Task が短時間内に複数回起動されたら、2 回目以降をスキップ (キャッシュ化)。無駄な API 呼び出しを防ぐ。
+
+<Principle num="02" heading="長時間走るタスクの早期打ち切り" />
+
+1 タスクが 30 分超走っていたら強制停止。Long-running は `overnight-autonomous` のみ許可、他は短時間完結が原則。
+
+<Principle num="03" heading="モデル降格の提案" />
+
+Sonnet で回っていたエージェントに Opus で走らせた形跡があれば警告。モデル階層ルールの違反をチェック。
+
+## 実運用データ
+
+2026-04 の 1 週間データ:
+
+- **Self-Healer**: 126 回実行、自動修復 7 件成功、エスカレーション 0 件
+- **Cost Tracker**: 7 日分で MTD $42、予算の 21%
+- **エスカレーション通知**: freee OAuth 再認証の 1 件のみ (90 日サイクル)
+
+**安定運用が 1 ヶ月継続できている**。事前設計の効果が出ている。
+
+## 他の監視インフラとの統合
+
+### エージェントヘルスチェック
+
+`agent-monitor` エージェントが別途、各エージェントの「最後に実行された時刻」「成功率」を監視。3 日以上実行されていないエージェントは "退役候補" として通知。
+
+### Ops Observability
+
+`ops-observability` エージェントが、全 skill の応答時間・トークン消費・エラー率を日次で集計。パフォーマンス劣化の兆候を早期検知。
+
+### Backup Auditor
+
+`backup-auditor` が週次で、context.md / memory/ / _reports/ のバックアップ成功を確認。復元テストも月次で 1 回実施。
+
+## 教訓 — 監視と修復は "運用初日" から
+
+スタートアップ的に「まず動かす、運用は後で」と考えがちだが、AI エージェント組織では **Self-Healing と Cost Tracking を運用初日から入れるべき**。
+
+理由:
+
+- エージェントが少ないうちは手動監視で回るが、**30 体を超えると人間の目が追いつかない**
+- コスト爆発は後から対策してもその月の請求は戻らない
+- 「動いている」と「健全に動いている」は違う。健全性の可視化が運用品質を決める
+
+mixednuts の場合、Self-Healing と Cost Tracking を入れる前は月 $480 超えて Max Plan 破綻。入れた後 $165/月で安定。**投資対効果が明確に出る領域**。
+
+---
+
+## FAQ
+
+**Q. Self-Healer の実装に必要な時間は？**
+A. 初期実装は 1 日。ただし **自動修復ルールを育てるのは数ヶ月**。「このエラーはこう直す」というパターンを蓄積していく。
+
+**Q. Cost Tracker は何で実装？**
+A. Anthropic の Usage API を叩いて集計。Python スクリプトで 200 行程度。日次で Slack に投稿、月次で `memory/cost-report-YYYY-MM.md` に保存。
+
+**Q. 3 回連続失敗ルールの根拠は？**
+A. 経験則。1-2 回なら偶発・偶然の可能性があり、自動修復再試行の余地がある。3 回でパターン認定 → 人間介入。5 回にすると検知が遅れ、2 回にすると偶発で呼び出しすぎる。
+
+**Q. Haiku で cost-tracker を動かしているのはなぜ？**
+A. 単純な集計タスクなので Haiku で十分。Haiku のトークン単価は最安 (Opus の 15 分の 1) なので、毎日動かしてもほぼ無視できるコスト。
+
+**Q. 他の LLM プロバイダ (OpenAI / Gemini) でも同じ設計？**
+A. 同じ。Cost Tracking と Self-Healing は AI 組織運用の普遍的必須インフラ。実装は各 LLM API に合わせて書き換え。
+
+---
+
+## 参考文献 / Sources
+
+**Claude API Usage:**
+- [Anthropic Usage API](https://docs.claude.com/en/api/admin-api/usage-cost/get-usage-report-messages) — トークン消費取得
+- [Claude Console Usage Dashboard](https://console.anthropic.com/settings/usage)
+- [Claude Pricing](https://www.anthropic.com/pricing) — Opus / Sonnet / Haiku 単価
+
+**Self-Healing / SRE ベストプラクティス:**
+- [Google SRE Book — Handling Overload](https://sre.google/sre-book/handling-overload/)
+- [Site Reliability Engineering Book](https://sre.google/sre-book/table-of-contents/)
+- [The Four Golden Signals](https://sre.google/sre-book/monitoring-distributed-systems/)
+
+**mixednuts 内部:**
+- `scripts/agentops/self_healer.py` — 自動修復スクリプト
+- `.claude/agents/cost-tracker.md` — Cost Tracker エージェント定義
+- auto-memory `opus-47-adoption.md` — モデル階層化のコスト削減実績
+
+**関連記事:**
+- [Opus / Sonnet / Haiku モデル階層](/insights/opus-sonnet-haiku-tiering)
+- [Routines on Cloud v6](/insights/routines-on-cloud-v6)

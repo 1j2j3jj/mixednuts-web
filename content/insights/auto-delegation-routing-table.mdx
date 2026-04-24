@@ -1,0 +1,213 @@
+---
+title: "Auto-delegation Routing Table — キーワード検出で自動委任する実装テーブル公開"
+excerpt: "80+ キーワードを専門エージェントに自動ルーティングする運用テーブル。1 年間の微調整で得られた LLM 組織の自動委任インフラの一次情報。"
+subtitle: "ユーザーの発言から適切な専門エージェントに自動ルーティングするテーブル設計。広告 / FP&A / 投資 / SEO / 法務 / 計測など、80+ キーワードでカテゴリ分類。過不足の調整履歴、複数キーワードマッチ時の優先順位、例外処理まで一次公開。"
+date: 2026-04-14
+readTime: "8分"
+category: "AI"
+author: "石井 希実"
+authorRole: "CEO / FOUNDER"
+tags: ["AI", "Delegation", "Routing", "Agent Architecture"]
+hero: "/images/generated/insights/auto-delegation-routing-table.png"
+---
+
+<Tldr>
+123 体 AI 組織で、ユーザーの発言から専門エージェントに自動ルーティングするテーブルの設計ログ。カテゴリ: **広告・マーケ** → campaign-analyst、**FP&A・経営管理** → fpna-architect、**SEO・AIO** → seo-orchestrator、**投資・DD** → deal-sourcer、**法務** → global-counsel、**計測** → data-quality-checker + campaign-analyst 並行。80+ キーワードを 18 カテゴリに分類、1 年間の運用で過不足を調整した実テーブルを公開。
+</Tldr>
+
+## なぜキーワードルーティングが必要か
+
+[Task ツール強制委任](/insights/task-forced-delegation) で、メインセッションが専門領域を自分で実行することを禁止しました。では、どの専門エージェントに委任すればいいか？
+
+答えは「**キーワード検出で自動ルーティング**」。ユーザーが「HS の広告どう？」と言えば `campaign-analyst` へ、「Pococha の予実を」と言えば `fpna-architect` へ、自動で振り分けます。
+
+## ルーティングテーブル設計の 3 原則
+
+<Principle num="01" heading="カテゴリ分類は 「検索意図」 ベース" />
+
+エージェント名ではなく、**ユーザーが何について話しているか** で分類する:
+
+- 「広告」「Google Ads」「ROAS」「CPA」「キャンペーン」 → カテゴリ: 広告・マーケ
+- 「予実」「月次締め」「取締役会」「FP&A」→ カテゴリ: 経営管理
+- 「SEO」「AIO」「構造化データ」「Core Update」→ カテゴリ: SEO / AIO
+
+1 ユーザー発言に複数キーワードが含まれる場合は、最頻出カテゴリを選ぶ。
+
+<Principle num="02" heading="カテゴリ → 専門エージェント" />
+
+カテゴリごとに 1 つの「起点エージェント」を決める:
+
+| カテゴリ | 起点エージェント | 用途 |
+|---------|-----------------|------|
+| 広告・マーケ | `campaign-analyst` | 単一エージェント分析 |
+| {案件名}の振り返り | `project-owner-{案件}` | PO 配下で複数 Worker 起動 |
+| 予算配分・広告戦略 | `growth-head` | growth-strategy チーム起動 |
+| 計測・GTM・CV 不整合 | `data-quality-checker` + `campaign-analyst` 並行 | 計測診断 |
+| Pococha・DeNA・取締役会 | `fpna-architect` | 経営管理専門 |
+| 投資・DD・バリュエーション | `deal-sourcer` | 投資チーム起動 |
+| 契約・NDA | `global-counsel` | 法務専門 |
+| クライアントヘルス | `health-monitor` | CS チーム起動 |
+| SEO / AIO / AEO | `seo-orchestrator` | SEO 統括 |
+
+起点エージェントは **Head or Lead レベル** (Sonnet + Task tool) で、配下のサブエージェントへ再委任する責任を持つ。
+
+<Principle num="03" heading="例外を明示化" />
+
+ルーティングを使わない例外:
+
+- **単一事実確認**: 「context.md 読んで」「ファイル一覧見せて」
+- **既取得データの再表示**: 「さっきの数字もう一回」
+- **CEO との壁打ち**: 戦略相談、判断補助
+- **メタ作業**: ハーネス改修、ルール追加
+- **ドキュメント更新**: context.md 更新、memory 記録
+
+これ以外は **判断に迷ったら必ず委任**。「自分でやった方が早い」は誤り。
+
+## 実テーブル — 80+ キーワード
+
+以下が `.claude/rules/auto-delegation.md` に記述している実運用テーブル (抜粋):
+
+### 財務・FP&A
+
+| キーワード | エージェント | スキル |
+|---|---|---|
+| Pococha, IRIAM, DCL, DeNA, LC本部, 取締役会, 月次定例, 仮締め | `fpna-architect` | `pococha-health-check` |
+| freee, 月次決算, BS, PL, 経費, レシート, AMEX | `cash-commander` | `freee-monthly-close` |
+| LTV, CAC, ユニットエコノミクス, 限界利益 | `unit-economist` | `unit-economics` |
+| IR, 投資家向け | `ir-communicator` | - |
+| 税務, 消費税, インボイス | `tax-compliance` | - |
+
+### 売上・RevOps
+
+| キーワード | エージェント | スキル |
+|---|---|---|
+| パイプライン, 案件進捗, 受注率 | `pipeline-tracker` | `revenue-pipeline` |
+| 価格, プライシング, 値上げ | `pricing-optimizer` | - |
+| 請求書, 入金, 未回収 | `billing-automator` | `invoice-organizer` |
+| 売上予測, フォーキャスト | `forecast-modeler` | `forecast-model` |
+
+### 成長・マーケティング
+
+| キーワード | エージェント | スキル |
+|---|---|---|
+| 広告, Google Ads, ROAS, CPA, キャンペーン | `campaign-analyst` | `weekly-ad-review` |
+| SEO, AIO, AEO, Core Update, 構造化データ | **`seo-orchestrator`** | `seo-site-audit`, `seo-aio-strategy` 他 |
+| コンテンツ, ブログ, SNS, 記事執筆 | `content-strategist` | - |
+| 市場調査, 競合分析 | `market-researcher` | `market-trend-report` |
+| A/B テスト, 施策効果 | `growth-pmo` | `launch-checklist` |
+
+### BizDev / CS
+
+| キーワード | エージェント | スキル |
+|---|---|---|
+| リード, 見込み客 | `lead-generator` | `lead-scoring` |
+| 提案書, プロポーザル | `proposal-writer` | `proposal-draft` |
+| ヘルススコア, 解約リスク, チャーン | `health-monitor` | `client-health-score` |
+| アップセル, クロスセル | `upsell-analyst` | - |
+
+### 開発
+
+| キーワード | エージェント | スキル |
+|---|---|---|
+| コード, 実装, API 開発 | `fullstack-dev` | `feedforge-dev` |
+| プロンプト設計, 新規 Skill 作成直後 | `prompt-architect` | `empirical-prompt-tuning` |
+| AI 動向, プラットフォーム更新 | `system-architect` | `ai-platform-radar` |
+| テスト, QA, バグ | `qa-engineer` | `qa` |
+
+### 法務・投資
+
+| キーワード | エージェント | スキル |
+|---|---|---|
+| 契約チェック, NDA, リスク条項 | `global-counsel` | `contract-review` |
+| DD, デューデリジェンス | `ma-dd-execution-lead` | `due-diligence` |
+| DCF, バリュエーション, マルチプル | `valuation-analyst` | `scenario-simulation` |
+
+## 1 年間の調整履歴
+
+テーブルは最初から完成品ではなく、**運用しながら過不足を調整** してきました。
+
+### 追加キーワード例
+
+- 「データ汚染」→ 当初 `campaign-analyst` だったが、計測起因が多いので `data-quality-checker` 並行に変更
+- 「Centerfile」→ DeNA LC 本部の内部用語、`fpna-architect` に追加
+- 「LLMO」→ 2026-03 に SEO 領域で頻出し始めたので `seo-orchestrator` に追加
+
+### 削除キーワード例
+
+- 「レポート」単独 → 汎用すぎて他カテゴリにマッチしすぎる。"週次レポート" "月次レポート" のように修飾詞と組み合わせる形に変更
+
+### キーワード衝突の解決
+
+複数カテゴリにマッチする場合の優先順位:
+
+1. **プロジェクト名が含まれる場合** → そのプロジェクトの PO (`project-owner-trans` 等)
+2. **2 領域に跨る場合** → 上位 Lead に委任 (`cos-chief-of-staff` など)
+3. **単一カテゴリ** → テーブルで決めた起点エージェント
+
+## 実装 — ハーネスレベルか、プロンプトレベルか
+
+### 選択肢 A: プロンプトで指示
+
+`CLAUDE.md` や `.claude/rules/auto-delegation.md` に「このキーワードを見たら Task ツールで委任せよ」と書く。
+
+- 長所: 実装コストゼロ、即効性
+- 短所: メインセッションが忘れることがある (Calibration 不備時)
+
+### 選択肢 B: ハーネスの hook
+
+Claude Code の settings.json hook で、ユーザー発言に特定キーワードが含まれているのに Task ツールが呼ばれなかったら警告を出す。
+
+- 長所: 確実に発火
+- 短所: hook の設定・メンテナンスコスト
+
+mixednuts は現在 **選択肢 A** で運用中。10 件に 1 件くらい委任漏れが起きるが、CEO が気づいたら「委任して」と指示することで即修正。完璧を目指さず、90% を自動化する設計。
+
+## テーブルの育て方
+
+新しいキーワードが出てきたら:
+
+1. 1 週間観察する (1 回だけか、継続的か)
+2. 継続的なら、既存カテゴリに入るかチェック
+3. 入るなら既存エージェントに追加、入らないなら新カテゴリを検討
+4. 新カテゴリは慎重に (小さく始めて、2 週間後に評価)
+
+テーブルは**最小限に保つ**。キーワードを増やすほど衝突が増えて、判定ミスが多発する。
+
+---
+
+## FAQ
+
+**Q. このテーブルを他組織で流用できるか？**
+A. カテゴリ (広告 / FP&A / 投資 / 法務) は業種を問わず共通。キーワードは自組織に合わせて調整必要。特に「プロジェクト名」カテゴリは完全に個別。
+
+**Q. LLM が発言全体を意味解釈するのではなく、なぜキーワード検出？**
+A. 意味解釈は LLM のセッションコンテキストに依存し、セッションをまたぐと判定がぶれる。キーワード検出は **明示的・再現可能・デバッグ可能**。LLM の判断余地を最小限にすることで信頼性が上がる。
+
+**Q. キーワード検出で false positive (過剰委任) は？**
+A. ある。例: CEO が「広告 の話じゃなくて、広告代理店での経験について」と言っても「広告」にヒットして campaign-analyst へ委任される。回避: 発話の context を見て、CEO が「今は違う文脈」と明示したら委任取消。
+
+**Q. スキル (`/skill-name`) との使い分けは？**
+A. スキルは "ユーザーが明示的に呼ぶ"、ルーティングは "自動で適切なエージェントを選ぶ"。スキルが呼ばれた場合はそのスキル定義に従う。呼ばれなかった場合にルーティングテーブルで判断。
+
+**Q. 80+ キーワードで足りるか？**
+A. 現時点で足りている。ただし新しい案件・新しい技術領域が増えるたびに追加。3 ヶ月に 1 回、テーブルの見直しを session-close skill でリマインドしている。
+
+---
+
+## 参考文献 / Sources
+
+**mixednuts 内部ルール:**
+- `.claude/rules/auto-delegation.md` — 80+ キーワード完全テーブル
+- `.claude/rules/jarvis-pattern.md` — 2-Hop / 3-Hop の判断フレーム
+
+**Claude Code Sub-Agent:**
+- [Claude Code Sub-Agents](https://docs.claude.com/en/docs/claude-code/sub-agents) — Task ツール仕様
+- [Claude Code Settings hooks](https://docs.claude.com/en/docs/claude-code/hooks) — Webhook で検証する選択肢 B
+
+**類似ルーティング実装:**
+- [LangGraph Conditional Edges](https://langchain-ai.github.io/langgraph/concepts/low_level/#conditional-edges)
+- [AutoGen Group Chat Speaker Selection](https://microsoft.github.io/autogen/docs/tutorial/conversation-patterns/)
+
+**関連記事:**
+- [Task ツール強制委任](/insights/task-forced-delegation)
+- [Jarvis Pattern](/insights/jarvis-adaptive-delegation)

@@ -1,9 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import type { FormEvent } from "react";
+import { useMemo, useRef, useState } from "react";
 import { positions, CASUAL_INTERVIEW_SLUG, type Position } from "@/data/careers";
+import { submitApplication } from "./actions";
+
+// -----------------------------------------------------------------------
+// Types
+// -----------------------------------------------------------------------
 
 type SubmitState =
   | { status: "idle" }
@@ -11,10 +15,89 @@ type SubmitState =
   | { status: "success"; message: string }
   | { status: "error"; message: string };
 
-const WEB3FORMS_ENDPOINT = "https://api.web3forms.com/submit";
+// -----------------------------------------------------------------------
+// File input sub-component
+// -----------------------------------------------------------------------
+
+const ALLOWED_EXTENSIONS = ".pdf,.docx,.doc";
+const MAX_MB = 10;
+const MAX_BYTES = MAX_MB * 1024 * 1024;
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
+
+interface FileInputProps {
+  name: string;
+  label: string;
+  disabled: boolean;
+}
+
+function FileInput({ name, label, disabled }: FileInputProps) {
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    setError(null);
+    if (!file) {
+      setFileName(null);
+      return;
+    }
+    if (!ALLOWED_MIME_TYPES.has(file.type)) {
+      setError("PDF または Word ファイル (.docx / .doc) を選択してください。");
+      e.target.value = "";
+      setFileName(null);
+      return;
+    }
+    if (file.size > MAX_BYTES) {
+      setError(`ファイルサイズが ${MAX_MB}MB を超えています。`);
+      e.target.value = "";
+      setFileName(null);
+      return;
+    }
+    setFileName(file.name);
+  }
+
+  return (
+    <div className="form-group file-input-group">
+      <label>{label}</label>
+      <div className="file-input-wrapper">
+        <button
+          type="button"
+          className="file-input-btn"
+          disabled={disabled}
+          onClick={() => inputRef.current?.click()}
+        >
+          {fileName ? "ファイルを変更" : "ファイルを選択"}
+        </button>
+        <span className="file-input-name">
+          {fileName ?? "選択されていません（PDF推奨、最大10MB）"}
+        </span>
+        <input
+          ref={inputRef}
+          type="file"
+          name={name}
+          accept={ALLOWED_EXTENSIONS}
+          onChange={handleChange}
+          disabled={disabled}
+          style={{ display: "none" }}
+        />
+      </div>
+      {error && <p className="file-input-error">{error}</p>}
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------
+// Main form component
+// -----------------------------------------------------------------------
 
 export default function ApplyForm({ initialPosition }: { initialPosition?: string }) {
   const [state, setState] = useState<SubmitState>({ status: "idle" });
+  const formRef = useRef<HTMLFormElement>(null);
 
   const initialSlug = useMemo(() => {
     if (!initialPosition) return "";
@@ -23,78 +106,28 @@ export default function ApplyForm({ initialPosition }: { initialPosition?: strin
     return match ? match.slug : "";
   }, [initialPosition]);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    const formData = new FormData(form);
 
-    if ((formData.get("_honey") as string | null)?.trim()) {
+    // Honeypot check (client-side fast path — also checked server-side)
+    const honey = (form.elements.namedItem("_honey") as HTMLInputElement | null)?.value?.trim();
+    if (honey) {
       setState({ status: "success", message: "応募を受け付けました。" });
       return;
     }
 
-    const accessKey = process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY;
-    if (!accessKey) {
-      setState({ status: "error", message: "フォームが設定されていません。管理者にお問い合わせください。" });
-      return;
-    }
-
-    const name = (formData.get("name") as string | null)?.trim() ?? "";
-    const email = (formData.get("email") as string | null)?.trim() ?? "";
-    const positionSlug = (formData.get("position") as string | null)?.trim() ?? "";
-    const motivation = (formData.get("motivation") as string | null)?.trim() ?? "";
-
-    if (!name || !email || !positionSlug || !motivation) {
-      setState({ status: "error", message: "必須項目が未入力です。" });
-      return;
-    }
-
-    const pos: Position | undefined = positions.find((p) => p.slug === positionSlug);
-    const positionLabel =
-      positionSlug === CASUAL_INTERVIEW_SLUG
-        ? "カジュアル面談希望（ポジション未定）"
-        : pos?.title ?? positionSlug;
-
-    const payload: Record<string, string> = {
-      access_key: accessKey,
-      name,
-      email,
-      subject: `[Careers] ${positionLabel} — ${name} 様よりご応募`,
-      from_name: "mixednuts-inc.com (careers)",
-      ポジション: positionLabel,
-      氏名: name,
-      メールアドレス: email,
-      LinkedIn: (formData.get("linkedin") as string | null) ?? "",
-      ポートフォリオ: (formData.get("portfolio") as string | null) ?? "",
-      現職: (formData.get("current_company") as string | null) ?? "",
-      現職役職: (formData.get("current_role") as string | null) ?? "",
-      応募理由: motivation,
-      稼働開始可能時期: (formData.get("availability") as string | null) ?? "",
-      希望勤務形態: (formData.get("work_style") as string | null) ?? "",
-      redirect: "false",
-    };
-
     setState({ status: "submitting" });
+
     try {
-      const res = await fetch(WEB3FORMS_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = (await res.json()) as { success: boolean; message?: string };
-      if (data.success) {
-        setState({
-          status: "success",
-          message:
-            "ご応募を受け付けました。2営業日以内にご連絡いたします。書類選考通過後、カジュアル面談（30分）にご案内します。",
-        });
+      const formData = new FormData(form);
+      const result = await submitApplication(formData);
+      if (result.success) {
+        setState({ status: "success", message: result.message });
         form.reset();
-        return;
+      } else {
+        setState({ status: "error", message: result.message });
       }
-      setState({
-        status: "error",
-        message: data.message || "送信に失敗しました。時間をおいて再度お試しください。",
-      });
     } catch {
       setState({
         status: "error",
@@ -128,113 +161,175 @@ export default function ApplyForm({ initialPosition }: { initialPosition?: strin
   const pending = state.status === "submitting";
 
   return (
-    <form onSubmit={handleSubmit} className="apply-form">
-      <input type="text" name="_honey" style={{ display: "none" }} tabIndex={-1} autoComplete="off" />
+    <>
+      <style>{`
+        .file-input-group { margin-bottom: 20px; }
+        .file-input-wrapper {
+          display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        }
+        .file-input-btn {
+          flex-shrink: 0;
+          padding: 8px 18px;
+          border: 1px solid rgba(10,10,10,0.2);
+          border-radius: 6px;
+          background: var(--off-white-alt);
+          color: var(--charcoal);
+          font-size: 13px;
+          font-weight: 600;
+          font-family: inherit;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          white-space: nowrap;
+        }
+        .file-input-btn:hover:not(:disabled) {
+          border-color: var(--cyan);
+          background: rgba(0,217,255,0.06);
+        }
+        .file-input-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .file-input-name {
+          font-size: 13px; color: var(--gray-600);
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .file-input-error {
+          margin-top: 6px; font-size: 12px; color: #991B1B;
+        }
+        .file-upload-note {
+          font-size: 12px; color: var(--gray-400);
+          margin-top: 8px; line-height: 1.7;
+        }
+      `}</style>
 
-      <div className="form-section">
-        <h3 className="form-section-title">応募ポジション</h3>
-        <div className="form-group">
-          <label>
-            ご希望ポジション <span className="req">*</span>
-          </label>
-          <select name="position" required defaultValue={initialSlug}>
-            <option value="">選択してください</option>
-            <option value={CASUAL_INTERVIEW_SLUG}>カジュアル面談希望（ポジション未定）</option>
-            {positions.map((p) => (
-              <option key={p.slug} value={p.slug}>
-                {p.title} — {p.type} / {p.comp}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="form-row">
+      <form ref={formRef} onSubmit={handleSubmit} className="apply-form">
+        <input type="text" name="_honey" style={{ display: "none" }} tabIndex={-1} autoComplete="off" />
+
+        {/* ── Position ────────────────────────────────── */}
+        <div className="form-section">
+          <h3 className="form-section-title">応募ポジション</h3>
           <div className="form-group">
-            <label>希望勤務形態</label>
-            <select name="work_style" defaultValue="">
+            <label>
+              ご希望ポジション <span className="req">*</span>
+            </label>
+            <select name="position" required defaultValue={initialSlug}>
               <option value="">選択してください</option>
-              <option value="正社員">正社員</option>
-              <option value="業務委託">業務委託</option>
-              <option value="どちらでも可">どちらでも可</option>
+              <option value={CASUAL_INTERVIEW_SLUG}>カジュアル面談希望（ポジション未定）</option>
+              {positions.map((p) => (
+                <option key={p.slug} value={p.slug}>
+                  {p.title} — {p.type}
+                </option>
+              ))}
             </select>
           </div>
-          <div className="form-group">
-            <label>稼働開始可能時期</label>
-            <input type="text" name="availability" placeholder="例: 2026年6月 / 即日 / 調整中" />
+          <div className="form-row">
+            <div className="form-group">
+              <label>希望勤務形態</label>
+              <select name="work_style" defaultValue="">
+                <option value="">選択してください</option>
+                <option value="正社員">正社員</option>
+                <option value="業務委託">業務委託</option>
+                <option value="どちらでも可">どちらでも可</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>稼働開始可能時期</label>
+              <input type="text" name="availability" placeholder="例: 2026年6月 / 即日 / 調整中" />
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="form-section">
-        <h3 className="form-section-title">ご本人様情報</h3>
-        <div className="form-row">
+        {/* ── Personal info ───────────────────────────── */}
+        <div className="form-section">
+          <h3 className="form-section-title">ご本人様情報</h3>
+          <div className="form-row">
+            <div className="form-group">
+              <label>
+                お名前 <span className="req">*</span>
+              </label>
+              <input type="text" name="name" placeholder="山田 太郎" required />
+            </div>
+            <div className="form-group">
+              <label>
+                メールアドレス <span className="req">*</span>
+              </label>
+              <input type="email" name="email" placeholder="your@email.com" required />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>現職の会社名</label>
+              <input type="text" name="current_company" placeholder="株式会社サンプル" />
+            </div>
+            <div className="form-group">
+              <label>現職の役職</label>
+              <input type="text" name="current_role" placeholder="例: シニアマネージャー" />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>LinkedIn URL</label>
+            <input type="url" name="linkedin" placeholder="https://www.linkedin.com/in/..." />
+          </div>
+          <div className="form-group">
+            <label>ポートフォリオ / GitHub / 公開実績 URL</label>
+            <input type="url" name="portfolio" placeholder="https://..." />
+          </div>
+        </div>
+
+        {/* ── Motivation ──────────────────────────────── */}
+        <div className="form-section">
+          <h3 className="form-section-title">応募理由</h3>
           <div className="form-group">
             <label>
-              お名前 <span className="req">*</span>
+              このポジションに応募した理由・ご経歴のハイライト <span className="req">*</span>
             </label>
-            <input type="text" name="name" placeholder="山田 太郎" required />
-          </div>
-          <div className="form-group">
-            <label>
-              メールアドレス <span className="req">*</span>
-            </label>
-            <input type="email" name="email" placeholder="your@email.com" required />
+            <textarea
+              name="motivation"
+              required
+              placeholder={`自由形式で構いません。以下のような観点で教えていただけると助かります:\n\n・これまでの主要プロジェクトと成果\n・mixednuts で実現したいこと\n・強み / 専門領域`}
+            />
           </div>
         </div>
-        <div className="form-row">
-          <div className="form-group">
-            <label>現職の会社名</label>
-            <input type="text" name="current_company" placeholder="株式会社サンプル" />
-          </div>
-          <div className="form-group">
-            <label>現職の役職</label>
-            <input type="text" name="current_role" placeholder="例: シニアマネージャー" />
-          </div>
-        </div>
-        <div className="form-group">
-          <label>LinkedIn URL</label>
-          <input type="url" name="linkedin" placeholder="https://www.linkedin.com/in/..." />
-        </div>
-        <div className="form-group">
-          <label>ポートフォリオ / GitHub / 公開実績 URL</label>
-          <input type="url" name="portfolio" placeholder="https://..." />
-        </div>
-      </div>
 
-      <div className="form-section">
-        <h3 className="form-section-title">応募理由</h3>
-        <div className="form-group">
-          <label>
-            このポジションに応募した理由・ご経歴のハイライト <span className="req">*</span>
-          </label>
-          <textarea
-            name="motivation"
-            required
-            placeholder={`自由形式で構いません。以下のような観点で教えていただけると助かります:\n\n・これまでの主要プロジェクトと成果\n・mixednuts で実現したいこと\n・強み / 専門領域\n\n職務経歴書は書類選考通過後にお送りいただきます。`}
+        {/* ── Document uploads ────────────────────────── */}
+        <div className="form-section">
+          <h3 className="form-section-title">書類 (任意)</h3>
+          <p className="file-upload-note">
+            職務経歴書・履歴書をお持ちの方はこちらからアップロードいただけます。
+            カジュアル面談希望の場合は任意です。PDF 推奨、各 10MB まで。
+          </p>
+          <FileInput
+            name="resume"
+            label="職務経歴書 (PDF 推奨)"
+            disabled={pending}
+          />
+          <FileInput
+            name="cv"
+            label="履歴書 (PDF 推奨)"
+            disabled={pending}
           />
         </div>
-      </div>
 
-      <div className="form-group form-consent">
-        <input type="checkbox" required id="privacy-careers" />
-        <label htmlFor="privacy-careers">
-          <Link href="/privacy">プライバシーポリシー</Link>に同意する（応募情報は選考目的のみに使用します）
-        </label>
-      </div>
+        {/* ── Consent ─────────────────────────────────── */}
+        <div className="form-group form-consent">
+          <input type="checkbox" required id="privacy-careers" />
+          <label htmlFor="privacy-careers">
+            <Link href="/privacy">プライバシーポリシー</Link>に同意する（応募情報は選考目的のみに使用します）
+          </label>
+        </div>
 
-      {state.status === "error" && (
-        <div className="form-error">{state.message}</div>
-      )}
+        {state.status === "error" && (
+          <div className="form-error">{state.message}</div>
+        )}
 
-      <div className="form-actions">
-        <button type="submit" className="form-submit" disabled={pending}>
-          {pending ? "送信中..." : "応募を送信する →"}
-        </button>
-        <p className="form-note">
-          ※ 2営業日以内にご連絡いたします。
-          <br />
-          ※ 書類選考通過後、30分のカジュアル面談からスタートします。
-        </p>
-      </div>
-    </form>
+        <div className="form-actions">
+          <button type="submit" className="form-submit" disabled={pending}>
+            {pending ? "送信中..." : "応募を送信する →"}
+          </button>
+          <p className="form-note">
+            ※ 2営業日以内にご連絡いたします。
+            <br />
+            ※ 書類選考通過後、30分のカジュアル面談からスタートします。
+          </p>
+        </div>
+      </form>
+    </>
   );
 }

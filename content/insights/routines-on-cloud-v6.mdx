@@ -1,0 +1,173 @@
+---
+title: "Routines on Cloud v6 — Mac mini 依存を捨てて 24/7 自律稼働に移行した理由"
+excerpt: "ローカル Mac mini で動かしていた定期ジョブ (launchd) を、Anthropic Claude Code Routines (クラウド) に全面移行。PC 電源不要の 24/7 稼働インフラへの移行判断軸と実運用。"
+subtitle: "launchd で毎日 6:30 に朝ブリーフィング、22:00 に夜間自律、毎週金曜 22:00 にナレッジ更新、を Mac mini で回していた。PC スリープリスク・電源依存・OS アップデート時の不具合から、Claude Code Routines (クラウド) への全面移行を決定。v6 アーキテクチャの設計と実運用データ。"
+date: 2026-04-16
+readTime: "8分"
+category: "AI"
+author: "石井 希実"
+authorRole: "CEO / FOUNDER"
+tags: ["AI", "Claude Code", "Routines", "Cron", "Infrastructure"]
+hero: "/images/generated/insights/routines-on-cloud-v6.png"
+---
+
+<Tldr>
+Mac mini M4 の launchd で 12 種の定期ジョブ (朝ブリーフィング、夜間自律、バックアップ、月次締め等) を回していたが、**PC スリープ・電源依存・OS アップデート** の 3 つのリスクで信頼性が不足。2026-04、Claude Code Routines (Anthropic VM 上) に全面移行。**PC 電源不要、24/7 稼働、Max Plan $200 に統合されたコスト**。freee reauth (90 日ごと OAuth 更新) のみローカル残存。
+</Tldr>
+
+## 旧アーキテクチャ — Mac mini M4 + launchd
+
+v5 以前、mixednuts の定期ジョブは Mac mini M4 で動かしていました:
+
+- **朝 06:30**: `morning-briefing` skill (GA4 / 広告 / freee データ集計)
+- **朝 07:00**: `email-digest` skill (Gmail 要約)
+- **朝 08:00**: `kpi-dashboard` skill
+- **夜 22:00**: `overnight-autonomous` skill (リサーチ + レポート生成)
+- **夜 23:00**: `git-backup` skill (リポジトリのバックアップ)
+- **週次金 22:00**: `knowledge-maintenance` skill
+- **4h 周期**: `self-healer` skill
+- **毎日 15:00 / 17:00 / 18:00 など** ... 計 12 ジョブ
+
+Mac mini で常時稼働、SSH 経由でリモート操作可能、という構成。
+
+## 3 つの構造的リスク
+
+この構成が破綻する原因が 3 つありました:
+
+### リスク A: PC スリープ
+
+Mac mini のスリープ設定を "なし" にしていても、macOS の Power Nap や OS アップデートが絡むと予期せずスリープすることがある。一晩気づかないと、朝の 06:30 の `morning-briefing` がスキップされる。
+
+### リスク B: 電源依存
+
+停電、UPS 切れ、ケーブル抜け、電源ユニット故障 — どれでも全ジョブが停止。mixednuts は CEO 1 人運用なので、自分が検知して再起動するまで止まったまま。
+
+### リスク C: OS アップデート
+
+macOS メジャーアップデートで launchd の挙動が微妙に変わる、Python 環境がリセットされる、権限設定が飛ぶ、等。アップデート後に全ジョブを再検証する工数が毎年 1-2 日。
+
+## クラウド移行 — Claude Code Routines
+
+2026 年 Q1 に Anthropic が Claude Code Routines を正式リリース。Max Plan $200/月 に含まれる機能として、**Anthropic の VM 上で 24/7 定期ジョブを回せる** ようになりました。
+
+移行判断を 1 週間で決めました。理由:
+
+1. **PC スリープリスク解消** — クラウドなので電源依存ゼロ
+2. **Max Plan に統合** — 追加コストなし (15 回/日の Free 枠、超過は extra usage)
+3. **MCP コネクタ自動接続** — Slack / Gmail / Calendar / Drive がクラウド側で自動接続
+4. **Setup Script で secrets 再構成** — Cloud Environment Variables → `_secrets/` 毎セッション再構成
+5. **GitHub 連携** — PR open 時の自動レビューも API/Webhook で発火可能
+
+## 新アーキテクチャ — 3 層
+
+```
+Layer A: Claude Code Routines (Cloud)     — 24/7 スケジュール・API・Webhook (PC 不要)
+Layer B: Claude Max Plan ($200/月)        — 全知的作業
+  ├ Claude Code (Desktop / CLI / Web)   — 開発・MCP・Agent Teams
+  ├ Claude in Excel/PPT/Chrome          — ネイティブ形式の業務
+  ├ Claude Desktop / .ai                — 壁打ち・MCP
+  └ Claude in Slack / iOS               — モバイル
+Layer C: Mac mini M4 (縮小運用)           — freee OAuth 再認証のみ
+```
+
+### Layer A: Routines (Cloud)
+
+スケジュール型 12 タスク + API 型 1 タスク + GitHub 型 1 タスク。
+
+- **スケジュール型**: morning-briefing, email-digest, overnight-autonomous, backup 等
+- **API 型**: deploy-verify (CD pipeline から POST で起動)
+- **GitHub 型**: pr-review (PR open 時に自動コードレビュー)
+
+### Layer B: Claude Max Plan ($200/月)
+
+知的作業全般。Claude Code / Desktop / Slack / iOS が全部 $200 に含まれる。**Routines の超過実行分もここから引かれる**。
+
+### Layer C: Mac mini (縮小運用)
+
+唯一残す役割: **freee OAuth 再認証** (90 日で refresh token が切れる)。これだけはブラウザのインタラクションが必要なので、ローカルに残す。
+
+## Setup Script — secrets の再構成
+
+クラウド上では `_secrets/` ディレクトリが存在しない (Git 管理外)。Setup Script で毎セッション、Cloud Environment Variables から secrets を復元:
+
+```bash
+# setup.sh (Routines セッション開始時に実行)
+mkdir -p _secrets
+echo "$GOOGLE_SERVICE_ACCOUNT_JSON_BASE64" | base64 -d > _secrets/google-service-account.json
+echo "$GOOGLE_OAUTH_JSON_BASE64" | base64 -d > _secrets/google-oauth.json
+echo "$FREEE_TOKENS_JSON" > _secrets/freee-tokens.json
+# ... その他 secrets
+```
+
+Vercel の env var と同じパターン。セッション開始時に復元、セッション終了時にクリーンアップ。
+
+## 実運用データ
+
+移行 3 週間後の実績:
+
+- **朝 06:30 morning-briefing**: 21/21 日で成功 (100%)
+- **夜 22:00 overnight-autonomous**: 21/21 日で成功
+- **毎週金 knowledge-maintenance**: 3/3 週で成功
+- **4h self-healer**: 126/126 回成功
+
+**Mac mini 時代は月 2-3 回失敗していたジョブがゼロになった**。信頼性が桁違い。
+
+## トレードオフ
+
+クラウド化で失うもの:
+
+- **完全オフライン環境への実行**: インターネット必須 (mixednuts は常時接続なので問題なし)
+- **ローカルファイルへの直接アクセス**: リポジトリ clone は自動、ローカル secrets は env 経由
+- **macOS ネイティブ機能**: Mac の Calendar.app や Contacts.app には直接アクセスできない (MCP 経由になる)
+
+どれも mixednuts の運用では許容範囲内。
+
+## GitHub 連携で PR レビュー自動化
+
+Routines の GitHub 型を使うと、**PR が開かれた瞬間に自動で Opus 4.7 でコードレビュー** できます。
+
+設定: GitHub の Webhook で PR open イベントを Routines に POST → `/ultrareview` skill が発火 → コメントを PR に投稿。
+
+これが Mac mini 時代には実現不可能だった (Webhook 受信には固定 IP か Cloudflare Tunnel が必要で、運用コスト高)。クラウドだと何もしなくてもグローバル IP で受けられる。
+
+---
+
+## FAQ
+
+**Q. Routines は Max Plan $200 に含まれるって本当？**
+A. 含まれる。ただし 15 回/日の Free 枠。それを超えると extra usage で課金。mixednuts の 12 ジョブは Free 枠内で収まっている。
+
+**Q. Mac mini を完全撤去できないのは、freee OAuth だけの理由？**
+A. そう。freee は OAuth 2.0 の refresh token が 90 日で失効する。再認証にはブラウザでのインタラクションが必要。これだけは人間の介入が必要なのでローカルに残している。
+
+**Q. セキュリティは大丈夫か？**
+A. Secrets は Cloud Environment Variables に暗号化保存。Setup Script での復元時に `_secrets/` に書き出されるが、これは Anthropic VM 上の一時環境で、セッション終了時に消去される。
+
+**Q. ローカルの Claude Code と Routines の使い分けは？**
+A. 対話型作業 (CEO との壁打ち、実装、デバッグ) はローカル。定期ジョブ (朝ブリーフィング、月次締め、バックアップ) は Routines。
+
+**Q. 他の launchd / cron ユーザーにも推奨できる？**
+A. 推奨。ただし「Anthropic のインフラに依存する」リスクは認識すべき。Anthropic が Routines を disrupt / 値上げ / 廃止した場合、移行先を考える必要がある。mixednuts は移行済みのローカルスクリプトを `scripts/launchd/` にアーカイブ保存している。
+
+---
+
+## 参考文献 / Sources
+
+**Claude Code Routines:**
+- [Claude Code Routines](https://docs.claude.com/en/docs/claude-code/routines) — 24/7 定期実行仕様
+- [Claude Max Plan](https://www.anthropic.com/max) — Routines 含む $200/月
+- [Claude Code GitHub Integration](https://docs.claude.com/en/docs/claude-code/github-actions) — PR レビュー自動化
+
+**Cron / Scheduler 比較:**
+- [macOS launchd](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html)
+- [GitHub Actions Schedule](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule)
+- [Cloudflare Workers Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/)
+
+**mixednuts 内部:**
+- `governance/scheduling-v6.0.md` — v6 アーキ設計書
+- auto-memory `routines-migration-v6.md` — 移行判断ログ
+- `scripts/launchd/` — 旧 Mac mini アーカイブ
+
+**関連記事:**
+- [Self-Healing + Cost Tracking](/insights/self-healing-cost-tracking)
+- [Skills as Microservices](/insights/skills-as-microservices)

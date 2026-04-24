@@ -1,0 +1,215 @@
+---
+title: "Skills as Microservices — 79 本のスラッシュコマンドで組織を動かす"
+excerpt: "Claude Code の Skills (スラッシュコマンド) 79 本を 「マイクロサービス」 として運用する設計パターン。skill 単体の疎結合化、品質測定、肥大化防止の運用ログ。"
+subtitle: "Claude Code の `/skill-name` スラッシュコマンドを、ソフトウェアのマイクロサービスのように設計する。79 本を運用してみえてきた、疎結合・単一責任・トリガー設計の原則、品質保証ループ、肥大化を防ぐ運用ルール。日本語で未踏の領域。"
+date: 2026-04-13
+readTime: "9分"
+category: "AI"
+author: "石井 希実"
+authorRole: "CEO / FOUNDER"
+tags: ["AI", "Claude Code", "Skills", "Microservices", "Agent Architecture"]
+hero: "/images/generated/insights/skills-as-microservices.png"
+---
+
+<Tldr>
+Claude Code の Skills (スラッシュコマンド) は、1 つのタスクを「名前付き・起動可能な単位」にした AI のマイクロサービス。79 本を運用する設計原則: **(1) 1 Skill = 1 責任 / (2) トリガーワードを明確化 / (3) 入出力を standardize / (4) 品質測定ループ / (5) 3 ヶ月未使用で退役検討**。エージェント定義との使い分け、empirical-prompt-tuning による品質改善、Tier 分類の運用を公開。
+</Tldr>
+
+## Skills とは何か
+
+Claude Code の Skills は `/skill-name args` 形式で呼び出せる、**名前付きの実行単位** です。例えば:
+
+- `/morning-briefing` → 朝の状況レポート生成
+- `/weekly-ad-review dozo` → dozo 案件の週次広告レビュー
+- `/system-health-check` → インフラ監視
+
+一見、ただのショートカットに見えますが、運用規模が 50 本を超えると **マイクロサービスの原則がそのまま効いてきます**。
+
+## Skills × エージェントの境界
+
+よくある誤解: 「Skill と Agent ってどう違うの？」
+
+運用上の境界:
+
+| 観点 | Skill | Agent |
+|-----|------|-------|
+| 粒度 | 1 タスク = 1 Skill | 専門領域 = 1 Agent |
+| 呼び出し | `/slash` でユーザーが発火 | Task ツールで自動発火 |
+| 状態 | ステートレス | 対話履歴を持つ |
+| 再利用 | 他の Skill/Agent から呼べる | 基本単独 |
+| 変更コスト | 低（Markdown 1 本） | 中（定義 + プロンプト調整） |
+
+**Skill はワークフロー、Agent は専門家**。似ているが役割が違う。
+
+## 5 つの設計原則
+
+<Principle num="01" heading="1 Skill = 1 責任" />
+
+1 つの Skill が複数タスクを抱え込むと破綻する。
+
+悪い例: `/reporting` (広告・FP&A・KPI を全部 1 本)
+良い例: `/weekly-ad-review` / `/weekly-profit-report` / `/kpi-dashboard` に分離
+
+責任の分離は、テストしやすさと再利用性の両方を上げる。
+
+<Principle num="02" heading="トリガーワードを明確化" />
+
+Skills の description には必ず「トリガー」節を入れる:
+
+```markdown
+# morning-briefing
+
+06:30 JST に自動実行推奨。
+Use when user says: "朝のブリーフィング", "morning briefing",
+"今日の状況教えて", "朝の報告".
+```
+
+ユーザーが言う言葉 ≒ トリガー。これが曖昧だと、メインセッションが Skill を呼び忘れる or 間違った Skill を呼ぶ。
+
+<Principle num="03" heading="入出力を standardize する" />
+
+Skill の出力先を統一:
+
+- **レポート** → `_reports/YYYY-MM-DD_name.md`
+- **Slack 通知** → 該当チャネル (chakin, dozo 等は決まっている)
+- **context.md 更新** → `projects/{name}/context.md`
+- **memory 記録** → `memory/decisions.md` or auto-memory
+
+これが統一されていると、後続の Skill が前段の出力を自動参照できる。パイプラインが組める。
+
+<Principle num="04" heading="品質測定ループを入れる" />
+
+mizchi 氏の `empirical-prompt-tuning` スキルを採用し、各 Skill の出力品質を測定。
+
+測定軸:
+- **Executor self-report**: Skill が「自分の出力に満足か」を 1-5 で申告
+- **Caller-side 測定**: 親セッションの tool_uses 数、duration、再実行回数
+
+3 ヶ月で 1 回、Tier 1 の Skill 5 本に対してフルループ (1 Skill につきサブエージェント 5 並列でテスト) を回す。
+
+<Principle num="05" heading="3 ヶ月未使用で退役検討" />
+
+Skills は溜まる。79 本の運用では、月次で実行ログを確認し、3 ヶ月未使用の Skill は:
+
+1. 「統合できる候補があるか」確認
+2. 退役決定なら `.claude/skills/archive/` に移動
+3. CLAUDE.md の索引から削除
+
+Skill カタログは「使われるもの」だけにする。肥大化は品質の敵。
+
+## Skill の構造 — Markdown 1 本
+
+Claude Code の Skill は 1 つの Markdown ファイル:
+
+```markdown
+---
+description: "日次の朝ブリーフィングを生成する"
+tools: ["Read", "Bash", "Edit", "Grep"]
+---
+
+# Morning Briefing
+
+## Workflow
+
+1. freee MCP から月次キャッシュ残高を取得
+2. GA4 API で昨日のトラフィックを取得
+3. Google Ads API で広告費・ROAS を集計
+4. 3 つを BLUF 形式で結合
+5. Slack #morning-briefing に投稿
+6. `_reports/{date}_morning-briefing.md` に保存
+
+## Output Format
+
+- BLUF: 一行サマリ
+- 数字 (前日比、前週比、予算比)
+- 今日の優先タスク 3 点
+```
+
+シンプル。拡張するときもこの Markdown を編集するだけ。
+
+## Tier 分類
+
+79 本を Tier で管理:
+
+### Tier 1 (9 本、超重要)
+毎日 / 週次の主力 Skills。品質テスト最優先。
+
+- `morning-briefing`, `system-health-check`, `weekly-ad-review`, `session-close`, `client-report`, ...
+
+### Tier 2 (30 本、業務コア)
+特定プロジェクト or 月次用の Skills。
+
+- `freee-monthly-close`, `portfolio-review`, `kpi-dashboard`, ...
+
+### Tier 3 (40 本、補助)
+稀にしか使わないが、あると便利。
+
+- `contract-review`, `brainstorming`, `launch-checklist`, ...
+
+Tier 1 から品質投資する、Tier 3 は動けばいい、という運用。
+
+## 実運用 — empirical-prompt-tuning の効果
+
+2026-04-20 に採用した `empirical-prompt-tuning` skill を Tier 1 の 5 本にかけた結果:
+
+- `/morning-briefing`: 応答時間 -30%、トークン -25%
+- `/weekly-ad-review`: 構造化度 +40% (BLUF, 数字, アクション の 3 部構成徹底)
+- `/session-close`: 処理時間 -15%、context.md 更新漏れゼロ達成
+
+**Skill は書いた後に測定・改善する運用が決定的**。「書きっぱなし」だと 3 ヶ月で品質がバラつく。
+
+## Skill 作成のチェックリスト
+
+新規 Skill を追加するときの自己チェック:
+
+- [ ] 名前は `/kebab-case`、動詞始まり推奨
+- [ ] description は 1 行、トリガーワード 5 つ以上記載
+- [ ] 1 Skill = 1 タスクを守っているか
+- [ ] 既存 Skill と重複していないか (`/list-skills` で確認)
+- [ ] 出力先が standardize されているか (`_reports/` or Slack or context.md)
+- [ ] tools 列に最小限のツールだけ指定 (All tools 禁止、セキュリティと速度)
+- [ ] Workflow セクションに手順を明記
+- [ ] Example Output (見本) を 1 つ添える
+
+---
+
+## FAQ
+
+**Q. Skills と Agent はどう使い分ける？**
+A. ワークフロー = Skill、専門家 = Agent。「毎朝レポート生成」は Skill、「FP&A 判断」は Agent。Skill 内から Agent を呼ぶのは OK。
+
+**Q. Skill のテストはどう書く？**
+A. `empirical-prompt-tuning` で過去の入出力ログをテストケース化。CEO が「この時はこう返すべきだった」を記録 → 再現テストにする。
+
+**Q. Skill が重くなってきたら？**
+A. 3 原則: (1) 責任を分解して複数 Skill に / (2) サブエージェントに処理を移譲 / (3) スクリプト化して Skill 側は「呼ぶだけ」にする。
+
+**Q. Skill 内でエラーが起きたら？**
+A. `.claude/rules/calibration.md` に従い、実害計算してから報告。ドラマ化禁止。デバッグ情報は logs に、ユーザーには要約を。
+
+**Q. 79 本のうち実際に月次で使うのは何本くらい？**
+A. 大体 20 本くらい。残りは「あると便利」「特定局面で使う」レベル。それでも 79 本残しているのは、いざという時に最速で呼べる資産として。
+
+---
+
+## 参考文献 / Sources
+
+**Claude Code Skills:**
+- [Claude Code Skills (スラッシュコマンド)](https://docs.claude.com/en/docs/claude-code/skills) — 公式仕様
+- [Claude Code Skill Creator](https://docs.claude.com/en/docs/claude-code/skill-creator) — 新規スキル作成ガイド
+- [Anthropic Skills リポジトリ](https://github.com/anthropics/skills) — 公式スキル集
+
+**Empirical Prompt Tuning (mizchi 氏):**
+- [empirical-prompt-tuning skill by mizchi](https://zenn.dev/mizchi/articles/empirical-prompt-tuning) — 採用元の原理
+
+**マイクロサービス設計原則:**
+- [Microservices Pattern by Chris Richardson](https://microservices.io/patterns/index.html) — 単一責任 / 疎結合の原則
+- [The Twelve-Factor App](https://12factor.net/) — 運用観点の設計指針
+
+**mixednuts 内部:**
+- `.claude/skills/` — 79 本の Skill カタログ
+- `CLAUDE.md` — Skill 索引
+
+**関連記事:**
+- [Auto-delegation Routing Table](/insights/auto-delegation-routing-table)
+- [Cognitive Modes](/insights/cognitive-modes)

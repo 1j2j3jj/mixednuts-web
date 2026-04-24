@@ -1,0 +1,187 @@
+---
+title: "Opus / Sonnet / Haiku の使い分け — 6+15+100 体をモデル階層化した運用実数値"
+excerpt: "123 体 AI 組織で Claude Opus 4.7 / Sonnet 4.x / Haiku 4.x をどう割り当てたか。C-Suite = Opus、Head = Sonnet、Worker = Sonnet/Haiku のトリアーキと実コスト内訳。"
+subtitle: "Opus 4.7 GA 後の 2026-04 現在、123 体 AI 組織をモデル階層で再設計。Opus は 「考える」 6 体に集中、Sonnet は 「まとめる」 15 体、Haiku は 「軽い実行」 の数体。トークン単価差 30 倍の中で最適化するモデル階層と、実運用の $200/月上限での割り当て指針。"
+date: 2026-04-17
+readTime: "8分"
+category: "AI"
+author: "石井 希実"
+authorRole: "CEO / FOUNDER"
+tags: ["AI", "Claude", "Opus", "Sonnet", "Haiku", "Cost Optimization"]
+hero: "/images/generated/insights/opus-sonnet-haiku-tiering.png"
+---
+
+<Tldr>
+123 体 AI 組織でモデル階層を割り当て: **Opus 4.7 = 6 体 (C-Suite Lead)**、**Sonnet 4.x = 15 体 + Worker 一部** (部門 Head と重要 Worker)、**Haiku 4.x = 2 体** (軽量タスク)、**inherit = 継承**。Opus は Sonnet の約 3 倍のコスト、Haiku の約 10 倍。全体を Opus で回すと月 $500+、Sonnet だけだと品質が落ちる。**「考える層だけ Opus」** が最適解。月額 $200 (Max Plan) で収まる割り当て実データ。
+</Tldr>
+
+## モデル階層を組む理由
+
+2026-04 現在、Claude には 3 つの主要モデル:
+
+| モデル | 強み | トークン単価 (1M 入出力) |
+|-------|-----|--------------------|
+| **Opus 4.7** | 最強の推論、Vision 3 倍解像度、self-verification | 約 $15 / $75 |
+| **Sonnet 4.x** | バランス型、高速、実装タスクに最適 | 約 $3 / $15 |
+| **Haiku 4.x** | 最速、軽量、単純タスク | 約 $1 / $5 |
+
+**単価差はざっくり 5-15 倍**。全部 Opus にすると月の Claude Max Plan $200 はあっという間に超過。一方、全部 Haiku だと、複雑な判断 (戦略 / 投資 / 法務) で品質が落ちる。
+
+## 階層設計 — 123 体の分配
+
+### Opus 層 (6 体) — C-Suite Lead、"Thinker"
+
+ユーザー指示を解釈し、専門領域に分解して委任する役割。ここで歪むと組織全体が歪むので、最高品質のモデルを使う。
+
+- `cos-chief-of-staff` — 戦略参謀
+- `cfo-treasurer` — 財務戦略
+- `cro-revenue` — 売上成長
+- `cto-architect` — 技術戦略
+- `coo-operations` — 組織運営
+- `ma-hunter` — 投資判断
+
+Opus 4.7 の Self-Verification (出力前に自己検証する機能) がここで効く。委任先が間違っていると連鎖的に失敗するので、上流精度が決定的。
+
+### Sonnet 層 (15 体 + Worker 一部) — Department Head、"Coordinator"
+
+部門内の Worker を束ね、結果を統合する役割。
+
+- `finance-head`, `revops-head`, `growth-head`, ... (15 部門 Head)
+- 重要な Worker エージェント (campaign-analyst, fpna-architect, seo-orchestrator 等)
+
+Sonnet は実装タスクと対話に強い。Head は「配下 Worker の出力を見て整合性を判断」するので、中程度の推論ができれば十分。Opus は過剰。
+
+### Haiku 層 (2 体) — Worker (軽量)
+
+事実確認、ファイル読み書き、単純な検索など、判断を伴わないタスク。
+
+- Quick lookup / summary 系のエージェント
+
+Haiku は高速 (Opus の 3-5 倍速) で、単純タスクに最適。
+
+### inherit 層 — 親セッションのモデル継承
+
+特殊な位置づけ。メタ情報の整合性を保つため、親セッションが Opus なら Opus、Sonnet なら Sonnet を継承する。主にサブエージェント定義で使う。
+
+## 抽象指定で自動マッピング
+
+重要な設計ポイント: エージェント定義の `model:` フィールドは **抽象指定** にする。
+
+```yaml
+---
+name: cfo-treasurer
+model: opus     # 具体的なバージョンは書かない
+tools: [...]
+---
+```
+
+Claude Code ハーネスが最新モデルに自動マップ:
+
+- `opus` → Claude Opus 4.7 (2026-04 GA)
+- `sonnet` → Claude Sonnet 4.x
+- `haiku` → Claude Haiku 4.x
+- `inherit` → 親セッションのモデル
+
+モデルの世代が変わったときに **全エージェント定義を書き換えなくて済む**。`opus-4-7` のような具体バージョンを書いてしまうと、4.8 が出たときに 123 体分書き換える羽目になる。
+
+## コスト実データ — 月 $200 Max Plan 内で収まるか
+
+2026-04 の 1 週間分の実測:
+
+- **Opus 使用量** (C-Suite 6 体): 週 500K トークン = 約 $50/月
+- **Sonnet 使用量** (Head 15 体 + 重要 Worker): 週 2M トークン = 約 $80/月
+- **Haiku 使用量** (軽量 Worker): 週 500K トークン = 約 $5/月
+- **Skills (スラッシュコマンド 79 本) 呼び出し**: 週 1M トークン混合 = 約 $30/月
+
+**合計: 約 $165/月**。Max Plan $200 の 82%。余裕 18%。
+
+Opus 全部にしていた初期 (2026-03) は月 $480 で、Max Plan を超えて extra usage が発生していました。階層化で $280 削減。
+
+## Opus 4.7 の新機能をどこに効かせるか
+
+2026-04-16 GA の Opus 4.7 は複数の改善:
+
+1. **SWE-bench Pro +11%**: コード理解・生成タスクで強化 → `cto-architect` や `fullstack-dev` Agent で恩恵
+2. **Vision 解像度 3 倍**: スライド・ダッシュボード画像の読み取り精度 → `fpna-architect` が取締役会資料を画像で読めるようになった
+3. **Self-verification**: 出力前に自己検証 → 全 C-Suite で効く
+4. **Long-running tasks**: 長時間タスクの監督コスト低下 → `overnight-autonomous` skill が安定
+
+Opus 4.7 のコストを正当化するには、これらの特徴が効くタスクに集中させること。"読む量が多い" "判断が重い" "長時間走る" の 3 条件が揃う C-Suite がドンピシャ。
+
+## Sonnet で十分なタスクの見極め
+
+Sonnet が Opus に十分近い or 追い抜くケース:
+
+- **定型作業の高速処理**: 月次レポート生成、データ統合、テンプレートに沿った出力
+- **対話型サポート**: 多ターン会話、UI 操作支援
+- **コード実装**: シンプルな機能追加、既存パターンに沿った実装
+- **翻訳・要約**: 精度重視の場合以外は Sonnet で十分
+
+Opus が必要な局面:
+
+- **複雑な意思決定**: 複数制約を同時に考慮する戦略判断
+- **数学的・論理的推論の多段階**: DCF 計算、多変数感度分析
+- **コード理解 (既存の大規模コード)**: Opus 4.7 の SWE-bench Pro スコア差は実感レベル
+- **Self-verification が欲しい局面**: 出力が 1 発で正しい必要がある重要局面
+
+## ハーネスレベルの切替機能
+
+Claude Code には **auto mode** というハーネス機能があり、Max ユーザー向けに長時間タスクの中断を削減する。重要な長期タスクでは有効化推奨。
+
+また、`/ultrareview` コマンドは Opus 4.7 で Staff Engineer レベルのコードレビューを実行する。本番反映前、金銭影響のある変更、セキュリティ関連では `/ultrareview` を使う運用。
+
+## 階層化のチェックリスト
+
+新規エージェント定義を作るとき:
+
+- [ ] このエージェントは **"考える" 役割か、"実行する" 役割か** ?
+- [ ] 役割が複合的なら、**分解して別エージェントに** できないか ?
+- [ ] 判断を伴わない軽量タスクなら Haiku で十分か ?
+- [ ] 上位エージェントから呼ばれる (sub-agent 的位置) なら `inherit` でよいか ?
+- [ ] 具体モデル名を書いていないか (必ず抽象: opus/sonnet/haiku/inherit) ?
+
+---
+
+## FAQ
+
+**Q. Opus を Worker に使ってはいけないのか？**
+A. コスト問題。Worker の月間トークン量は大きいので、Opus にするとコストが跳ねる。例外は `prompt-architect` や `ml-ai-product-lead` のような "複雑な設計" Worker。これらは Sonnet でも不足するので Opus 例外運用。
+
+**Q. Haiku を全 Worker に使えばコスト最小にならないか？**
+A. なるが、品質が落ちる。広告分析・FP&A・投資評価などで Haiku の推論精度は不足。"単純な事実確認" "既知パターンに沿った出力" に限定。
+
+**Q. モデル単価が変わったら再設計？**
+A. 抽象指定しているので、モデル定義を書き換えれば自動で全 123 体に反映。ハーネス側の映射ルールだけ修正すればよい。
+
+**Q. 他社 LLM (GPT-4 / Gemini) との階層化も同じ考えでよい？**
+A. 同じ。「考える層 / まとめる層 / 実行層」の 3 階層はモデル非依存。GPT-4 Turbo / GPT-4o mini、Gemini Pro / Flash でも同様に。
+
+**Q. エージェント数が少ない (10 体程度) でも階層化すべき？**
+A. 10 体未満ならフラットでも回る。20 体を超えたあたりから階層化の恩恵が出る。階層化は「組織が複雑化したときに初めて効く」設計パターン。
+
+---
+
+## 参考文献 / Sources
+
+**Claude モデル公式:**
+- [Claude Models Overview](https://docs.claude.com/en/docs/about-claude/models) — Opus / Sonnet / Haiku の比較
+- [Claude Pricing](https://www.anthropic.com/pricing) — API トークン単価
+- [Claude Opus 4.7 release notes](https://www.anthropic.com/news) — 2026-04-16 GA
+- [Claude Max Plan](https://www.anthropic.com/max) — $200/月
+
+**Opus 4.7 性能評価:**
+- [SWE-bench Pro](https://www.swebench.com/pro.html) — Opus 4.7 スコア
+- [Terminal Bench 2.0](https://github.com/terminal-bench)
+- [Claude Code Auto Mode](https://docs.claude.com/en/docs/claude-code/settings) — 長時間タスク最適化
+
+**モデル階層化パターン (他社):**
+- [OpenAI Model Pricing (GPT-4 Turbo / GPT-4o mini)](https://openai.com/pricing)
+- [Google Gemini Pricing (Pro / Flash)](https://ai.google.dev/pricing)
+
+**mixednuts 内部:**
+- `.claude/agents/` — 123 体のエージェント定義 (model: opus/sonnet/haiku の実割り当て)
+- auto-memory `opus-47-adoption.md` — Opus 4.7 採用記録
+
+**関連記事:**
+- [Jarvis Pattern](/insights/jarvis-adaptive-delegation)
+- [Self-Healing + Cost Tracking](/insights/self-healing-cost-tracking)

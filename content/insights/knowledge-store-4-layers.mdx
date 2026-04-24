@@ -1,0 +1,185 @@
+---
+title: "Knowledge Store 4 層設計 — context.md / memory/ / auto-memory / _reports/ の境界線"
+excerpt: "AI 組織の 「記憶」 を 4 層に分離した設計。どこに何を書くか迷わなくする運用ルール。DCL 稟議 MTG 記憶捏造事件から生まれた境界線設計。"
+subtitle: "AI エージェントに 「記憶」 を持たせると、どこに情報を書くか迷う。mixednuts では 4 つの明確な Store を定義: **プロジェクト状態 (context.md)** / **組織横断の決定 (memory/)** / **セッション横断の学習 (auto-memory)** / **時点スナップショット (_reports/)**。境界線が曖昧だった時代に起きた記憶捏造事件から策定した運用ルール。"
+date: 2026-04-19
+readTime: "8分"
+category: "AI"
+author: "石井 希実"
+authorRole: "CEO / FOUNDER"
+tags: ["AI", "Knowledge Management", "Documentation", "Memory"]
+hero: "/images/generated/insights/knowledge-store-4-layers.png"
+---
+
+<Tldr>
+AI エージェントに記憶を持たせる場合、情報を書く場所が曖昧だと "架空の情報を生成する" インシデントが起きる。2026-03-17 の DCL 稟議 MTG で記憶ベースで TODO 7 件を捏造したインシデントから、4 つの明確な Store に分離: **(1) context.md = プロジェクト状態の正本 / (2) memory/ = 組織横断の意思決定 / (3) auto-memory = セッション横断の学習 / (4) _reports/ = 時点スナップショット**。一覧出力時は必ずソースを Read する原則付き。
+</Tldr>
+
+## 事件 — 7 件の架空 TODO 捏造
+
+2026-03-17、DCL (クライアント案件) の稟議 MTG 後、AI エージェントに「TODO 一覧を出して」と依頼しました。出てきた一覧は **件数は合っていた** が、**個別項目の文言が記憶ベースで捏造されていた** ことが発覚。
+
+発生状況:
+
+- セッション長時間化で context compaction (圧縮) が発生
+- サマリには「TODO 7 件」とあるが、個別項目の原文は失われている
+- メインセッションが圧縮後のサマリから "ありそうな TODO" を生成
+- 件数が合っているので、見た目は正しい
+- 実際の context.md を Read せず、記憶からの生成で完結
+
+CEO の信頼を大きく損なった。Pococha と Chakin でも類似の捏造が発覚 (3 件、水増し)。
+
+## 原因分析 — どこに何があるか曖昧
+
+調査したら、TODO の情報源が複数箇所に散らばっていました:
+
+- `projects/pococha/context.md` にも TODO
+- auto-memory の `pococha-april-todo-detail.md` にも TODO
+- `memory/pmo-tracker.md` にも TODO (概要)
+- `_reports/2026-04-05_pococha-weekly.md` にも TODO (過去分)
+
+4 箇所の情報が **部分的に重複しつつ差分がある** 状態で、AI がどれを正本として参照すべきか判断できなかった。結果、圧縮後のサマリから生成してしまった。
+
+## 対策 — 4 層の明確な境界線
+
+`.claude/rules/knowledge-store.md` として以下を策定:
+
+<Principle num="01" heading="4 つの Store を明確に分離する" />
+
+| Store | パス | 何を書く | Source of Truth |
+|-------|------|---------|---------------|
+| **context.md** | `projects/*/context.md` | TODO 一覧、プロジェクト状態、Current Focus、Latest Status | **プロジェクト別タスク・状態** |
+| **memory/ (repo)** | `memory/*.md` | 意思決定ログ、PMO 横串、ナレッジグラフ、エージェント実績 | **組織横断の決定・メタデータ** |
+| **auto-memory** | `~/.claude/projects/.../memory/` | ユーザー嗜好、エラー再発防止、データソース ID、MTG 詳細メモ | **セッション横断の学習・パターン** |
+| **_reports/** | `_reports/YYYY-MM-DD_*.md` | 分析結果、レポート (不変のスナップショット) | **時点情報 (上書きしない)** |
+
+迷ったら「次のセッションが何を見るか」で判断する。
+
+<Principle num="02" heading="一覧出力時は必ずソースを Read する (最重要)" />
+
+TODO 一覧、データ一覧、メンバー一覧など **一覧系の出力** では、記憶・サマリから生成することを **全面禁止**。
+
+- TODO 一覧 → `projects/*/context.md` を Read してから出力
+- データ一覧 → `config/` や API レスポンスを確認してから出力
+- **件数が合っていても内容が正しいとは限らない。必ずソースと突合する**
+
+特に context compaction 後は危険。サマリには件数はあっても個別項目の文言はない。
+
+<Principle num="03" heading="書き込みのルール" />
+
+1. TODO/タスクが発生 → 必ず `projects/*/context.md` に書く (**正本**)
+2. 意思決定が発生 → `memory/decisions.md` に書く
+3. MTG 詳細メモ → auto-memory に書いてよい (参照用)
+4. 分析成果物 → `_reports/` に書く
+
+<Principle num="04" heading="やってはいけないこと" />
+
+- auto-memory にだけ TODO を書いて context.md に反映しない → **実害発生済みパターン**
+- `_reports/` を上書き更新する (スナップショットは不変)
+- `memory/pmo-tracker.md` に個別 TODO を複製する (横串サマリのみ)
+
+## 各 Store の設計意図
+
+### context.md — 「現在の状態」の正本
+
+毎セッション必ず読み込まれる。**現在形で、今動いている TODO と Current Focus のみ**。肥大化を防ぐ。詳細は [Context Hygiene 記事](/insights/context-hygiene-500-lines) で別途解説。
+
+### memory/ (リポジトリ内) — 組織横断の決定
+
+プロジェクト横串の情報を置く:
+
+- `memory/decisions.md` — 重要な意思決定ログ (2026-04-22 Better Auth 採用など)
+- `memory/pmo-tracker.md` — 全案件の優先度・ステージ・次アクション
+- `memory/knowledge-graph.md` — エンティティ関係 (client × agent × deliverable)
+- `memory/agent-performance.md` — 各エージェントの実績・改善履歴
+
+個別案件の context.md が「ミクロ」、memory/ が「マクロ」の視点。
+
+### auto-memory — セッション横断の学習
+
+`~/.claude/projects/.../memory/` 配下。ユーザー (CEO) 嗜好、エラー再発防止、MTG の詳細メモ、データソースの ID など、**「次のセッションでも覚えておきたいが、プロジェクト状態ではない」情報** を置く。
+
+例:
+
+- `feedback-no-drama-analysis.md` — ドラマ化禁止ルールの学習ログ
+- `dena-lc-datasource.md` — DeNA LC 本部のシート ID・行列マッピング
+- `user-credit-cards-portfolio.md` — CEO のカード構成 (出張計画用メモ)
+
+### _reports/ — 時点スナップショット
+
+`_reports/YYYY-MM-DD_*.md`。**不変**。生成後に上書きしない。
+
+- `_reports/2026-04-15_structured-data-vs-llmo-integrated-report.md`
+- `_reports/2026-04-22_hs-dashboard-phase2-complete.md`
+
+過去の状態・分析を振り返るときのタイムマシン。**30 日超は archive/ へ自動移動** (report-archive skill で実行)。
+
+## フローチャート — どこに書くべきか
+
+```
+情報が発生した
+   ↓
+Q1: それは "プロジェクトの現在の状態" か ?
+  ├ YES → context.md に書く
+  └ NO ↓
+Q2: それは "組織横断の意思決定" か ?
+  ├ YES → memory/decisions.md に書く
+  └ NO ↓
+Q3: それは "時点の分析結果・レポート" か ?
+  ├ YES → _reports/YYYY-MM-DD_*.md に書く
+  └ NO ↓
+Q4: それは "次のセッションで参照したい学習" か ?
+  ├ YES → auto-memory に書く
+  └ NO → 書かない
+```
+
+## 教訓 — 境界線が曖昧だと捏造が起きる
+
+記憶捏造事件の根本原因は「**どこを見に行けば正しいか** が曖昧だった」こと。4 つの Store に分離し、かつ「一覧出力時はソース Read 必須」を明文化することで、2 ヶ月間再発ゼロ。
+
+情報設計の原則:
+
+- 正本は 1 つだけにする (context.md = プロジェクト TODO の正本)
+- 重複を許さない (memory/pmo-tracker.md は概要のみ、個別 TODO は context.md へリンク)
+- 不変と可変を分離する (_reports/ は不変、context.md は可変)
+- 迷ったら「誰が何を見に来るか」で判断する
+
+---
+
+## FAQ
+
+**Q. memory/ と auto-memory はなぜ分かれているのか？**
+A. memory/ はリポジトリ内 (Git 管理、チーム共有)、auto-memory はローカル (個人の作業メモ)。前者は組織の正本、後者は個人の学習履歴。Git commit すべきかどうかで判断。
+
+**Q. _reports/ のファイルが溜まりすぎないか？**
+A. 溜まる。だから `report-archive` skill で 30 日超は `_reports/archive/` へ自動移動、90 日超は purge。索引として `memory/report-index.md` を維持。
+
+**Q. auto-memory が大量になったら？**
+A. `consolidate-memory` skill (Anthropic 公式) で月次整理。重複統合、古い情報の削除、MEMORY.md 索引の更新。
+
+**Q. この 4 層設計を他組織で使えるか？**
+A. 使える。ただし「context.md = プロジェクト状態」「memory/ = 組織横断」「auto-memory = ユーザー固有」「_reports/ = スナップショット」の境界線が自組織に fit するか要検証。
+
+**Q. Claude 以外の AI (GPT, Gemini) でも同じ設計？**
+A. 設計は AI 非依存。書き込み先の物理ファイル管理と、"一覧出力時はソース Read" の原則は全 AI で有効。
+
+---
+
+## 参考文献 / Sources
+
+**mixednuts 内部ルール:**
+- `.claude/rules/knowledge-store.md` — 完全版 4 層分離ルール
+- `.claude/rules/session-lifecycle.md` — TODO 即時更新フロー
+- 2026-03-17 DCL 稟議 MTG 捏造インシデント (auto-memory `feedback-never-generate-from-memory.md`)
+
+**Claude Code メモリ機能:**
+- [Claude Code Memory](https://docs.claude.com/en/docs/claude-code/memory) — CLAUDE.md / auto-memory の仕組み
+- [Anthropic Context Engineering](https://www.anthropic.com/news/contextual-retrieval)
+
+**Memory / RAG 設計:**
+- [LangChain Memory Types](https://python.langchain.com/docs/how_to/#memory)
+- [LlamaIndex Storage Guide](https://docs.llamaindex.ai/en/stable/module_guides/storing/)
+
+**関連記事:**
+- [Context Hygiene](/insights/context-hygiene-500-lines)
+- [Task ツール強制委任](/insights/task-forced-delegation)

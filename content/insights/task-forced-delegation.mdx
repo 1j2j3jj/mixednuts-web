@@ -1,0 +1,164 @@
+---
+title: "Task ツール強制委任 — メインセッションを「自分で実行禁止」にした理由"
+excerpt: "AI エージェントのメインセッションが「何でも自分でやる」傾向を構造的に止める設計。ドラマ化バイアスの暴走を防ぐ auto-delegation ルールの一次実装ログ。"
+subtitle: "メインセッションが広告 API を直接叩くと、なぜかドラマ化が起きる。専門エージェントに強制委任すれば抑えられる。123 体 AI 組織で実運用中の Task ツール委任ルールの設計思想と、キーワード検出による自動ルーティングの実装。"
+date: 2026-04-11
+readTime: "8分"
+category: "AI"
+author: "石井 希実"
+authorRole: "CEO / FOUNDER"
+tags: ["AI", "Agent Architecture", "Claude Code", "Task Tool", "Delegation"]
+hero: "/images/generated/insights/task-forced-delegation.png"
+---
+
+<Tldr>
+メインセッションが専門領域を直接実行すると、Calibration ルールを通さずにドラマ化する構造問題があった。対策は **「メインセッションが専門領域のタスクを自分で実行することを禁止し、必ず Task ツールで専門エージェントに委任する」** というルール。80+ キーワードから自動で専門エージェントにルーティングするテーブルも公開。結果、ドラマ化インシデントが再発しなくなった。
+</Tldr>
+
+## なぜメインセッションは暴走するのか
+
+Claude Code のセッション構造は以下の 2 層:
+
+- **メインセッション**: ユーザーと直接対話するトップレベルの AI
+- **Sub-agents**: Task ツールで起動される専門エージェント (campaign-analyst, fpna-architect 等、123 体)
+
+通常の感覚では、メインセッションが「賢くて何でもできる」方が嬉しい気がします。しかし実運用では **逆の問題** が起きました。
+
+2026-04-07 のインシデントで、メインセッションが Google Ads API を直接叩いて広告分析を行い、「17 倍乖離！」「HS 汚染！」「4 媒体死亡！」と 4 連発でドラマ化した日があります ([Calibration Bias 記事](/insights/calibration-bias-17x) 参照)。
+
+原因を分析すると、構造的な問題が見えてきました:
+
+1. メインセッションは **「ユーザーに役立ちたい」** バイアスが最大に強い (対話の直接の相手)
+2. 専門領域の Anti-pattern (ドラマ化禁止、Calibration ルール) は **専門エージェント定義に書かれている**
+3. メインセッションがタスクを "自分で実行してしまう" と、**専門エージェントの定義が読まれず、Anti-pattern が適用されない**
+
+つまり「メインセッションが賢い」は、実は「Calibration が効かない」ということだった。
+
+## 対策 — Task ツール強制委任ルール
+
+`.claude/rules/auto-delegation.md` として以下を運用ルール化:
+
+<Principle num="01" heading="メインセッションは専門領域のタスクを自分で実行しない。必ず Task ツールで委任する" />
+
+キーワード検出による自動委任を強制。例:
+
+- 「広告」「Google Ads」「ROAS」→ `campaign-analyst`
+- 「予実」「月次締め」「取締役会」→ `fpna-architect`
+- 「SEO」「AIO」「構造化データ」→ `seo-orchestrator`
+- 「契約」「NDA」「リーガル」→ `global-counsel`
+- 「投資」「DD」「バリュエーション」→ `deal-sourcer`
+- 「ヘルスチェック」「チャーン」→ `health-monitor`
+
+<Principle num="02" heading="例外は 5 つだけ — 単一事実確認 / 既取得データ再表示 / 壁打ち / メタ作業 / ドキュメント読み" />
+
+以下の場合のみ、メインセッションが直接実行して OK:
+
+- **単一の事実確認**: 「context.md 読んで」「ファイル一覧見せて」
+- **既に取得済みデータの再表示**: 直前のセッションで取得したデータを並べ直すだけ
+- **CEO との会話・壁打ち**: 戦略相談、判断の壁打ち
+- **メタ作業**: ハーネス改修、ルール追加、エージェント定義の編集
+- **ドキュメント読み書き**: context.md 更新、memory 記録
+
+**判断に迷ったら委任する**。「自分でやった方が早い」は誤り。
+
+<Principle num="03" heading="委任プロトコルを明示化" />
+
+```
+1. ユーザー指示のキーワードを検出
+2. ルーティングテーブルで Lead エージェントを特定
+3. Task ツールを呼ぶ:
+   Task(
+     description="{タスクの 3-5 語要約}",
+     subagent_type="{Lead エージェント名}",
+     prompt="{詳細な指示。context.md を読め、データを取得しろ、
+            Calibration ルールに従え と明示}"
+   )
+4. メインセッションは結果を待つ
+5. 結果を「翻訳」のみする (解釈・盛り付け・追加分析を加えない)
+6. Calibration ルールに従って報告
+```
+
+## なぜこれが効くのか
+
+強制委任によって、以下の構造が成立します:
+
+1. **専門エージェント定義が必ず読まれる** → Calibration ルール、Anti-pattern、判断基準が常に適用される
+2. **メインセッションは "翻訳役" に徹する** → 解釈・盛り付けで情報が歪まない
+3. **エージェント間の責任が明確** → 失敗したときに「どのエージェントのどこで歪んだか」が特定できる
+
+## 「翻訳役」としてのメインセッション
+
+メインセッションの新しい役割は「専門エージェントの成果物を、CEO が理解しやすい粒度・文脈に翻訳する」こと。
+
+例えば `campaign-analyst` が出した「HS_202603_PMAX の CPA が前月比 +23%、主因は D カテゴリの入札過多」という分析を、メインセッションは次のように CEO に翻訳します:
+
+- 「HS 広告の 3 月レビュー: CPA 悪化の要因は D カテゴリ入札過多。具体的には ...」
+- 「次アクションとしては 3 つの選択肢: (A) D カテゴリ除外 / (B) 入札戦略変更 / (C) 静観。判断材料は ...」
+- 「CEO の判断が必要な論点: (1) D カテゴリの戦略的重要性 (2) 来月の広告予算の再配分」
+
+**「解釈・盛り付け・追加分析」は一切加えない**。専門エージェントの結論をそのまま翻訳。
+
+## 導入の落とし穴
+
+### 落とし穴 A: キーワード検出の過不足
+
+キーワードが狭すぎると漏れが出て、広すぎると過剰委任になる。運用しながら調整が必要。mixednuts では 80+ キーワードのテーブルを `.claude/rules/auto-delegation.md` にメンテナンス。
+
+### 落とし穴 B: 委任コストの過小評価
+
+Task ツール委任 1 回で 3000-5000 トークン消費。小さなタスクを毎回委任すると月 $ 200 の Max Plan 上限に近づく。**「単一事実確認」は直接実行** の例外を明確にしておく。
+
+### 落とし穴 C: メインセッションが "勝手に先回り" する
+
+「委任します」と言いながら、そのあとに自分の解釈を付け加えてしまうパターン。これを防ぐには、**メインセッションのシステムプロンプトに「専門エージェントの結論を翻訳のみ。追加解釈禁止」を明記**。
+
+## 成果
+
+導入後 2 週間で:
+
+- ドラマ化インシデントの再発ゼロ
+- CEO の訂正負荷が大幅減少
+- エージェント別の失敗パターンが可視化され、個別の Anti-pattern 修正が可能に
+
+---
+
+## FAQ
+
+**Q. このルールは Claude Code のみで使えるのか？**
+A. Task ツール自体は Claude Code の機能だが、概念 (メインが実行禁止 / 専門エージェントに委任) は OpenAI Assistants / LangGraph / AutoGen でも実装可能。仕組みは同じで、"root agent は director"、"実行は specialist agent" の分離。
+
+**Q. エージェント数が少ない (5-10 体) 組織でも意味があるか？**
+A. ある。エージェント数が少ない方が、むしろ 1 体が多領域を担当しがちで、Anti-pattern が混ざりやすい。5 体なら 5 体で専門領域を分離するだけでドラマ化を抑えられる。
+
+**Q. メインセッションが委任を忘れるときの対処は？**
+A. ハーネス側の hook で検出する方法がある (Claude Code の settings.json hooks)。ユーザーの発言に特定キーワードが含まれているのに Task ツールが呼ばれなかった場合、警告を出す。
+
+**Q. 専門エージェントが間違えたらどうするか？**
+A. メインセッションは「翻訳役」なので訂正はできない。代わりに CEO が訂正 → その結果を新しい Task として別エージェントに委任、という流れ。人間の CEO が「ピア・レビュー」に回る。
+
+**Q. Task ツール委任が重くて応答が遅くならないか？**
+A. なる。だから「単一事実確認」は例外として直接実行。委任は「数分かかっても正確さが欲しいタスク」に限定。
+
+---
+
+## 参考文献 / Sources
+
+**Claude Code 公式:**
+- [Claude Code Task tool documentation](https://docs.claude.com/en/docs/claude-code/sub-agents) — Task ツールで sub-agent 起動
+- [Claude Code Settings & Hooks](https://docs.claude.com/en/docs/claude-code/hooks) — settings.json hook
+- [Claude Code Sub-Agent Guide](https://docs.claude.com/en/docs/claude-code/sub-agents)
+
+**類似 Pattern (他フレームワーク):**
+- [LangGraph Supervisor Pattern](https://langchain-ai.github.io/langgraph/tutorials/multi_agent/agent_supervisor/)
+- [AutoGen Group Chat](https://microsoft.github.io/autogen/docs/Use-Cases/agent_chat/)
+- [OpenAI Swarm](https://github.com/openai/swarm) — Handoff Pattern
+
+**mixednuts 内部ルール:**
+- `.claude/rules/auto-delegation.md` — 80+ キーワードのルーティングテーブル
+- `.claude/rules/calibration.md` — Calibration ルール 7 ヶ条
+- 2026-04-07 インシデント (auto-memory)
+
+**関連記事:**
+- [Jarvis Pattern — Adaptive Delegation](/insights/jarvis-adaptive-delegation)
+- [Auto-delegation Routing Table](/insights/auto-delegation-routing-table)
+- [Calibration ルール](/insights/calibration-bias-17x)
