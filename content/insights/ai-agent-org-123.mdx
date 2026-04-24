@@ -1,0 +1,148 @@
+---
+title: "1 人 CEO が AI エージェント 123 体で事業を回す組織設計"
+excerpt: "Lead 6 / Head 15 / Worker 100+ の 3 階層で、1 人の CEO が複数クライアント × 自社プロダクト × 投資分析 を並行運用する設計パターン。月額 $200 の Claude Max Plan 内で稼働する実コスト実データ公開。"
+subtitle: "「1 人 + AI」で年商規模の事業を回す時代がきた。mixednuts が 1 年運用して辿り着いた、123 体の AI エージェントを Lead / Head / Worker の 3 階層で統制する組織設計。経営 CEO が明日から応用できる 6 つの設計原則と、月額 $200 で完結する実コスト内訳。"
+date: 2026-04-28
+readTime: "11分"
+category: "AI"
+author: "石井 希実"
+authorRole: "CEO / FOUNDER"
+tags: ["AI", "Organization", "経営", "AI Agent", "Claude", "Management"]
+hero: "/images/generated/insights/ai-agent-org-123.png"
+thumbNumber: "123"
+thumbLabel: "体の AI 組織"
+---
+
+<Tldr>
+mixednuts は 1 人 CEO と 123 体の AI エージェントで、複数クライアント案件・自社プロダクト開発・投資分析を並行運用している。鍵は Lead / Head / Worker の 3 階層設計、Task ツールによる委任強制、Calibration ルール（盛らない）の組織化、月次コスト $165。この記事は "1 人 + AI" で事業を回したい経営層向けの再現可能な設計書。
+</Tldr>
+
+<Stat value="$165" label="/月 — 123 体組織の運用コスト（Max Plan $200 内）" source="mixednuts 2026-04 実測" />
+
+## なぜ「1 人 + AI」が成立するのか
+
+<Answer>
+2025 年までの「AI は単独タスク補助」という位置づけから、2026 年は「AI が**組織として振る舞う**」段階に移行した。Claude Code / MCP の登場で、1 体の汎用 AI を呼ぶのではなく、専門特化した AI を 100 体以上並べて "組織" として運用できるようになった。mixednuts はこれを実事業で検証している。
+</Answer>
+
+昨年まで、AI エージェントは「優秀な 1 人のアシスタント」でした。2026 年に変わったのは、**AI が組織として振る舞えるようになった** こと。具体的には:
+
+- **Claude Code の Task ツール**: メインセッションから専門サブエージェントを起動できる
+- **MCP (Model Context Protocol)**: AI が各種 API / データベース / SaaS と標準化された方法で接続
+- **Skills (スラッシュコマンド)**: 特定ワークフローを "名前付き実行単位" として定義
+
+この 3 つが揃った瞬間、「1 体の AI」ではなく「専門特化した AI の組織」を設計できるようになります。
+
+## 設計原則 — 人間組織論を借用する
+
+AI 組織の設計で最も効いたのは、**人間の組織論をそのまま借用すること** でした。100 体を超えた AI をフラットに並べると、人間組織と同じく「誰が何を担当しているか分からない」「同じ仕事を複数が並行する」「コストが制御不能になる」というカオスが起きます。
+
+<Principle num="01" heading="3 階層のスパン・オブ・コントロール" />
+
+mixednuts の 123 体は以下の 3 階層:
+
+- **<Cite n={1}>Lead</Cite> (Opus モデル、6 体)** — C-Suite 相当: CTO, CFO, COO, CRO, CMO, Chief of Staff
+- **Head (Sonnet モデル、15 体)** — 部門長相当: Finance Head, Growth Head, Engineering Head 等
+- **Worker (Sonnet/Haiku、100 体+)** — 専門スキル担当
+
+1 人の Lead が直接監督する Head を 5-7 体までに制限し、各 Head が Worker 5-7 体を束ねる。**人間のマネジメント理論が AI でもそのまま効きます**。
+
+<Principle num="02" heading="委任の強制 — Lead は自分で手を動かさない" />
+
+人間のマネジメントで Lead が実務に手を出すと組織は機能しなくなる。AI でも同じ。Lead には明示的に:
+
+- 実装コードを直接書かせない (Head → Worker に委任)
+- データ取得を直接させない (同上)
+- "最終ジャッジ" と "分解 → 再委任" だけを担わせる
+
+これを **auto-delegation rule** として成文化し、全 Lead エージェントのシステムプロンプトに強制的に組み込んでいます。
+
+<Principle num="03" heading="Calibration — 盛らない原則" />
+
+LLM エージェントは "優秀に見られたい" バイアスで事態をドラマ化する傾向があります。「広告に異常値！」→ 実は ¥3 の誤差だった、という典型的な失敗を繰り返さないために:
+
+- 異常値を見たらまず **実害 (金額・件数) を計算** する
+- 「致命的」「壊滅的」等の感情語を禁止
+- 仮説形 ("〜の可能性") と事実形 ("〜で観測") を分離
+- 信頼度 (高/中/低) を必ず付与
+
+<PullQuote author="mixednuts Calibration ルール">
+地味な事実を地味に出すのが最大の価値。過剰演出は意思決定を歪める。
+</PullQuote>
+
+## コスト — 月額 $165 の内訳
+
+最も多い質問が "そんなに AI を動かしてコストはどうなるのか" です。答えは **月額 $165、Max Plan $200 内で完結** しています。内訳:
+
+| モデル | エージェント数 | 週トークン | 月額 |
+|--------|------------|----------|------|
+| Opus 4.7 | 6 体 | 500K | $50 |
+| Sonnet 4.x | 15 体 + 重要 Worker | 2M | $80 |
+| Haiku 4.x | 軽量 Worker | 500K | $5 |
+| Skills 呼び出し | 79 本 | 1M | $30 |
+
+**全部 Opus にすると月 $500 超え**。階層化で $300+ 削減。「考える層だけ Opus」が最適解です。
+
+## 経営者が応用する際の 3 つの質問
+
+<Stat value="6+15+100" label="Lead + Head + Worker の階層分配" source="mixednuts 運用実数" />
+
+この設計を自社に応用するときのチェック 3 点:
+
+1. **自社に "6 つの判断軸" はあるか?** — Finance / Revenue / Tech / Ops / Strategy / Investment。これが C-Suite Lead に対応
+2. **各領域に "5-7 の専門機能" を切れるか?** — 切れなければ Head は不要、Lead 直下に Worker でフラットで十分
+3. **月次コスト $165 を許容できるか?** — 許容できるなら今すぐ始められる。できないなら Max Plan ではなく API 従量課金で段階的に
+
+**エージェント数が 20 未満ならフラットで十分**。50 を超えたら Jarvis Pattern (Adaptive Delegation) 的な階層化の恩恵が出ます。
+
+## 導入の失敗パターン
+
+mixednuts が 1 年で犯した 3 つの典型的失敗:
+
+1. **"メインセッションが何でも賢い" を目指す** → Calibration が効かず暴走する
+2. **全部 Opus で高品質を目指す** → 月 $500 超で Max Plan 破綻
+3. **Skills を増やし続ける** → 3 ヶ月未使用の Skill が溜まり、品質劣化
+
+回避策は前述の 3 原則に集約されます。
+
+---
+
+## FAQ
+
+**Q. 1 人 + AI 123 体で、本当に年商規模の事業が回せるのか？**
+A. mixednuts は複数の広告運用クライアント、自社 FP&A ダッシュボード開発、投資分析を並行して回している。"年商規模" の定義次第だが、スタートアップ的に数億円規模のオペレーションは 1 人運用可能な実感。
+
+**Q. Claude 以外の LLM (GPT-4 / Gemini) でも同じ設計でよいか？**
+A. はい。「考える層 / まとめる層 / 実行層」の 3 階層はモデル非依存。GPT-4 Turbo / GPT-4o mini、Gemini Pro / Flash でも同じ原理で組める。
+
+**Q. 小規模スタートアップ (~10 体) でも階層化すべきか？**
+A. 10 体未満ならフラットで十分。20 体を超えたあたりから階層化の恩恵が出る。まず 5 体の Lead を決めて、そこから拡張するのが安全。
+
+**Q. エージェント同士のコミュニケーションはどうするのか？**
+A. Worker 間の直接通信は禁止。必要な調整は Head or Lead 経由で同期する。Star Topology (中央から放射状) が、大規模化したときのトークンコスト爆発を防ぐ。
+
+**Q. mixednuts の組織設計書は公開されているか？**
+A. `.claude/rules/` 配下のルール集と `.claude/agents/` のエージェント定義は Git 管理されており、クライアント支援時にテンプレートとして提供している。
+
+---
+
+<a id="sources"></a>
+
+## 参考文献 / Sources
+
+**AI 組織設計の潮流:**
+- [Anthropic: Building agents with MCP](https://claude.com/blog/building-agents-that-reach-production-systems-with-mcp)
+- [Claude Code Sub-Agents Documentation](https://docs.claude.com/en/docs/claude-code/sub-agents)
+- [Claude Max Plan](https://www.anthropic.com/max)
+
+**コスト参照:**
+- [Claude Models & Pricing](https://docs.claude.com/en/docs/about-claude/models)
+
+**人間組織論との対比:**
+- Peter Drucker, *The Practice of Management* (1954) — スパン・オブ・コントロールの古典
+- [LangGraph Multi-Agent Supervisor](https://langchain-ai.github.io/langgraph/tutorials/multi_agent/agent_supervisor/)
+
+**関連記事:**
+- [AI エージェント 123 体組織の Calibration ルール](/insights/calibration-bias-17x)
+- [Task ツール強制委任の理由](/insights/task-forced-delegation)
+- [Opus / Sonnet / Haiku モデル階層](/insights/opus-sonnet-haiku-tiering)

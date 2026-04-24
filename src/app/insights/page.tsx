@@ -97,6 +97,7 @@ const upcomingArticles: ListItem[] = [
 ];
 
 const publishedArticles: ListItem[] = [...posts]
+  .filter((p) => !p.hidden)
   .sort((a, b) => (a.date < b.date ? 1 : -1))
   .map((p) => ({
     slug: p.slug,

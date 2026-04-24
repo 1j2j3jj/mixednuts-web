@@ -1,4 +1,5 @@
 ---
+hidden: true
 title: "Context Hygiene — 500 行で警告、800 行で強制トリム。context.md が組織を壊した日"
 excerpt: "プロジェクトの状態を管理する context.md が 640 行まで肥大化し、毎セッションのコンテキスト消費を圧迫していた事件と、その後の運用ルール化。"
 subtitle: "11 プロジェクトを並行運用する AI 組織で、各案件の context.md は「現在の状態 + TODO」を正本として毎セッション読み込まれる。片案件で 640 行まで膨れ上がった結果、全案件で数千行のコンテキスト消費が発生。Latest Status 1 世代ルールと 500 / 800 行の閾値による Context Hygiene 設計。"

@@ -42,7 +42,7 @@ function extractFaqPairs(slug: string): { question: string; answer: string }[] {
 type Params = { slug: string };
 
 export function generateStaticParams() {
-  return posts.map((post) => ({ slug: post.slug }));
+  return posts.filter((post) => !post.hidden).map((post) => ({ slug: post.slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
@@ -72,9 +72,9 @@ function MDXContent({ code }: { code: string }) {
 export default async function InsightsArticlePage({ params }: { params: Promise<Params> }) {
   const { slug } = await params;
   const post = posts.find((p) => p.slug === slug);
-  if (!post) return notFound();
+  if (!post || post.hidden) return notFound();
 
-  const related = posts.filter((p) => p.slug !== post.slug).slice(0, 3);
+  const related = posts.filter((p) => p.slug !== post.slug && !p.hidden).slice(0, 3);
   const formattedDate = post.date.slice(0, 10).replace(/-/g, ".");
   const heroBg = post.hero
     ? `linear-gradient(135deg, rgba(0, 217, 255, 0.08), rgba(10, 10, 10, 0.85)), url('${post.hero}') center/cover no-repeat`

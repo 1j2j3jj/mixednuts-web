@@ -21,6 +21,7 @@ const posts = defineCollection({
       subtitle: s.string().optional(),
       thumbNumber: s.string().optional(),
       thumbLabel: s.string().optional(),
+      hidden: s.boolean().optional().default(false),
       metadata: s.metadata(),
       body: s.mdx(),
     })
