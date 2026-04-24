@@ -40,14 +40,14 @@ CEO の指示を受ける
   ↓
 Q1: この指示は定型作業か？ (週次レビュー、月次締め、定例レポート)
   ├ YES → 2-Hop: Worker に直接委任
-  │        例: 「HS の広告振り返り」→ Task(campaign-analyst)
+  │        例: 「EC クライアント の広告振り返り」→ Task(campaign-analyst)
   │
   └ NO  → 非定常ルート: 状況の解釈が必要
           ↓
         Q2: 複数部門にまたがるか？ or 状況が流動的か？
           ├ YES → 3-Hop: C-Suite Lead に委任
-          │        例: 「Chakin の座組が変わった」→ Task(cos-chief-of-staff)
-          │        例: 「Pococha の経営会議で方針転換」→ Task(cfo-treasurer)
+          │        例: 「B2B クライアント の座組が変わった」→ Task(cos-chief-of-staff)
+          │        例: 「クライアント A の経営会議で方針転換」→ Task(cfo-treasurer)
           │
           └ NO  → 2-Hop: 単一専門領域の Head/Worker に委任
                    例: 「この契約書おかしくない？」→ Task(global-counsel)

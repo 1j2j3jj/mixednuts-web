@@ -19,7 +19,7 @@ hero: "/images/generated/insights/auto-delegation-routing-table.png"
 
 [Task ツール強制委任](/insights/task-forced-delegation) で、メインセッションが専門領域を自分で実行することを禁止しました。では、どの専門エージェントに委任すればいいか？
 
-答えは「**キーワード検出で自動ルーティング**」。ユーザーが「HS の広告どう？」と言えば `campaign-analyst` へ、「Pococha の予実を」と言えば `fpna-architect` へ、自動で振り分けます。
+答えは「**キーワード検出で自動ルーティング**」。ユーザーが「EC クライアント の広告どう？」と言えば `campaign-analyst` へ、「クライアント A の予実を」と言えば `fpna-architect` へ、自動で振り分けます。
 
 ## ルーティングテーブル設計の 3 原則
 
@@ -43,7 +43,7 @@ hero: "/images/generated/insights/auto-delegation-routing-table.png"
 | 〈案件名〉の振り返り | `project-owner-{案件}` | PO 配下で複数 Worker 起動 |
 | 予算配分・広告戦略 | `growth-head` | growth-strategy チーム起動 |
 | 計測・GTM・CV 不整合 | `data-quality-checker` + `campaign-analyst` 並行 | 計測診断 |
-| Pococha・DeNA・取締役会 | `fpna-architect` | 経営管理専門 |
+| クライアント A・国内大手IT企業・取締役会 | `fpna-architect` | 経営管理専門 |
 | 投資・DD・バリュエーション | `deal-sourcer` | 投資チーム起動 |
 | 契約・NDA | `global-counsel` | 法務専門 |
 | クライアントヘルス | `health-monitor` | CS チーム起動 |
@@ -71,7 +71,7 @@ hero: "/images/generated/insights/auto-delegation-routing-table.png"
 
 | キーワード | エージェント | スキル |
 |---|---|---|
-| Pococha, IRIAM, DCL, DeNA, LC本部, 取締役会, 月次定例, 仮締め | `fpna-architect` | `pococha-health-check` |
+| クライアント A, クライアント B, D 子会社, 国内大手IT企業, ライブ事業部, 取締役会, 月次定例, 月次仮集計 | `fpna-architect` | `pococha-health-check` |
 | freee, 月次決算, BS, PL, 経費, レシート, AMEX | `cash-commander` | `freee-monthly-close` |
 | LTV, CAC, ユニットエコノミクス, 限界利益 | `unit-economist` | `unit-economics` |
 | IR, 投資家向け | `ir-communicator` | - |
@@ -129,7 +129,7 @@ hero: "/images/generated/insights/auto-delegation-routing-table.png"
 ### 追加キーワード例
 
 - 「データ汚染」→ 当初 `campaign-analyst` だったが、計測起因が多いので `data-quality-checker` 並行に変更
-- 「Centerfile」→ DeNA LC 本部の内部用語、`fpna-architect` に追加
+- 「経営管理マスタ」→ 国内大手IT企業のライブ事業部の内部用語、`fpna-architect` に追加
 - 「LLMO」→ 2026-03 に SEO 領域で頻出し始めたので `seo-orchestrator` に追加
 
 ### 削除キーワード例
@@ -140,7 +140,7 @@ hero: "/images/generated/insights/auto-delegation-routing-table.png"
 
 複数カテゴリにマッチする場合の優先順位:
 
-1. **プロジェクト名が含まれる場合** → そのプロジェクトの PO (`project-owner-trans` 等)
+1. **プロジェクト名が含まれる場合** → そのプロジェクトの PO (`project-owner-\{案件\}` 等)
 2. **2 領域に跨る場合** → 上位 Lead に委任 (`cos-chief-of-staff` など)
 3. **単一カテゴリ** → テーブルで決めた起点エージェント
 
