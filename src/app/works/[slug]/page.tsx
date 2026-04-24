@@ -1,19 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { works, type Work } from "@/data/works";
+import { works, type Work, CASES_COMING_SOON } from "@/data/works";
 import { notFound } from "next/navigation";
 import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
 
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateStaticParams() {
+  if (CASES_COMING_SOON) return [];
   return works.filter((w) => !w.hidden).map((w) => ({ slug: w.slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const work = works.find((w) => w.slug === slug);
-  if (!work || work.hidden) return {};
+  if (!work || work.hidden || CASES_COMING_SOON) return {};
   return {
     title: `Case: ${work.title}`,
     description: work.summary,
@@ -29,6 +30,7 @@ const bgMap: Record<string, string> = {
 
 export default async function WorkDetailPage({ params }: Props) {
   const { slug } = await params;
+  if (CASES_COMING_SOON) notFound();
   const work = works.find((w) => w.slug === slug);
   if (!work || work.hidden) notFound();
 

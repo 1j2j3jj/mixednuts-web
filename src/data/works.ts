@@ -28,6 +28,17 @@ export type Work = {
   deliverables: string[];
 };
 
+/**
+ * 全 Works を Coming Soon 状態にするグローバルフラグ。
+ * true の間:
+ *   - /works 一覧ページは Coming Soon プレースホルダを表示
+ *   - /services/{ai,strategy,marketing} の Cases セクションは非表示
+ *   - Home の Selected works セクションは Coming Soon 表示
+ *   - /works/[slug] は通常の hidden 判定（個別 hidden フラグを継続）
+ * 公開再開時は false に戻すだけで全面復旧。
+ */
+export const CASES_COMING_SOON = true;
+
 export const works: Work[] = [
   {
     slug: "livestream-fpna-ai",
@@ -789,6 +800,7 @@ export const works: Work[] = [
   },
   {
     slug: "insurance-cmo-new-biz",
+    hidden: true,
     title: "大手生命保険 新規デジタル事業 CMO 代行",
     client: "大手生命保険会社",
     industry: "金融／保険",
@@ -1096,7 +1108,7 @@ export const works: Work[] = [
     services: ["ai", "strategy"],
     metric: [
       { label: "エージェント数", value: "90体超" },
-      { label: "階層構造", value: "Lead/Head/Worker 3層" },
+      { label: "階層構造", value: "3階層構造" },
       { label: "運用形態", value: "24/7 自律稼働" },
     ],
     summary:
@@ -1162,6 +1174,314 @@ export const works: Work[] = [
       "Calibration ルール（ドラマ化禁止・断定禁止・実害計算必須）の運用ドキュメント",
       "自己修復フロー・エスカレーション基準・トークン使用量可視化の統合セーフガード設計",
       "6 つの設計原則テンプレート集（クライアント案件移植時の標準基盤として再利用可能）",
+    ],
+  },
+  {
+    slug: "feedforge-ai-feed-saas",
+    hidden: true,
+    title: "FeedForge — AI 商品フィード管理 SaaS の自社開発",
+    client: "mixednuts 自社プロダクト",
+    industry: "SaaS／AI プロダクト",
+    services: ["ai", "strategy"],
+    metric: [
+      { label: "配信チャネル", value: "3媒体対応" },
+      { label: "実装基盤", value: "Cloudflare Workers" },
+      { label: "AI処理", value: "LLM 商品説明最適化" },
+    ],
+    summary:
+      "Google Shopping / Meta / LINE Ads 向けに、商品カタログを LLM が媒体ごとに最適化して配信する AI フィード管理 SaaS を自社開発。Cloudflare Workers による Edge Injection で既存サイトのソースを書き換えずに構造化データと最適化フィードを注入。",
+    challenge:
+      "EC 事業者は媒体ごとに異なる仕様のフィードを作成・保守する必要があり、人手運用ではスケールしない。商品説明文の媒体最適化（文字数・禁止ワード・訴求軸の違い）や構造化データ更新も手作業で、新商品の投入リードタイムが広告出稿の律速になっていた。",
+    approach:
+      "商品マスタを入力とし、LLM が媒体ごとに最適化したフィード＋構造化データ（JSON-LD）を自動生成。Cloudflare Workers の Edge Injection で、配信時にサイト HTML を書き換えずに最適化済みメタデータを注入する二段構成。商品画像生成 AI との連携で新商品の立ち上げも短縮。",
+    quote: "「商品フィードは AI が作るのが当然になる」",
+    image: "/images/generated/works/ai-agent-organization.png",
+    background:
+      "EC 事業者は Google Shopping / Meta / LINE Ads と媒体が増えるたびに、それぞれの仕様・文字数・禁止ワードに合わせたフィード運用が必要になる。さらに Core Update / AI Overviews 時代には構造化データ（Product / Offer / AggregateRating 等）の精度が商品露出に直結する。人手で回せる範囲を超え、かつ既存サイト改修のコストは高い。Edge でフィードと構造化データを統合管理する SaaS が解決策として浮上した。",
+    challengeDetail: [
+      "媒体別フィード仕様の差異（文字数・画像サイズ・カテゴリ命名）を人手で保守すると、新商品投入リードタイムが広告の律速になる",
+      "商品説明文の媒体別最適化（短文 SNS 型／長文 Search 型）を網羅的に書き分ける工数が膨大",
+      "構造化データ更新が不完全だと Core Update / AI Overviews での商品露出が落ちる",
+      "既存 EC サイトの HTML を書き換えずに最適化したメタデータを注入する仕組みが必要",
+    ],
+    approachPhases: [
+      {
+        phase: "Phase 1",
+        title: "商品マスタ統一フォーマット設計",
+        description:
+          "商品 ID・価格・在庫・画像・説明・カテゴリを単一マスタに集約するスキーマ設計。ECCUBE / Shopify / Graphene 等の主要 EC プラットフォームからの取込アダプタを実装。",
+      },
+      {
+        phase: "Phase 2",
+        title: "LLM 媒体別最適化パイプライン",
+        description:
+          "商品ごとに媒体別（Google Shopping / Meta / LINE）の最適化 prompt を実行。文字数・禁止ワード・訴求軸を媒体仕様として LLM に与え、出力を一括検証。",
+      },
+      {
+        phase: "Phase 3",
+        title: "Cloudflare Workers Edge Injection",
+        description:
+          "配信時にサイト HTML をパースし、Product / Offer / Breadcrumb JSON-LD を動的注入。既存 EC サイトの改修ゼロで構造化データと最適化メタを反映する Edge 実装。",
+      },
+      {
+        phase: "Phase 4",
+        title: "AI クローラー・フィード生成・配信",
+        description:
+          "AI クローラーで競合商品情報を収集し、フィード生成と媒体配信まで自動化。生成した商品画像との連携で新商品立ち上げも AI 側で完結。",
+      },
+    ],
+    outcomes: [
+      "媒体別フィード運用の手作業工数をほぼゼロに削減し、商品投入リードタイムを広告出稿の律速から外した",
+      "構造化データの網羅率 100% を維持しながら、既存 EC サイトの改修コストをゼロに抑えた運用モデルを確立",
+      "LLM による媒体別説明文最適化で、CTR / ROAS の向上余地を定量測定可能な基盤を構築",
+      "SaaS としての外販可能性を検証する自社 dogfooding 環境として機能",
+    ],
+    keyLearnings: [
+      "Edge Injection は既存サイト改修を不要にする強力な設計パターンで、SEO / AIO 領域で特に効果が大きい",
+      "LLM のフィード生成は prompt 設計より「媒体仕様をスキーマ化して検証を挟む」運用設計が品質の決定要因",
+      "商品マスタを単一フォーマットに集約するアダプタ層の設計が、マルチプラットフォーム対応の鍵",
+    ],
+    applicableTo:
+      "複数媒体で広告配信する EC 事業者全般。特に ECCUBE / Shopify / Graphene 等の既存プラットフォームを使っており、媒体別フィード運用と構造化データ実装の両方がボトルネックになっている局面で効果が大きい。",
+    role: "mixednuts 自社プロダクトの設計者兼実装責任者。商品マスタ統一設計から LLM パイプライン、Edge Injection 実装、媒体配信まで一気通貫でプロダクト構築を担う立ち位置。クライアント案件へのパイロット導入も並行。",
+    resolution:
+      "自社配下の複数 EC 案件（匿名化）で商品フィード運用を FeedForge に移植した段階で、人手での媒体別フィード保守がゼロになり、構造化データ網羅率 100% を維持したまま新商品立ち上げから広告配信までのリードタイムを数時間単位に短縮。SaaS としての外販フェーズに向けた要件検証を継続中。",
+    deliverables: [
+      "商品マスタ統一スキーマと主要 EC プラットフォーム取込アダプタ",
+      "LLM 媒体別最適化パイプライン（prompt + 検証ルール + 媒体仕様スキーマ）",
+      "Cloudflare Workers による構造化データ / メタデータ Edge Injection 実装",
+      "AI クローラー + フィード生成 + 媒体配信の自動化ワークフロー",
+    ],
+  },
+  {
+    slug: "multi-client-ad-dashboard",
+    hidden: true,
+    title: "広告運用 AI ダッシュボード — 複数案件×4媒体の日次自動レポーティング",
+    client: "mixednuts 自社基盤／複数クライアント共通",
+    industry: "マーケティング／AI インフラ",
+    services: ["ai", "marketing"],
+    metric: [
+      { label: "対応媒体", value: "Google / Meta / Yahoo / Microsoft" },
+      { label: "データ統合", value: "GA4 / GSC / Shopify / ECCUBE" },
+      { label: "認証基盤", value: "Multi-tenant Better Auth" },
+    ],
+    summary:
+      "複数クライアント案件に共通のダッシュボード基盤を自社開発。GA4 / GSC / Google Ads / Yahoo / Meta / Microsoft / Shopify / ECCUBE を横串で統合し、日次で自動生成される 4 画面（サマリー / 広告詳細 / フィルター詳細 / 商品・検索）をクライアント別 slug で配信する Multi-tenant 構成。",
+    challenge:
+      "複数の広告案件を並行運用していると、クライアントごとに異なる計測ツール・媒体・CV 定義でレポートを組み直す工数が膨大になる。Sheet 手作業 → 翌週定例という従来サイクルでは意思決定が遅れ、異常値の発見も遅延する。案件ごとに別ダッシュボードを開発するのも非効率。",
+    approach:
+      "単一のダッシュボード基盤を構築し、クライアント別設定（GA4 Property / GSC URL / 媒体 / CV 定義 / 目標 matrix）で挙動を切り替える設計。Better Auth Multi-tenant で各クライアントは自分の slug のみアクセス可。API 自前取得＋ Windsor.ai で媒体カバレッジを補完し、Claude による異常検知・サマリ生成を組み込み。",
+    quote: "「毎週のレポート作成をゼロにして、意思決定に時間を使う」",
+    image: "/images/generated/works/ai-agent-organization.png",
+    background:
+      "mixednuts 配下で複数の広告案件が並走している中で、案件ごとに異なる計測環境（ECCUBE / Shopify / Graphene）・媒体構成・CV 定義を人手で束ねる運用は持続不可能だった。Looker Studio や Sheet ベースの簡易ダッシュボードでは、クライアントに見せる UI 品質と、セキュリティ（他クライアントのデータ漏洩リスク）の両立が難しい。自社で共通基盤を作り、案件横展開することが最もレバレッジが効く判断に至った。",
+    challengeDetail: [
+      "案件ごとに計測ツール（ECCUBE / Shopify / Graphene）と媒体構成（Google のみ / 4媒体）が異なり、Sheet や BI ツールの横展開が困難",
+      "クライアント別に URL / 認証を分け、他クライアントの存在すら見せない Multi-tenant 要件",
+      "手作業レポートは週次定例に間に合わせるのが律速で、異常値検知が数日遅れる",
+      "目標 matrix（metric × channel × month）と実績を結合した予算ペース警告を自動で出す仕組みが必要",
+    ],
+    approachPhases: [
+      {
+        phase: "Phase 1",
+        title: "案件別設定の抽象化",
+        description:
+          "クライアント別設定（GA4 Property / GSC URL / Raw Sheet ID / Targets Sheet ID / 媒体リスト / CV 定義）を型付けされた設定オブジェクトに集約。新規案件は設定追加のみで基盤を共有する構成に。",
+      },
+      {
+        phase: "Phase 2",
+        title: "データ統合レイヤー",
+        description:
+          "GA4 / GSC は SA + OAuth フォールバック、Google Ads は自前 API、Yahoo / Meta / Microsoft は Windsor.ai 経由で取得。ECCUBE / Shopify は Sheet or API 経由。全てを日次で正規化し Raw → Pivot → Join のパイプラインに集約。",
+      },
+      {
+        phase: "Phase 3",
+        title: "Multi-tenant 認証 + 画面構成",
+        description:
+          "Better Auth + Neon Postgres で Organization / Member / Invitation を管理。クライアントは自分の slug のみアクセス可、admin は全体横串。4 画面（サマリー / 広告詳細 / フィルター詳細 / 商品・検索）+ 期間プリセット + 比較 + PDF 書き出し。",
+      },
+      {
+        phase: "Phase 4",
+        title: "AI 異常検知・サマリ生成",
+        description:
+          "Claude で日次の数値変動を Z-score ベースで検知し、重要度付きのアラートを生成。月次サマリや定例レポートの初稿も LLM が生成し、人間は判断と意思決定に集中する構造に。",
+      },
+    ],
+    outcomes: [
+      "複数案件を単一基盤で運用できるようになり、新規案件の立ち上げが設定追加 + Sheet 共有のみで完了する状態に到達",
+      "日次自動更新で異常値検知が定例前に実施可能になり、対応のリードタイムを週次から日次に短縮",
+      "Multi-tenant 認証で他クライアントの存在を秘匿したまま同一基盤で運用する構造を確立",
+      "Claude による異常検知 + サマリ生成で、週次定例レポートの初稿作成工数をほぼゼロに",
+    ],
+    keyLearnings: [
+      "ダッシュボードは「表示」より「設定の抽象化」が品質の決定要因。新規案件を型付き config だけで乗せられるか が拡張性を決める",
+      "Multi-tenant は UI 上の隠蔽だけでなく、認証・URL・データフェッチすべての層で分離することが必須",
+      "LLM の異常検知は閾値ベースより、統計的 Z-score + 事業文脈（目標 matrix）の組み合わせで精度が出る",
+    ],
+    applicableTo:
+      "複数案件を並走運用するコンサルファーム・広告代理店・社内エージェンシー。特に計測環境が案件ごとに異なる局面で、共通基盤化による運用レバレッジを追求したい場合に応用可能。",
+    role: "mixednuts 自社基盤の設計者兼実装責任者。案件別設定の抽象化、データ統合レイヤー実装、Multi-tenant 認証、AI 異常検知まで一気通貫で構築する立ち位置。複数案件への横展開も同時に推進。",
+    resolution:
+      "共通基盤を複数案件に横展開した段階で、案件ごとに個別のレポート作成コストがほぼ消え、クライアントは自分の slug から日次最新データにアクセスできる構造が定着。定例会議の論点が「数値の確認」から「判断と次アクション」に明確にシフトし、基盤そのものが mixednuts の差別化資産として機能する状態に到達。",
+    deliverables: [
+      "案件別設定を型付けする共通 config スキーマと、新規案件投入フロー",
+      "GA4 / GSC / Google Ads / Yahoo / Meta / Microsoft / Shopify / ECCUBE の統合取得パイプライン",
+      "Better Auth Multi-tenant + Neon Postgres 認証基盤（Organization / Invitation フロー含む）",
+      "Claude ベースの異常検知 + 月次サマリ生成プロンプトと運用ルール",
+    ],
+  },
+  {
+    slug: "investment-research-ai",
+    hidden: true,
+    title: "投資リサーチ AI — EDINET 500社の定量分析 × 清原式スクリーニング",
+    client: "mixednuts 自社運用／個人投資リサーチ",
+    industry: "金融／投資リサーチ",
+    services: ["ai", "strategy"],
+    metric: [
+      { label: "対象企業", value: "EDINET 500社" },
+      { label: "分析軸", value: "ネットキャッシュ比率 × 収益性" },
+      { label: "AI 処理", value: "LLM 定性要約 × 定量スクリーニング" },
+    ],
+    summary:
+      "EDINET から上場 500 社の有価証券報告書を自動取得し、清原式ネットキャッシュスクリーニング（時価総額 - ネットキャッシュの逆転銘柄発掘）と、LLM による事業定性評価を統合した投資リサーチ基盤を構築。個人投資運用で dogfooding しつつ、将来的な外販も視野。",
+    challenge:
+      "割安株スクリーニングは財務データの自動取得・正規化に高いコストがかかり、個人投資家が継続的に 500 社規模を回すのは困難。さらに定量だけでは「安値放置の理由」が分からず、定性面の事業評価が伴わないと誤判定する。",
+    approach:
+      "EDINET API で有価証券報告書を自動取得し、BS / PL / CF を正規化。清原式（時価総額・現預金・有利子負債・投資有価証券）のネットキャッシュ指標で定量スクリーニングを実施。上位候補に対して LLM で事業内容・競合・リスクを要約し、定量×定性の統合スコアで投資判断を支援する構造に。",
+    quote: "「AI で個人でも 500 社を回し続けられる時代になった」",
+    image: "/images/generated/works/ai-agent-organization.png",
+    background:
+      "清原氏の著作をきっかけに、ネットキャッシュ比率（時価総額に対する正味現金の比率）で割安株を発掘する手法が注目されている。ただし手動で 500 社を継続的にスクリーニングするのは現実的ではなく、機関投資家向けの Bloomberg などのツールは個人には高価。AI を使って低コストで同等の分析を回せないかという仮説から自社で構築を始めた。",
+    challengeDetail: [
+      "EDINET XBRL の財務タグ仕様は複雑で、企業ごとのタグ差分を吸収する正規化ロジックが必要",
+      "ネットキャッシュの定義（現預金 + 投資有価証券 - 有利子負債）に複数解釈があり、清原式の厳格版を採用する判断が必要",
+      "定量だけでは「安値放置の理由」（不正・事業衰退・流動性リスク）を見抜けず誤判定リスクがある",
+      "500 社規模を毎月更新し続ける運用が個人では持続不可能で、自動化が前提",
+    ],
+    approachPhases: [
+      {
+        phase: "Phase 1",
+        title: "EDINET パイプライン構築",
+        description:
+          "EDINET API で有価証券報告書を自動取得し、XBRL タグから BS / PL / CF を正規化。企業ごとのタグ差分を吸収するアダプタ層を実装。",
+      },
+      {
+        phase: "Phase 2",
+        title: "清原式ネットキャッシュ指標",
+        description:
+          "時価総額と（現預金 + 投資有価証券 - 有利子負債）を対比し、時価総額 < ネットキャッシュの「逆転銘柄」を抽出。さらに営業 CF 正・継続的な収益性でフィルタ。",
+      },
+      {
+        phase: "Phase 3",
+        title: "LLM による事業定性評価",
+        description:
+          "上位候補に対して、直近の有報・決算短信・ニュースを LLM で要約。事業内容・競合構造・リスク要因を 1 枚レポートに整理し、定量スクリーニングの裏付けとして提供。",
+      },
+      {
+        phase: "Phase 4",
+        title: "個人投資運用での dogfooding",
+        description:
+          "自分の投資口座で実際に運用し、定量×定性の統合スコアがパフォーマンスに寄与するかを検証。ルール違反エントリーを防ぐ規律管理も組み込み。",
+      },
+    ],
+    outcomes: [
+      "EDINET 500 社の月次自動更新スクリーニングを個人運用水準のコストで回せる基盤を構築",
+      "清原式定量指標＋ LLM 定性評価の統合スコアで、「数字だけ割安」と「本当に割安」を分離する判断基盤を確立",
+      "自分の投資ポートフォリオで dogfooding し、規律違反エントリーを防ぐ運用ルールとセットで内製化",
+      "外販可能性のある投資リサーチ SaaS の要件検証フェーズとして機能",
+    ],
+    keyLearnings: [
+      "財務データは正規化の品質が分析品質を決める。XBRL タグ差分吸収の設計が最大のボトルネック",
+      "定量スクリーニングは LLM 定性評価とセットで初めて判断材料になる。片方だけでは誤判定する",
+      "個人投資運用を dogfooding の場にすることで、自分の規律と分析品質が同時に鍛えられる",
+    ],
+    applicableTo:
+      "上場企業のバリュエーション分析を継続的に回したい PE / VC / ヘッジファンド / 個人投資家全般。財務データの自動取得と LLM 定性評価を組み合わせた低コスト運用が可能な局面で応用可能。",
+    role: "mixednuts 自社ツールの設計者兼運用責任者。EDINET パイプライン実装、スクリーニング指標設計、LLM 定性評価プロンプト設計、個人運用での検証まで一気通貫で担う立ち位置。",
+    resolution:
+      "月次で 500 社を自動スクリーニングし、上位候補を LLM 定性評価付きのレポートとして出力する運用が定着。個人投資ポートフォリオで検証を継続しつつ、将来的な外販 SaaS 化の要件を段階的に整理している状態。",
+    deliverables: [
+      "EDINET 自動取得 + XBRL 正規化パイプライン",
+      "清原式ネットキャッシュスクリーニング指標と閾値ルール",
+      "LLM 定性評価プロンプト集（事業・競合・リスクの 1 枚レポート生成）",
+      "投資規律管理（計画外エントリー禁止・利確ルール）の運用ドキュメント",
+    ],
+  },
+  {
+    slug: "ai-creative-generation-workflow",
+    hidden: true,
+    title: "広告クリエイティブ AI 生成ワークフロー — Imagen / 動画生成のパイプライン",
+    client: "mixednuts 自社基盤／複数クライアント共通",
+    industry: "マーケティング／クリエイティブ",
+    services: ["ai", "marketing"],
+    metric: [
+      { label: "画像生成", value: "Imagen 3/4 Ultra" },
+      { label: "動画生成", value: "VEO 系モデル" },
+      { label: "スタイル制御", value: "ブランドパレット強制" },
+    ],
+    summary:
+      "Google Vertex AI の Imagen / VEO を中核に、広告バナー・LP ヒーロー画像・動画クリエイティブを自動生成するワークフローを構築。ブランドパレット強制・アスペクト比切替・プロンプト版管理を組み合わせ、案件横断で量産可能な体制を整備。",
+    challenge:
+      "広告運用では媒体別・訴求別にクリエイティブを多パターン用意する必要があるが、デザイナー依頼では工数とリードタイムが律速になる。一方、生成 AI は「それっぽい画像」が出やすい反面、ブランドトーン統一・指定アスペクト比・固有名詞対応が難しく、実戦投入には追加の設計が必要。",
+    approach:
+      "Vertex AI の Imagen Fast（低コスト試作）→ Imagen Ultra / VEO（本番）の 2 段構成で量産。ブランドパレットとスタイルを prompt に強制注入し、アスペクト比（1:1 / 3:4 / 9:16）を媒体要件ごとに切替。生成物はプロジェクト別ディレクトリに命名規則化して保存し、バージョン管理を効かせる。",
+    quote: "「AI クリエイティブは『それっぽい』から『運用に乗る』へ」",
+    image: "/images/generated/works/ai-agent-organization.png",
+    background:
+      "自社サイトリニューアルで Imagen 3/4 Ultra を使った画像生成を検証した際、コスト（$0.02〜0.04/枚）・スピード・一貫性のバランスが運用可能水準に入ったと判断。これを広告クリエイティブ量産にも展開する前提で、案件横断のワークフローとして整理する必要が生じた。",
+    challengeDetail: [
+      "AI 生成画像はブランドトーン（色・書体・余白）が毎回揺れるため、運用投入には prompt 強制と品質検査が必須",
+      "媒体ごとのアスペクト比（Meta 1:1 / 9:16、Google バナー各サイズ）に合わせた生成切替が煩雑",
+      "Imagen Ultra は quota 制限が厳しく、Fast で当たり試作 → Ultra で本番 の二段戦略が必要",
+      "生成物のバージョン管理・命名規則がないと、後から「どれが本番採用版か」を追跡できない",
+    ],
+    approachPhases: [
+      {
+        phase: "Phase 1",
+        title: "ブランドパレット強制 prompt 設計",
+        description:
+          "案件ごとのブランドカラー・書体・トーンを prompt テンプレートに組み込み、生成ごとの揺れを最小化。style reference 画像を組み合わせる二重制御。",
+      },
+      {
+        phase: "Phase 2",
+        title: "Fast → Ultra の二段生成",
+        description:
+          "Imagen Fast で低コストに大量試作 → 当たりを Ultra で再生成する運用設計。VEO 系動画モデルも同じフローで短尺動画を生成。",
+      },
+      {
+        phase: "Phase 3",
+        title: "媒体別アスペクト比切替",
+        description:
+          "媒体要件（Meta 1:1 / 9:16、Google バナー・Discovery・Demand Gen）をスキーマ化し、生成時に一括切替。アスペクト比差分の誤り（`4:5` 非対応など）を防ぐ検証ルール。",
+      },
+      {
+        phase: "Phase 4",
+        title: "バージョン管理と案件横展開",
+        description:
+          "生成物を `_assets/images/generated/{project}/{slug}_{variant}.png` 形式で命名規則化し、後から採用版を追跡可能に。複数案件で prompt テンプレートを共有しつつ差分を管理。",
+      },
+    ],
+    outcomes: [
+      "広告バナー・LP 画像・短尺動画の量産を案件横断で運用可能な水準に引き上げた",
+      "ブランドパレット強制でトーンの揺れを最小化し、「運用に乗る」品質のクリエイティブを AI で生成する構造を確立",
+      "Fast → Ultra の二段戦略でコストとスピードのバランスを実運用水準に最適化",
+      "バージョン管理の規律で、後続フェーズでの A/B テスト・採用版追跡が可能な資産として整備",
+    ],
+    keyLearnings: [
+      "AI 画像生成は prompt 単独より、style reference + ブランドスキーマの組み合わせで品質が決まる",
+      "Ultra モデルの quota 制限は運用の律速になるため、Fast での当たり試作が必須の二段戦略",
+      "生成物のバージョン管理・命名規則は生成そのものより重要。資産として再利用できるかの分岐点",
+    ],
+    applicableTo:
+      "広告クリエイティブを複数媒体・複数訴求で量産する必要がある EC / BtoB / BtoC 事業者全般。デザイナー依頼を完全に代替するものではなく、試作・バリエーション生成・A/B 素材の大量確保に応用可能。",
+    role: "mixednuts 自社ワークフローの設計者兼運用責任者。Vertex AI Imagen / VEO の実装、prompt 設計、媒体別アスペクト比切替、バージョン管理設計まで一気通貫で構築。案件横展開のパイロットも並行推進。",
+    resolution:
+      "自社サイトおよび複数広告案件のクリエイティブ生成に本ワークフローを適用した段階で、試作リードタイムが大幅に短縮され、ブランドトーンを保ったまま量産する運用が定着。AI 生成を前提にした広告運用サイクルの基盤として機能する状態に到達。",
+    deliverables: [
+      "ブランドパレット強制 prompt テンプレート集（案件別）",
+      "Imagen Fast → Ultra の二段生成ワークフローと quota 運用ルール",
+      "媒体別アスペクト比スキーマと生成時切替ロジック",
+      "生成物のバージョン管理命名規則と案件横展開ドキュメント",
     ],
   },
   {

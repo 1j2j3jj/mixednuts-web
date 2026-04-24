@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { works } from "@/data/works";
+import { works, CASES_COMING_SOON } from "@/data/works";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = "https://mixednuts-inc.com";
@@ -26,7 +26,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: route === "" ? 1.0 : 0.7,
   }));
 
-  const workRoutes = works.filter((w) => !w.hidden).map((w) => ({
+  const workRoutes = (CASES_COMING_SOON ? [] : works.filter((w) => !w.hidden)).map((w) => ({
     url: `${base}/works/${w.slug}`,
     lastModified: new Date(),
     changeFrequency: "monthly" as const,

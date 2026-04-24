@@ -70,7 +70,7 @@ export default function LegalPage() {
           <table className="legal-table">
             <tbody>
               <tr><th>販売事業者名</th><td>ミックスナッツ株式会社<br />(mixednuts Inc.)</td></tr>
-              <tr><th>代表者</th><td>代表取締役 N.I.</td></tr>
+              <tr><th>代表者</th><td>代表取締役 石井 希実</td></tr>
               <tr><th>所在地</th><td>〒107-0062<br />東京都港区南青山3-8-40</td></tr>
               <tr><th>電話番号</th><td>お問い合わせフォームよりご連絡ください<br />※請求があった場合は遅滞なく開示します</td></tr>
               <tr><th>メールアドレス</th><td><a href="mailto:hello@mixednuts-inc.com" style={{color: 'var(--navy)', textDecoration: 'underline'}}>hello@mixednuts-inc.com</a></td></tr>

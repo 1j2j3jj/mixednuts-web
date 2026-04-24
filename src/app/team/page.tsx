@@ -161,7 +161,8 @@ export default function TeamPage() {
         </section>
       )}
 
-      {/* Members Grid */}
+      {/* Members Grid — hidden until profiles are finalized */}
+      {false && (
       <section className="members-section">
         <div className="members-inner">
           <span className="section-label">Team Members</span>
@@ -189,6 +190,7 @@ export default function TeamPage() {
           </div>
         </div>
       </section>
+      )}
 
       {/* Departments */}
       <section className="departments">
@@ -201,19 +203,19 @@ export default function TeamPage() {
               <div className="dept-icon">01</div>
               <div className="dept-name">Strategy</div>
               <div className="dept-desc">中期戦略、M&A、FP&A、新規事業。経営判断の中枢に入り込み、意思決定を支援する。</div>
-              <div className="dept-count">3 MEMBERS</div>
+              <div className="dept-count">経営企画 · M&A · FP&A</div>
             </div>
             <div className="dept-card">
               <div className="dept-icon">02</div>
               <div className="dept-name">AI Implementation</div>
               <div className="dept-desc">エージェント設計、LLM実装、RAG構築。自社で120体超を運用してきた実装ノウハウが強み。</div>
-              <div className="dept-count">3 MEMBERS</div>
+              <div className="dept-count">Agent · LLM · RAG</div>
             </div>
             <div className="dept-card">
               <div className="dept-icon">03</div>
               <div className="dept-name">Marketing & Growth</div>
               <div className="dept-desc">広告運用、SEO/AIO、CVR改善、コンテンツ。代理店出身と事業会社出身が組んで実行する。</div>
-              <div className="dept-count">3 MEMBERS</div>
+              <div className="dept-count">広告 · SEO/AIO · CVR</div>
             </div>
             <div className="dept-card">
               <div className="dept-icon">04</div>

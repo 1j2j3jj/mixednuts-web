@@ -39,7 +39,7 @@ const upcomingArticles: ListItem[] = [
     title: "FP&A × AI 自動化: 月次締め工数を70%削減した実装パターン",
     excerpt:
       "管理会計の月次クローズ作業にAIエージェントを組み込み、工数を大幅削減した事例。freee API連携とLLM集計の組み合わせを詳解。",
-    author: "N.I.",
+    author: "石井 希実",
   },
   {
     slug: "ma-dd-ai",
@@ -51,7 +51,7 @@ const upcomingArticles: ListItem[] = [
     title: "M&A デューデリジェンスをAIで加速する: 財務DDの新アプローチ",
     excerpt:
       "EDINETデータ自動取得からLLM分析まで。従来3週間かかっていた財務DDを5日に短縮した手法と、精度を担保するための人間チェックポイントを公開。",
-    author: "N.I.",
+    author: "石井 希実",
   },
   {
     slug: "prompt-engineering-guide",
@@ -63,7 +63,7 @@ const upcomingArticles: ListItem[] = [
     title: "プロンプトエンジニアリングの実務ガイド: 再現性のある出力の作り方",
     excerpt:
       "「なんとなく動く」から「必ず動く」へ。本番投入できるプロンプトの設計原則と、評価フレームワークの構築方法を解説します。",
-    author: "N.I.",
+    author: "石井 希実",
   },
   {
     slug: "google-ads-ai-cpa",
@@ -75,7 +75,7 @@ const upcomingArticles: ListItem[] = [
     title: "Google Ads × AI: 自動入札とAIクリエイティブで CPA を30%改善した方法",
     excerpt:
       "スマート入札の誤解と正しい使い方。AIクリエイティブ生成ツールの選定基準、A/Bテスト設計まで、実績ベースで解説。",
-    author: "N.I.",
+    author: "石井 希実",
   },
   {
     slug: "diversity-mix-ops",
@@ -87,7 +87,7 @@ const upcomingArticles: ListItem[] = [
     title: "多様性を成果に変える: 6つのバックグラウンドを\"ミックス\"する運営術",
     excerpt:
       "広告代理店・戦略ファーム・ビッグテック・クリエイター — 異なる専門性をどうまとめるか。チーム設計の実践から学んだ知見。",
-    author: "N.I.",
+    author: "石井 希実",
   },
 ];
 

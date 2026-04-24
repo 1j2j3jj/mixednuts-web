@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { works } from "@/data/works";
+import { works, CASES_COMING_SOON } from "@/data/works";
 import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: "戦略ファーム出身者と事業会社経営企画経験者が、経営判断の中枢で意思決定を支援。FP&A、M&A、新規事業、組織設計まで一気通貫。",
 };
 
-const strategyWorks = works.filter((w) => !w.hidden && w.services.includes("strategy")).slice(0, 3);
+const strategyWorks = CASES_COMING_SOON ? [] : works.filter((w) => !w.hidden && w.services.includes("strategy")).slice(0, 3);
 
 const serviceSchema = {
   "@context": "https://schema.org",
@@ -116,7 +116,8 @@ export default function ServiceStrategyPage() {
         </div>
       </section>
 
-      {/* Team */}
+      {/* Team — hidden until profiles are finalized */}
+      {false && (
       <section className="section team-section">
         <div className="section-inner">
           <span className="section-label">Strategy Team</span>
@@ -126,7 +127,7 @@ export default function ServiceStrategyPage() {
             {[
               { initial: "N.I.", role: "Founder & CEO", bg: "戦略コンサルティング → 大手IT企業 経営企画・FP&A → 投資", bio: "国内大手IT企業の経営企画責任者として取締役会付議・中期戦略を統括。mixednuts創業後は戦略×AI×マーケの統合提供を牽引。早稲田大学院MBA。" },
               { initial: "K.T.", role: "Head of Strategy", bg: "外資系戦略コンサルファーム出身", bio: "外資系戦略ファームで通信・メディア・ヘルスケア業界の中期戦略立案をリード。M&A PMI、新規事業立ち上げ、組織変革の経験多数。" },
-              { initial: "Y.M.", role: "Principal, M&A / Investment", bg: "投資銀行 → PEファンド", bio: "投資銀行のM&Aアドバイザリー部門を経てPEファンドへ。DCF・フットボールチャート・DD実行を多数経験。バリュエーションが専門。" },
+              { initial: "Y.M.", role: "Principal, M&A / Investment", bg: "BIG4 会計事務所出身", bio: "BIG4 会計事務所の FAS / M&A アドバイザリー部門で財務DD・バリュエーション・PMI を多数経験。DCF・フットボールチャート・感応度分析を実務水準で運用。" },
             ].map((m) => (
               <div key={m.initial} className="team-profile">
                 <div className="team-profile-initial">{m.initial}</div>
@@ -138,6 +139,7 @@ export default function ServiceStrategyPage() {
           </div>
         </div>
       </section>
+      )}
 
       {/* Cases */}
       {strategyWorks.length > 0 && (

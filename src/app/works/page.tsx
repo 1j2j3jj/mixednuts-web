@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { works } from "@/data/works";
+import { works, CASES_COMING_SOON } from "@/data/works";
 import WorksList from "./WorksList";
 
-const visibleWorks = works.filter((w) => !w.hidden);
+const visibleWorks = CASES_COMING_SOON ? [] : works.filter((w) => !w.hidden);
 
 export const metadata: Metadata = {
   title: "Works — 数字で語る、実績ケース",
@@ -73,16 +73,44 @@ export default function WorksPage() {
           <div className="breadcrumb"><Link href="/">Home</Link> / Works</div>
           <div className="page-hero-badge">Case Studies</div>
           <h1>
-            <span style={{ display: "block" }}>数字で語る、</span>
-            <span style={{ display: "block" }}><span className="accent">{visibleWorks.length} の実績</span>。</span>
+            <span style={{ display: "block" }}>Coming</span>
+            <span style={{ display: "block" }}><span className="accent">Soon</span>。</span>
           </h1>
           <p className="lead">
-            業種・規模・フェーズを問わず、戦略×AI×マーケで成果を出してきました。守秘義務のため全て匿名化していますが、業種・期間・定量指標で具体性を担保しています。
+            戦略 × AI × マーケで積み上げてきた実績ケースを、守秘義務に配慮しながら順次公開していきます。近日アップデート予定です。
           </p>
         </div>
       </section>
 
-      <WorksList works={visibleWorks} />
+      {CASES_COMING_SOON ? (
+        <section style={{ padding: "80px 32px 120px", background: "var(--off-white)" }}>
+          <div style={{ maxWidth: 880, margin: "0 auto", textAlign: "center" }}>
+            <div style={{
+              fontFamily: "var(--font-sans-en)", fontSize: 11, letterSpacing: "0.2em",
+              color: "var(--gray-400)", fontWeight: 700, marginBottom: 24
+            }}>
+              UPDATING · 近日公開予定
+            </div>
+            <h2 style={{
+              fontFamily: "var(--font-sans-jp)", fontSize: "clamp(28px, 4vw, 40px)",
+              fontWeight: 900, color: "var(--charcoal)", lineHeight: 1.3,
+              marginBottom: 24, wordBreak: "keep-all"
+            }}>
+              ケース一覧を<br />リニューアル中です。
+            </h2>
+            <p style={{
+              color: "#4B5563", fontSize: 15, lineHeight: 1.9, maxWidth: 640,
+              margin: "0 auto 40px", wordBreak: "keep-all"
+            }}>
+              匿名化と数字の精査を改めて行い、業種・規模・課題別に整理した形で順次公開します。
+              特定ケースについてのお問い合わせは、個別にご連絡ください。
+            </p>
+            <Link href="/contact" className="btn-primary">お問い合わせ →</Link>
+          </div>
+        </section>
+      ) : (
+        <WorksList works={visibleWorks} />
+      )}
 
       <section className="cta">
         <div className="cta-inner">

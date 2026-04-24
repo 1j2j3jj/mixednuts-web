@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { works } from "@/data/works";
+import { works, CASES_COMING_SOON } from "@/data/works";
 import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: "広告代理店シニアディレクターと事業会社マーケ責任者が、広告運用とグロース戦略を統合提供。LTV/CAC最適化、SEO/AIO、クリエイティブ戦略まで。",
 };
 
-const marketingWorks = works.filter((w) => !w.hidden && w.services.includes("marketing")).slice(0, 3);
+const marketingWorks = CASES_COMING_SOON ? [] : works.filter((w) => !w.hidden && w.services.includes("marketing")).slice(0, 3);
 
 const serviceSchema = {
   "@context": "https://schema.org",

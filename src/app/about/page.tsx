@@ -156,10 +156,10 @@ export default function AboutPage() {
             </div>
             <div>
               <h3 style={{fontFamily: 'var(--font-serif-jp)', fontSize: 28, color: 'var(--navy)', marginBottom: 8, fontWeight: 700}}>
-                N.I. <span style={{fontFamily: 'var(--font-serif-en)', color: '#9CA3AF', fontSize: 18, fontWeight: 400}}>/ Founder & CEO</span>
+                石井 希実 <span style={{fontFamily: 'var(--font-serif-en)', color: '#9CA3AF', fontSize: 18, fontWeight: 400}}>Nozomi Ishii / Founder & CEO</span>
               </h3>
               <div style={{color: 'var(--cyan)', fontSize: 12, letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 20}}>CEO / Founder</div>
-              <p style={{color: '#4B5563', fontSize: 15, lineHeight: 1.9, marginBottom: 16}}>国内大手デジタル広告代理店でアカウントプランナーを務めた後、グローバル大手IT企業で広告事業のアカウントストラテジスト（年間40億円超のポートフォリオ運用）。その後、国内大手IT企業の経営企画に転じ、ライブストリーミング事業・エンタメ事業において、事業計画・投資評価・中期戦略まで、経営判断の中枢で意思決定を支援。</p>
+              <p style={{color: '#4B5563', fontSize: 15, lineHeight: 1.9, marginBottom: 16}}>国内大手デジタル広告代理店でアカウントプランナーを務めた後、グローバル大手IT企業で広告事業のアカウントストラテジスト（年間40億円超のポートフォリオ運用）。その後、国内大手IT企業の経営企画に転じ、300億円規模のエンタメ領域の事業管理を統括。事業計画・投資評価・中期戦略まで、経営判断の中枢で意思決定を支援。</p>
               <p style={{color: '#4B5563', fontSize: 15, lineHeight: 1.9, marginBottom: 24}}>2021年、ミックスナッツ株式会社を創業。AI-firstファームを率い、戦略・AI・マーケティングの統合提供を牽引。早稲田大学大学院経営管理研究科（MBA）修了。</p>
               <Link href="/team/ceo" className="btn-dark">詳細プロフィールを見る →</Link>
             </div>
@@ -180,13 +180,13 @@ export default function AboutPage() {
             <dl className="info-table">
               <div className="info-row"><dt>Name</dt><dd>ミックスナッツ株式会社<br />(mixednuts Inc.)</dd></div>
               <div className="info-row"><dt>Founded</dt><dd>2021年4月19日</dd></div>
-              <div className="info-row"><dt>CEO</dt><dd>N.I.</dd></div>
+              <div className="info-row"><dt>CEO</dt><dd>石井 希実</dd></div>
               <div className="info-row"><dt>Business</dt><dd>戦略コンサルティング事業<br />AI実装支援事業<br />マーケティング成長支援事業</dd></div>
             </dl>
             <dl className="info-table">
               <div className="info-row"><dt>Address</dt><dd>〒107-0062<br />東京都港区南青山3-8-40</dd></div>
               <div className="info-row"><dt>Contact</dt><dd><a href="mailto:hello@mixednuts-inc.com" style={{color: 'var(--navy)', textDecoration: 'underline'}}>hello@mixednuts-inc.com</a></dd></div>
-              <div className="info-row"><dt>Bank</dt><dd>三井住友銀行（メイン）<br />三菱UFJ銀行</dd></div>
+              <div className="info-row"><dt>Bank</dt><dd>三井住友銀行<br />三菱UFJ銀行</dd></div>
               <div className="info-row"><dt>Legal Advisor</dt><dd>弁護士法人クレア法律事務所</dd></div>
               <div className="info-row"><dt>Tax Advisor</dt><dd>関野会計事務所</dd></div>
             </dl>
@@ -198,7 +198,7 @@ export default function AboutPage() {
       <section className="cta">
         <div className="cta-inner">
           <h2>一緒に、事業の次の章を<br />書き始めませんか。</h2>
-          <p>初回無料相談（60分）で貴社の課題をヒアリングし、最適なご提案をいたします。</p>
+          <p style={{wordBreak: 'keep-all', overflowWrap: 'break-word'}}>初回無料相談（60分）で貴社の課題をヒアリングし、<br />最適なご提案をいたします。</p>
           <Link href="/contact" className="btn-primary">無料相談を申し込む →</Link>
         </div>
       </section>

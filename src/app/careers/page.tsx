@@ -284,7 +284,6 @@ export default function CareersPage() {
                   </div>
                 </div>
                 <div className="position-meta">{pos.type}</div>
-                <div className="position-meta">{pos.comp}</div>
                 <div className="position-arrow">→</div>
               </Link>
             ))}
@@ -307,7 +306,7 @@ export default function CareersPage() {
               { num: "1", day: "Day 1", title: "カジュアル面談", desc: "30分のカジュアル面談で、お互いの興味と相性を確認。" },
               { num: "2", day: "Week 1", title: "書類選考", desc: "職務経歴書 + ポートフォリオを2営業日以内に確認。" },
               { num: "3", day: "Week 2", title: "実技・ケース", desc: "実際の業務に即したケース (持ち帰り2-3h程度) を提出。" },
-              { num: "4", day: "Week 3", title: "CEO 面談", desc: "CEO (N.I.) と60分の最終面談。" },
+              { num: "4", day: "Week 3", title: "CEO 面談", desc: "CEO (石井 希実) と60分の最終面談。" },
               { num: "5", day: "Week 4", title: "オファー", desc: "条件提示 → 合意 → 契約締結。最短翌週から着任可。" },
             ].map((step) => (
               <div key={step.num} className="hiring-step">

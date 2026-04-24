@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CASES_COMING_SOON } from "@/data/works";
 
 export const metadata: Metadata = {
   title: "mixednuts — 戦略 × AI × マーケティング",
@@ -595,6 +596,41 @@ export default function HomePage() {
             <h2>Selected<br /><span className="italic">works</span>.</h2>
             <Link href="/works" className="btn-ghost-mega">All Works →</Link>
           </div>
+          {CASES_COMING_SOON ? (
+            <div style={{
+              padding: "120px 40px", textAlign: "center",
+              background: "var(--off-white)", borderRadius: 24,
+              border: "1px solid rgba(10,10,10,0.08)"
+            }}>
+              <div style={{
+                fontFamily: "'Archivo', sans-serif", fontSize: 11, letterSpacing: "0.2em",
+                color: "var(--charcoal)", opacity: 0.5, fontWeight: 700, marginBottom: 20
+              }}>
+                UPDATING · 近日公開予定
+              </div>
+              <h3 style={{
+                fontFamily: "'Noto Sans JP', sans-serif", fontSize: "clamp(28px, 4vw, 44px)",
+                fontWeight: 900, color: "var(--charcoal)", lineHeight: 1.25,
+                marginBottom: 20, wordBreak: "keep-all", letterSpacing: "-0.02em"
+              }}>
+                ケース一覧を<br />リニューアル中です。
+              </h3>
+              <p style={{
+                color: "#4B5563", fontSize: 15, lineHeight: 1.9, maxWidth: 600,
+                margin: "0 auto 32px", wordBreak: "keep-all"
+              }}>
+                匿名化と数字の精査を改めて行い、順次公開します。個別ご相談は Contact からお気軽に。
+              </p>
+              <Link href="/contact" style={{
+                display: "inline-block", padding: "14px 32px",
+                background: "var(--charcoal)", color: "var(--off-white)",
+                textDecoration: "none", fontWeight: 700, fontSize: 14,
+                borderRadius: 999, letterSpacing: "0.02em"
+              }}>
+                お問い合わせ →
+              </Link>
+            </div>
+          ) : (
           <div className="home-cases-grid">
             <Link href="/works/fitness-new-business" className="case-item big">
               <div className="case-visual case-bg-strategy">
@@ -679,6 +715,7 @@ export default function HomePage() {
               </div>
             </Link>
           </div>
+          )}
         </div>
       </section>
 

@@ -12,7 +12,7 @@ export const members: Member[] = [
     role: "Founder & CEO",
     division: "leadership",
     background: "戦略コンサルティング → 事業会社経営企画／FP&A → 投資",
-    bio: "戦略ファーム出身。国内大手IT企業のライブストリーミング事業で経営企画責任者として中期計画・投資判断・取締役会付議を統括。現在は mixednuts 代表として、戦略・AI・マーケティングの統合提供を牽引。",
+    bio: "戦略ファーム出身。国内大手IT企業で300億円規模のエンタメ領域の事業管理を統括し、中期計画・投資判断・取締役会付議を担う。現在は mixednuts 代表として、戦略・AI・マーケティングの統合提供を牽引。",
   },
   {
     initial: "K.T.",
@@ -25,8 +25,8 @@ export const members: Member[] = [
     initial: "Y.M.",
     role: "Principal, M&A / Investment",
     division: "strategy",
-    background: "投資銀行 → PEファンド",
-    bio: "投資銀行のM&Aアドバイザリー部門を経てPEファンドへ。バリュエーション、DCF、フットボールチャート、DD実行を多数経験。",
+    background: "BIG4 会計事務所出身",
+    bio: "BIG4 会計事務所の FAS / M&A アドバイザリー部門で財務DD・バリュエーション・PMI を多数経験。DCF・フットボールチャート・感応度分析を実務水準で運用。",
   },
   {
     initial: "R.S.",

@@ -4,15 +4,15 @@ import { members } from "@/data/members";
 import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
-  title: "CEO Profile — N.I.",
-  description: "mixednuts 代表取締役 N.I. の詳細プロフィール。国内大手IT企業経営企画、グローバル大手IT企業を経て2021年に創業。",
+  title: "CEO Profile — 石井 希実 (Nozomi Ishii)",
+  description: "mixednuts 代表取締役 石井 希実 の詳細プロフィール。国内大手IT企業経営企画、グローバル大手IT企業を経て2021年に創業。",
 };
 
 const personSchema = {
   "@context": "https://schema.org",
   "@type": "Person",
   "@id": "https://mixednuts-inc.com/team/ceo#person",
-  name: "N.I.",
+  name: "石井 希実 (Nozomi Ishii)",
   jobTitle: "Founder & CEO",
   worksFor: { "@id": "https://mixednuts-inc.com/#organization" },
   description:
@@ -96,7 +96,7 @@ export default function CeoPage() {
             <Link href="/">Home</Link> / <Link href="/team">Team</Link> / CEO
           </div>
           <div className="page-hero-badge">Founder & CEO</div>
-          <h1><span className="accent">{ceo.initial}</span></h1>
+          <h1><span className="accent">石井 希実</span></h1>
           <p className="lead">{ceo.role} — mixednuts Inc. Founder</p>
         </div>
       </section>
@@ -134,7 +134,7 @@ export default function CeoPage() {
                 国内大手デジタル広告代理店でアカウントプランナーとしてキャリアをスタート。その後グローバル大手IT企業に転じ、広告事業のアカウントストラテジストとして年間40億円超の広告ポートフォリオを運用。
               </p>
               <p>
-                その後、国内大手IT企業の経営企画本部へ。ライブストリーミング事業・エンタメIP事業において、事業計画策定・投資評価・取締役会付議・中期戦略立案まで、経営判断の中枢に関わる。FP&AとM&Aアドバイザリーの実践経験を持つ。
+                その後、国内大手IT企業の経営企画本部へ。300億円規模のエンタメ領域の事業管理を統括し、事業計画策定・投資評価・取締役会付議・中期戦略立案まで、経営判断の中枢に関わる。FP&AとM&Aアドバイザリーの実践経験を持つ。
               </p>
               <p>
                 2021年4月、ミックスナッツ株式会社を創業。「戦略 × AI × マーケティング」の統合提供をコンセプトに、多様なバックグラウンドのプロフェッショナルを束ねるAI-firstコンサルティングファームを構築。自社内で120体超のAIエージェント組織を設計・運用し、そのノウハウをクライアントに移植している。
@@ -159,7 +159,7 @@ export default function CeoPage() {
                     period: "2018 — 2021",
                     company: "国内大手IT企業",
                     title: "経営企画 責任者",
-                    desc: "ライブストリーミング事業・エンタメIP事業の経営企画責任者。中期経営計画策定、取締役会付議資料作成、M&A案件評価、予実管理の統括。FP&AとDCFバリュエーションの実践。",
+                    desc: "300億円規模のエンタメ領域の事業管理を統括。中期経営計画策定、取締役会付議資料作成、M&A案件評価、予実管理を担う。FP&AとDCFバリュエーションの実践。",
                   },
                   {
                     period: "2015 — 2018",
@@ -198,7 +198,7 @@ export default function CeoPage() {
 
       <section className="cta">
         <div className="cta-inner">
-          <h2>N.I. と直接、話しましょう。</h2>
+          <h2>石井 希実 と直接、話しましょう。</h2>
           <p>初回相談は無料です。60分で、貴社の課題に最適なアプローチを一緒に設計します。</p>
           <Link href="/contact" className="btn-primary">無料相談を申し込む →</Link>
         </div>
