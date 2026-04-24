@@ -146,7 +146,7 @@ export default function TeamPage() {
               </div>
               <div>
                 <div className="leader-tag">Founder & CEO</div>
-                <div className="leader-name">{ceo.initial}</div>
+                <div className="leader-name">石井 希実</div>
                 <div className="leader-role">{ceo.role}</div>
                 <p className="leader-bio">{ceo.bio}</p>
                 <p className="leader-bio" style={{color: '#9CA3AF', fontSize: 13}}>{ceo.background}</p>
