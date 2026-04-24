@@ -72,11 +72,11 @@ function Stat({
   source?: string;
 }) {
   return (
-    <div className="stat-callout">
-      <div className="stat-value">{value}</div>
-      <div className="stat-label">{label}</div>
-      {source && <div className="stat-source">出典: {source}</div>}
-    </div>
+    <figure className="stat-callout">
+      <span className="stat-value">{value}</span>
+      <figcaption className="stat-label">{label}</figcaption>
+      {source && <div className="stat-source">Source · {source}</div>}
+    </figure>
   );
 }
 

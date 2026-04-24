@@ -198,6 +198,36 @@ export default async function InsightsArticlePage({ params }: { params: Promise<
           font-size: 15px; line-height: 2.0; color: var(--charcoal); margin-bottom: 10px;
         }
         .article-body strong { color: var(--charcoal); font-weight: 700; }
+
+        /* --- Markdown table styling (previously unstyled, rendered as plain lines) --- */
+        .article-body table {
+          width: 100%; margin: 32px 0;
+          border-collapse: collapse;
+          font-size: 14px; line-height: 1.7;
+          border-top: 2px solid var(--charcoal);
+          border-bottom: 2px solid var(--charcoal);
+        }
+        .article-body thead th {
+          padding: 14px 16px;
+          text-align: left;
+          font-family: var(--font-sans-en);
+          font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+          font-weight: 700; color: var(--gray-500);
+          border-bottom: 1px solid rgba(10,10,10,0.15);
+          background: transparent;
+        }
+        .article-body tbody td {
+          padding: 14px 16px;
+          color: var(--charcoal);
+          border-bottom: 1px solid rgba(10,10,10,0.08);
+          vertical-align: top;
+        }
+        .article-body tbody tr:last-child td { border-bottom: none; }
+        .article-body tbody tr:hover { background: rgba(0,217,255,0.03); }
+        @media (max-width: 700px) {
+          .article-body table { font-size: 13px; }
+          .article-body thead th, .article-body tbody td { padding: 10px 10px; }
+        }
         .article-body blockquote {
           margin: 32px 0; padding: 24px 32px;
           background: var(--off-white-alt); border-left: 3px solid var(--cyan); border-radius: 4px;
@@ -258,18 +288,45 @@ export default async function InsightsArticlePage({ params }: { params: Promise<
         .answer-block p { margin: 0; font-size: 15px; line-height: 1.8; color: var(--charcoal); }
 
         .stat-callout {
-          display: inline-block;
-          background: var(--charcoal); color: var(--off-white);
-          border-radius: 12px; padding: 20px 24px;
-          margin: 16px 0; min-width: 180px;
+          display: block;
+          width: 100%;
+          background: transparent;
+          border-top: 1px solid rgba(10,10,10,0.15);
+          border-bottom: 1px solid rgba(10,10,10,0.15);
+          padding: 32px 0;
+          margin: 40px 0;
+          text-align: center;
+        }
+        .stat-callout.inline {
+          display: grid;
+          grid-template-columns: auto 1fr auto;
+          gap: 28px;
+          align-items: center;
+          text-align: left;
         }
         .stat-value {
           font-family: 'Archivo', 'Noto Sans JP', sans-serif;
-          font-size: 32px; font-weight: 900; line-height: 1; letter-spacing: -0.02em;
+          font-size: clamp(48px, 7vw, 84px);
+          font-weight: 900; line-height: 0.95; letter-spacing: -0.03em;
           color: var(--cyan);
+          display: block;
+          margin-bottom: 8px;
         }
-        .stat-label { font-size: 12px; margin-top: 6px; color: rgba(245,241,232,0.85); }
-        .stat-source { font-size: 10px; margin-top: 10px; color: rgba(245,241,232,0.55); font-family: var(--font-sans-en); letter-spacing: 0.04em; }
+        .stat-label {
+          font-size: 14px; color: var(--charcoal); font-weight: 600;
+          line-height: 1.6;
+        }
+        .stat-source {
+          font-size: 11px; margin-top: 10px;
+          color: var(--gray-500);
+          font-family: var(--font-sans-en);
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+        }
+        @media (max-width: 700px) {
+          .stat-value { font-size: clamp(40px, 12vw, 56px); }
+          .stat-callout { padding: 24px 0; }
+        }
 
         .article-tags {
           display: flex; gap: 8px; flex-wrap: wrap;
