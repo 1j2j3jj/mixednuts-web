@@ -28,6 +28,7 @@ type ListItem = {
   title: string;
   excerpt: string;
   author: string;
+  hero?: string;
 };
 
 const upcomingArticles: ListItem[] = [
@@ -105,6 +106,7 @@ const publishedArticles: ListItem[] = [...posts]
     title: p.title,
     excerpt: p.excerpt,
     author: p.author,
+    hero: p.hero,
   }));
 
 // upcomingArticles は当面非表示（16 本の published 記事が揃ったため）
@@ -261,7 +263,18 @@ export default function InsightsPage() {
           {rest.map((article) => {
             const inner = (
               <>
-                <div className={`article-visual ${article.colorClass}`}>
+                <div
+                  className={`article-visual ${article.colorClass}`}
+                  style={
+                    article.hero
+                      ? {
+                          backgroundImage: `linear-gradient(180deg, rgba(10,10,10,0.08) 0%, rgba(10,10,10,0.28) 100%), url('${article.hero}')`,
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
+                        }
+                      : undefined
+                  }
+                >
                   <span className="article-tag-pos">{article.category}</span>
                   {!article.href && (
                     <span style={{ position: "absolute", top: 16, right: 16, padding: "4px 10px", background: "var(--off-white)", color: "var(--charcoal)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", borderRadius: 999, textTransform: "uppercase" }}>
@@ -328,7 +341,18 @@ export default function InsightsPage() {
 function FeaturedInner({ item }: { item: ListItem }) {
   return (
     <>
-      <div className="featured-visual">
+      <div
+        className="featured-visual"
+        style={
+          item.hero
+            ? {
+                backgroundImage: `linear-gradient(135deg, rgba(10,10,10,0.05) 0%, rgba(10,10,10,0.25) 100%), url('${item.hero}')`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }
+            : undefined
+        }
+      >
         <span className="featured-tag">{item.category}</span>
         {!item.href && (
           <span style={{ position: "absolute", top: 20, right: 20, padding: "4px 10px", background: "var(--off-white)", color: "var(--charcoal)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", borderRadius: 999, textTransform: "uppercase" }}>

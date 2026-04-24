@@ -615,20 +615,6 @@ export default function HomePage() {
               }}>
                 ケース一覧を<br />リニューアル中です。
               </h3>
-              <p style={{
-                color: "#4B5563", fontSize: 15, lineHeight: 1.9, maxWidth: 600,
-                margin: "0 auto 32px", wordBreak: "keep-all"
-              }}>
-                匿名化と数字の精査を改めて行い、順次公開します。個別ご相談は Contact からお気軽に。
-              </p>
-              <Link href="/contact" style={{
-                display: "inline-block", padding: "14px 32px",
-                background: "var(--charcoal)", color: "var(--off-white)",
-                textDecoration: "none", fontWeight: 700, fontSize: 14,
-                borderRadius: 999, letterSpacing: "0.02em"
-              }}>
-                お問い合わせ →
-              </Link>
             </div>
           ) : (
           <div className="home-cases-grid">

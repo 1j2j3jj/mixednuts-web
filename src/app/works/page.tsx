@@ -102,8 +102,7 @@ export default function WorksPage() {
               color: "#4B5563", fontSize: 15, lineHeight: 1.9, maxWidth: 640,
               margin: "0 auto 40px", wordBreak: "keep-all"
             }}>
-              匿名化と数字の精査を改めて行い、業種・規模・課題別に整理した形で順次公開します。
-              特定ケースについてのお問い合わせは、個別にご連絡ください。
+              業種・規模・課題別に整理した形で順次公開します。
             </p>
             <Link href="/contact" className="btn-primary">お問い合わせ →</Link>
           </div>
