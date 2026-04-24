@@ -17,7 +17,13 @@ thumbLabel: "深夜移行"
 2026-04-22 深夜、Clerk dev instance (`pk_test_`) が本番ドメインで `after_sign_in_url` を既存セッション時に無視する既知バグに詰まり、Better Auth + Neon Postgres (AWS Singapore) に **5 時間で全面移行**。Organization プラグインで招待 UI まで配線。結論: **小〜中規模 B2B SaaS なら Clerk より Better Auth が筋が良い**。理由は (1) 永続無料 OSS、(2) データ主権 (自社 Postgres)、(3) Auth.js v5 公式後継、(4) 移行コスト低。Next.js 15 の `cookies().set()` 制約には Route Handler 化で対応。
 </Tldr>
 
+<Stat value="5h" label="深夜ワンショットで Clerk → Better Auth 全面移行" source="mixednuts 2026-04-22 実施" />
+
 ## なぜ Clerk をやめたのか
+
+<Answer>
+Clerk dev instance が本番ドメインで `after_sign_in_url` を無視する既知バグ（GitHub issue #2595）に詰まり、Better Auth + Neon Postgres に全面移行した実装ログ。小〜中規模 B2B SaaS では、Clerk の MAU 課金 + ロックイン回避のため Better Auth が筋が良い。移行判断軸は 5 項目のチェックリストで機械的に判定可能。
+</Answer>
 
 mixednuts-inc.com のクライアント向けダッシュボードを立ち上げるとき、最初の選択肢は Clerk でした。ドキュメントの厚さ、UI コンポーネントの完成度、Google OAuth 配線の簡便さ。Auth.js v5 よりも運用が楽そうだと判断しました。
 
@@ -154,7 +160,7 @@ Route Handler では `NextResponse.cookies.set()` が使えます。Server Compo
 ## FAQ
 
 **Q. Better Auth は本番環境で使っていいのか？**
-A. 2025/9 の v1 安定版リリース後、本番投入事例が増加しています。Auth.js v5 の公式後継として Auth.js コアチームが支持している点も大きい。ただし Clerk のような 24/7 サポートは期待できないので、認証障害時に自力で調査できる DevOps スキルは必要。
+A. 2025/9 の v1 安定版リリース後、本番投入事例が増加しています。<Cite n={2}>Auth.js v5</Cite> の公式後継として Auth.js コアチームが支持している点も大きい。ただし Clerk のような 24/7 サポートは期待できないので、認証障害時に自力で調査できる DevOps スキルは必要。
 
 **Q. Clerk から Better Auth へユーザーデータを移行するには？**
 A. Clerk の User Export API で JSON をダウンロード → `password_hash` は Clerk が bcrypt ラップしているので、Better Auth の `account` テーブルに `providerId: "credential"` で流し込めば OK。ソーシャルログインのみのユーザーは再認証で自動リンクされる。
@@ -180,7 +186,7 @@ A. Better Auth は UI コンポーネントを提供しないので、自前で 
 - [Better Auth Admin Plugin](https://www.better-auth.com/docs/plugins/admin) — 管理者ロール設定
 
 **Clerk 関連の既知挙動:**
-- [Clerk issue #2595: `after_sign_in_url` ignored on existing session](https://github.com/clerk/javascript/issues/2595) — 本記事で言及した既知バグ
+- [<Cite n={1}>Clerk issue #2595</Cite>: `after_sign_in_url` ignored on existing session](https://github.com/clerk/javascript/issues/2595) — 本記事で言及した既知バグ
 - [Clerk Development Instances docs](https://clerk.com/docs/deployments/overview#development-instances) — dev instance の本番挙動制約
 
 **比較記事 (英語圏):**
@@ -188,7 +194,7 @@ A. Better Auth は UI コンポーネントを提供しないので、自前で 
 - [better-auth vs NextAuth vs Clerk (supastarter)](https://supastarter.dev/blog/better-auth-vs-nextauth-vs-clerk)
 - [I tested every major auth library for Next.js in 2026 (LogRocket)](https://blog.logrocket.com/best-auth-library-nextjs-2026/)
 
-**Neon Postgres:**
+**<Cite n={3}>Neon Postgres</Cite>:**
 - [Neon Free Tier](https://neon.tech/pricing) — 500MB + 191 compute-hour/月
 - [Drizzle ORM + Neon Guide](https://orm.drizzle.team/docs/tutorials/drizzle-with-neon)
 

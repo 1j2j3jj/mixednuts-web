@@ -17,7 +17,13 @@ thumbLabel: "自己修復"
 AI エージェント 123 体を 24/7 で動かす上で必須の運用インフラ 2 点: **(1) Self-Healing** = 4h 周期で `self_healer.py` が全エージェントのヘルスチェック + 自動修復、3 回連続失敗でエスカレーション。**(2) Cost Tracking** = エージェント別トークン使用量を `cost-tracker` で日次集計、Max Plan $200/月を超えないよう予算管理。階層化 (Opus/Sonnet/Haiku) と合わせて、安定稼働 + 予算内運用を両立。
 </Tldr>
 
+<Stat value="4h" label="周期の Self-Healer 自動修復ジョブ" source="mixednuts 運用" />
+
 ## 24/7 稼働で起きる 2 つの問題
+
+<Answer>
+AI エージェント 123 体を 24/7 稼働させる運用インフラ 2 本柱。Self-Healing = 4h 周期の自動修復 + 3 回連続失敗でエスカレーション。Cost Tracking = エージェント別トークン消費を日次集計、Max Plan $200 超過前に警告。運用初日から入れるべき普遍インフラ。
+</Answer>
 
 AI エージェントを常時稼働させると、避けられない問題が 2 つあります。
 
@@ -175,12 +181,12 @@ A. 同じ。Cost Tracking と Self-Healing は AI 組織運用の普遍的必須
 ## 参考文献 / Sources
 
 **Claude API Usage:**
-- [Anthropic Usage API](https://docs.claude.com/en/api/admin-api/usage-cost/get-usage-report-messages) — トークン消費取得
+- [<Cite n={1}>Anthropic Usage API</Cite>](https://docs.claude.com/en/api/admin-api/usage-cost/get-usage-report-messages) — トークン消費取得
 - [Claude Console Usage Dashboard](https://console.anthropic.com/settings/usage)
 - [Claude Pricing](https://www.anthropic.com/pricing) — Opus / Sonnet / Haiku 単価
 
 **Self-Healing / SRE ベストプラクティス:**
-- [Google SRE Book — Handling Overload](https://sre.google/sre-book/handling-overload/)
+- [<Cite n={2}>Google SRE Book</Cite> — Handling Overload](https://sre.google/sre-book/handling-overload/)
 - [Site Reliability Engineering Book](https://sre.google/sre-book/table-of-contents/)
 - [The Four Golden Signals](https://sre.google/sre-book/monitoring-distributed-systems/)
 

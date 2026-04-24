@@ -17,7 +17,13 @@ thumbLabel: "記憶の境界線"
 AI エージェントに記憶を持たせる場合、情報を書く場所が曖昧だと "架空の情報を生成する" インシデントが起きる。2026-03-17 の D 子会社 稟議 MTG で記憶ベースで TODO 7 件を捏造したインシデントから、4 つの明確な Store に分離: **(1) context.md = プロジェクト状態の正本 / (2) memory/ = 組織横断の意思決定 / (3) auto-memory = セッション横断の学習 / (4) _reports/ = 時点スナップショット**。一覧出力時は必ずソースを Read する原則付き。
 </Tldr>
 
+<Stat value="4 層" label="記憶の境界線: context / memory / auto-memory / _reports" source="mixednuts 運用ルール" />
+
 ## 事件 — 7 件の架空 TODO 捏造
+
+<Answer>
+AI 組織の記憶を 4 つの明確な Store に分離した設計。(1) context.md = プロジェクト状態の正本 (2) memory/ = 組織横断の意思決定 (3) auto-memory = セッション横断の学習 (4) _reports/ = 時点スナップショット。境界線が曖昧だと AI が記憶ベースで架空情報を生成するインシデントが起きる。
+</Answer>
 
 2026-03-17、D 子会社 (クライアント案件) の稟議 MTG 後、AI エージェントに「TODO 一覧を出して」と依頼しました。出てきた一覧は **件数は合っていた** が、**個別項目の文言が記憶ベースで捏造されていた** ことが発覚。
 
@@ -177,7 +183,7 @@ A. 設計は AI 非依存。書き込み先の物理ファイル管理と、"一
 - 2026-03-17 D 子会社 稟議 MTG 捏造インシデント (auto-memory `feedback-never-generate-from-memory.md`)
 
 **Claude Code メモリ機能:**
-- [Claude Code Memory](https://docs.claude.com/en/docs/claude-code/memory) — CLAUDE.md / auto-memory の仕組み
+- [<Cite n={1}>Claude Code Memory</Cite>](https://docs.claude.com/en/docs/claude-code/memory) — CLAUDE.md / auto-memory の仕組み
 - [Anthropic Context Engineering](https://www.anthropic.com/news/contextual-retrieval)
 
 **Memory / RAG 設計:**
