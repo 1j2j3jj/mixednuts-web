@@ -10,6 +10,76 @@ function Tldr({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Inline citation marker. Renders as a superscript [n] that links to
+ * the corresponding source in the "参考文献 / Sources" section at the
+ * end of the article. Use as <Cite n={1}>Claim statement</Cite> — the
+ * visible text stays inline, the superscript is appended.
+ */
+function Cite({ n, href, children }: { n?: number; href?: string; children: ReactNode }) {
+  const label = typeof n === "number" ? `[${n}]` : "[*]";
+  return (
+    <>
+      {children}
+      <a
+        href={href ?? "#sources"}
+        className="inline-cite"
+        aria-label={`Reference ${label}`}
+      >
+        <sup>{label}</sup>
+      </a>
+    </>
+  );
+}
+
+/**
+ * Pull Quote block. Offset quote used every 350–500 words per
+ * long-form editorial best practice (Nielsen/Norman Group).
+ */
+function PullQuote({ children, author }: { children: ReactNode; author?: string }) {
+  return (
+    <aside className="pull-quote">
+      <p>{children}</p>
+      {author && <cite>— {author}</cite>}
+    </aside>
+  );
+}
+
+/**
+ * Direct Answer Block. Placed immediately under an H2 to provide a
+ * 40–60 word self-contained answer that LLMs (AI Overviews / Perplexity)
+ * can extract as a stand-alone citation.
+ */
+function Answer({ children }: { children: ReactNode }) {
+  return (
+    <div className="answer-block" role="note">
+      <div className="answer-label">結論</div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Statistic callout with inline source attribution.
+ */
+function Stat({
+  value,
+  label,
+  source,
+}: {
+  value: string;
+  label: string;
+  source?: string;
+}) {
+  return (
+    <div className="stat-callout">
+      <div className="stat-value">{value}</div>
+      <div className="stat-label">{label}</div>
+      {source && <div className="stat-source">出典: {source}</div>}
+    </div>
+  );
+}
+
 function Principle({ num, heading }: { num: string; heading: string }) {
   return (
     <div className="principle">
@@ -49,6 +119,10 @@ function MdxLink({ href, children, ...rest }: ComponentProps<"a">) {
 export const mdxComponents = {
   Tldr,
   Principle,
+  Cite,
+  PullQuote,
+  Answer,
+  Stat,
   ServiceLink,
   a: MdxLink,
 };

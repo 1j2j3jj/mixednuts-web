@@ -222,6 +222,55 @@ export default async function InsightsArticlePage({ params }: { params: Promise<
         .principle-num { font-family: var(--font-sans-en); font-size: 12px; color: var(--cyan); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 8px; }
         .principle h3 { margin: 0 !important; font-size: 17px; line-height: 1.5; }
 
+        .inline-cite { text-decoration: none; color: var(--cyan); font-weight: 700; margin: 0 2px; }
+        .inline-cite sup { font-size: 0.72em; vertical-align: super; }
+        .inline-cite:hover { text-decoration: underline; }
+
+        .pull-quote {
+          border-left: 4px solid var(--cyan);
+          background: var(--off-white-alt);
+          padding: 28px 32px; margin: 32px 0;
+          border-radius: 0 12px 12px 0;
+        }
+        .pull-quote p {
+          font-family: var(--font-serif-jp, 'Noto Serif JP', serif);
+          font-size: 18px; line-height: 1.8; font-weight: 500;
+          color: var(--charcoal); margin: 0 0 12px 0;
+        }
+        .pull-quote cite {
+          font-style: normal; font-size: 12px; color: var(--gray-500);
+          font-family: var(--font-sans-en);
+          letter-spacing: 0.06em;
+        }
+
+        .answer-block {
+          background: rgba(0,217,255,0.06);
+          border-left: 3px solid var(--cyan);
+          border-radius: 8px;
+          padding: 20px 24px;
+          margin: 20px 0 32px 0;
+        }
+        .answer-label {
+          font-family: var(--font-sans-en);
+          font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+          color: var(--cyan); font-weight: 700; margin-bottom: 8px;
+        }
+        .answer-block p { margin: 0; font-size: 15px; line-height: 1.8; color: var(--charcoal); }
+
+        .stat-callout {
+          display: inline-block;
+          background: var(--charcoal); color: var(--off-white);
+          border-radius: 12px; padding: 20px 24px;
+          margin: 16px 0; min-width: 180px;
+        }
+        .stat-value {
+          font-family: 'Archivo', 'Noto Sans JP', sans-serif;
+          font-size: 32px; font-weight: 900; line-height: 1; letter-spacing: -0.02em;
+          color: var(--cyan);
+        }
+        .stat-label { font-size: 12px; margin-top: 6px; color: rgba(245,241,232,0.85); }
+        .stat-source { font-size: 10px; margin-top: 10px; color: rgba(245,241,232,0.55); font-family: var(--font-sans-en); letter-spacing: 0.04em; }
+
         .article-tags {
           display: flex; gap: 8px; flex-wrap: wrap;
           margin-top: 48px; padding-top: 32px; border-top: 1px solid rgba(10,10,10,0.12);
@@ -295,7 +344,13 @@ export default async function InsightsArticlePage({ params }: { params: Promise<
 
           <div className="article-tags">
             {post.tags.map((tag) => (
-              <span key={tag} className="article-tag-link">#{tag}</span>
+              <Link
+                key={tag}
+                href={`/insights/tag/${encodeURIComponent(tag)}`}
+                className="article-tag-link"
+              >
+                #{tag}
+              </Link>
             ))}
           </div>
 
