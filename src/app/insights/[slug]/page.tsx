@@ -42,7 +42,7 @@ export default async function InsightsArticlePage({ params }: { params: Promise<
   if (!post) return notFound();
 
   const related = posts.filter((p) => p.slug !== post.slug).slice(0, 3);
-  const formattedDate = post.date.replace(/-/g, ".");
+  const formattedDate = post.date.slice(0, 10).replace(/-/g, ".");
   const heroBg = post.hero
     ? `linear-gradient(135deg, rgba(0, 217, 255, 0.08), rgba(10, 10, 10, 0.85)), url('${post.hero}') center/cover no-repeat`
     : "linear-gradient(135deg, var(--charcoal-soft), var(--charcoal))";
@@ -205,7 +205,7 @@ export default async function InsightsArticlePage({ params }: { params: Promise<
           <h1>{post.title}</h1>
           {post.subtitle && <p className="article-subtitle">{post.subtitle}</p>}
           <div className="article-meta-row">
-            <div className="article-author-img">{post.author}</div>
+            <div className="article-author-img" aria-hidden="true">N.I.</div>
             <div>
               <div className="article-author-name">{post.author}</div>
               <div className="article-author-role">{post.authorRole}</div>
@@ -258,7 +258,7 @@ export default async function InsightsArticlePage({ params }: { params: Promise<
                     <span className="related-tag-pos">{item.category}</span>
                   </div>
                   <div className="related-body">
-                    <div className="related-date">{item.date.replace(/-/g, ".")}</div>
+                    <div className="related-date">{item.date.slice(0, 10).replace(/-/g, ".")}</div>
                     <div className="related-title">{item.title}</div>
                   </div>
                 </Link>

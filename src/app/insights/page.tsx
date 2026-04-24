@@ -101,7 +101,7 @@ const publishedArticles: ListItem[] = [...posts]
     href: p.permalink,
     category: p.category,
     colorClass: categoryColorMap[p.category] ?? "art-ai",
-    date: p.date.replace(/-/g, "."),
+    date: p.date.slice(0, 10).replace(/-/g, "."),
     readTime: p.readTime,
     title: p.title,
     excerpt: p.excerpt,

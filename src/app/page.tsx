@@ -493,7 +493,7 @@ export default function HomePage() {
       `}</style>
 
       <section className="home-hero">
-        <div className="hero-badge-top">AI-FIRST CONSULTING · EST. 2024</div>
+        <div className="hero-badge-top">AI-FIRST CONSULTING · EST. 2021</div>
         <h1 className="hero-mega">
           <span className="line">RETHINK</span>
           <span className="line">GROWTH<span className="italic-dot">.</span></span>
@@ -570,7 +570,7 @@ export default function HomePage() {
           </div>
           <div className="manifesto-sig">
             <span>— mixednuts Inc.</span>
-            <span>Since 2024 · Tokyo</span>
+            <span>Since 2021 · Tokyo</span>
           </div>
         </div>
       </section>

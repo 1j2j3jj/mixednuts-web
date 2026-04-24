@@ -31,7 +31,7 @@ export const organizationSchema = {
   logo: `${SITE_URL}/og-default.jpg`,
   description:
     "戦略コンサルティング、AIエージェント導入、グロースマーケティングを統合提供する AI-first コンサルティングファーム。",
-  foundingDate: "2024",
+  foundingDate: "2021",
   email: "hello@mixednuts-inc.com",
   address: {
     "@type": "PostalAddress",

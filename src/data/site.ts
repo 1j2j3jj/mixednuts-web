@@ -6,7 +6,7 @@ export const siteConfig = {
   description: "戦略コンサルティング、AIエージェント導入、グロースマーケティングを統合提供するAI-firstコンサルファーム。",
   url: "https://mixednuts-inc.com",
   email: "hello@mixednuts-inc.com",
-  founded: "2024",
+  founded: "2021",
   stats: {
     members: "多様なバックグラウンドが集う専門家集団",
     projects: "120+",
