@@ -717,7 +717,7 @@ export default function HomePage() {
         <div>
           <h2>LET&apos;S<br />BUILD<br /><span className="italic">growth</span>.</h2>
           <p>60分の無料相談で、貴社の事業に適したアプローチを共に設計しませんか。</p>
-          <Link href="/contact" className="btn-mega">Start the Conversation <span className="arrow">↗</span></Link>
+          <Link href="/contact" className="btn-mega">無料相談を申し込む <span className="arrow">↗</span></Link>
         </div>
       </section>
     </>
