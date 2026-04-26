@@ -367,25 +367,26 @@ export default function InsightsPage() {
 
       <section className="newsletter">
         <div className="newsletter-inner">
-          <h2>メールニュースレター、準備中です。</h2>
+          <h2>月2回、実践ノウハウを届けます。</h2>
           <p>
-            月2回程度、戦略・AI・マーケティングの実践ノウハウをお届けする予定。
-            広告・スパムは一切なし、いつでも解除できます。
+            戦略・AI・マーケティングの一次情報を、メールでお届けします。
+            広告・スパムは一切なし。いつでも解除できます。
           </p>
           <div className="newsletter-form">
-            <span style={{
+            <Link href="/contact" style={{
               padding: "14px 28px",
-              background: "rgba(245,241,232,0.08)",
-              border: "1px solid rgba(245,241,232,0.18)",
-              color: "rgba(245,241,232,0.85)",
+              background: "var(--off-white)",
+              color: "var(--charcoal)",
               borderRadius: 999,
-              fontWeight: 600,
+              fontWeight: 700,
               fontSize: 14,
-              letterSpacing: "0.08em",
-            }}>Coming Soon</span>
+              letterSpacing: "0.04em",
+              textDecoration: "none",
+              display: "inline-block",
+            }}>配信開始をお知らせする →</Link>
           </div>
           <p className="newsletter-disclaimer">
-            配信開始時期のお知らせご希望の方は、Contact フォームからご連絡ください。
+            配信開始のお知らせを希望する方は、Contact からどうぞ。
           </p>
         </div>
       </section>

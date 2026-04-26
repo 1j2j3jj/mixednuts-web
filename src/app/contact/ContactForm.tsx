@@ -78,9 +78,11 @@ export default function ContactForm() {
       <div style={{ textAlign: "center", padding: "48px 24px" }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
         <h3 style={{ fontFamily: "var(--font-serif-jp)", fontSize: 22, color: "var(--navy)", marginBottom: 12 }}>
-          お問い合わせを受け付けました
+          メッセージを受け取りました。
         </h3>
-        <p style={{ color: "#4B5563", fontSize: 14, lineHeight: 1.8 }}>{state.message}</p>
+        <p style={{ color: "#4B5563", fontSize: 14, lineHeight: 1.8 }}>
+          2 営業日以内に hello@mixednuts-inc.com から返信します。
+        </p>
       </div>
     );
   }
@@ -153,11 +155,10 @@ export default function ContactForm() {
 
       <div className="form-actions">
         <button type="submit" className="form-submit" disabled={pending}>
-          {pending ? "送信中..." : "送信する →"}
+          {pending ? "送信しています..." : "お問い合わせを送る →"}
         </button>
         <p className="form-note">
-          ※ 2営業日以内にご返信いたします。<br />
-          ※ 本フォームの情報は初回相談の準備のみに使用し、第三者に提供することはありません。
+          2 営業日以内に返信します。入力情報は相談対応のみに使用します。
         </p>
       </div>
     </form>

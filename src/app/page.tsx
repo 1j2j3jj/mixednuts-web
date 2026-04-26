@@ -501,9 +501,9 @@ export default function HomePage() {
         </h1>
         <div className="hero-sub">
           <div className="hero-sub-left">
-            <p className="hero-tagline">Mixing Strategy, AI, and Marketing —<br />to ignite unstoppable growth.</p>
+            <p className="hero-tagline">Strategy, AI, and Marketing —<br />executed as one.</p>
             <p className="hero-lead">
-              広告代理店、事業会社マーケ責任者、戦略コンサル、外資系ビッグテック、SNSクリエイター——多様なバックグラウンドのプロフェッショナルが&quot;ミックス&quot;する集団が、大手企業から新規事業まで、戦略・AI・マーケを一気通貫で支援しています。
+              戦略・AI・マーケティングを 3 軸で、上場企業から新規事業まで一気通貫で支援します。分厚い報告書ではなく、明日から動けるアクションを届けます。
             </p>
           </div>
           <div className="hero-ctas">
@@ -598,7 +598,7 @@ export default function HomePage() {
           </div>
           {CASES_COMING_SOON ? (
             <div style={{
-              padding: "120px 40px", textAlign: "center",
+              padding: "96px 40px", textAlign: "center",
               background: "var(--off-white)", borderRadius: 24,
               border: "1px solid rgba(10,10,10,0.08)"
             }}>
@@ -606,15 +606,23 @@ export default function HomePage() {
                 fontFamily: "'Archivo', sans-serif", fontSize: 11, letterSpacing: "0.2em",
                 color: "var(--charcoal)", opacity: 0.5, fontWeight: 700, marginBottom: 20
               }}>
-                UPDATING · 近日公開予定
+                NDA PROTECTED
               </div>
               <h3 style={{
-                fontFamily: "'Noto Sans JP', sans-serif", fontSize: "clamp(28px, 4vw, 44px)",
-                fontWeight: 900, color: "var(--charcoal)", lineHeight: 1.25,
+                fontFamily: "'Noto Sans JP', sans-serif", fontSize: "clamp(26px, 3.6vw, 38px)",
+                fontWeight: 900, color: "var(--charcoal)", lineHeight: 1.4,
                 marginBottom: 20, wordBreak: "keep-all", letterSpacing: "-0.02em"
               }}>
-                ケース一覧を<br />リニューアル中です。
+                個別ケースは<br />守秘義務のため非公開です。
               </h3>
+              <p style={{
+                color: "#4B5563", fontSize: 14, lineHeight: 1.9, maxWidth: 520,
+                margin: "0 auto 32px", wordBreak: "keep-all"
+              }}>
+                関与領域・規模感は <Link href="/works" style={{ color: "var(--charcoal)", textDecoration: "underline" }}>Works ページ</Link> をご覧ください。<br />
+                類似案件の事例は NDA 締結後にご共有します。
+              </p>
+              <Link href="/contact" className="btn-primary">課題を相談する →</Link>
             </div>
           ) : (
           <div className="home-cases-grid">

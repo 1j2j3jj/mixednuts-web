@@ -37,7 +37,7 @@ thumbLabel: "キーワード"
 エージェント名ではなく、**ユーザーが何について話しているか** で分類する:
 
 - 「広告」「Google Ads」「ROAS」「CPA」「キャンペーン」 → カテゴリ: 広告・マーケ
-- 「予実」「月次締め」「取締役会」「FP&A」→ カテゴリ: 経営管理
+- 「予実」「月次締め」「経営会議」「FP&A」→ カテゴリ: 経営管理
 - 「SEO」「AIO」「構造化データ」「Core Update」→ カテゴリ: SEO / AIO
 
 1 ユーザー発言に複数キーワードが含まれる場合は、最頻出カテゴリを選ぶ。
@@ -52,7 +52,7 @@ thumbLabel: "キーワード"
 | 〈案件名〉の振り返り | `project-owner-{案件}` | PO 配下で複数 Worker 起動 |
 | 予算配分・広告戦略 | `growth-head` | growth-strategy チーム起動 |
 | 計測・GTM・CV 不整合 | `data-quality-checker` + `campaign-analyst` 並行 | 計測診断 |
-| クライアント A・国内大手IT企業・取締役会 | `fpna-architect` | 経営管理専門 |
+| クライアント A・エンタメ事業を持つ上場企業・経営会議 | `fpna-architect` | 経営管理専門 |
 | 投資・DD・バリュエーション | `deal-sourcer` | 投資チーム起動 |
 | 契約・NDA | `global-counsel` | 法務専門 |
 | クライアントヘルス | `health-monitor` | CS チーム起動 |
@@ -80,7 +80,7 @@ thumbLabel: "キーワード"
 
 | キーワード | エージェント | スキル |
 |---|---|---|
-| クライアント A, クライアント B, D 子会社, 国内大手IT企業, ライブ事業部, 取締役会, 月次定例, 月次仮集計 | `fpna-architect` | `pococha-health-check` |
+| クライアント A, クライアント B, クライアント案件, エンタメ事業を持つ上場企業, 事業部, 経営会議, 月次定例, 月次仮集計 | `fpna-architect` | `pococha-health-check` |
 | freee, 月次決算, BS, PL, 経費, レシート, AMEX | `cash-commander` | `freee-monthly-close` |
 | LTV, CAC, ユニットエコノミクス, 限界利益 | `unit-economist` | `unit-economics` |
 | IR, 投資家向け | `ir-communicator` | - |
@@ -118,7 +118,7 @@ thumbLabel: "キーワード"
 
 | キーワード | エージェント | スキル |
 |---|---|---|
-| コード, 実装, API 開発 | `fullstack-dev` | `feedforge-dev` |
+| コード, 実装, API 開発 | `fullstack-dev` | `自社プロダクト開発` |
 | プロンプト設計, 新規 Skill 作成直後 | `prompt-architect` | `empirical-prompt-tuning` |
 | AI 動向, プラットフォーム更新 | `system-architect` | `ai-platform-radar` |
 | テスト, QA, バグ | `qa-engineer` | `qa` |
@@ -138,7 +138,7 @@ thumbLabel: "キーワード"
 ### 追加キーワード例
 
 - 「データ汚染」→ 当初 `campaign-analyst` だったが、計測起因が多いので `data-quality-checker` 並行に変更
-- 「経営管理マスタ」→ 国内大手IT企業のライブ事業部の内部用語、`fpna-architect` に追加
+- 「経営管理マスタ」→ エンタメ事業を持つ上場企業の事業部の内部用語、`fpna-architect` に追加
 - 「LLMO」→ 2026-03 に SEO 領域で頻出し始めたので `seo-orchestrator` に追加
 
 ### 削除キーワード例

@@ -77,7 +77,7 @@ export default function AboutPage() {
             <span style={{ display: "block" }}>事業は動き始める。</span>
           </h1>
           <p className="lead">
-            広告代理店、事業会社マーケ責任者、戦略コンサル、外資系ビッグテック、SNSクリエイター——多様なバックグラウンドのプロフェッショナルが交差するファーム。戦略・AI・マーケティングの3軸で、クライアントの事業に"成長エンジン"を実装します。
+            異なる業界・異なる役職を渡り歩いてきたプロが、一つのチームに集まっています。その多様性が、単一専門ファームには出せない角度で、課題を解く強さになります。
           </p>
         </div>
       </section>
@@ -198,8 +198,8 @@ export default function AboutPage() {
       <section className="cta">
         <div className="cta-inner">
           <h2>一緒に、事業の次の章を<br />書き始めませんか。</h2>
-          <p style={{wordBreak: 'keep-all', overflowWrap: 'break-word'}}>初回無料相談（60分）で貴社の課題をヒアリングし、<br />最適なご提案をいたします。</p>
-          <Link href="/contact" className="btn-primary">無料相談を申し込む →</Link>
+          <p style={{wordBreak: 'keep-all', overflowWrap: 'break-word'}}>60 分で貴社の課題を聞き、<br />最適なアプローチを提案します。</p>
+          <Link href="/contact" className="btn-primary">初回 60 分、無料でヒアリングする →</Link>
         </div>
       </section>
     </>

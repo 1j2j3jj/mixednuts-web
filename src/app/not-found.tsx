@@ -70,9 +70,8 @@ export default function NotFound() {
         <div className="nf-code">4<span className="accent">0</span>4</div>
         <h1 className="nf-title">ページが見つかりません。</h1>
         <p className="nf-lead">
-          お探しのページは移動または削除された可能性があります。
-          <br />
-          メニューから他のページをご覧いただくか、お気軽にお問い合わせください。
+          このページは移動したか、存在しません。<br />
+          下のリンクから目的のページを探してください。
         </p>
         <div className="nf-links">
           <Link href="/" className="nf-link primary">ホームに戻る</Link>

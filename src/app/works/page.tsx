@@ -8,7 +8,7 @@ const visibleWorks = CASES_COMING_SOON ? [] : works.filter((w) => !w.hidden);
 export const metadata: Metadata = {
   title: "Works — 数字で語る、実績ケース",
   description:
-    "戦略・AI・マーケティングの実績一覧。業種・規模・課題別にケースを掲載。守秘義務のため全て匿名化。",
+    "上場企業の経営管理から D2C のグロースまで、戦略・AI・マーケティングを横断したクライアントワーク。個別社名は守秘義務により非公開。NDA 締結後に類似案件の事例を共有。",
 };
 
 export default function WorksPage() {
@@ -73,38 +73,116 @@ export default function WorksPage() {
           <div className="breadcrumb"><Link href="/">Home</Link> / Works</div>
           <div className="page-hero-badge">Case Studies</div>
           <h1>
-            <span style={{ display: "block" }}>Coming</span>
-            <span style={{ display: "block" }}><span className="accent">Soon</span>。</span>
+            <span style={{ display: "block" }}>数字で語る、</span>
+            <span style={{ display: "block" }}><span className="accent">実績ケース</span>。</span>
           </h1>
           <p className="lead">
-            戦略 × AI × マーケで積み上げてきた実績ケースを、守秘義務に配慮しながら順次公開していきます。近日アップデート予定です。
+            上場企業の経営管理から D2C のグロースまで、戦略・AI・マーケティングを横断して関与してきました。個別社名は守秘義務のため伏せていますが、領域・規模・関与の深さは下記のとおりです。詳細ケースは NDA 締結後に個別共有します。
           </p>
         </div>
       </section>
 
       {CASES_COMING_SOON ? (
         <section style={{ padding: "80px 32px 120px", background: "var(--off-white)" }}>
-          <div style={{ maxWidth: 880, margin: "0 auto", textAlign: "center" }}>
+          <div style={{ maxWidth: 1100, margin: "0 auto" }}>
             <div style={{
               fontFamily: "var(--font-sans-en)", fontSize: 11, letterSpacing: "0.2em",
-              color: "var(--gray-400)", fontWeight: 700, marginBottom: 24
+              color: "var(--gray-400)", fontWeight: 700, marginBottom: 16, textAlign: "center"
             }}>
-              UPDATING · 近日公開予定
+              ENGAGEMENT AREAS · 主な関与領域
             </div>
             <h2 style={{
-              fontFamily: "var(--font-sans-jp)", fontSize: "clamp(28px, 4vw, 40px)",
-              fontWeight: 900, color: "var(--charcoal)", lineHeight: 1.3,
-              marginBottom: 24, wordBreak: "keep-all"
+              fontFamily: "var(--font-sans-jp)", fontSize: "clamp(26px, 3.5vw, 36px)",
+              fontWeight: 900, color: "var(--charcoal)", lineHeight: 1.4,
+              marginBottom: 56, wordBreak: "keep-all", textAlign: "center"
             }}>
-              ケース一覧を<br />リニューアル中です。
+              何をやってきたか、を先に。
             </h2>
-            <p style={{
-              color: "#4B5563", fontSize: 15, lineHeight: 1.9, maxWidth: 640,
-              margin: "0 auto 40px", wordBreak: "keep-all"
+            <div style={{
+              display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 28, marginBottom: 56
             }}>
-              業種・規模・課題別に整理した形で順次公開します。
-            </p>
-            <Link href="/contact" className="btn-primary">お問い合わせ →</Link>
+              {[
+                {
+                  label: "Strategy & FP&A",
+                  jp: "経営管理・財務戦略",
+                  items: [
+                    "上場企業の取締役会資料・月次定例",
+                    "予実管理・事業計画・KPI 設計",
+                    "投資判断・M&A デューデリジェンス",
+                    "IR・エクイティストーリー支援",
+                  ],
+                  scale: "上場企業（時価総額 100 億〜数兆円）",
+                },
+                {
+                  label: "AI & Organization",
+                  jp: "AI・組織設計",
+                  items: [
+                    "AI エージェント組織の設計・運用",
+                    "業務自動化（経理・レポート・分析）",
+                    "Claude / Gemini / OpenAI 統合基盤",
+                    "MCP・ノーコード連携の内製化",
+                  ],
+                  scale: "スタートアップ〜上場企業",
+                },
+                {
+                  label: "Marketing & Growth",
+                  jp: "マーケティング・グロース",
+                  items: [
+                    "Google Ads / Meta Ads 運用設計",
+                    "計測基盤（GTM / GA4）整備",
+                    "SEO・AIO・LLMO・構造化データ",
+                    "CVR 改善・LP / フォーム最適化",
+                  ],
+                  scale: "月予算 数百万〜数千万円",
+                },
+              ].map((col) => (
+                <div key={col.label} style={{
+                  background: "#FFFFFF", border: "1px solid rgba(10,10,10,0.08)",
+                  borderRadius: 16, padding: 28
+                }}>
+                  <div style={{
+                    fontFamily: "var(--font-sans-en)", fontSize: 11, letterSpacing: "0.15em",
+                    fontWeight: 700, color: "var(--gray-400)", marginBottom: 6
+                  }}>{col.label}</div>
+                  <div style={{
+                    fontFamily: "var(--font-sans-jp)", fontSize: 18, fontWeight: 900,
+                    color: "var(--charcoal)", marginBottom: 20, lineHeight: 1.4
+                  }}>{col.jp}</div>
+                  <ul style={{
+                    listStyle: "none", padding: 0, margin: 0, marginBottom: 20,
+                    fontSize: 13, lineHeight: 1.9, color: "#4B5563"
+                  }}>
+                    {col.items.map((it) => (
+                      <li key={it} style={{
+                        position: "relative", paddingLeft: 16, wordBreak: "keep-all"
+                      }}>
+                        <span style={{
+                          position: "absolute", left: 0, top: "0.7em", width: 6, height: 1,
+                          background: "var(--charcoal)"
+                        }} />
+                        {it}
+                      </li>
+                    ))}
+                  </ul>
+                  <div style={{
+                    fontSize: 11, color: "var(--gray-400)", letterSpacing: "0.05em",
+                    paddingTop: 14, borderTop: "1px solid rgba(10,10,10,0.06)"
+                  }}>
+                    対象規模：{col.scale}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <p style={{
+                color: "#4B5563", fontSize: 14, lineHeight: 1.9, maxWidth: 680,
+                margin: "0 auto 28px", wordBreak: "keep-all"
+              }}>
+                個別ケースは守秘義務のためサイト上では公開していません。<br />
+                類似案件の関与内容・成果は NDA 締結後に共有しています。
+              </p>
+              <Link href="/contact" className="btn-primary">課題を相談する →</Link>
+            </div>
           </div>
         </section>
       ) : (
