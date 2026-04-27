@@ -3,6 +3,10 @@
 import { google } from "googleapis";
 import { CLIENTS, CLIENT_IDS, type ClientId } from "@/config/clients";
 import { headers } from "next/headers";
+import { db } from "@/db/client";
+import { organization as organizationTable } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { writeAuditLog } from "@/lib/audit";
 
 /**
  * Server actions for the admin panel. All actions re-check the viewer
@@ -300,4 +304,81 @@ export async function generateClientPassword(): Promise<string> {
   let out = "";
   for (let i = 0; i < bytes.length; i++) out += alphabet[bytes[i] % alphabet.length];
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Quota management
+// ---------------------------------------------------------------------------
+
+export interface OrgQuota {
+  orgId: string | null;
+  maxMembers: number | null;
+  maxAdmins: number | null;
+}
+
+/** Fetch current quota for a client by its slug. Returns nulls if org not yet created. */
+export async function getOrgQuota(clientSlug: string): Promise<OrgQuota> {
+  await assertAdmin();
+  const rows = await db
+    .select({
+      id: organizationTable.id,
+      maxMembers: organizationTable.maxMembers,
+      maxAdmins: organizationTable.maxAdmins,
+    })
+    .from(organizationTable)
+    .where(eq(organizationTable.slug, clientSlug));
+  if (!rows.length) return { orgId: null, maxMembers: null, maxAdmins: null };
+  return {
+    orgId: rows[0].id,
+    maxMembers: rows[0].maxMembers ?? null,
+    maxAdmins: rows[0].maxAdmins ?? null,
+  };
+}
+
+export interface QuotaUpdateResult {
+  ok: boolean;
+  error?: string;
+}
+
+/**
+ * Update quota limits for an org. Pass null to remove limit (unlimited).
+ * Only admin callers can invoke this action.
+ */
+export async function updateOrgQuota(
+  clientSlug: string,
+  maxMembers: number | null,
+  maxAdmins: number | null
+): Promise<QuotaUpdateResult> {
+  await assertAdmin();
+
+  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const actorEmail = adminEmails[0] ?? "admin@mixednuts-inc.com";
+
+  const rows = await db
+    .select({ id: organizationTable.id })
+    .from(organizationTable)
+    .where(eq(organizationTable.slug, clientSlug));
+
+  if (!rows.length) {
+    return { ok: false, error: "Organization がまだ作成されていません。先に招待を発行してください。" };
+  }
+
+  const orgId = rows[0].id;
+  await db
+    .update(organizationTable)
+    .set({ maxMembers, maxAdmins })
+    .where(eq(organizationTable.id, orgId));
+
+  await writeAuditLog({
+    actorEmail,
+    targetOrgId: orgId,
+    targetOrgSlug: clientSlug,
+    action: "quota.updated",
+    metadata: { maxMembers, maxAdmins },
+  });
+
+  return { ok: true };
 }

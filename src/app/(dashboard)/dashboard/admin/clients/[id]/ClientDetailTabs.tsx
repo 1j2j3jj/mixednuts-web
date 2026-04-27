@@ -7,10 +7,11 @@ import type { ClientAccess } from "../../actions";
 import type { OrgSummary, InviteRow, MemberRow } from "../../invites/actions";
 import type { EnvStatus } from "../../actions";
 import { createInvite, revokeInvite, removeMember } from "../../invites/actions";
-import { generateClientPassword } from "../../actions";
+import { generateClientPassword, updateOrgQuota } from "../../actions";
+import type { OrgQuota } from "../../actions";
 import HealthCheckButton from "../../HealthCheckButton";
 
-type Tab = "overview" | "access" | "datasources" | "credentials" | "danger";
+type Tab = "overview" | "access" | "quota" | "datasources" | "credentials" | "danger";
 
 interface Props {
   clientId: ClientId;
@@ -20,6 +21,7 @@ interface Props {
   pendingInvites: InviteRow[];
   orgMembers: MemberRow[];
   credStatus: EnvStatus | null;
+  quota: OrgQuota;
 }
 
 // ---------------------------------------------------------------------------
@@ -638,6 +640,125 @@ function CredentialsTab({
 }
 
 // ---------------------------------------------------------------------------
+// Quota Tab
+// ---------------------------------------------------------------------------
+function QuotaTab({
+  client,
+  quota,
+}: {
+  client: ClientConfig;
+  quota: OrgQuota;
+}) {
+  const [maxMembers, setMaxMembers] = useState<string>(
+    quota.maxMembers !== null ? String(quota.maxMembers) : ""
+  );
+  const [maxAdmins, setMaxAdmins] = useState<string>(
+    quota.maxAdmins !== null ? String(quota.maxAdmins) : ""
+  );
+  const [result, setResult] = useState<{ ok: boolean; error?: string } | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setResult(null);
+    const mm = maxMembers.trim() === "" ? null : parseInt(maxMembers, 10);
+    const ma = maxAdmins.trim() === "" ? null : parseInt(maxAdmins, 10);
+    if ((mm !== null && (isNaN(mm) || mm < 1)) || (ma !== null && (isNaN(ma) || ma < 1))) {
+      setResult({ ok: false, error: "正の整数を入力するか空欄（制限なし）にしてください" });
+      return;
+    }
+    startTransition(async () => {
+      const res = await updateOrgQuota(client.slug, mm, ma);
+      setResult(res);
+    });
+  }
+
+  return (
+    <div className="space-y-6 max-w-lg">
+      <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        クォータは Organization 単位で設定します。
+        <code className="mx-1 font-mono">null</code>（空欄）= 制限なし。
+        変更はテナント側の招待フォームに即時反映されます。
+      </div>
+
+      {quota.orgId === null && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Organization がまだ作成されていません。招待を一件発行すると自動作成されます。
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-1">
+          <label className="block text-xs font-medium uppercase tracking-wider text-neutral-600">
+            最大メンバー数
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={1}
+              value={maxMembers}
+              onChange={(e) => setMaxMembers(e.target.value)}
+              placeholder="制限なし"
+              disabled={quota.orgId === null}
+              className="w-32 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none disabled:opacity-50"
+            />
+            <span className="text-xs text-neutral-500">
+              現在: {quota.maxMembers !== null ? `${quota.maxMembers} 名` : "制限なし"}
+            </span>
+          </div>
+          <p className="text-xs text-neutral-500">
+            メンバー + 管理者の合計上限。
+          </p>
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-xs font-medium uppercase tracking-wider text-neutral-600">
+            最大管理者数
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={1}
+              value={maxAdmins}
+              onChange={(e) => setMaxAdmins(e.target.value)}
+              placeholder="制限なし"
+              disabled={quota.orgId === null}
+              className="w-32 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none disabled:opacity-50"
+            />
+            <span className="text-xs text-neutral-500">
+              現在: {quota.maxAdmins !== null ? `${quota.maxAdmins} 名` : "制限なし"}
+            </span>
+          </div>
+          <p className="text-xs text-neutral-500">
+            Admin ロールの上限（Owner は対象外）。
+          </p>
+        </div>
+
+        {result && (
+          <div
+            className={`rounded-md border px-4 py-3 text-sm ${
+              result.ok
+                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                : "border-rose-200 bg-rose-50 text-rose-900"
+            }`}
+          >
+            {result.ok ? "クォータを更新しました" : result.error}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={isPending || quota.orgId === null}
+          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isPending ? "保存中…" : "保存"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Danger Zone Tab
 // ---------------------------------------------------------------------------
 function DangerZoneTab({ client }: { client: ClientConfig }) {
@@ -674,6 +795,7 @@ function DangerZoneTab({ client }: { client: ClientConfig }) {
 const TABS: { id: Tab; label: string }[] = [
   { id: "overview", label: "概要" },
   { id: "access", label: "アクセス管理" },
+  { id: "quota", label: "クォータ" },
   { id: "datasources", label: "データソース" },
   { id: "credentials", label: "クレデンシャル" },
   { id: "danger", label: "Danger Zone" },
@@ -687,6 +809,7 @@ export default function ClientDetailTabs({
   pendingInvites,
   orgMembers,
   credStatus,
+  quota,
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("access");
 
@@ -723,6 +846,7 @@ export default function ClientDetailTabs({
             orgMembers={orgMembers}
           />
         )}
+        {activeTab === "quota" && <QuotaTab client={client} quota={quota} />}
         {activeTab === "datasources" && <DataSourcesTab client={client} />}
         {activeTab === "credentials" && (
           <CredentialsTab clientId={clientId} credStatus={credStatus} />
