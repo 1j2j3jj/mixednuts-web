@@ -115,7 +115,7 @@ middleware から `@clerk/nextjs` の wrapper を削除し、`mn_session` cookie
 
 `/dashboard/admin/invites` 画面を作成。管理者がメールアドレスを入力 → `authClient.organization.inviteMember()` → 招待リンク発行 → コピーボタン → 取消機能まで。自動組織作成ヘルパー (`auto-org-create`) を Server Action で実装。
 
-### Phase 5 (4:30–5:00): Clerk の完全撤去
+### Phase 5 (5:00 直前): Clerk の完全撤去
 
 ```bash
 npm uninstall @clerk/nextjs
@@ -188,8 +188,6 @@ A. Better Auth は UI コンポーネントを提供しないので、自前で 
 **Clerk 関連の既知挙動:**
 - [<Cite n={1}>Clerk issue #2595</Cite>: `after_sign_in_url` ignored on existing session](https://github.com/clerk/javascript/issues/2595) — 本記事で言及した既知バグ
 - [Clerk Development Instances docs](https://clerk.com/docs/deployments/overview#development-instances) — dev instance の本番挙動制約
-
-**比較記事 (英語圏):**
 
 **<Cite n={3}>Neon Postgres</Cite>:**
 - [Neon Free Tier](https://neon.tech/pricing) — 500MB + 191 compute-hour/月
