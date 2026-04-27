@@ -311,7 +311,13 @@ export default function ApplyForm({ initialPosition }: { initialPosition?: strin
         <div className="form-group form-consent">
           <input type="checkbox" required id="privacy-careers" />
           <label htmlFor="privacy-careers">
-            <Link href="/privacy">プライバシーポリシー</Link>に同意する（応募情報は選考目的のみに使用します）
+            <Link href="/privacy">プライバシーポリシー</Link>に同意する（応募情報は採用選考目的のみに使用します。Google Drive 等の米国クラウド事業者を利用するため、個人情報の越境移転に同意したものとみなします）
+          </label>
+        </div>
+        <div className="form-group form-consent">
+          <input type="checkbox" required id="retention-careers" />
+          <label htmlFor="retention-careers">
+            応募書類の保管に同意する（不採用の場合、応募から 6 ヶ月経過後に削除します。採用の場合は雇用契約継続中保管します）
           </label>
         </div>
 

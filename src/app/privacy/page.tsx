@@ -116,10 +116,35 @@ export default function PrivacyPage() {
           <h2 id="sec5">5. 個人情報の委託</h2>
           <p>当社は、利用目的の達成に必要な範囲で、個人情報の取扱いを第三者に委託することがあります。主な委託先は以下の通りです。</p>
           <ul>
-            <li>クラウドサービス事業者（Google Workspace, AWS, Cloudflare 等）</li>
+            <li>クラウドサービス事業者（Google Workspace, AWS, Cloudflare, Vercel Inc., Neon Inc., Web3Forms 等）</li>
             <li>会計・税務処理を目的とした税理士事務所・会計システム提供事業者</li>
             <li>請求・決済代行事業者</li>
             <li>カスタマーサポートシステム提供事業者</li>
+          </ul>
+          <p>当社は、委託先との間で個人情報の取扱いに関する契約を締結し、適切な監督を実施します。</p>
+
+          <h2 id="sec5b">5-2. 外国にある第三者への個人情報の提供</h2>
+          <p>当社は、サービス提供のため以下の外国にある第三者（クラウドサービス事業者）に個人情報の取扱いを委託します。本ウェブサイトのフォームをご利用いただくことで、これらの委託に同意いただいたものとみなします。</p>
+          <table>
+            <thead>
+              <tr><th>事業者</th><th>所在国</th><th>用途</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Vercel Inc.</td><td>米国</td><td>ウェブサイトホスティング、Edge Functions</td></tr>
+              <tr><td>Neon Inc. (AWS us-east-1)</td><td>米国</td><td>認証データベース</td></tr>
+              <tr><td>Web3Forms</td><td>米国</td><td>お問い合わせ・採用応募の通知配信</td></tr>
+              <tr><td>Google LLC</td><td>米国</td><td>採用応募ファイル保存（Google Drive）、Google Workspace</td></tr>
+            </tbody>
+          </table>
+          <p>各国の個人情報保護制度に関する情報は、個人情報保護委員会のウェブサイト（<a href="https://www.ppc.go.jp/personalinfo/legal/kaiseihogohou/" target="_blank" rel="noopener noreferrer">https://www.ppc.go.jp/personalinfo/legal/kaiseihogohou/</a>）にて確認できます。米国は十分性認定国ではないため、当社は個人情報保護委員会規則第 16 条に基づく相当措置（標準契約条項または GDPR 同等の保護水準の確認）を実施します。</p>
+
+          <h2 id="sec5c">5-3. 採用応募情報の取扱い</h2>
+          <p>採用応募フォームから取得する個人情報（氏名、連絡先、職務経歴書、履歴書等）は、採用選考の目的のみに使用します。</p>
+          <ul>
+            <li><strong>保存場所</strong>: Google Drive（米国 Google LLC が運営）</li>
+            <li><strong>アクセス権限</strong>: 採用担当者および代表者のみ</li>
+            <li><strong>保存期間</strong>: 不採用の場合、応募受付から 6 ヶ月経過後に削除します。採用の場合は雇用契約継続中保管します</li>
+            <li><strong>第三者提供</strong>: 法令に基づく場合を除き、本人の同意なく第三者に提供しません</li>
           </ul>
 
           <h2 id="sec6">6. 安全管理措置</h2>
