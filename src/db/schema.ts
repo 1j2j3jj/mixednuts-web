@@ -11,6 +11,10 @@
  *
  * If you add or remove plugins, regenerate via `npx @better-auth/cli generate`
  * or update this file by hand and run `npx drizzle-kit push`.
+ *
+ * v2 additions (2026-04-27):
+ *   - organization.maxMembers / maxAdmins — quota enforcement
+ *   - audit_log — immutable event log for admin actions
  */
 import {
   pgTable,
@@ -18,6 +22,7 @@ import {
   timestamp,
   boolean,
   integer,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 // ----- Core: user / session / account / verification ------------------------
@@ -54,6 +59,8 @@ export const session = pgTable("session", {
   impersonatedBy: text("impersonated_by"),
   // organization plugin — currently active org for this session
   activeOrganizationId: text("active_organization_id"),
+  // impersonation extension — slug of the org being impersonated (Phase 1)
+  impersonatedOrgSlug: text("impersonated_org_slug"),
 });
 
 export const account = pgTable("account", {
@@ -92,6 +99,10 @@ export const organization = pgTable("organization", {
   logo: text("logo"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   metadata: text("metadata"),
+
+  // v2 quota columns — null = unlimited
+  maxMembers: integer("max_members"),
+  maxAdmins: integer("max_admins"),
 });
 
 export const member = pgTable("member", {
@@ -120,6 +131,27 @@ export const invitation = pgTable("invitation", {
     .references(() => user.id, { onDelete: "cascade" }),
 });
 
+// ----- Audit log (v2) -------------------------------------------------------
+
+/**
+ * Immutable event log — write-once, never update or delete rows.
+ *
+ * actor_id   — the user who triggered the action (admin or tenant user)
+ * target_org_id — the org affected (null for platform-wide actions)
+ * action     — e.g. "invitation.created", "member.removed", "impersonation.started"
+ * metadata   — JSONB blob with action-specific context (email, role, slug, etc.)
+ */
+export const auditLog = pgTable("audit_log", {
+  id: text("id").primaryKey(),
+  actorId: text("actor_id"),
+  actorEmail: text("actor_email"),
+  targetOrgId: text("target_org_id"),
+  targetOrgSlug: text("target_org_slug"),
+  action: text("action").notNull(),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Re-export the full schema as `schema` so the Better Auth Drizzle
 // adapter receives the table map in one shot.
 export const schema = {
@@ -130,4 +162,5 @@ export const schema = {
   organization,
   member,
   invitation,
+  auditLog,
 };
