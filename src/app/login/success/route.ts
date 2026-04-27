@@ -36,6 +36,14 @@ function errorRedirect(req: NextRequest, type: string, msg?: string): NextRespon
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
+  // Check if there's a `next` parameter — invitation flows set this so the
+  // user lands back at the accept-invitation handler after Google OAuth.
+  const nextParam = req.nextUrl.searchParams.get("next");
+  const safeNext =
+    nextParam && nextParam.startsWith("/api/auth/accept-invitation")
+      ? nextParam
+      : null;
+
   // 1) Read BA session.
   let email: string | null = null;
   try {
@@ -49,7 +57,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   if (!email) return errorRedirect(req, "no_session");
 
-  // 2) Email → role.
+  // 2) If this is an invitation-completion flow, hand off to the
+  //    accept-invitation handler which owns the full acceptance logic.
+  //    We do NOT set mn_session here — the accept-invitation route does it
+  //    once it has verified the invitation + created the member row.
+  if (safeNext) {
+    // Pass the BA session cookie through (it's already set by BA's OAuth
+    // handler) — accept-invitation will read it via auth.api.getSession.
+    return redirect(req, safeNext);
+  }
+
+  // 3) Email → role (env-based lookup for non-invitation paths).
   const role = resolveRoleByEmail(email);
   if (role.kind === "deny") {
     return redirect(
@@ -58,7 +76,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // 3) Sign mn_session.
+  // 4) Sign mn_session.
   let token: string;
   let target: string;
   try {
@@ -84,7 +102,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return errorRedirect(req, "sign_error", msg);
   }
 
-  // 4) Build redirect response, then attach the cookie to it.
+  // 5) Build redirect response, then attach the cookie to it.
   const res = redirect(req, target);
   res.cookies.set(COOKIE_NAME, token, {
     httpOnly: true,

@@ -24,6 +24,7 @@ import { signIn } from "@/lib/auth-client";
 export default function LoginForm() {
   const sp = useSearchParams();
   const redirectParam = sp.get("next");
+  const invitationHint = sp.get("invitation_hint");
   const oauthError = sp.get("error");
   const deniedEmail = sp.get("email");
   const googleEnabled = Boolean(process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED);
@@ -58,7 +59,18 @@ export default function LoginForm() {
         setLoading(false);
         return;
       }
-      const target = redirectParam && redirectParam.startsWith("/dashboard") ? redirectParam : data.redirect;
+      // Invitation flow: `next` may point to /api/auth/accept-invitation.
+      // ID/PW login sets mn_session (admin or legacy client) — after that the
+      // accept-invitation handler needs a BA session to read the email.
+      // ID/PW users won't have a BA session, so we route them through the
+      // normal dashboard and rely on BA email/PW sign-in for invitation accept.
+      // For non-invitation `next` (e.g. /dashboard/*), honour it directly.
+      const target =
+        redirectParam && redirectParam.startsWith("/api/auth/accept-invitation")
+          ? redirectParam  // accept-invitation handler will verify BA session
+          : redirectParam && redirectParam.startsWith("/dashboard")
+          ? redirectParam
+          : data.redirect;
       // Force a full navigation so the cookie is picked up by middleware on
       // the next server round-trip (router.push keeps the current RSC payload).
       window.location.href = target;
@@ -75,9 +87,17 @@ export default function LoginForm() {
       // Better Auth redirects to Google, then to /api/auth/callback/google,
       // then to callbackURL. /login/success reads the BA session and bridges
       // it into our mn_session cookie.
+      //
+      // Invitation flow: if redirectParam points to /api/auth/accept-invitation,
+      // pass it through to /login/success as a `next` query so the bridge
+      // hands control back to the accept-invitation handler after OAuth.
+      const callbackURL =
+        redirectParam && redirectParam.startsWith("/api/auth/accept-invitation")
+          ? `/login/success?next=${encodeURIComponent(redirectParam)}`
+          : "/login/success";
       await signIn.social({
         provider: "google",
-        callbackURL: "/login/success",
+        callbackURL,
         errorCallbackURL: "/login?error=oauth_no_email",
       });
     } catch (e) {
@@ -102,6 +122,15 @@ export default function LoginForm() {
           ログイン情報をお持ちのお客様はこちらからサインインしてください
         </p>
       </div>
+
+      {/* Invitation hint banner — shown when redirected from an invitation link */}
+      {invitationHint && (
+        <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+          <span className="font-medium">招待を受け取りました。</span>{" "}
+          <span className="font-mono">{invitationHint}</span>{" "}
+          として招待されたアカウントでサインインしてください。
+        </div>
+      )}
 
       <form
         onSubmit={onSubmit}

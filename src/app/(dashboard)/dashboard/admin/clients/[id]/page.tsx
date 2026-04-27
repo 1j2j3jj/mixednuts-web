@@ -4,7 +4,7 @@ import Link from "next/link";
 import { CLIENTS, type ClientId } from "@/config/clients";
 import { Badge } from "@/components/ui/badge";
 import { listClientAccess, listEnvStatus } from "../../actions";
-import { listOrganisations, listPendingInvites } from "../../invites/actions";
+import { listOrganisations, listPendingInvites, listOrgMembersForClient, type MemberRow } from "../../invites/actions";
 import ClientDetailTabs from "./ClientDetailTabs";
 
 /**
@@ -33,11 +33,12 @@ export default async function ClientDetailPage({ params }: PageProps) {
   const clientId = id as ClientId;
 
   // Fetch all needed data in parallel
-  const [clientAccess, envStatus, orgs, pendingInvites] = await Promise.all([
+  const [clientAccess, envStatus, orgs, pendingInvites, orgMembers] = await Promise.all([
     listClientAccess(),
     listEnvStatus(),
     listOrganisations(),
     listPendingInvites(),
+    listOrgMembersForClient(client.slug),
   ]);
 
   const access = clientAccess.find((c) => c.clientId === clientId);
@@ -82,6 +83,7 @@ export default async function ClientDetailPage({ params }: PageProps) {
         access={access ?? null}
         org={org ?? null}
         pendingInvites={clientPendingInvites}
+        orgMembers={orgMembers}
         credStatus={credStatus ?? null}
       />
     </div>

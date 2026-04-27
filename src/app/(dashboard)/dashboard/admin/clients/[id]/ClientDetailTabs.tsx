@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { ClientConfig, ClientId } from "@/config/clients";
 import type { ClientAccess } from "../../actions";
-import type { OrgSummary, InviteRow } from "../../invites/actions";
+import type { OrgSummary, InviteRow, MemberRow } from "../../invites/actions";
 import type { EnvStatus } from "../../actions";
 import { createInvite, revokeInvite, removeMember } from "../../invites/actions";
 import { generateClientPassword } from "../../actions";
@@ -18,6 +18,7 @@ interface Props {
   access: ClientAccess | null;
   org: OrgSummary | null;
   pendingInvites: InviteRow[];
+  orgMembers: MemberRow[];
   credStatus: EnvStatus | null;
 }
 
@@ -114,12 +115,14 @@ function AccessTab({
   access,
   org,
   pendingInvites,
+  orgMembers,
 }: {
   clientId: ClientId;
   client: ClientConfig;
   access: ClientAccess | null;
   org: OrgSummary | null;
   pendingInvites: InviteRow[];
+  orgMembers: MemberRow[];
 }) {
   const router = useRouter();
   const [invPending, startInvTransition] = useTransition();
@@ -250,20 +253,57 @@ function AccessTab({
       {/* Section 3: Organization members (Better Auth) */}
       <div>
         <h3 className="text-sm font-semibold text-neutral-900">
-          Organizationメンバー ({org?.memberCount ?? 0})
+          Organizationメンバー ({orgMembers.length})
         </h3>
         <p className="mt-1 text-xs text-muted-foreground">
           Better Auth の Organization に参加済みのメンバー。
           {!org && " ※ まだ Organization が作成されていません。招待を発行すると自動作成されます。"}
         </p>
-        {/* We show a note to visit /invites for full member management since member list requires separate fetch */}
-        <div className="mt-2 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-muted-foreground">
-          メンバー詳細の管理（削除・ロール変更）は{" "}
-          <a href="/dashboard/admin/invites" className="underline hover:text-foreground">
-            招待管理ページ
-          </a>{" "}
-          から行えます。
-        </div>
+        {orgMembers.length === 0 ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            参加済みメンバーはまだいません。上の招待フォームから招待を発行し、相手が承認するとここに表示されます。
+          </p>
+        ) : (
+          <div className="mt-2 divide-y rounded-md border border-neutral-200">
+            {orgMembers.map((m) => (
+              <div key={m.id} className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{m.email}</div>
+                  {m.name && m.name !== m.email && (
+                    <div className="text-xs text-muted-foreground truncate">{m.name}</div>
+                  )}
+                </div>
+                <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                  m.role === "owner"
+                    ? "bg-neutral-900 text-white"
+                    : m.role === "admin"
+                    ? "bg-blue-100 text-blue-800"
+                    : "bg-neutral-100 text-neutral-700"
+                }`}>
+                  {m.role === "owner" ? "オーナー" : m.role === "admin" ? "管理者" : "閲覧者"}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {m.joinedAt.toLocaleDateString("ja-JP")} 参加
+                </span>
+                {m.role !== "owner" && (
+                  <button
+                    type="button"
+                    disabled={removePending}
+                    onClick={() =>
+                      startRemoveTransition(async () => {
+                        await removeMember(m.id);
+                        router.refresh();
+                      })
+                    }
+                    className="rounded border border-rose-300 bg-white px-2 py-0.5 text-xs text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                  >
+                    削除
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Section 4: Env-based access (CLIENT_EMAILS + CLIENT_AUTH) */}
@@ -645,6 +685,7 @@ export default function ClientDetailTabs({
   access,
   org,
   pendingInvites,
+  orgMembers,
   credStatus,
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("access");
@@ -679,6 +720,7 @@ export default function ClientDetailTabs({
             access={access}
             org={org}
             pendingInvites={pendingInvites}
+            orgMembers={orgMembers}
           />
         )}
         {activeTab === "datasources" && <DataSourcesTab client={client} />}
