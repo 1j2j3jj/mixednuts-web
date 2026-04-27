@@ -10,6 +10,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@google-cloud/bigquery": "^8.1.1",
     "@mdx-js/loader": "^3.1.1",
     "@mdx-js/react": "^3.1.1",
     "@radix-ui/react-avatar": "^1.1.11",
