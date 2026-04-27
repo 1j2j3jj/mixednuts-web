@@ -9,9 +9,9 @@
  *                        (1 org per client like Chakin / DOZO / HS) and
  *                        to send invitation emails to client-side users
  *
- * Google OAuth is enabled in `socialProviders` so admin / client users can
- * sign in with their Google account when convenient. The post-OAuth bridge
- * to our existing mn_session cookie lives at /login/success.
+ * Social providers:
+ *   - Google OAuth  — primary sign-in method (GOOGLE_OAUTH_CLIENT_ID/SECRET)
+ *   - Microsoft Entra ID — secondary sign-in (MICROSOFT_ENTRA_CLIENT_ID/SECRET/TENANT_ID)
  *
  * Email sending: stubbed for now. The `sendInvitationEmail` callback writes
  * the magic link to console + persists it via the invitation row's `value`
@@ -34,10 +34,33 @@ const googleClientId = process.env.GOOGLE_OAUTH_CLIENT_ID ?? "";
 const googleClientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET ?? "";
 const googleEnabled = Boolean(googleClientId && googleClientSecret);
 
+const msClientId = process.env.MICROSOFT_ENTRA_CLIENT_ID ?? "";
+const msClientSecret = process.env.MICROSOFT_ENTRA_CLIENT_SECRET ?? "";
+const msTenantId = process.env.MICROSOFT_ENTRA_TENANT_ID ?? "common";
+const msEnabled = Boolean(msClientId && msClientSecret);
+
 const adminEmails = (process.env.ADMIN_EMAILS ?? "")
   .split(",")
   .map((s) => s.trim().toLowerCase())
   .filter(Boolean);
+
+// Build social providers object dynamically so unused providers don't
+// generate empty config blocks that Better Auth might reject.
+type SocialProviders = Parameters<typeof betterAuth>[0]["socialProviders"];
+const socialProviders: SocialProviders = {};
+if (googleEnabled) {
+  socialProviders.google = {
+    clientId: googleClientId,
+    clientSecret: googleClientSecret,
+  };
+}
+if (msEnabled) {
+  socialProviders.microsoft = {
+    clientId: msClientId,
+    clientSecret: msClientSecret,
+    tenantId: msTenantId,
+  };
+}
 
 export const auth = betterAuth({
   baseURL,
@@ -54,14 +77,7 @@ export const auth = betterAuth({
     autoSignIn: true,
     requireEmailVerification: false,
   },
-  socialProviders: googleEnabled
-    ? {
-        google: {
-          clientId: googleClientId,
-          clientSecret: googleClientSecret,
-        },
-      }
-    : undefined,
+  socialProviders: Object.keys(socialProviders).length > 0 ? socialProviders : undefined,
   trustedOrigins: [
     baseURL,
     "https://www.mixednuts-inc.com",
@@ -100,3 +116,6 @@ export const auth = betterAuth({
 export function isAdminEmail(email: string): boolean {
   return adminEmails.includes(email.toLowerCase());
 }
+
+/** Whether Microsoft Entra ID provider is configured. */
+export const msEntraEnabled = msEnabled;
