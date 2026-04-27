@@ -74,6 +74,12 @@ export default async function AdminIndexPage() {
           >
             招待管理
           </Link>
+          <Link
+            href="/dashboard/admin/audit"
+            className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium hover:bg-neutral-50"
+          >
+            監査ログ
+          </Link>
         </div>
       </div>
 

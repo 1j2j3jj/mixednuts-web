@@ -6,6 +6,7 @@ import { db } from "@/db/client";
 import { invitation, member, organization, user as userTable } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { CLIENTS, CLIENT_IDS, type ClientId } from "@/config/clients";
+import { writeAuditLog } from "@/lib/audit";
 
 /**
  * Server actions for the Better Auth Organization invitation flow.
@@ -191,7 +192,38 @@ export async function listOrgMembersForClient(clientSlug: string): Promise<Membe
 
 export async function removeMember(memberId: string): Promise<{ ok: boolean; error?: string }> {
   await assertAdmin();
+
+  // Resolve org context for audit log before deletion.
+  const rows = await db
+    .select({ orgId: member.organizationId })
+    .from(member)
+    .where(eq(member.id, memberId));
+  const orgId = rows[0]?.orgId ?? undefined;
+
+  let orgSlug: string | undefined;
+  if (orgId) {
+    const orgRows = await db
+      .select({ slug: organization.slug })
+      .from(organization)
+      .where(eq(organization.id, orgId));
+    orgSlug = orgRows[0]?.slug ?? undefined;
+  }
+
   await db.delete(member).where(eq(member.id, memberId));
+
+  const actorEmail = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)[0] ?? "admin@mixednuts-inc.com";
+
+  await writeAuditLog({
+    actorEmail,
+    targetOrgId: orgId,
+    targetOrgSlug: orgSlug,
+    action: "member.removed",
+    metadata: { memberId },
+  });
+
   return { ok: true };
 }
 
