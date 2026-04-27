@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Noto_Sans_JP, Noto_Serif_JP, Playfair_Display, Inter, Archivo } from "next/font/google";
 import "./globals.css";
 import SiteChrome from "@/components/SiteChrome";
+import CookieBanner from "@/components/CookieBanner";
 import { JsonLd, organizationSchema, webSiteSchema } from "@/components/JsonLd";
 
 const GTM_ID = "GTM-MS76PXZZ";
@@ -60,6 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <iframe src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID}`} height="0" width="0" style={{ display: "none", visibility: "hidden" }} />
         </noscript>
         <SiteChrome>{children}</SiteChrome>
+        <CookieBanner />
       </body>
     </html>
   );

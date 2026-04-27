@@ -108,13 +108,34 @@ function isExemptPath(pathname: string): boolean {
   // first satisfying Basic Auth. Better Auth's social OAuth callback
   // and the post-OAuth bridge at /login/success must be reachable
   // before our cookie exists.
-  return (
+  if (
     pathname === "/login" ||
     pathname.startsWith("/login/") ||
     pathname.startsWith("/api/auth/") ||
     pathname === "/favicon.ico" ||
-    pathname === "/robots.txt"
-  );
+    pathname === "/robots.txt" ||
+    pathname === "/sitemap.xml" ||
+    pathname === "/og-default.jpg" ||
+    pathname === "/og-default.png"
+  ) return true;
+
+  // Public marketing site — open to all visitors (post-launch 2026-04-27).
+  // Dashboard, admin, and authenticated APIs remain protected below.
+  if (
+    pathname === "/" ||
+    pathname.startsWith("/about") ||
+    pathname.startsWith("/works") ||
+    pathname.startsWith("/insights") ||
+    pathname.startsWith("/services") ||
+    pathname.startsWith("/careers") ||
+    pathname.startsWith("/team") ||
+    pathname === "/contact" ||
+    pathname === "/privacy" ||
+    pathname === "/legal" ||
+    pathname.startsWith("/_next/")
+  ) return true;
+
+  return false;
 }
 
 async function checkAuth(request: NextRequest): Promise<NextResponse> {
