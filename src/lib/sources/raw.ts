@@ -116,8 +116,16 @@ function normaliseDate(v: unknown): string {
 /**
  * Load daily ads rows for a client. Silently falls back to a mock sheet when
  * GOOGLE_SERVICE_ACCOUNT_JSON is not configured (dev-time).
+ *
+ * Storage backend: defaults to Google Sheets (legacy). Set
+ * `BQ_SOURCE_RAW=1` env var to read from BigQuery {client}_marts.ads_*_daily
+ * tables instead. Used by the GCP migration roll-out — flag-gated for safety.
  */
 export async function getDailyRows(client: ClientConfig): Promise<DailyFetchResult> {
+  if (process.env.BQ_SOURCE_RAW === "1") {
+    const { getDailyRowsFromBq } = await import("./bq-raw");
+    return getDailyRowsFromBq(client);
+  }
   const warnings: string[] = [];
   if (!client.dataSource || client.dataSource.kind !== "google_sheets") {
     return { rows: [], fetchedAt: Date.now(), isMock: true, warnings: ["no data source configured"] };
