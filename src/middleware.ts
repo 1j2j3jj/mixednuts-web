@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyCredentials, anyCredentialConfigured } from "@/lib/credentials";
 import { verifySession, COOKIE_NAME } from "@/lib/auth-cookie";
+import { CLIENT_SLUGS } from "@/config/client-slugs";
 
 /**
  * Auth stack (applied in order):
@@ -20,9 +21,11 @@ import { verifySession, COOKIE_NAME } from "@/lib/auth-cookie";
  *      via HTTP Authorization header. Allows bookmarked admin workflows
  *      and existing integrations to keep working.
  *
- *   4) Tenant routing — clients are silently redirected to their own
- *      /dashboard/<slug> when they hit any other path, so cross-tenant
- *      existence never leaks in the URL space.
+ *   4) Tenant routing:
+ *      - /dashboard/{slug}/*  — existing paths (maintained for bookmark compat)
+ *      - /{org-slug}/*        — new short URLs (redirected to /dashboard/{slug}/*)
+ *      - /admin/*             — admin-only; clients are bounced to their dashboard
+ *      - /switch              — workspace switcher (accessible to any authed user)
  *
  * Viewer kind is forwarded to the app via request headers
  * (`x-viewer-kind`, `x-viewer-client-slug`) so layouts/pages can hide
@@ -103,6 +106,17 @@ function passThrough(request: NextRequest, auth: Auth): NextResponse {
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
+/**
+ * Redirect a request to a new path, preserving search params.
+ * Always 301 (permanent) for SEO benefit on canonical redirects,
+ * 302 (temporary) for auth-driven redirects.
+ */
+function redirectTo(request: NextRequest, pathname: string, permanent = false): NextResponse {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  return NextResponse.redirect(url, permanent ? 301 : 302);
+}
+
 function isExemptPath(pathname: string): boolean {
   // Always open — clients need these to reach a login form without
   // first satisfying Basic Auth. Better Auth's social OAuth callback
@@ -138,10 +152,20 @@ function isExemptPath(pathname: string): boolean {
   return false;
 }
 
+/**
+ * Check if a pathname segment is a known client org slug.
+ * Used to detect /{org-slug}/* paths and redirect to /dashboard/{slug}/*.
+ * The slug list is derived from CLIENTS at build-time via client-slugs.ts
+ * to avoid importing the full config in Edge middleware.
+ */
+function isKnownOrgSlug(segment: string): boolean {
+  return CLIENT_SLUGS.includes(segment);
+}
+
 async function checkAuth(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
-  // 1. Exempt routes (login page, auth API) — always open.
+  // 1. Exempt routes (login page, auth API, public site) — always open.
   if (isExemptPath(pathname)) return NextResponse.next();
 
   // Safety fallback: if no credential env is set at all, let traffic
@@ -154,71 +178,101 @@ async function checkAuth(request: NextRequest): Promise<NextResponse> {
   const auth = cookie.kind !== "deny" ? cookie : resolveBasicAuth(request);
 
   // 3. Reject if neither path authenticated.
-  if (auth.kind === "deny") return denyResponse();
+  if (auth.kind === "deny") {
+    // Redirect to login for browser navigation (non-API, non-Basic-Auth).
+    const isApi = pathname.startsWith("/api/");
+    if (!isApi) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      url.search = `?next=${encodeURIComponent(pathname)}`;
+      return NextResponse.redirect(url, 302);
+    }
+    return denyResponse();
+  }
 
-  // 4. Admin: full passthrough.
+  // 4. /switch — workspace switcher; accessible to any authenticated user.
+  if (pathname === "/switch" || pathname === "/switch/") {
+    return passThrough(request, auth);
+  }
+
+  // 5. /admin/* — operator-only. Clients are bounced to their dashboard.
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+    if (auth.kind !== "admin") {
+      const slug =
+        auth.kind === "client"
+          ? auth.slug
+          : auth.kind === "client-multi"
+          ? auth.currentSlug
+          : null;
+      return redirectTo(request, slug ? `/dashboard/${slug}` : "/login");
+    }
+    return passThrough(request, auth);
+  }
+
+  // 6. /{org-slug}/* — short tenant URLs. 301-redirect to /dashboard/{slug}/*.
+  //    Admin users can also reach these paths (for impersonation etc.) —
+  //    redirect them too so the app logic lives in one place.
+  const firstSegment = pathname.split("/")[1] ?? "";
+  if (firstSegment && isKnownOrgSlug(firstSegment)) {
+    // Strip the leading /{slug} and map the rest of the path.
+    // /{slug}           → /dashboard/{slug}
+    // /{slug}/dashboard → /dashboard/{slug}
+    // /{slug}/ads       → /dashboard/{slug}/ads
+    // /{slug}/settings/members → /dashboard/{slug} (settings is new UI)
+    const rest = pathname.slice(firstSegment.length + 1); // after /{slug}
+    const restNorm = rest === "" || rest === "/" || rest === "/dashboard" ? "" : rest;
+    const target = `/dashboard/${firstSegment}${restNorm}`;
+    // Settings paths are new — forward to new-style pages under /dashboard
+    if (rest.startsWith("/settings")) {
+      return redirectTo(request, `/dashboard/${firstSegment}${rest}`, false);
+    }
+    return redirectTo(request, target, true);
+  }
+
+  // 7. Admin: full passthrough for all remaining paths.
   if (auth.kind === "admin") return passThrough(request, auth);
 
-  // 5. Multi-client: allow /dashboard/select and any slug in availableSlugs.
+  // 8. Multi-client: allow /dashboard/select and any slug in availableSlugs.
   if (auth.kind === "client-multi") {
     const { currentSlug, availableSlugs } = auth;
 
     if (pathname === "/dashboard/select") return passThrough(request, auth);
 
     if (pathname === "/dashboard" || pathname === "/dashboard/") {
-      const url = request.nextUrl.clone();
-      url.pathname = "/dashboard/select";
-      return NextResponse.redirect(url);
+      return redirectTo(request, "/dashboard/select");
     }
 
     if (pathname.startsWith("/dashboard/")) {
       const segments = pathname.split("/").filter(Boolean);
       const requestedSlug = segments[1];
-      // If the user navigated to a slug they have access to, honour it
-      // by updating the active slug in the forwarded headers. The session
-      // cookie itself is NOT re-signed here; the select page action does
-      // that when the user actively switches. For passive navigation the
-      // effective slug is derived from the URL.
       if (requestedSlug && availableSlugs.includes(requestedSlug)) {
         const adjusted: Auth = { kind: "client-multi", currentSlug: requestedSlug, availableSlugs };
         return passThrough(request, adjusted);
       }
-      // Slug not in their access list — bounce to select.
-      const url = request.nextUrl.clone();
-      url.pathname = "/dashboard/select";
-      return NextResponse.redirect(url);
+      return redirectTo(request, "/dashboard/select");
     }
 
     // Non-dashboard paths: bounce to select.
-    const url = request.nextUrl.clone();
-    url.pathname = `/dashboard/${currentSlug}`;
-    return NextResponse.redirect(url);
+    return redirectTo(request, `/dashboard/${currentSlug}`);
   }
 
-  // 6. Single-client: tenant-scope all paths. Redirects are silent (no 403)
-  //    so cross-tenant existence doesn't leak via error pages.
+  // 9. Single-client: tenant-scope all paths.
   const ownDash = `/dashboard/${auth.slug}`;
   if (pathname === "/dashboard" || pathname === "/dashboard/") {
-    const url = request.nextUrl.clone();
-    url.pathname = ownDash;
-    return NextResponse.redirect(url);
+    return redirectTo(request, ownDash);
   }
   if (pathname.startsWith("/dashboard/")) {
     const segments = pathname.split("/").filter(Boolean);
     const requestedSlug = segments[1];
     if (requestedSlug && requestedSlug !== auth.slug) {
-      const url = request.nextUrl.clone();
-      url.pathname = ownDash;
-      return NextResponse.redirect(url);
+      return redirectTo(request, ownDash);
     }
     return passThrough(request, auth);
   }
 
   // Non-dashboard paths (marketing site, admin-only areas): clients get
   // bounced to their own dashboard.
-  const url = request.nextUrl.clone();
-  url.pathname = ownDash;
-  return NextResponse.redirect(url);
+  return redirectTo(request, ownDash);
 }
 
 export default async function middleware(req: NextRequest): Promise<NextResponse> {
