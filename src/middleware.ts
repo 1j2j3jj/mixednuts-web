@@ -138,6 +138,7 @@ function isExemptPath(pathname: string): boolean {
     pathname === "/login" ||
     pathname.startsWith("/login/") ||
     pathname.startsWith("/api/auth/") ||
+    pathname === "/api/events" ||
     pathname === "/favicon.ico" ||
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml" ||
