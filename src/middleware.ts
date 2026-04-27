@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyCredentials, anyCredentialConfigured } from "@/lib/credentials";
 import { verifySession, COOKIE_NAME } from "@/lib/auth-cookie";
+import { verifyImpersonate, IMPERSONATE_COOKIE_NAME } from "@/lib/impersonate-cookie";
 import { CLIENT_SLUGS } from "@/config/client-slugs";
 
 /**
@@ -88,7 +89,7 @@ function denyResponse(): NextResponse {
   });
 }
 
-function passThrough(request: NextRequest, auth: Auth): NextResponse {
+async function passThrough(request: NextRequest, auth: Auth): Promise<NextResponse> {
   const requestHeaders = new Headers(request.headers);
   if (auth.kind === "admin") {
     requestHeaders.set("x-viewer-kind", "admin");
@@ -103,6 +104,17 @@ function passThrough(request: NextRequest, auth: Auth): NextResponse {
     requestHeaders.set("x-viewer-client-slug", auth.currentSlug);
     requestHeaders.set("x-viewer-available-slugs", auth.availableSlugs.join(","));
   }
+
+  // Impersonation overlay: admin has set mn_impersonate cookie.
+  // Forward the impersonated slug so the layout can show a banner.
+  if (auth.kind === "admin") {
+    const impToken = request.cookies.get(IMPERSONATE_COOKIE_NAME)?.value;
+    const imp = await verifyImpersonate(impToken);
+    if (imp) {
+      requestHeaders.set("x-impersonated-slug", imp.slug);
+    }
+  }
+
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
@@ -192,7 +204,7 @@ async function checkAuth(request: NextRequest): Promise<NextResponse> {
 
   // 4. /switch — workspace switcher; accessible to any authenticated user.
   if (pathname === "/switch" || pathname === "/switch/") {
-    return passThrough(request, auth);
+    return await passThrough(request, auth);
   }
 
   // 5. /admin/* — operator-only. Clients are bounced to their dashboard.
@@ -206,7 +218,7 @@ async function checkAuth(request: NextRequest): Promise<NextResponse> {
           : null;
       return redirectTo(request, slug ? `/dashboard/${slug}` : "/login");
     }
-    return passThrough(request, auth);
+    return await passThrough(request, auth);
   }
 
   // 6. /{org-slug}/* — short tenant URLs. 301-redirect to /dashboard/{slug}/*.
@@ -230,13 +242,13 @@ async function checkAuth(request: NextRequest): Promise<NextResponse> {
   }
 
   // 7. Admin: full passthrough for all remaining paths.
-  if (auth.kind === "admin") return passThrough(request, auth);
+  if (auth.kind === "admin") return await passThrough(request, auth);
 
   // 8. Multi-client: allow /dashboard/select and any slug in availableSlugs.
   if (auth.kind === "client-multi") {
     const { currentSlug, availableSlugs } = auth;
 
-    if (pathname === "/dashboard/select") return passThrough(request, auth);
+    if (pathname === "/dashboard/select") return await passThrough(request, auth);
 
     if (pathname === "/dashboard" || pathname === "/dashboard/") {
       return redirectTo(request, "/dashboard/select");
@@ -247,7 +259,7 @@ async function checkAuth(request: NextRequest): Promise<NextResponse> {
       const requestedSlug = segments[1];
       if (requestedSlug && availableSlugs.includes(requestedSlug)) {
         const adjusted: Auth = { kind: "client-multi", currentSlug: requestedSlug, availableSlugs };
-        return passThrough(request, adjusted);
+        return await passThrough(request, adjusted);
       }
       return redirectTo(request, "/dashboard/select");
     }
@@ -267,7 +279,7 @@ async function checkAuth(request: NextRequest): Promise<NextResponse> {
     if (requestedSlug && requestedSlug !== auth.slug) {
       return redirectTo(request, ownDash);
     }
-    return passThrough(request, auth);
+    return await passThrough(request, auth);
   }
 
   // Non-dashboard paths (marketing site, admin-only areas): clients get

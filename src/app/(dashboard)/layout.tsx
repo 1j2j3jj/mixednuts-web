@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import WorkspaceSwitcher, { type WorkspaceItem } from "@/components/dashboard/WorkspaceSwitcher";
+import ImpersonationBanner from "@/components/dashboard/ImpersonationBanner";
 import { CLIENTS, CLIENT_IDS } from "@/config/clients";
 
 /**
@@ -27,6 +28,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const h = await headers();
   const viewerKind = h.get("x-viewer-kind"); // "admin" | "client" | "client-multi" | null
   const isAdmin = viewerKind === "admin";
+
+  // Impersonation: admin may have mn_impersonate cookie active.
+  const impersonatedSlug = isAdmin ? (h.get("x-impersonated-slug") ?? null) : null;
+  const impersonatedClient = impersonatedSlug
+    ? Object.values(CLIENTS).find((c) => c.slug === impersonatedSlug) ?? null
+    : null;
 
   // Derive which "workspace" is currently active from the URL path.
   // next/headers doesn't expose the URL directly, but middleware sets the
@@ -75,6 +82,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="dashboard-scope min-h-screen bg-background text-foreground">
+      {/* Impersonation banner — above header, always visible */}
+      {impersonatedClient && (
+        <ImpersonationBanner
+          clientLabel={impersonatedClient.label}
+          exitHref="/api/auth/exit-impersonation"
+        />
+      )}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/80 px-6 backdrop-blur">
         <div className="flex items-center gap-3">
           <Link href="/" className="flex items-center gap-2">

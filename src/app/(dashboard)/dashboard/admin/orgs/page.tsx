@@ -98,12 +98,17 @@ export default async function AdminOrgsPage() {
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
                       {cfg.active && (
-                        <Link
-                          href={`/dashboard/${cfg.slug}`}
-                          className="text-xs text-neutral-500 underline hover:text-neutral-900"
+                        <form
+                          method="POST"
+                          action={`/dashboard/admin/orgs/${cfg.slug}/impersonate`}
                         >
-                          表示
-                        </Link>
+                          <button
+                            type="submit"
+                            className="text-xs text-amber-700 underline hover:text-amber-900"
+                          >
+                            閲覧
+                          </button>
+                        </form>
                       )}
                       <Link
                         href={`/dashboard/admin/clients/${id}`}
