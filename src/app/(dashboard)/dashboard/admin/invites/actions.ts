@@ -330,6 +330,13 @@ export interface PerInviteOutcome {
 export interface CreateInvitesResult {
   ok: boolean;
   results: PerInviteOutcome[];
+  /**
+   * Single URL covering ALL successful invitations. Recipient clicks once,
+   * /api/auth/accept-invitation enrolls them into every selected org in one
+   * flow, then drops them on /dashboard/select. Only present when 2+ invites
+   * succeeded; for a single invite use results[0].link.
+   */
+  combinedLink?: string;
 }
 
 export async function createInvites(input: CreateInvitesInput): Promise<CreateInvitesResult> {
@@ -370,9 +377,19 @@ export async function createInvites(input: CreateInvitesInput): Promise<CreateIn
       });
     }
   }
+
+  const successInvitationIds = results
+    .filter((r) => r.ok && r.invitationId)
+    .map((r) => r.invitationId as string);
+  const combinedLink =
+    successInvitationIds.length >= 2
+      ? `${baseURL}/api/auth/accept-invitation?ids=${successInvitationIds.join(",")}`
+      : undefined;
+
   return {
     ok: results.every((r) => r.ok),
     results,
+    combinedLink,
   };
 }
 

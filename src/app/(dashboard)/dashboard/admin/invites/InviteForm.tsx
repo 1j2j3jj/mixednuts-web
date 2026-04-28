@@ -12,7 +12,11 @@ interface ClientOption {
 
 type InviteResult =
   | { kind: "ok-single"; link: string }
-  | { kind: "ok-bulk"; results: Array<{ clientId: ClientId; label: string; link?: string; error?: string; ok: boolean }> }
+  | {
+      kind: "ok-bulk";
+      results: Array<{ clientId: ClientId; label: string; link?: string; error?: string; ok: boolean }>;
+      combinedLink?: string;
+    }
   | { kind: "err"; msg: string }
   | null;
 
@@ -67,7 +71,7 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
         router.refresh();
         return;
       }
-      // Multi-client: bulk action returns per-org outcomes.
+      // Multi-client: bulk action returns per-org outcomes + combinedLink.
       const res = await createInvites({ clientIds: ids, email, role });
       const enriched = res.results.map((r) => ({
         clientId: r.clientId,
@@ -76,7 +80,7 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
         error: r.error,
         ok: r.ok,
       }));
-      setStatus({ kind: "ok-bulk", results: enriched });
+      setStatus({ kind: "ok-bulk", results: enriched, combinedLink: res.combinedLink });
       if (res.ok) {
         setEmail("");
       }
@@ -187,28 +191,51 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
       {status?.kind === "ok-bulk" && (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
           <div className="mb-2 font-medium">
-            一括招待結果（{status.results.filter((r) => r.ok).length} / {status.results.length} 件 成功）:
+            一括招待結果（{status.results.filter((r) => r.ok).length} / {status.results.length} 件 成功）
           </div>
-          <ul className="space-y-2">
-            {status.results.map((r) => (
-              <li key={r.clientId} className="rounded bg-white p-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold">{r.label}</span>
-                  <span className={r.ok ? "text-emerald-700" : "text-rose-700"}>
-                    {r.ok ? "✓" : "✗"}
-                  </span>
-                </div>
-                {r.link && (
-                  <code className="mt-1 block break-all text-emerald-700">
-                    {r.link}
-                  </code>
-                )}
-                {r.error && (
-                  <div className="mt-1 text-rose-700">{r.error}</div>
-                )}
-              </li>
-            ))}
-          </ul>
+
+          {status.combinedLink && (
+            <div className="mb-3 rounded-md border border-emerald-300 bg-white p-3">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                  統合招待リンク（推奨・1 本でまとめて承認可）
+                </span>
+                <CopyLinkButton link={status.combinedLink} />
+              </div>
+              <code className="block break-all rounded bg-emerald-50 p-2 text-emerald-800">
+                {status.combinedLink}
+              </code>
+              <p className="mt-1.5 text-[11px] leading-snug text-neutral-600">
+                受信者がこの 1 本のリンクをクリックすると、上記{status.results.filter((r) => r.ok).length} 件すべてに同時に参加し、ダッシュボード選択画面 (/dashboard/select) に進みます。
+              </p>
+            </div>
+          )}
+
+          <details className="mb-1">
+            <summary className="cursor-pointer text-[11px] text-neutral-600 hover:text-neutral-800">
+              個別リンクを開く（必要な場合のみ）
+            </summary>
+            <ul className="mt-2 space-y-2">
+              {status.results.map((r) => (
+                <li key={r.clientId} className="rounded bg-white p-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">{r.label}</span>
+                    <span className={r.ok ? "text-emerald-700" : "text-rose-700"}>
+                      {r.ok ? "✓" : "✗"}
+                    </span>
+                  </div>
+                  {r.link && (
+                    <code className="mt-1 block break-all text-emerald-700">
+                      {r.link}
+                    </code>
+                  )}
+                  {r.error && (
+                    <div className="mt-1 text-rose-700">{r.error}</div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </details>
         </div>
       )}
 
