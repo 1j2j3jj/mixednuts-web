@@ -915,6 +915,7 @@ export default function ClientDetailTabs({
   pendingInvites,
   orgMembers,
   credStatus,
+  credInfo,
   quota,
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("access");

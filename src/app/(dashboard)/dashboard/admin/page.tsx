@@ -80,6 +80,12 @@ export default async function AdminIndexPage() {
           >
             監査ログ
           </Link>
+          <Link
+            href="/dashboard/admin/masters"
+            className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium hover:bg-neutral-50"
+          >
+            マスタ管理
+          </Link>
         </div>
       </div>
 
