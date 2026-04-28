@@ -15,6 +15,10 @@ export default function DashboardTabs({ slug }: Props) {
     { href: `/dashboard/${slug}/ads`, label: "広告詳細" },
     { href: `/dashboard/${slug}/drill`, label: "フィルター詳細" },
     { href: `/dashboard/${slug}/insights`, label: "商品・検索" },
+    // メンバー = Org 内のユーザー招待・管理。
+    // クライアント Org Owner/Admin と mixednuts admin の両方がアクセス可。
+    // ページ側 (/settings/members) で role ベースの読み取り専用 vs 編集可を切替。
+    { href: `/dashboard/${slug}/settings/members`, label: "メンバー" },
   ];
   return (
     <nav className="flex gap-1 border-b">
