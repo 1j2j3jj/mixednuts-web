@@ -305,6 +305,77 @@ export async function createInvite(input: CreateInviteInput): Promise<CreateInvi
   return { ok: true, link, invitationId: id };
 }
 
+/**
+ * Bulk version of createInvite. Creates one invitation per clientId for the
+ * same email + role. Returns per-client result so the UI can show partial
+ * success (e.g., 5 invitations created, 1 failed because the org is missing).
+ *
+ * Use case: CEO grants the same partner email access to multiple
+ * client dashboards in one form submission.
+ */
+export interface CreateInvitesInput {
+  clientIds: ClientId[];
+  email: string;
+  role?: "admin" | "member";
+}
+
+export interface PerInviteOutcome {
+  clientId: ClientId;
+  ok: boolean;
+  link?: string;
+  invitationId?: string;
+  error?: string;
+}
+
+export interface CreateInvitesResult {
+  ok: boolean;
+  results: PerInviteOutcome[];
+}
+
+export async function createInvites(input: CreateInvitesInput): Promise<CreateInvitesResult> {
+  await assertAdmin();
+  const email = input.email.trim().toLowerCase();
+  if (!email || !email.includes("@")) {
+    return {
+      ok: false,
+      results: input.clientIds.map((cid) => ({
+        clientId: cid,
+        ok: false,
+        error: "有効なメールアドレスを入力してください",
+      })),
+    };
+  }
+  if (!input.clientIds.length) {
+    return { ok: false, results: [] };
+  }
+  // Dedupe clientIds to avoid duplicate invitation rows for the same org.
+  const uniqueIds = Array.from(new Set(input.clientIds));
+
+  const results: PerInviteOutcome[] = [];
+  for (const clientId of uniqueIds) {
+    try {
+      const r = await createInvite({ clientId, email, role: input.role });
+      results.push({
+        clientId,
+        ok: r.ok,
+        link: r.link,
+        invitationId: r.invitationId,
+        error: r.error,
+      });
+    } catch (err) {
+      results.push({
+        clientId,
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+  return {
+    ok: results.every((r) => r.ok),
+    results,
+  };
+}
+
 export async function revokeInvite(id: string): Promise<{ ok: boolean; error?: string }> {
   await assertAdmin();
   await db
