@@ -155,7 +155,7 @@ export async function runClientHealthCheck(clientId: ClientId): Promise<ClientHe
   const [adsResult, targetsResult, eccubeResult, ga4Result, gscResult] = await Promise.all([
     checkSheet(ds?.sheetId, ds?.rawAdsRange, "広告 raw Sheet"),
     checkSheet(ds?.targetsSheetId, ds?.targetsRange, "目標 Sheet"),
-    checkSheet(ds?.eccubeSheetId, ds?.eccubeRange, "ECCUBE Sheet"),
+    checkSheet(ds?.eccubeSheetId, ds?.eccubeRange, "外部CV Sheet"),
     checkGa4(c.ga4PropertyId),
     checkGsc(c.gscSiteUrl),
   ]);

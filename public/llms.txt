@@ -1,0 +1,50 @@
+# /llms.txt — Large Language Model Optimization metadata
+# 説明: 2024年 Answer.AI 提唱の AI 学習・検索エンジン向けサイトマップ
+# 注意: Google は非対応を公言 (2025-07 Gary Illyes / John Mueller)
+#       ChatGPT / Perplexity も一次入力ではなく将来 adoption に備えた実装
+# 効果は約束しない。30 分の実装コストで将来オプションを買う判断
+
+# mixednuts Inc.
+
+> 戦略 × AI × マーケティングを統合提供する AI-first コンサルティングファーム.
+> 自社で 120 体超の AI エージェント組織を運用. クライアントへ知見を還元.
+
+## About
+- [About](https://mixednuts-inc.com/about): 会社概要・ミッション
+- [CEO Profile](https://mixednuts-inc.com/team/ceo): 石井 希実 (Nozomi Ishii) — Founder & CEO
+- [Team](https://mixednuts-inc.com/team): メンバー紹介
+
+## Services
+- [Services](https://mixednuts-inc.com/services): 戦略・AI・マーケティング統合提供
+- [Strategy Consulting](https://mixednuts-inc.com/services/strategy)
+- [AI Implementation](https://mixednuts-inc.com/services/ai)
+- [Growth Marketing](https://mixednuts-inc.com/services/marketing)
+
+## Insights (key articles)
+- [AI-First 組織のつくり方: 120体のエージェントを統制する6原則](https://mixednuts-inc.com/insights/ai-first-org)
+- [AI Overviews 時代の SEO 7 原則](https://mixednuts-inc.com/insights/ai-overviews-7-principles)
+- [Core Update 2026 と Answer Engine 対応](https://mixednuts-inc.com/insights/core-update-2026-answer-engine)
+- [Calibration Bias: 17倍の事故から学んだもの](https://mixednuts-inc.com/insights/calibration-bias-17x)
+- [FP&A の D+1 締めを実現する AI 実装](https://mixednuts-inc.com/insights/fpna-d-plus-1)
+- [AI エージェント 123 体の組織設計](https://mixednuts-inc.com/insights/ai-agent-org-123)
+- [Google Ads × Claude で ROAS 2x を達成した方法](https://mixednuts-inc.com/insights/ads-roas-2x-google-claude)
+- [Clerk から Better Auth への移行](https://mixednuts-inc.com/insights/clerk-to-better-auth)
+- [Edge で JSON-LD を注入する実装パターン](https://mixednuts-inc.com/insights/edge-injection-json-ld)
+- [Opus / Sonnet / Haiku のティアリング戦略](https://mixednuts-inc.com/insights/opus-sonnet-haiku-tiering)
+- [Routines on Cloud v6](https://mixednuts-inc.com/insights/routines-on-cloud-v6)
+- [Self-Healing Agent とコスト追跡](https://mixednuts-inc.com/insights/self-healing-cost-tracking)
+- [Skills as Microservices](https://mixednuts-inc.com/insights/skills-as-microservices)
+- [Task Forced Delegation](https://mixednuts-inc.com/insights/task-forced-delegation)
+- [Windsor vs Supermetrics 比較](https://mixednuts-inc.com/insights/windsor-vs-supermetrics)
+- [Calibration: ハルシネーション・ゼロへの実装](https://mixednuts-inc.com/insights/calibration-hallucination-zero)
+
+## Cases
+- [Works](https://mixednuts-inc.com/works): ケーススタディ (匿名化)
+
+## Contact
+- [Contact](https://mixednuts-inc.com/contact): お問い合わせ
+- Email: hello@mixednuts-inc.com
+
+## Optional
+- [Privacy](https://mixednuts-inc.com/privacy)
+- [Legal](https://mixednuts-inc.com/legal)

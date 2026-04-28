@@ -16,7 +16,7 @@ import {
 import type { OrgQuota } from "../../actions";
 import HealthCheckButton from "../../HealthCheckButton";
 
-type Tab = "overview" | "access" | "quota" | "datasources" | "credentials" | "danger";
+type Tab = "access" | "datasources" | "danger";
 
 interface Props {
   clientId: ClientId;
@@ -58,6 +58,8 @@ function CopyButton({ text, label = "コピー" }: { text: string; label?: strin
 // ---------------------------------------------------------------------------
 // Overview Tab
 // ---------------------------------------------------------------------------
+// Retained for reference (was the 概要 tab, removed 2026-04-28). Not rendered.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function OverviewTab({ client }: { client: ClientConfig }) {
   const ds = client.dataSource;
   return (
@@ -95,7 +97,7 @@ function OverviewTab({ client }: { client: ClientConfig }) {
           <div className="mt-2 grid gap-2 text-sm">
             <Row label="Sheet ID (Raw Ads)" value={ds.sheetId} mono />
             {ds.targetsSheetId && <Row label="Sheet ID (Targets)" value={ds.targetsSheetId} mono />}
-            {ds.eccubeSheetId && <Row label="Sheet ID (ECCUBE)" value={ds.eccubeSheetId} mono />}
+            {ds.eccubeSheetId && <Row label="Sheet ID (外部CV)" value={ds.eccubeSheetId} mono />}
             {client.ga4PropertyId && <Row label="GA4 Property ID" value={client.ga4PropertyId} mono />}
             {client.gscSiteUrl && <Row label="GSC Site URL" value={client.gscSiteUrl} mono />}
           </div>
@@ -453,7 +455,7 @@ function DataSourcesTab({ client }: { client: ClientConfig }) {
       hint: ds?.targetsSheetId ?? "未設定",
     },
     {
-      name: "ECCUBE Sheet",
+      name: "外部CV Sheet",
       configured: Boolean(ds?.eccubeSheetId),
       link: ds?.eccubeSheetId
         ? `https://docs.google.com/spreadsheets/d/${ds.eccubeSheetId}/edit`
@@ -595,7 +597,7 @@ function CredentialsTab({
     <div className="space-y-6 max-w-2xl">
       {/* Current status */}
       <div>
-        <h3 className="text-sm font-semibold text-neutral-900">現在の Basic Auth (IDPW) 状態</h3>
+        <h3 className="text-sm font-semibold text-neutral-900">登録状態</h3>
         <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {/* DB */}
           <div className={`rounded-md border px-3 py-2 ${credInfo.hasDbCredentials ? "border-emerald-300 bg-emerald-50" : "border-neutral-200"}`}>
@@ -899,11 +901,8 @@ function DangerZoneTab({ client }: { client: ClientConfig }) {
 // Main exported component
 // ---------------------------------------------------------------------------
 const TABS: { id: Tab; label: string }[] = [
-  { id: "overview", label: "概要" },
   { id: "access", label: "アクセス管理" },
-  { id: "quota", label: "クォータ" },
   { id: "datasources", label: "データソース" },
-  { id: "credentials", label: "クレデンシャル" },
   { id: "danger", label: "Danger Zone" },
 ];
 
@@ -942,21 +941,61 @@ export default function ClientDetailTabs({
 
       {/* Tab content */}
       <div className="pt-4">
-        {activeTab === "overview" && <OverviewTab client={client} />}
         {activeTab === "access" && (
-          <AccessTab
-            clientId={clientId}
-            client={client}
-            access={access}
-            org={org}
-            pendingInvites={pendingInvites}
-            orgMembers={orgMembers}
-          />
+          <div className="space-y-10">
+            {/* OAuth: Org メンバー / 招待 */}
+            <AccessTab
+              clientId={clientId}
+              client={client}
+              access={access}
+              org={org}
+              pendingInvites={pendingInvites}
+              orgMembers={orgMembers}
+            />
+
+            {/* アクセス上限 (旧クォータタブ) */}
+            <section className="border-t border-neutral-200 pt-6">
+              <h2 className="text-base font-semibold text-neutral-900">アクセス上限</h2>
+              <p className="mt-0.5 text-xs text-neutral-500">
+                Organization 単位のメンバー数 / 管理者数の上限。空欄 = 無制限。
+              </p>
+              <div className="mt-4">
+                <QuotaTab client={client} quota={quota} />
+              </div>
+            </section>
+
+            {/* ID / パスワード認証 (旧クレデンシャルタブ) */}
+            <section className="border-t border-neutral-200 pt-6">
+              <h2 className="text-base font-semibold text-neutral-900">ID / パスワード認証</h2>
+              <p className="mt-0.5 text-xs text-neutral-500">
+                Google ログインを使わない簡易ログイン用。クライアントダッシュボード（/dashboard/{client.slug}）の Basic Auth 認証情報。
+              </p>
+              <div className="mt-4">
+                <CredentialsTab clientId={clientId} client={client} credStatus={credStatus} credInfo={credInfo} />
+              </div>
+            </section>
+          </div>
         )}
-        {activeTab === "quota" && <QuotaTab client={client} quota={quota} />}
-        {activeTab === "datasources" && <DataSourcesTab client={client} />}
-        {activeTab === "credentials" && (
-          <CredentialsTab clientId={clientId} client={client} credStatus={credStatus} credInfo={credInfo} />
+        {activeTab === "datasources" && (
+          <div className="space-y-10">
+            <DataSourcesTab client={client} />
+
+            {/* 月次目標フォールバック値 (旧 概要タブから移設) */}
+            <section className="border-t border-neutral-200 pt-6">
+              <h2 className="text-base font-semibold text-neutral-900">月次目標（フォールバック値）</h2>
+              <p className="mt-0.5 text-xs text-neutral-500">
+                通常は目標 Sheet の値が優先されます。Sheet 未設定 / 取得失敗時に使うフォールバック。
+                編集は <code className="font-mono">src/config/clients.ts</code> + git commit が必要（Phase 3 で DB 化予定）。
+              </p>
+              <div className="mt-3 grid gap-2 text-sm">
+                <Row label="Revenue" value={`¥${client.monthlyTargets.revenue.toLocaleString()}`} />
+                <Row label="Conversions" value={`${client.monthlyTargets.conversions}`} />
+                <Row label="Ad Spend Budget" value={`¥${client.monthlyTargets.adSpendBudget.toLocaleString()}`} />
+                <Row label="Target ROAS" value={`${client.monthlyTargets.roasPct}%`} />
+                <Row label="Target CPA" value={`¥${client.monthlyTargets.cpa.toLocaleString()}`} />
+              </div>
+            </section>
+          </div>
         )}
         {activeTab === "danger" && <DangerZoneTab client={client} />}
       </div>
