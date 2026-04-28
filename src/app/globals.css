@@ -178,7 +178,12 @@ body {
    but the mark sits on a separate fixed layer above .nav — unaffected. */
 .nav-mark {
   position: fixed;
-  top: 22px; left: 40px;
+  top: 22px;
+  /* Align with .nav-inner left edge on wide screens (e.g. Windows 1920px+).
+     .nav-inner has max-width: 1600px centered inside .nav (padding 0 40px),
+     so on viewports > 1680px, peanut mark must shift right to stay adjacent
+     to the wordmark. On smaller screens, stays at 40px (matches .nav padding-left). */
+  left: max(40px, calc((100vw - 1680px) / 2 + 40px));
   z-index: 101;
   display: block;
   line-height: 0;
@@ -528,6 +533,10 @@ body {
   margin: 0 auto 48px;
   max-width: 560px;
   line-height: 1.8;
+  /* Prevent Japanese mid-word breaks like 「話すこ / とから」 */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 .cta .btn-primary {
   background: #fff;

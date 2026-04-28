@@ -8,7 +8,7 @@ const visibleWorks = CASES_COMING_SOON ? [] : works.filter((w) => !w.hidden);
 export const metadata: Metadata = {
   title: "Works — 数字で語る、実績ケース",
   description:
-    "上場企業の経営管理から D2C のグロースまで、戦略・AI・マーケティングを横断したクライアントワーク。個別社名は守秘義務により非公開。NDA 締結後に類似案件の事例を共有。",
+    "上場企業の経営管理から D2C のグロースまで、戦略・AI・マーケティングを横断したクライアントワーク。実績ケースは現在準備中で、匿名化のうえ順次公開していきます。",
 };
 
 export default function WorksPage() {
@@ -77,7 +77,7 @@ export default function WorksPage() {
             <span style={{ display: "block" }}><span className="accent">実績ケース</span>。</span>
           </h1>
           <p className="lead">
-            上場企業の経営管理から D2C のグロースまで、戦略・AI・マーケティングを横断して関与してきました。個別社名は守秘義務のため伏せていますが、領域・規模・関与の深さは下記のとおりです。詳細ケースは NDA 締結後に個別共有します。
+            上場企業の経営管理から D2C のグロースまで、戦略・AI・マーケティングを横断して関与してきました。実績ケースの一覧は現在準備中で、匿名化のうえ順次公開していきます。領域・規模・関与の深さは下記のとおりです。
           </p>
         </div>
       </section>
@@ -178,8 +178,8 @@ export default function WorksPage() {
                 color: "#4B5563", fontSize: 14, lineHeight: 1.9, maxWidth: 680,
                 margin: "0 auto 28px", wordBreak: "keep-all"
               }}>
-                個別ケースは守秘義務のためサイト上では公開していません。<br />
-                類似案件の関与内容・成果は NDA 締結後に共有しています。
+                個別ケースは現在準備中で、匿名化のうえ順次公開していきます。<br />
+                類似案件の関与内容・成果はお気軽にご相談ください。
               </p>
               <Link href="/contact" className="btn-primary">課題を相談する →</Link>
             </div>

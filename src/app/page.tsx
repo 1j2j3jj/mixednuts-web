@@ -606,21 +606,21 @@ export default function HomePage() {
                 fontFamily: "'Archivo', sans-serif", fontSize: 11, letterSpacing: "0.2em",
                 color: "var(--charcoal)", opacity: 0.5, fontWeight: 700, marginBottom: 20
               }}>
-                NDA PROTECTED
+                COMING SOON
               </div>
               <h3 style={{
                 fontFamily: "'Noto Sans JP', sans-serif", fontSize: "clamp(26px, 3.6vw, 38px)",
                 fontWeight: 900, color: "var(--charcoal)", lineHeight: 1.4,
                 marginBottom: 20, wordBreak: "keep-all", letterSpacing: "-0.02em"
               }}>
-                個別ケースは<br />守秘義務のため非公開です。
+                ケース紹介は<br />現在準備中です。
               </h3>
               <p style={{
                 color: "#4B5563", fontSize: 14, lineHeight: 1.9, maxWidth: 520,
                 margin: "0 auto 32px", wordBreak: "keep-all"
               }}>
                 関与領域・規模感は <Link href="/works" style={{ color: "var(--charcoal)", textDecoration: "underline" }}>Works ページ</Link> をご覧ください。<br />
-                類似案件の事例は NDA 締結後にご共有します。
+                匿名化のうえ順次公開していきます。
               </p>
               <Link href="/contact" className="btn-primary">課題を相談する →</Link>
             </div>

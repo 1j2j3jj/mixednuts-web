@@ -58,7 +58,7 @@ export default function LegalPage() {
           <a href="#tokusho" className="tab-link">特定商取引法に基づく表記</a>
           <a href="#terms" className="tab-link">利用規約</a>
           <a href="#disclaimer" className="tab-link">免責事項</a>
-          <a href="#copyright" className="tab-link">著作権・商標</a>
+          <a href="#copyright" className="tab-link">著作権</a>
         </div>
       </nav>
 
@@ -97,7 +97,7 @@ export default function LegalPage() {
           <h3>第5条（禁止事項）</h3>
           <ul>
             <li>当社の許可なく成果物を第三者に再配布・販売すること</li>
-            <li>当社のブランド・商標を無断で使用すること</li>
+            <li>当社のブランド・商号・ロゴを無断で使用すること</li>
             <li>虚偽の情報を提供して本サービスを利用すること</li>
             <li>法令または公序良俗に反する目的で本サービスを利用すること</li>
           </ul>
@@ -113,10 +113,10 @@ export default function LegalPage() {
           </ul>
           <p>当社の損害賠償責任は、当該案件において受領した報酬総額を上限とします。</p>
 
-          <h2 id="copyright">著作権・商標</h2>
+          <h2 id="copyright">著作権</h2>
           <p>本ウェブサイト上のすべてのコンテンツ（テキスト、画像、デザイン、ロゴ等）はミックスナッツ株式会社に帰属し、著作権法によって保護されています。</p>
-          <p>「mixednuts」「ミックスナッツ」および関連するロゴは当社の商標です。無断使用を禁止します。</p>
-          <p>本ウェブサイトのコンテンツを引用する場合は、出典を明記し、当社への事前連絡をお願いします。商業目的での無断転載・複製は禁止します。</p>
+          <p>「mixednuts」「ミックスナッツ」は当社の商号です。当社の商号・ブランド・ロゴの無断使用、商業目的での無断転載・複製は禁止します。</p>
+          <p>本ウェブサイトのコンテンツを引用する場合は、出典を明記し、当社への事前連絡をお願いします。</p>
           <p>お問い合わせ: <a href="mailto:hello@mixednuts-inc.com" style={{color: 'var(--navy)', textDecoration: 'underline'}}>hello@mixednuts-inc.com</a></p>
 
         </div>
