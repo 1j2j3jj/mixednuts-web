@@ -97,7 +97,51 @@ async function _runQuery(client: string): Promise<DailyRow[]> {
     `;
   });
 
-  const sql = selects.join("\nUNION ALL\n") + "\nORDER BY date, media, campaign_id, ad_group_id";
+  // LEFT JOIN campaign_master so utm_campaign overrides campaign_name where
+  // a master entry exists. Specificity: ad_id > adgroup_id > campaign_id-only.
+  // Empty (utm_campaign NULL) entries fall through to the original campaign_name.
+  const sql = `
+    WITH ads AS (
+      ${selects.join("\nUNION ALL\n")}
+    )
+    SELECT
+      a.date,
+      a.media,
+      a.campaign_id,
+      COALESCE(
+        cm_ad.utm_campaign,
+        cm_adg.utm_campaign,
+        cm_cpn.utm_campaign,
+        a.campaign_name
+      ) AS campaign_name,
+      a.ad_group_id,
+      a.ad_group_name,
+      a.cost,
+      a.impressions,
+      a.clicks,
+      a.conversions,
+      a.conversions_value,
+      -- utm_* echoed for transparency (debug / future explicit JOIN)
+      COALESCE(cm_ad.utm_source, cm_adg.utm_source, cm_cpn.utm_source) AS utm_source,
+      COALESCE(cm_ad.utm_medium, cm_adg.utm_medium, cm_cpn.utm_medium) AS utm_medium
+    FROM ads a
+    LEFT JOIN \`${project}.${client}_marts.campaign_master\` cm_ad
+      ON LOWER(cm_ad.media) = LOWER(a.media)
+      AND cm_ad.platform_campaign_id = a.campaign_id
+      AND cm_ad.platform_adgroup_id = a.ad_group_id
+      AND cm_ad.platform_ad_id IS NOT NULL
+    LEFT JOIN \`${project}.${client}_marts.campaign_master\` cm_adg
+      ON LOWER(cm_adg.media) = LOWER(a.media)
+      AND cm_adg.platform_campaign_id = a.campaign_id
+      AND cm_adg.platform_adgroup_id = a.ad_group_id
+      AND cm_adg.platform_ad_id IS NULL
+    LEFT JOIN \`${project}.${client}_marts.campaign_master\` cm_cpn
+      ON LOWER(cm_cpn.media) = LOWER(a.media)
+      AND cm_cpn.platform_campaign_id = a.campaign_id
+      AND cm_cpn.platform_adgroup_id IS NULL
+      AND cm_cpn.platform_ad_id IS NULL
+    ORDER BY a.date, a.media, a.campaign_id, a.ad_group_id
+  `;
 
   const bq = getBigQuery();
   const [job] = await bq.createQueryJob({
