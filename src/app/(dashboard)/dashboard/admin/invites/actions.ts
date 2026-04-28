@@ -160,6 +160,10 @@ export interface MemberRow {
   name: string;
   role: string;
   joinedAt: Date;
+  /** Last successful login by this user (any org). NULL = never recorded. */
+  lastLoginAt: Date | null;
+  /** Set when membership was auto-blocked by inactivity cron. */
+  blockedAt: Date | null;
 }
 
 /** List org members for a specific client (by client slug). */
@@ -176,6 +180,8 @@ export async function listOrgMembersForClient(clientSlug: string): Promise<Membe
       name: userTable.name,
       role: member.role,
       joinedAt: member.createdAt,
+      lastLoginAt: userTable.lastLoginAt,
+      blockedAt: member.blockedAt,
     })
     .from(member)
     .leftJoin(userTable, eq(member.userId, userTable.id))
@@ -187,7 +193,48 @@ export async function listOrgMembersForClient(clientSlug: string): Promise<Membe
     name: r.name ?? "",
     role: r.role,
     joinedAt: r.joinedAt,
+    lastLoginAt: r.lastLoginAt,
+    blockedAt: r.blockedAt,
   }));
+}
+
+/**
+ * Re-activate a member that was blocked by the inactivity cron.
+ * Clears member.blockedAt AND resets user.lastLoginAt = now() so the next
+ * cron pass doesn't immediately re-block them.
+ */
+export async function activateMember(memberId: string): Promise<{ ok: boolean; error?: string }> {
+  await assertAdmin();
+  const rows = await db
+    .select({ id: member.id, userId: member.userId, orgId: member.organizationId })
+    .from(member)
+    .where(eq(member.id, memberId));
+  if (!rows.length) return { ok: false, error: "メンバーが見つかりません" };
+
+  const m = rows[0];
+  await db.update(member).set({ blockedAt: null }).where(eq(member.id, memberId));
+  await db.update(userTable).set({ lastLoginAt: new Date() }).where(eq(userTable.id, m.userId));
+
+  // Audit
+  let orgSlug: string | undefined;
+  const orgRows = await db
+    .select({ slug: organization.slug })
+    .from(organization)
+    .where(eq(organization.id, m.orgId));
+  orgSlug = orgRows[0]?.slug ?? undefined;
+  const actorEmail =
+    (process.env.ADMIN_EMAILS ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)[0] ?? "admin@mixednuts-inc.com";
+  await writeAuditLog({
+    actorEmail,
+    targetOrgId: m.orgId,
+    targetOrgSlug: orgSlug,
+    action: "member.activated",
+    metadata: { memberId },
+  });
+  return { ok: true };
 }
 
 export async function removeMember(memberId: string): Promise<{ ok: boolean; error?: string }> {

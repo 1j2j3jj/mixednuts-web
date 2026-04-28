@@ -6,7 +6,7 @@ import {
   member as memberTable,
   organization as organizationTable,
 } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 
 /**
  * Google OAuth → internal role mapping.
@@ -49,7 +49,10 @@ function parseEmailList(raw: string | undefined): string[] {
  * rows. A user can be a member of multiple orgs → multi-client login.
  */
 async function resolveByDbMembership(normalisedEmail: string): Promise<ClientMatch[]> {
-  // Single round-trip: user → member → organization
+  // Single round-trip: user → member → organization, filtering out
+  // memberships marked blocked_at (inactivity lifecycle, 2026-04-28).
+  // Blocked memberships are denied at this layer; admin can re-activate by
+  // clearing blocked_at via /dashboard/admin/clients/[id] activate UI.
   const rows = await db
     .select({
       orgSlug: organizationTable.slug,
@@ -57,7 +60,12 @@ async function resolveByDbMembership(normalisedEmail: string): Promise<ClientMat
     .from(userTable)
     .innerJoin(memberTable, eq(memberTable.userId, userTable.id))
     .innerJoin(organizationTable, eq(organizationTable.id, memberTable.organizationId))
-    .where(eq(userTable.email, normalisedEmail));
+    .where(
+      and(
+        eq(userTable.email, normalisedEmail),
+        isNull(memberTable.blockedAt)
+      )
+    );
 
   if (rows.length === 0) return [];
 

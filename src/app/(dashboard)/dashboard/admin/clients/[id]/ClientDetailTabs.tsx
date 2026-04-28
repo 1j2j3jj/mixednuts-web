@@ -6,7 +6,7 @@ import type { ClientConfig, ClientId } from "@/config/clients";
 import type { ClientAccess } from "../../actions";
 import type { OrgSummary, InviteRow, MemberRow } from "../../invites/actions";
 import type { EnvStatus } from "../../actions";
-import { createInvite, revokeInvite, removeMember } from "../../invites/actions";
+import { createInvite, revokeInvite, removeMember, activateMember } from "../../invites/actions";
 import { generateClientPassword, updateOrgQuota } from "../../actions";
 import type { OrgQuota } from "../../actions";
 import HealthCheckButton from "../../HealthCheckButton";
@@ -287,6 +287,34 @@ function AccessTab({
                 <span className="text-xs text-muted-foreground">
                   {m.joinedAt.toLocaleDateString("ja-JP")} 参加
                 </span>
+                {m.blockedAt && (
+                  <span
+                    className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800"
+                    title={`${m.blockedAt.toLocaleDateString("ja-JP")} ブロック (6 ヶ月以上未ログイン)`}
+                  >
+                    ブロック中
+                  </span>
+                )}
+                {m.lastLoginAt && (
+                  <span className="text-xs text-muted-foreground">
+                    最終 {m.lastLoginAt.toLocaleDateString("ja-JP")}
+                  </span>
+                )}
+                {m.blockedAt && (
+                  <button
+                    type="button"
+                    disabled={removePending}
+                    onClick={() =>
+                      startRemoveTransition(async () => {
+                        await activateMember(m.id);
+                        router.refresh();
+                      })
+                    }
+                    className="rounded border border-emerald-300 bg-white px-2 py-0.5 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
+                  >
+                    アクティベート
+                  </button>
+                )}
                 {m.role !== "owner" && (
                   <button
                     type="button"

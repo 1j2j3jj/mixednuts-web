@@ -41,6 +41,11 @@ export const user = pgTable("user", {
   banned: boolean("banned"),
   banReason: text("ban_reason"),
   banExpires: timestamp("ban_expires"),
+
+  // 2026-04-28: track last successful authentication for inactivity-based
+  // membership block (6 months idle → blocked, +6 months → deleted).
+  // Updated by /login/success, /api/auth/accept-invitation, /api/auth/login.
+  lastLoginAt: timestamp("last_login_at"),
 });
 
 export const session = pgTable("session", {
@@ -115,6 +120,13 @@ export const member = pgTable("member", {
     .references(() => user.id, { onDelete: "cascade" }),
   role: text("role").notNull().default("member"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+
+  // 2026-04-28: inactivity-based block / delete lifecycle.
+  // blockedAt = NULL → active.
+  // blockedAt set    → access denied at role-resolver; admin can re-activate
+  //                    by setting back to NULL. After 6mo from blockedAt,
+  //                    cron physically deletes the row.
+  blockedAt: timestamp("blocked_at"),
 });
 
 export const invitation = pgTable("invitation", {

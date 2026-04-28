@@ -32,6 +32,7 @@ import {
 } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { signSession, COOKIE_NAME, TTL_SECONDS } from "@/lib/auth-cookie";
+import { recordLogin } from "@/lib/last-login";
 import { CLIENTS, CLIENT_IDS } from "@/config/clients";
 
 export const dynamic = "force-dynamic";
@@ -147,6 +148,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     loginUrl.search = `?next=${encodeURIComponent(selfHref)}&invitation_hint=${encodeURIComponent(invitationEmail)}`;
     return NextResponse.redirect(loginUrl);
   }
+
+  // Track last login (inactivity lifecycle — non-fatal on failure).
+  await recordLogin(baUserId);
 
   // ── 4. Email must match invitation ────────────────────────────────────────
   if (baEmail.toLowerCase() !== invitationEmail.toLowerCase()) {

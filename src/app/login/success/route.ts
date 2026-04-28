@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { signSession, COOKIE_NAME, TTL_SECONDS } from "@/lib/auth-cookie";
 import { resolveRoleByEmail } from "@/lib/role-resolver";
+import { recordLogin } from "@/lib/last-login";
 import { auth } from "@/lib/auth";
 
 /**
@@ -46,9 +47,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   // 1) Read BA session.
   let email: string | null = null;
+  let userId: string | null = null;
   try {
     const session = await auth.api.getSession({ headers: req.headers });
     email = session?.user?.email ?? null;
+    userId = session?.user?.id ?? null;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[login/success] getSession threw:", msg);
@@ -56,6 +59,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   if (!email) return errorRedirect(req, "no_session");
+
+  // Track last login for inactivity-based membership lifecycle (6mo idle
+  // → blocked, +6mo → deleted). Non-fatal on failure.
+  await recordLogin(userId);
 
   // 2) If this is an invitation-completion flow, hand off to the
   //    accept-invitation handler which owns the full acceptance logic.
