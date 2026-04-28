@@ -22,6 +22,8 @@ export const metadata: Metadata = {
     template: "%s | mixednuts",
   },
   description: "戦略コンサルティング、AIエージェント導入、グロースマーケティングを統合提供するAI-firstコンサルファーム。",
+  // canonical: apex 統一。www→apex 301 と二重防御。各ページの page.tsx で上書き可能
+  alternates: { canonical: "https://mixednuts-inc.com/" },
   robots: { index: true, follow: true },
   openGraph: {
     title: "mixednuts — 戦略 × AI × マーケティング",

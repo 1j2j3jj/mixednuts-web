@@ -60,7 +60,13 @@ export const organizationSchema = {
     "LLM operations",
   ],
   slogan: "戦略 × AI × マーケティング",
-  sameAs: [] as string[],
+  // sameAs: E-E-A-T Authoritativeness のために外部 SNS/プロフィール URL を列挙
+  // 理由: 空配列はナレッジパネル化・AIO 引用の Authoritativeness 強化を阻害する
+  // GitHub は 1j2j3jj/mixednuts-web リポの所有者として確認済
+  // LinkedIn / Twitter は CEO 確認待ち — 確定後に追加すること
+  sameAs: [
+    "https://github.com/1j2j3jj",
+  ] as string[],
 };
 
 export const webSiteSchema = {
