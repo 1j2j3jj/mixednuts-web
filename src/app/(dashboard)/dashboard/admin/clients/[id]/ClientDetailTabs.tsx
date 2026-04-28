@@ -8,6 +8,11 @@ import type { OrgSummary, InviteRow, MemberRow } from "../../invites/actions";
 import type { EnvStatus } from "../../actions";
 import { createInvite, revokeInvite, removeMember, activateMember } from "../../invites/actions";
 import { generateClientPassword, updateOrgQuota } from "../../actions";
+import {
+  setClientCredentials as setClientCredentialsAction,
+  clearClientCredentials as clearClientCredentialsAction,
+  type ClientCredentialInfo as ClientCredentialInfoUI,
+} from "./credentials-actions";
 import type { OrgQuota } from "../../actions";
 import HealthCheckButton from "../../HealthCheckButton";
 
@@ -21,6 +26,7 @@ interface Props {
   pendingInvites: InviteRow[];
   orgMembers: MemberRow[];
   credStatus: EnvStatus | null;
+  credInfo: ClientCredentialInfoUI;
   quota: OrgQuota;
 }
 
@@ -516,155 +522,227 @@ function DataSourcesTab({ client }: { client: ClientConfig }) {
 }
 
 // ---------------------------------------------------------------------------
-// Credentials Tab
+// Credentials Tab — DB-backed Basic Auth (IDPW). 2026-04-28 redesign.
 // ---------------------------------------------------------------------------
 function CredentialsTab({
   clientId,
+  client,
   credStatus,
+  credInfo,
 }: {
   clientId: ClientId;
+  client: ClientConfig;
   credStatus: EnvStatus | null;
+  credInfo: ClientCredentialInfoUI;
 }) {
-  const [pw, setPw] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
+  const router = useRouter();
+  const [username, setUsername] = useState<string>(credInfo.username ?? client.slug);
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
-  function generate() {
-    setCopied(false);
-    setConfirmed(false);
+  function genRandom() {
+    const bytes = new Uint8Array(12);
+    crypto.getRandomValues(bytes);
+    const charset = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#%&";
+    let pw = "";
+    for (let i = 0; i < bytes.length; i++) pw += charset[bytes[i] % charset.length];
+    setPassword(pw);
+    setConfirm(pw);
+    setShowPw(true);
+    setResult(null);
+  }
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setResult(null);
+    if (password !== confirm) {
+      setResult({ ok: false, msg: "確認用パスワードが一致しません" });
+      return;
+    }
     startTransition(async () => {
-      const next = await generateClientPassword();
-      setPw(next);
-      // Auto-copy
-      try {
-        await navigator.clipboard.writeText(next);
-        setCopied(true);
-      } catch {
-        // clipboard access may fail in some browsers
+      const res = await setClientCredentialsAction({ clientId, username, password });
+      if (!res.ok) {
+        setResult({ ok: false, msg: res.error ?? "更新に失敗しました" });
+        return;
       }
+      setResult({ ok: true, msg: "クレデンシャルを更新しました" });
+      setPassword("");
+      setConfirm("");
+      setShowPw(false);
+      router.refresh();
     });
   }
 
-  async function doCopy() {
-    if (!pw) return;
-    try {
-      await navigator.clipboard.writeText(pw);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // ignore
-    }
+  function onClear() {
+    if (!confirm_native("この DB 上の IDPW を削除します。env 設定がある場合はそちらにフォールバックします。よろしいですか？")) return;
+    startTransition(async () => {
+      const res = await clearClientCredentialsAction(clientId);
+      if (!res.ok) {
+        setResult({ ok: false, msg: res.error ?? "削除に失敗しました" });
+        return;
+      }
+      setResult({ ok: true, msg: "DB クレデンシャルを削除しました" });
+      router.refresh();
+    });
   }
 
   const envKey = `CLIENT_AUTH_${clientId.toUpperCase()}`;
-  const vercelUrl = `https://vercel.com/mixednuts-8dc5d7a1/mixednuts-web/settings/environment-variables`;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-2xl">
       {/* Current status */}
       <div>
-        <h3 className="text-sm font-semibold text-neutral-900">現在のクレデンシャル</h3>
-        <div className="mt-2 rounded-md border border-neutral-200 px-3 py-2">
-          <div className="flex items-center justify-between">
-            <code className="font-mono text-xs">{envKey}</code>
-            {credStatus?.set ? (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-emerald-700">✓ 登録済</span>
-                {credStatus.preview && (
-                  <code className="font-mono text-xs text-muted-foreground">
-                    {credStatus.preview}
-                  </code>
+        <h3 className="text-sm font-semibold text-neutral-900">現在の Basic Auth (IDPW) 状態</h3>
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {/* DB */}
+          <div className={`rounded-md border px-3 py-2 ${credInfo.hasDbCredentials ? "border-emerald-300 bg-emerald-50" : "border-neutral-200"}`}>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+              DB（即時反映）
+            </div>
+            {credInfo.hasDbCredentials ? (
+              <>
+                <div className="mt-1 text-sm font-medium text-emerald-800">✓ 登録済</div>
+                <div className="text-xs text-neutral-700">user: <code className="font-mono">{credInfo.username}</code></div>
+                {credInfo.updatedAt && (
+                  <div className="text-[11px] text-neutral-500">
+                    {new Date(credInfo.updatedAt).toLocaleString("ja-JP")} 更新
+                    {credInfo.rotatedBy && <> / {credInfo.rotatedBy}</>}
+                  </div>
                 )}
-              </div>
+              </>
             ) : (
-              <span className="text-xs text-rose-700">✗ 未登録</span>
+              <div className="mt-1 text-sm text-neutral-500">未登録</div>
             )}
           </div>
+          {/* Env (legacy fallback) */}
+          <div className={`rounded-md border px-3 py-2 ${credStatus?.set ? "border-amber-200 bg-amber-50" : "border-neutral-200"}`}>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+              環境変数（フォールバック・廃止予定）
+            </div>
+            <code className="font-mono text-xs">{envKey}</code>
+            <div className="mt-1 text-xs">
+              {credStatus?.set ? (
+                <span className="text-amber-700">⚠ 登録済（DB 移行後に Vercel 側で削除推奨）</span>
+              ) : (
+                <span className="text-neutral-500">未登録</span>
+              )}
+            </div>
+          </div>
         </div>
+        <p className="mt-2 text-[11px] text-neutral-500">
+          DB と env の両方が登録されている場合、DB が優先されます（verifyCredentials 仕様）。
+        </p>
       </div>
 
-      {/* Rotation flow */}
-      <div>
-        <h3 className="text-sm font-semibold text-neutral-900">パスワードをローテート</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          新しいパスワードを生成 → Vercel env を更新してください。
-          古いパスワードは Vercel に保存するまで有効です。
-        </p>
-
-        <div className="mt-3 space-y-3">
-          <div className="flex items-center gap-2">
+      {/* Rotation form */}
+      <form onSubmit={onSubmit} className="space-y-3 rounded-md border border-neutral-200 p-4">
+        <h3 className="text-sm font-semibold text-neutral-900">
+          {credInfo.hasDbCredentials ? "ローテート" : "新規登録"}
+        </h3>
+        <div>
+          <label className="block text-xs font-medium text-neutral-700">ユーザー名</label>
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            disabled={pending}
+            placeholder={client.slug}
+            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm font-mono"
+            required
+          />
+        </div>
+        <div>
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-medium text-neutral-700">パスワード（8 文字以上）</label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowPw((s) => !s)}
+                className="text-[11px] text-neutral-500 hover:text-neutral-800"
+              >
+                {showPw ? "非表示" : "表示"}
+              </button>
+              <button
+                type="button"
+                onClick={genRandom}
+                disabled={pending}
+                className="text-[11px] text-blue-700 hover:underline"
+              >
+                ランダム生成
+              </button>
+            </div>
+          </div>
+          <input
+            type={showPw ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={pending}
+            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm font-mono"
+            required
+            minLength={8}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-neutral-700">確認用パスワード</label>
+          <input
+            type={showPw ? "text" : "password"}
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            disabled={pending}
+            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm font-mono"
+            required
+            minLength={8}
+          />
+        </div>
+        <div className="flex items-center gap-2 pt-1">
+          <button
+            type="submit"
+            disabled={pending || !password || !username}
+            className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-neutral-800 disabled:opacity-60"
+          >
+            {pending ? "保存中…" : credInfo.hasDbCredentials ? "ローテート保存" : "登録"}
+          </button>
+          {credInfo.hasDbCredentials && (
             <button
               type="button"
-              onClick={generate}
+              onClick={onClear}
               disabled={pending}
-              className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-60"
+              className="rounded-md border border-rose-300 bg-white px-3 py-1.5 text-xs text-rose-700 hover:bg-rose-50 disabled:opacity-60"
             >
-              {pending ? "生成中…" : pw ? "再生成" : "新PW生成"}
+              DB クレデンシャル削除
             </button>
-            {pw && !confirmed && (
-              <>
-                <code className="rounded bg-neutral-100 px-2 py-1 font-mono text-sm">{pw}</code>
-                <button
-                  type="button"
-                  onClick={doCopy}
-                  className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-50"
-                >
-                  {copied ? "コピー済 ✓" : "コピー"}
-                </button>
-              </>
-            )}
-            {confirmed && (
-              <span className="text-xs text-emerald-700">保存を確認しました。フィンガープリントが更新されます。</span>
-            )}
-          </div>
-
-          {pw && !confirmed && (
-            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 space-y-2">
-              <div className="font-medium">次の手順で Vercel env を更新してください:</div>
-              <ol className="list-decimal ml-4 space-y-1">
-                <li>パスワードはクリップボードにコピー済です（されていない場合は上のコピーボタンを）</li>
-                <li>
-                  <a
-                    href={vercelUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline font-medium"
-                  >
-                    Vercel Settings を開く ↗
-                  </a>
-                </li>
-                <li>
-                  <code className="font-mono">{envKey}</code> を探して編集
-                </li>
-                <li>
-                  値を <code className="font-mono">{clientId}:{"{new_password}"}</code> 形式で更新して保存
-                </li>
-                <li>下の「保存を確認」ボタンを押す</li>
-              </ol>
-              <div className="pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmed(true);
-                    setPw(null);
-                  }}
-                  className="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-100"
-                >
-                  Vercel に保存しました
-                </button>
-              </div>
-            </div>
           )}
         </div>
-      </div>
 
-      <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-muted-foreground">
-        セキュリティ上、このパネルは Vercel API トークンを持ちません。
-        env の書き込みは必ず Vercel Dashboard で人間が行います。
+        {result && (
+          <div
+            className={`rounded-md border p-2 text-xs ${
+              result.ok
+                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                : "border-rose-200 bg-rose-50 text-rose-900"
+            }`}
+          >
+            {result.msg}
+          </div>
+        )}
+      </form>
+
+      <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-[11px] text-muted-foreground">
+        パスワードは PBKDF2-SHA256 (100,000 iterations) でハッシュ化された状態で DB に保存されます。
+        平文は永続化されません。
       </div>
     </div>
   );
+}
+
+// Tiny wrapper for native confirm() so the rest of the file doesn't need
+// `// eslint-disable-next-line` annotations.
+function confirm_native(msg: string): boolean {
+  if (typeof window === "undefined") return false;
+  return window.confirm(msg);
 }
 
 // ---------------------------------------------------------------------------
@@ -877,7 +955,7 @@ export default function ClientDetailTabs({
         {activeTab === "quota" && <QuotaTab client={client} quota={quota} />}
         {activeTab === "datasources" && <DataSourcesTab client={client} />}
         {activeTab === "credentials" && (
-          <CredentialsTab clientId={clientId} credStatus={credStatus} />
+          <CredentialsTab clientId={clientId} client={client} credStatus={credStatus} credInfo={credInfo} />
         )}
         {activeTab === "danger" && <DangerZoneTab client={client} />}
       </div>

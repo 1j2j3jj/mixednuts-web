@@ -62,7 +62,7 @@ async function resolveSessionCookie(request: NextRequest): Promise<Auth> {
   return { kind: "client", clientId: sess.clientId, slug: sess.slug };
 }
 
-function resolveBasicAuth(request: NextRequest): Auth {
+async function resolveBasicAuth(request: NextRequest): Promise<Auth> {
   const header = request.headers.get("authorization");
   if (!header?.startsWith("Basic ")) return { kind: "deny" };
 
@@ -77,7 +77,7 @@ function resolveBasicAuth(request: NextRequest): Auth {
   const u = decoded.slice(0, idx);
   const p = decoded.slice(idx + 1);
 
-  const check = verifyCredentials(u, p);
+  const check = await verifyCredentials(u, p);
   if (check.kind === "deny") return { kind: "deny" };
   return check;
 }
@@ -188,7 +188,7 @@ async function checkAuth(request: NextRequest): Promise<NextResponse> {
   // 2. Session cookie takes precedence — lets /login users browse
   //    without the Basic Auth popup ever showing.
   const cookie = await resolveSessionCookie(request);
-  const auth = cookie.kind !== "deny" ? cookie : resolveBasicAuth(request);
+  const auth = cookie.kind !== "deny" ? cookie : await resolveBasicAuth(request);
 
   // 3. Reject if neither path authenticated.
   if (auth.kind === "deny") {
@@ -293,6 +293,11 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
 }
 
 export const config = {
+  // Node runtime required because verifyCredentials does a DB lookup against
+  // client_credentials via the pg-based Drizzle client (not Edge-compatible).
+  // Next.js 16 supports this opt-in at middleware level. Trade-off: ~50ms
+  // cold start vs Edge, acceptable for an auth gate.
+  runtime: "nodejs",
   matcher: [
     // Skip Next.js internals and all static files.
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",

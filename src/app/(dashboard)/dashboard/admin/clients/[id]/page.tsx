@@ -5,6 +5,7 @@ import { CLIENTS, type ClientId } from "@/config/clients";
 import { Badge } from "@/components/ui/badge";
 import { listClientAccess, listEnvStatus, getOrgQuota } from "../../actions";
 import { listOrganisations, listPendingInvites, listOrgMembersForClient, type MemberRow } from "../../invites/actions";
+import { getClientCredentialInfo } from "./credentials-actions";
 import ClientDetailTabs from "./ClientDetailTabs";
 
 /**
@@ -33,14 +34,16 @@ export default async function ClientDetailPage({ params }: PageProps) {
   const clientId = id as ClientId;
 
   // Fetch all needed data in parallel
-  const [clientAccess, envStatus, orgs, pendingInvites, orgMembers, quota] = await Promise.all([
-    listClientAccess(),
-    listEnvStatus(),
-    listOrganisations(),
-    listPendingInvites(),
-    listOrgMembersForClient(client.slug),
-    getOrgQuota(client.slug),
-  ]);
+  const [clientAccess, envStatus, orgs, pendingInvites, orgMembers, quota, credInfo] =
+    await Promise.all([
+      listClientAccess(),
+      listEnvStatus(),
+      listOrganisations(),
+      listPendingInvites(),
+      listOrgMembersForClient(client.slug),
+      getOrgQuota(client.slug),
+      getClientCredentialInfo(clientId),
+    ]);
 
   const access = clientAccess.find((c) => c.clientId === clientId);
   const org = orgs.find((o) => o.slug === client.slug);
@@ -86,6 +89,7 @@ export default async function ClientDetailPage({ params }: PageProps) {
         pendingInvites={clientPendingInvites}
         orgMembers={orgMembers}
         credStatus={credStatus ?? null}
+        credInfo={credInfo}
         quota={quota}
       />
     </div>

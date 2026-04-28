@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "ID とパスワードを入力してください" }, { status: 400 });
   }
 
-  const auth = verifyCredentials(user, pass);
+  const auth = await verifyCredentials(user, pass);
   if (auth.kind === "deny") {
     // Short artificial delay helps against rapid brute force loops.
     await new Promise((r) => setTimeout(r, 400));

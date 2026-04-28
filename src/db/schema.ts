@@ -143,6 +143,33 @@ export const invitation = pgTable("invitation", {
     .references(() => user.id, { onDelete: "cascade" }),
 });
 
+// ----- Client credentials (Basic Auth, DB-backed, 2026-04-28) ----------------
+
+/**
+ * Per-client Basic Auth credentials, replacing the env-based
+ * CLIENT_AUTH_<ID> = "user:pass" model. Owners (mixednuts admin) can
+ * rotate IDPW from /dashboard/admin/clients/[id] without a redeploy —
+ * verifyCredentials reads this table first and falls back to env for
+ * backward compatibility while the migration is in progress.
+ *
+ * Password is stored as PBKDF2-SHA256(100k iterations) hash with a
+ * per-row random salt. Plaintext is never persisted.
+ */
+export const clientCredentials = pgTable("client_credentials", {
+  // Matches CLIENT_IDS in @/config/clients (e.g., "hs", "dozo", "msec").
+  clientId: text("client_id").primaryKey(),
+  username: text("username").notNull(),
+  passwordHash: text("password_hash").notNull(),
+  // Random per-credential salt, base64.
+  passwordSalt: text("password_salt").notNull(),
+  // Iteration count baked into the hash (allows future rotation).
+  iterations: integer("iterations").notNull().default(100000),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  // Email of the admin who last set/rotated. Audit trail.
+  rotatedBy: text("rotated_by"),
+});
+
 // ----- Audit log (v2) -------------------------------------------------------
 
 /**
@@ -175,4 +202,5 @@ export const schema = {
   member,
   invitation,
   auditLog,
+  clientCredentials,
 };
