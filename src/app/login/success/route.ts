@@ -67,8 +67,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return redirect(req, safeNext);
   }
 
-  // 3) Email → role (env-based lookup for non-invitation paths).
-  const role = resolveRoleByEmail(email);
+  // 3) Email → role (env + DB membership lookup for non-invitation paths).
+  const role = await resolveRoleByEmail(email);
   if (role.kind === "deny") {
     return redirect(
       req,
