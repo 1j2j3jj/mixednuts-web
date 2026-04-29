@@ -159,6 +159,7 @@ function isExemptPath(pathname: string): boolean {
     pathname === "/contact" ||
     pathname === "/privacy" ||
     pathname === "/legal" ||
+    pathname === "/llms.txt" ||
     pathname.startsWith("/_next/")
   ) return true;
 
