@@ -31,6 +31,7 @@ export async function generateMetadata({
   return {
     title: `#${name} — Insights | mixednuts`,
     description: `タグ「${name}」の記事一覧。mixednuts Inc. の Insights。`,
+    alternates: { canonical: `/insights/tag/${tag}` },
     robots: { index: true, follow: true },
   };
 }

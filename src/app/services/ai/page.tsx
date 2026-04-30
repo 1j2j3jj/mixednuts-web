@@ -6,6 +6,7 @@ import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
 export const metadata: Metadata = {
   title: "AI Implementation — AIと「共に働く組織」をつくる",
   description: "AIエージェント設計、LLM業務実装、データ基盤構築。自社で120体超のAIエージェント組織を運営するAI-firstファーム。",
+  alternates: { canonical: "/services/ai" },
 };
 
 const aiWorks = CASES_COMING_SOON ? [] : works.filter((w) => !w.hidden && w.services.includes("ai")).slice(0, 3);

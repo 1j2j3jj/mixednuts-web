@@ -18,6 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `Case: ${work.title}`,
     description: work.summary,
+    alternates: { canonical: `/works/${slug}` },
   };
 }
 

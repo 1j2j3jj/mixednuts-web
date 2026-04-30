@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: "Insights — Strategy × AI × Marketing の最新知見 | mixednuts inc.",
   description:
     "戦略・AI・マーケティング・ファイナンスの実践ノウハウを発信。AI-firstコンサルティングファームの知見を公開しています。",
+  alternates: { canonical: "/insights" },
 };
 
 const categoryColorMap: Record<string, string> = {

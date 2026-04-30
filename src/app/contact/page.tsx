@@ -5,6 +5,7 @@ import ContactForm from "./ContactForm";
 export const metadata: Metadata = {
   title: "Contact — まずは、話しましょう",
   description: "初回無料相談（60分）で、貴社の課題をヒアリングし最適なアプローチをご提案します。24時間以内にご返信します。",
+  alternates: { canonical: "/contact" },
 };
 
 export default function ContactPage() {

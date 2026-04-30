@@ -5,6 +5,7 @@ import { members, divisionLabels } from "@/data/members";
 export const metadata: Metadata = {
   title: "Team — 多様な才能の「ミックス」",
   description: "広告代理店、事業会社マーケ、戦略コンサル、ビッグテック、クリエイター——多様なバックグラウンドのプロフェッショナルが集結。",
+  alternates: { canonical: "/team" },
 };
 
 const divisionColors: Record<string, string> = {

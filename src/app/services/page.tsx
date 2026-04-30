@@ -5,6 +5,7 @@ import { services } from "@/data/services";
 export const metadata: Metadata = {
   title: "Services — Strategy × AI × Marketing",
   description: "戦略コンサルティング・AI実装支援・マーケティング成長支援の3軸を一気通貫で提供。",
+  alternates: { canonical: "/services" },
 };
 
 const visualConfigs = {

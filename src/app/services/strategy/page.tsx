@@ -6,6 +6,7 @@ import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
 export const metadata: Metadata = {
   title: "Strategy — 事業計画・投資評価・中期戦略",
   description: "戦略ファーム出身者と事業会社経営企画経験者が、経営判断の中枢で意思決定を支援。FP&A、M&A、新規事業、組織設計まで一気通貫。",
+  alternates: { canonical: "/services/strategy" },
 };
 
 const strategyWorks = CASES_COMING_SOON ? [] : works.filter((w) => !w.hidden && w.services.includes("strategy")).slice(0, 3);

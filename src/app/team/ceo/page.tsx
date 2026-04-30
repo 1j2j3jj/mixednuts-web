@@ -6,6 +6,7 @@ import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
 export const metadata: Metadata = {
   title: "CEO Profile — 石井 希実 (Nozomi Ishii)",
   description: "mixednuts 代表取締役 石井 希実 の詳細プロフィール。国内大手IT企業経営企画、グローバル大手IT企業を経て2021年に創業。",
+  alternates: { canonical: "/team/ceo" },
 };
 
 const personSchema = {

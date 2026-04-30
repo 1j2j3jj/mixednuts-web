@@ -49,6 +49,7 @@ export const metadata: Metadata = {
   title: "Careers — AI と共に働くプロフェッショナル募集 | mixednuts inc.",
   description:
     "戦略・AI・マーケのプロフェッショナルを募集。フルタイム、業務委託、プロジェクト単位のパートナーまで、多様な働き方を設計可能。",
+  alternates: { canonical: "/careers" },
 };
 
 export default function CareersPage() {

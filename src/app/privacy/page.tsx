@@ -4,6 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "プライバシーポリシー",
   description: "ミックスナッツ株式会社のプライバシーポリシー（個人情報保護方針）。個人情報の取扱い、利用目的、第三者提供、クッキー等について。",
+  alternates: { canonical: "/privacy" },
 };
 
 export default function PrivacyPage() {

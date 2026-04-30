@@ -4,6 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "About — 才能が「ミックス」する瞬間、事業は動き始める",
   description: "戦略・AI・マーケティングを一気通貫で提供するAI-firstファーム。多様なバックグラウンドのプロフェッショナルが集結。",
+  alternates: { canonical: "/about" },
 };
 
 export default function AboutPage() {

@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title: "Works — 数字で語る、実績ケース",
   description:
     "上場企業の経営管理から D2C のグロースまで、戦略・AI・マーケティングを横断したクライアントワーク。実績ケースは現在準備中で、匿名化のうえ順次公開していきます。",
+  alternates: { canonical: "/works" },
 };
 
 export default function WorksPage() {

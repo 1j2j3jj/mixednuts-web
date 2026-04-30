@@ -5,6 +5,7 @@ import { CASES_COMING_SOON } from "@/data/works";
 export const metadata: Metadata = {
   title: "mixednuts — 戦略 × AI × マーケティング",
   description: "戦略コンサルティング、AIエージェント導入、グロースマーケティングを統合提供するAI-firstコンサルファーム。",
+  alternates: { canonical: "/" },
 };
 
 export default function HomePage() {

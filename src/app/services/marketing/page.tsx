@@ -6,6 +6,7 @@ import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
 export const metadata: Metadata = {
   title: "Marketing — グロースマーケティングと統合広告運用",
   description: "広告代理店シニアディレクターと事業会社マーケ責任者が、広告運用とグロース戦略を統合提供。LTV/CAC最適化、SEO/AIO、クリエイティブ戦略まで。",
+  alternates: { canonical: "/services/marketing" },
 };
 
 const marketingWorks = CASES_COMING_SOON ? [] : works.filter((w) => !w.hidden && w.services.includes("marketing")).slice(0, 3);

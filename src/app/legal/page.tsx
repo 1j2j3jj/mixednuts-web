@@ -4,6 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Legal / 特定商取引法に基づく表記",
   description: "特定商取引法に基づく表記、サービス利用規約、免責事項。ミックスナッツ株式会社のサービスに関する法的情報。",
+  alternates: { canonical: "/legal" },
 };
 
 export default function LegalPage() {
