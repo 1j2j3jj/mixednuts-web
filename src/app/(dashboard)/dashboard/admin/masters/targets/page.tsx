@@ -8,13 +8,24 @@ import { CLIENTS, CLIENT_IDS } from "@/config/clients";
 
 export const dynamic = "force-dynamic";
 
-const TEMPLATE_CSV = `client_id,year_month,revenue_target,cv_target,ad_spend_budget,roas_target_pct,cpa_target,notes
-hs,2026-04-01,80000000,800,12000000,300,15000,GW施策込み
-hs,2026-05-01,75000000,750,11000000,300,14700,
-dozo,2026-04-01,18000000,180,3000000,250,16700,母の日
-ogc,2026-04-01,15000000,150,2000000,250,13000,
-ogp,2026-04-01,16000000,160,2500000,250,15600,
-`;
+/** Current month as 'YYYY-MM' (server tz; CEO edits month manually if needed). */
+function currentYm(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * Template pre-filled with every known client_id × the current month so the
+ * CEO only fills numbers in (avoids mistyped client_id / year_month). Upsert is
+ * keyed on (client_id, year_month), so this only touches the current month.
+ */
+function buildTemplateCsv(): string {
+  const ym = currentYm();
+  const header =
+    "client_id,year_month,revenue_target,cv_target,ad_spend_budget,roas_target_pct,cpa_target,notes";
+  const body = CLIENT_IDS.map((id) => `${id},${ym},,,,,,`).join("\n");
+  return `${header}\n${body}\n`;
+}
 
 function fmt(v: number | null, type: "yen" | "int" | "pct"): string {
   if (v == null) return "—";
@@ -29,6 +40,7 @@ export default async function TargetsPage() {
 
   const rows = await fetchTargets();
   const currentCsv = rowsToCsv(TARGET_COLUMNS, rows);
+  const templateCsv = buildTemplateCsv();
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6">
@@ -50,7 +62,7 @@ export default async function TargetsPage() {
         kind="targets"
         label="月次目標"
         templateName="targets"
-        templateCsv={TEMPLATE_CSV}
+        templateCsv={templateCsv}
         currentCsv={currentCsv}
       />
 

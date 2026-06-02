@@ -77,6 +77,103 @@ export async function fetchTargets(clientId?: string): Promise<TargetRow[]> {
   }));
 }
 
+/**
+ * Idempotent upsert into targets_monthly keyed on (client_id, year_month).
+ *
+ * Single atomic MERGE — no DELETE+streaming-insert split (that combination
+ * triggers "DML over streaming buffer" errors). Re-running the same CSV only
+ * UPDATEs the matched rows; existing keys not present in the upload (other
+ * clients / other months) are preserved (unlike replaceTargets which truncates).
+ *
+ * Type integrity: year_month is passed as 'YYYY-MM-01' and CAST to DATE in SQL.
+ * Numeric columns are CAST to NUMERIC, cv_target to INT64. NULLs pass through.
+ * updated_at is set to CURRENT_TIMESTAMP() explicitly (MERGE does not apply the
+ * column DEFAULT). updated_by is bound to @by.
+ *
+ * For the expected volume (1 client × a few months = tens of rows at most) the
+ * USING clause is generated as `SELECT ... UNION ALL ...` with per-row named,
+ * typed params, avoiding the awkward UNNEST(@rows STRUCT[]) binding in v8.
+ */
+export async function upsertTargets(
+  rows: TargetRow[],
+  uploadedBy: string,
+): Promise<{ affected: number }> {
+  if (rows.length === 0) return { affected: 0 };
+  const bq = getBigQuery();
+  const table = `${PROJECT}.app_analytics.targets_monthly`;
+
+  const params: Record<string, string | number | null> = { by: uploadedBy };
+  const types: Record<string, string> = { by: "STRING" };
+
+  const selects = rows.map((r, i) => {
+    params[`cid${i}`] = r.client_id;
+    params[`ym${i}`] = normaliseYmDate(r.year_month);
+    params[`rev${i}`] = numStr(r.revenue_target);
+    params[`cv${i}`] = r.cv_target == null ? null : Math.round(r.cv_target);
+    params[`bud${i}`] = numStr(r.ad_spend_budget);
+    params[`roas${i}`] = numStr(r.roas_target_pct);
+    params[`cpa${i}`] = numStr(r.cpa_target);
+    params[`notes${i}`] = r.notes;
+
+    types[`cid${i}`] = "STRING";
+    types[`ym${i}`] = "STRING";
+    types[`rev${i}`] = "NUMERIC";
+    types[`cv${i}`] = "INT64";
+    types[`bud${i}`] = "NUMERIC";
+    types[`roas${i}`] = "NUMERIC";
+    types[`cpa${i}`] = "NUMERIC";
+    types[`notes${i}`] = "STRING";
+
+    return (
+      `SELECT @cid${i} AS client_id, DATE(@ym${i}) AS year_month, ` +
+      `@rev${i} AS revenue_target, @cv${i} AS cv_target, ` +
+      `@bud${i} AS ad_spend_budget, @roas${i} AS roas_target_pct, ` +
+      `@cpa${i} AS cpa_target, @notes${i} AS notes`
+    );
+  });
+
+  const using = selects.join("\n        UNION ALL\n        ");
+
+  const sql = `
+    MERGE \`${table}\` T
+    USING (
+        ${using}
+    ) S
+    ON T.client_id = S.client_id AND T.year_month = S.year_month
+    WHEN MATCHED THEN UPDATE SET
+      revenue_target = S.revenue_target,
+      cv_target = S.cv_target,
+      ad_spend_budget = S.ad_spend_budget,
+      roas_target_pct = S.roas_target_pct,
+      cpa_target = S.cpa_target,
+      notes = S.notes,
+      updated_at = CURRENT_TIMESTAMP(),
+      updated_by = @by
+    WHEN NOT MATCHED THEN INSERT (
+      client_id, year_month, revenue_target, cv_target,
+      ad_spend_budget, roas_target_pct, cpa_target, notes,
+      updated_at, updated_by
+    ) VALUES (
+      S.client_id, S.year_month, S.revenue_target, S.cv_target,
+      S.ad_spend_budget, S.roas_target_pct, S.cpa_target, S.notes,
+      CURRENT_TIMESTAMP(), @by
+    )
+  `;
+
+  const [job] = await bq.createQueryJob({
+    query: sql,
+    location: LOC,
+    params,
+    types,
+  });
+  await job.getQueryResults();
+
+  // MERGE doesn't return per-statement row counts via getQueryResults; the
+  // number of source rows equals the number of (client_id, year_month) keys
+  // touched (CSV duplicates are rejected upstream), so it's a faithful count.
+  return { affected: rows.length };
+}
+
 export async function replaceTargets(
   rows: TargetRow[],
   uploadedBy: string,
@@ -285,6 +382,21 @@ export async function replaceCampaignMaster(
 // ============================================================
 // helpers
 // ============================================================
+
+/** Normalise 'YYYY-MM' or 'YYYY-MM-DD' to the month-start 'YYYY-MM-01'. */
+function normaliseYmDate(v: string): string {
+  const m = v.trim().match(/^(\d{4})-(0[1-9]|1[0-2])/);
+  if (!m) return v.trim();
+  return `${m[1]}-${m[2]}-01`;
+}
+
+/**
+ * BigQuery NUMERIC params are safest passed as strings (avoids FLOAT precision
+ * loss). null stays null. The value is already a finite number or null here.
+ */
+function numStr(v: number | null): string | null {
+  return v == null ? null : String(v);
+}
 
 function numOrNull(v: unknown): number | null {
   if (v == null || v === "") return null;

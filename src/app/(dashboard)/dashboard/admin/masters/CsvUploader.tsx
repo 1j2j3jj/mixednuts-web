@@ -7,11 +7,17 @@ import {
   uploadCampaignMasterAction,
 } from "./actions";
 
+interface RowError {
+  row: number;
+  errors: string[];
+}
+
 interface UploadResult {
   ok: boolean;
   message: string;
   inserted?: number;
   preview?: number;
+  rowErrors?: RowError[];
 }
 
 type Kind = "targets" | "external_cv" | "campaign_master";
@@ -46,20 +52,29 @@ async function dispatch(
 export function CsvUploader({
   kind, clientId, label, templateCsv, templateName, currentCsv,
 }: Props) {
+  // targets uses idempotent upsert (key = client_id + year_month); the other
+  // masters keep their full-replace (TRUNCATE) semantics.
+  const isUpsert = kind === "targets";
   const [csv, setCsv] = useState<string>("");
   const [filename, setFilename] = useState<string>("");
   const [previewMsg, setPreviewMsg] = useState<string | null>(null);
   const [previewRows, setPreviewRows] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [rowErrors, setRowErrors] = useState<RowError[] | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  function reset() {
+    setError(null);
+    setRowErrors(null);
+    setSuccess(null);
+  }
 
   function onFile(e: ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
     setFilename(f.name);
-    setError(null);
-    setSuccess(null);
+    reset();
     setPreviewMsg(null);
     setPreviewRows(null);
     const reader = new FileReader();
@@ -68,7 +83,7 @@ export function CsvUploader({
   }
 
   function doPreview() {
-    setError(null); setSuccess(null);
+    reset();
     startTransition(async () => {
       const res = await dispatch(kind, clientId, csv, "preview");
       if (res.ok) {
@@ -76,14 +91,18 @@ export function CsvUploader({
         setPreviewRows(res.preview ?? null);
       } else {
         setError(res.message);
+        setRowErrors(res.rowErrors ?? null);
         setPreviewRows(null);
       }
     });
   }
 
   function doCommit() {
-    if (!confirm(`${label} を全置換します。よろしいですか?`)) return;
-    setError(null); setSuccess(null);
+    const confirmMsg = isUpsert
+      ? `${label} を upsert します（含まれる月のみ更新／含まれない月は温存）。よろしいですか?`
+      : `${label} を全置換します。よろしいですか?`;
+    if (!confirm(confirmMsg)) return;
+    reset();
     startTransition(async () => {
       const res = await dispatch(kind, clientId, csv, "commit");
       if (res.ok) {
@@ -94,6 +113,7 @@ export function CsvUploader({
         setPreviewMsg(null);
       } else {
         setError(res.message);
+        setRowErrors(res.rowErrors ?? null);
       }
     });
   }
@@ -128,7 +148,7 @@ export function CsvUploader({
 
       <div className="border-t border-neutral-200 pt-4">
         <label className="block text-sm font-medium text-neutral-800">
-          ⬆ CSV をアップロード（全置換）
+          {isUpsert ? "⬆ CSV をアップロード（該当キーのみ更新）" : "⬆ CSV をアップロード（全置換）"}
         </label>
         <input
           type="file"
@@ -156,19 +176,39 @@ export function CsvUploader({
             disabled={!csv || previewRows == null || pending}
             className="rounded-md border border-emerald-600 bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-40"
           >
-            {pending ? "実行中..." : `確定 (${previewRows ?? "?"} 行 全置換)`}
+            {pending
+              ? "実行中..."
+              : isUpsert
+                ? `確定 (${previewRows ?? "?"} 行 upsert)`
+                : `確定 (${previewRows ?? "?"} 行 全置換)`}
           </button>
         </div>
 
         {previewMsg && !error && (
           <p className="mt-3 rounded-md bg-emerald-50 p-2 text-sm text-emerald-900">
-            ✓ {previewMsg} — 「確定」を押すと既存テーブルを全置換します
+            ✓ {previewMsg}
+            {" — "}
+            {isUpsert
+              ? "「確定」で該当キーのみ更新（含まれない月は温存）"
+              : "「確定」を押すと既存テーブルを全置換します"}
           </p>
         )}
         {error && (
           <p className="mt-3 rounded-md bg-rose-50 p-2 text-sm text-rose-900">
             ✗ {error}
           </p>
+        )}
+        {rowErrors && rowErrors.length > 0 && (
+          <div className="mt-2 max-h-64 overflow-auto rounded-md border border-rose-200 bg-rose-50 p-2 text-xs text-rose-900">
+            <ul className="space-y-1">
+              {rowErrors.map((re) => (
+                <li key={re.row}>
+                  <span className="font-mono font-semibold">{re.row} 行目:</span>{" "}
+                  {re.errors.join(" / ")}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
         {success && (
           <p className="mt-3 rounded-md bg-emerald-100 p-2 text-sm text-emerald-900">

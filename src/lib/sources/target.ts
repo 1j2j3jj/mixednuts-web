@@ -8,7 +8,9 @@ import type { ClientConfig, MonthlyTargets } from "@/config/clients";
  * Monthly targets source. Resolution order (first hit wins):
  *
  *   1. BigQuery `app_analytics.targets_monthly` — fed by the masters CSV
- *      uploader at /dashboard/admin/masters/targets. Highest priority.
+ *      uploader at /dashboard/admin/masters/targets. Highest priority, but
+ *      only consulted when env `BQ_SOURCE_TARGETS=1` (defaults OFF, mirrors
+ *      BQ_SOURCE_RAW). With the flag OFF the Sheet/static path below is used.
  *   2. CEO's HS_計画 spreadsheet (matrix layout, only HS has it today).
  *   3. ClientConfig.monthlyTargets (hardcoded fallback in clients.ts).
  *
@@ -130,16 +132,21 @@ export async function getTargetsForMonth(
 ): Promise<MonthlyTargets> {
   const fallback = client.monthlyTargets;
 
-  // 1. BigQuery (CSV-uploaded master) — highest priority.
-  const bqRow = await _bqTargetsCached(client.id, yearMonth);
-  if (bqRow) {
-    return {
-      revenue: bqRow.revenue || fallback.revenue,
-      conversions: bqRow.conversions || fallback.conversions,
-      adSpendBudget: bqRow.adSpendBudget || fallback.adSpendBudget,
-      roasPct: bqRow.roasPct || fallback.roasPct,
-      cpa: bqRow.cpa || fallback.cpa,
-    };
+  // 1. BigQuery (CSV-uploaded master) — highest priority, flag-gated.
+  //    Defaults OFF: set BQ_SOURCE_TARGETS=1 to read from
+  //    app_analytics.targets_monthly. Mirrors BQ_SOURCE_RAW in raw.ts. When OFF
+  //    the Sheet (HS only) → static fallback behaviour below is preserved.
+  if (process.env.BQ_SOURCE_TARGETS === "1") {
+    const bqRow = await _bqTargetsCached(client.id, yearMonth);
+    if (bqRow) {
+      return {
+        revenue: bqRow.revenue || fallback.revenue,
+        conversions: bqRow.conversions || fallback.conversions,
+        adSpendBudget: bqRow.adSpendBudget || fallback.adSpendBudget,
+        roasPct: bqRow.roasPct || fallback.roasPct,
+        cpa: bqRow.cpa || fallback.cpa,
+      };
+    }
   }
 
   // 2. Sheet (CEO 計画 matrix) — only HS today.
