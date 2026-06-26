@@ -68,6 +68,8 @@ export default function PrivacyPage() {
       </header>
 
       {/* ===== BODY ===== */}
+      <section className="sec">
+      <div className="wrap">
       <article className="prose">
         <div className="toc reveal">
           <h3>目次</h3>
@@ -233,6 +235,8 @@ export default function PrivacyPage() {
         <p>最新のプライバシーポリシーは、常に本ページにて公開しています。</p>
         <p className="priv-end">以上</p>
       </article>
+      </div>
+      </section>
     </>
   );
 }
