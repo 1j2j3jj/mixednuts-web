@@ -12,10 +12,16 @@ import Footer from "@/components/Footer";
  * The root layout keeps rendering this wrapper for every route; only the
  * visible chrome is conditional, so marketing pages are untouched.
  */
+// Routes that ship their own self-contained v4 chrome (dark nav + footer +
+// motion engine) inside the page itself. The shared marketing Nav/Footer is
+// suppressed for these so we don't double-render chrome. Grows as pages migrate.
+const V4_ROUTES = new Set<string>(["/"]);
+
 export default function SiteChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "";
   const isDashboard = pathname.startsWith("/dashboard");
-  if (isDashboard) return <>{children}</>;
+  const isV4 = V4_ROUTES.has(pathname);
+  if (isDashboard || isV4) return <>{children}</>;
   return (
     <>
       <Nav />
