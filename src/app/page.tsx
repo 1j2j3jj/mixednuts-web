@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import SiteMotion from "@/components/SiteMotion";
 
 export const metadata: Metadata = {
   title: "mixednuts — 戦略 × AI × マーケティング",
@@ -14,56 +13,7 @@ const img = (src: string) => ({ ["--img"]: `url(${src})` } as React.CSSPropertie
 
 export default function HomePage() {
   return (
-    <div className="mn-v4">
-      {/* ===== NAV ===== */}
-      <nav className="nav" id="nav">
-        <Link href="/" className="nav-brand" aria-label="mixednuts Inc. — Home">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-mark.png" alt="" className="nav-mark" width={13} height={36} />
-          <span>
-            mixednuts<span className="dim">Inc.</span>
-          </span>
-        </Link>
-        <button className="nav-toggle" aria-label="Menu" type="button">
-          <span />
-          <span />
-          <span />
-        </button>
-        <div className="nav-links">
-          <Link href="/about">About</Link>
-          <div className="nav-drop">
-            <Link href="/services" className="nav-drop-t">
-              Services <i>▾</i>
-            </Link>
-            <div className="nav-menu">
-              <Link href="/services/ai">
-                <strong>AI Solutions</strong>
-                <span>AIエージェント・自動化</span>
-              </Link>
-              <Link href="/services/strategy">
-                <strong>Strategy</strong>
-                <span>事業戦略・FP&amp;A</span>
-              </Link>
-              <Link href="/services/marketing">
-                <strong>Marketing</strong>
-                <span>広告・グロース</span>
-              </Link>
-            </div>
-          </div>
-          <Link href="/works">Works</Link>
-          <Link href="/insights">Insights</Link>
-          <Link href="/team">Team</Link>
-          <Link href="/careers">Careers</Link>
-          <Link href="/login" className="nav-login">
-            Login
-          </Link>
-          <Link href="/contact" className="nav-cta">
-            <span>Contact</span>
-            <i>→</i>
-          </Link>
-        </div>
-      </nav>
-
+    <>
       {/* ===== HERO ===== */}
       <header className="hero" id="top">
         <div className="hero-photo" data-parallax="0.22" data-mouse="0.018" aria-hidden="true" />
@@ -176,7 +126,7 @@ export default function HomePage() {
             </h2>
           </div>
           <div className="cap-grid">
-            <Link href="/services" className="cap-card reveal">
+            <Link href="/services/strategy" className="cap-card reveal">
               <div className="cap-num">01 / STRATEGY</div>
               <h3>Strategy</h3>
               <span className="cap-jp">戦略コンサルティング</span>
@@ -187,7 +137,7 @@ export default function HomePage() {
                 Explore Strategy <i>→</i>
               </span>
             </Link>
-            <Link href="/services" className="cap-card feature reveal">
+            <Link href="/services/ai" className="cap-card feature reveal">
               <div className="cap-num">02 / AI — MOST REQUESTED</div>
               <h3>
                 AI<em>.</em>
@@ -200,7 +150,7 @@ export default function HomePage() {
                 Explore AI <i>→</i>
               </span>
             </Link>
-            <Link href="/services" className="cap-card reveal">
+            <Link href="/services/marketing" className="cap-card reveal">
               <div className="cap-num">03 / MARKETING</div>
               <h3>Growth</h3>
               <span className="cap-jp">マーケティング成長支援</span>
@@ -402,51 +352,6 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
-
-      {/* ===== FOOTER ===== */}
-      <footer className="footer">
-        <div className="wrap footer-inner">
-          <div className="footer-brand">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-light.png" alt="mixednuts Inc." className="footer-mark" width={210} height={40} />
-            <p>
-              戦略 × AI × マーケティング。
-              <br />
-              3つの力で成長エンジンをつくる。
-            </p>
-            <p className="addr">ミックスナッツ株式会社 · mixednuts Inc.</p>
-          </div>
-          <div className="footer-col">
-            <h5>Services</h5>
-            <Link href="/services/ai">AI Solutions</Link>
-            <Link href="/services/strategy">Strategy</Link>
-            <Link href="/services/marketing">Marketing</Link>
-          </div>
-          <div className="footer-col">
-            <h5>Company</h5>
-            <Link href="/about">About</Link>
-            <Link href="/team">Team</Link>
-            <Link href="/careers">Careers</Link>
-          </div>
-          <div className="footer-col">
-            <h5>Resources</h5>
-            <Link href="/works">Works</Link>
-            <Link href="/insights">Insights</Link>
-            <Link href="/contact">Contact</Link>
-          </div>
-          <div className="footer-col">
-            <h5>Legal</h5>
-            <Link href="/privacy">プライバシー</Link>
-            <Link href="/legal">利用規約</Link>
-          </div>
-        </div>
-        <div className="wrap footer-bottom">
-          <span>© 2021–2026 mixednuts Inc. All rights reserved.</span>
-          <span>Tokyo, Japan</span>
-        </div>
-      </footer>
-
-      <SiteMotion />
-    </div>
+    </>
   );
 }
