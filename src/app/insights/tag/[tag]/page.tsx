@@ -36,16 +36,6 @@ export async function generateMetadata({
   };
 }
 
-const categoryColorMap: Record<string, string> = {
-  AI: "art-ai",
-  STRATEGY: "art-strategy",
-  MARKETING: "art-marketing",
-  FINANCE: "art-finance",
-  ENGINEERING: "art-ai",
-  "SEO / AIO": "art-marketing",
-  ORGANIZATION: "art-strategy",
-};
-
 export default async function TagPage({ params }: { params: Promise<Params> }) {
   const { tag: raw } = await params;
   const tag = decodeTag(raw);
@@ -65,96 +55,91 @@ export default async function TagPage({ params }: { params: Promise<Params> }) {
   return (
     <>
       <JsonLd data={breadcrumb} />
-      <style>{`
-        .tag-hero {
-          background: var(--off-white);
-          padding: 140px 32px 64px;
-          border-bottom: 1px solid rgba(10,10,10,0.06);
-        }
-        .tag-hero-inner { max-width: 1280px; margin: 0 auto; }
-        .tag-hero .breadcrumb { font-size: 13px; color: var(--gray-500); margin-bottom: 16px; }
-        .tag-hero .breadcrumb a { color: var(--gray-500); text-decoration: none; }
-        .tag-hero h1 {
-          font-family: 'Noto Sans JP', sans-serif;
-          font-size: clamp(36px, 5vw, 56px);
-          font-weight: 900; letter-spacing: -0.02em; line-height: 1.15;
-          color: var(--charcoal); margin-bottom: 12px;
-        }
-        .tag-hero h1 .accent { color: var(--cyan); }
-        .tag-hero .lead { color: var(--gray-600); font-size: 15px; }
 
-        .tag-grid-section { background: var(--off-white-alt); padding: 64px 32px 120px; }
-        .tag-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 1280px; margin: 0 auto; }
-        .tag-card {
-          background: var(--off-white); border: 1px solid rgba(10,10,10,0.08); border-radius: 16px;
-          overflow: hidden; text-decoration: none; color: inherit;
-          transition: all 0.3s; display: flex; flex-direction: column;
-        }
-        .tag-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(10,10,10,0.08); border-color: var(--charcoal); }
-        .tag-visual {
-          aspect-ratio: 16/9; position: relative;
-          background: linear-gradient(135deg, var(--charcoal-soft), var(--charcoal));
-          border-bottom: 2px solid var(--cyan);
-        }
-        .tag-visual-badge {
-          position: absolute; top: 16px; left: 16px;
-          background: var(--off-white); color: var(--charcoal);
-          padding: 4px 10px; border-radius: 4px;
-          font-size: 10px; font-weight: 700; letter-spacing: 0.1em; font-family: var(--font-sans-en);
-        }
-        .tag-body { padding: 24px; flex: 1; display: flex; flex-direction: column; }
-        .tag-meta { display: flex; gap: 12px; font-size: 11px; color: var(--gray-400); font-family: var(--font-sans-en); margin-bottom: 10px; }
-        .tag-body h3 { font-family: 'Noto Sans JP', sans-serif; font-size: 16px; font-weight: 700; line-height: 1.5; margin-bottom: 12px; color: var(--charcoal); flex: 1; }
-        .tag-excerpt { font-size: 12px; color: var(--gray-600); line-height: 1.7; }
-
-        @media (max-width: 900px) {
-          .tag-grid { grid-template-columns: 1fr; }
-        }
-      `}</style>
-
-      <section className="tag-hero">
-        <div className="tag-hero-inner">
-          <div className="breadcrumb">
+      {/* ===== HERO ===== */}
+      <header className="subhero">
+        <canvas
+          className="hero-fx fxgen"
+          data-count="60"
+          data-interactive
+          aria-hidden="true"
+        />
+        <div className="hero-orb o1" data-parallax="0.34" data-mouse="0.05" aria-hidden="true" />
+        <div className="hero-orb o2" data-parallax="0.22" data-mouse="0.035" aria-hidden="true" />
+        <div className="hero-veil" />
+        <div className="grain" aria-hidden="true" />
+        <div className="wrap subhero-inner">
+          <div className="crumb reveal">
             <Link href="/">Home</Link> / <Link href="/insights">Insights</Link> / Tag
           </div>
-          <h1>
-            <span className="accent">#{tag}</span>
+          <div className="eyebrow reveal">
+            <i className="pulse" /> Insights · Tag
+          </div>
+          <h1 className="big-title-jp reveal">
+            #<em>{tag}</em>
           </h1>
-          <p className="lead">
-            タグ「{tag}」の記事 {matched.length} 件。
+          <p className="subhero-lead reveal">
+            タグ「{tag}」の記事 {matched.length} 件。AI-first 組織の現場から、戦略・AI・マーケティングの交差点で見えてきた知見をお届けします。
           </p>
+        </div>
+      </header>
+
+      {/* ===== ARTICLE GRID ===== */}
+      <section className="sec white">
+        <div className="wrap">
+          <div className="art-grid">
+            {matched.map((p) => (
+              <Link key={p.slug} href={p.permalink} className="art reveal">
+                <div className="art-img">
+                  <span className="art-cat">{p.category}</span>
+                  {p.hero ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.hero} alt="" />
+                  ) : (
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        height: "100%",
+                        background:
+                          "linear-gradient(135deg, var(--charcoal-soft, #14151b), var(--charcoal, #05060A))",
+                      }}
+                    />
+                  )}
+                </div>
+                <div className="art-body">
+                  <div className="date">
+                    {p.date.slice(0, 10).replace(/-/g, ".")} · {p.readTime}
+                  </div>
+                  <h4>{p.title}</h4>
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 
-      <section className="tag-grid-section">
-        <div className="tag-grid">
-          {matched.map((p) => (
-            <Link key={p.slug} href={p.permalink} className="tag-card">
-              <div
-                className={`tag-visual ${categoryColorMap[p.category] ?? "art-ai"}`}
-                style={
-                  p.hero
-                    ? {
-                        backgroundImage: `linear-gradient(180deg, rgba(10,10,10,0.04) 0%, rgba(10,10,10,0.32) 100%), url('${p.hero}')`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }
-                    : undefined
-                }
-              >
-                <span className="tag-visual-badge">{p.category}</span>
-              </div>
-              <div className="tag-body">
-                <div className="tag-meta">
-                  <span>{p.date.slice(0, 10).replace(/-/g, ".")}</span>
-                  <span>·</span>
-                  <span>{p.readTime}</span>
-                </div>
-                <h3>{p.title}</h3>
-                <p className="tag-excerpt">{p.excerpt}</p>
-              </div>
-            </Link>
-          ))}
+      {/* ===== CTA ===== */}
+      <section className="cta">
+        <div className="cta-photo" data-parallax="0.16" aria-hidden="true" />
+        <canvas className="cta-fx fxgen" data-count="46" aria-hidden="true" />
+        <div className="cta-glow" aria-hidden="true" />
+        <div className="grain" aria-hidden="true" />
+        <div className="wrap cta-inner">
+          <div className="eyebrow reveal">
+            <i className="pulse" /> Let&apos;s build together
+          </div>
+          <h2 className="cta-h reveal">
+            LET&apos;S BUILD
+            <br />
+            <em>growth.</em>
+          </h2>
+          <p className="reveal">記事の先にある、貴社の実装へ。60分の無料相談からどうぞ。</p>
+          <Link href="/contact" className="btn btn-cyan btn-lg magnetic reveal">
+            <span>無料相談を申し込む</span>
+            <i className="arr">↗</i>
+          </Link>
         </div>
       </section>
     </>

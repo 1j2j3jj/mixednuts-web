@@ -77,9 +77,6 @@ export default async function InsightsArticlePage({ params }: { params: Promise<
 
   const related = posts.filter((p) => p.slug !== post.slug && !p.hidden).slice(0, 3);
   const formattedDate = post.date.slice(0, 10).replace(/-/g, ".");
-  const heroBg = post.hero
-    ? `linear-gradient(135deg, rgba(0, 217, 255, 0.08), rgba(10, 10, 10, 0.85)), url('${post.hero}') center/cover no-repeat`
-    : "linear-gradient(135deg, var(--charcoal-soft), var(--charcoal))";
 
   const articleSchema = {
     "@context": "https://schema.org",
@@ -132,316 +129,163 @@ export default async function InsightsArticlePage({ params }: { params: Promise<
       <JsonLd data={articleSchema} />
       <JsonLd data={breadcrumb} />
       {faqPageSchema && <JsonLd data={faqPageSchema} />}
+
+      {/* Layout glue only — the dark scope, prose typography, hero, art cards,
+          and CTA all come from the scoped v4 stylesheet (.mn-v4). This block
+          provides the two-column TOC layout + tags/CTA spacing that v4 .prose
+          does not ship. */}
       <style>{`
-        .article-hero { background: var(--off-white); padding: 140px 32px 64px; }
-        .article-hero-inner { max-width: 860px; margin: 0 auto; }
-        .article-hero .category-tag {
-          display: inline-block; font-family: var(--font-sans-en); font-size: 11px; color: var(--cyan);
-          letter-spacing: 0.2em; text-transform: uppercase; font-weight: 700;
-          margin-bottom: 16px; padding: 6px 14px; background: var(--cyan-soft); border-radius: 999px;
-        }
-        .article-hero h1 {
-          font-family: 'Noto Sans JP', sans-serif; font-size: clamp(28px, 5vw, 52px); line-height: 1.25;
-          font-weight: 900; color: var(--charcoal); margin-bottom: 24px; letter-spacing: -0.01em; word-break: keep-all;
-        }
-        .article-subtitle {
-          font-family: var(--font-serif-jp); font-size: 17px; color: var(--gray-600);
-          line-height: 1.9; margin-bottom: 40px;
-        }
-        .article-meta-row {
-          display: flex; align-items: center; gap: 24px; padding-top: 24px;
-          border-top: 1px solid rgba(10,10,10,0.12);
-        }
-        .article-author-img {
-          width: 48px; height: 48px; border-radius: 50%;
-          background: linear-gradient(135deg, var(--charcoal), var(--charcoal-soft));
-          display: flex; align-items: center; justify-content: center;
-          color: var(--off-white); font-weight: 700; font-size: 14px; font-family: var(--font-sans-en);
-        }
-        .article-author-name { font-size: 14px; font-weight: 700; color: var(--charcoal); }
-        .article-author-role { font-size: 11px; color: var(--gray-400); font-family: var(--font-sans-en); letter-spacing: 0.05em; }
-        .article-meta-items { display: flex; gap: 12px; font-size: 12px; color: var(--gray-400); font-family: var(--font-sans-en); letter-spacing: 0.05em; margin-left: auto; }
-
-        .article-featured-image {
-          max-width: 1280px; margin: 0 auto 64px; padding: 0 32px;
-          aspect-ratio: 21/9; border-radius: 24px;
-          background: ${heroBg};
-        }
-
-        .article-body { padding: 0 32px 120px; background: var(--off-white); }
-        .article-body-wrap {
+        .mn-v4 .article-shell { background: #fff; }
+        .mn-v4 .article-shell .article-layout {
           max-width: 1120px; margin: 0 auto;
+          padding: 88px 24px;
           display: grid; grid-template-columns: 220px minmax(0, 720px);
-          gap: 64px; align-items: start;
+          gap: 64px; align-items: start; justify-content: center;
         }
-        .article-side { padding-top: 12px; }
-        .article-body-inner { max-width: 720px; min-width: 0; }
+        .mn-v4 .article-shell .article-side { padding-top: 4px; }
+        .mn-v4 .article-shell .article-main { min-width: 0; }
+        /* Neutralise the standalone .prose padding/centering when nested in the grid */
+        .mn-v4 .article-shell .article-main .prose { padding: 0; max-width: 720px; margin: 0; }
         @media (max-width: 1100px) {
-          .article-body-wrap { grid-template-columns: 1fr; max-width: 720px; gap: 0; }
-          .article-side { display: none; }
-        }
-        .article-body h2 {
-          font-family: 'Noto Sans JP', sans-serif; font-size: 26px; line-height: 1.4;
-          font-weight: 900; color: var(--charcoal); margin: 56px 0 20px;
-          padding-bottom: 16px; border-bottom: 2px solid var(--charcoal);
-          word-break: keep-all;
-        }
-        .article-body h2 a { text-decoration: none; color: inherit; }
-        .article-body h3 {
-          font-family: 'Noto Sans JP', sans-serif; font-size: 19px; font-weight: 700;
-          color: var(--charcoal); margin: 32px 0 12px;
-        }
-        .article-body p {
-          font-size: 15px; line-height: 2.0; color: var(--charcoal); margin-bottom: 20px;
-        }
-        .article-body ul, .article-body ol { margin: 16px 0 24px 24px; }
-        .article-body ul li, .article-body ol li {
-          font-size: 15px; line-height: 2.0; color: var(--charcoal); margin-bottom: 10px;
-        }
-        .article-body strong { color: var(--charcoal); font-weight: 700; }
-
-        /* --- Markdown table styling (previously unstyled, rendered as plain lines) --- */
-        .article-body table {
-          width: 100%; margin: 32px 0;
-          border-collapse: collapse;
-          font-size: 14px; line-height: 1.7;
-          border-top: 2px solid var(--charcoal);
-          border-bottom: 2px solid var(--charcoal);
-        }
-        .article-body thead th {
-          padding: 14px 16px;
-          text-align: left;
-          font-family: var(--font-sans-en);
-          font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
-          font-weight: 700; color: var(--gray-500);
-          border-bottom: 1px solid rgba(10,10,10,0.15);
-          background: transparent;
-        }
-        .article-body tbody td {
-          padding: 14px 16px;
-          color: var(--charcoal);
-          border-bottom: 1px solid rgba(10,10,10,0.08);
-          vertical-align: top;
-        }
-        .article-body tbody tr:last-child td { border-bottom: none; }
-        .article-body tbody tr:hover { background: rgba(0,217,255,0.03); }
-        @media (max-width: 700px) {
-          .article-body table { font-size: 13px; }
-          .article-body thead th, .article-body tbody td { padding: 10px 10px; }
-        }
-        .article-body blockquote {
-          margin: 32px 0; padding: 24px 32px;
-          background: var(--off-white-alt); border-left: 3px solid var(--cyan); border-radius: 4px;
-          font-family: var(--font-serif-jp); font-size: 16px; line-height: 1.9;
-          color: var(--charcoal); font-style: italic;
-        }
-        .article-body code {
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 0.9em; background: var(--off-white-alt); padding: 0.15em 0.4em; border-radius: 4px;
-        }
-        .tldr {
-          background: var(--off-white-alt);
-          border: 1px solid rgba(0,217,255,0.25); border-radius: 12px;
-          padding: 24px 32px; margin: 32px 0;
-        }
-        .tldr-label { font-family: var(--font-sans-en); font-size: 11px; color: var(--cyan); letter-spacing: 0.2em; text-transform: uppercase; font-weight: 700; margin-bottom: 12px; }
-        .tldr p { margin: 0; font-size: 14px; line-height: 1.9; }
-        .principle {
-          background: var(--off-white-alt); border: 1px solid rgba(10,10,10,0.08); border-radius: 16px;
-          padding: 28px 32px; margin: 24px 0;
-        }
-        .principle-num { font-family: var(--font-sans-en); font-size: 12px; color: var(--cyan); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 8px; }
-        .principle h3 { margin: 0 !important; font-size: 17px; line-height: 1.5; }
-
-        .inline-cite { text-decoration: none; color: var(--cyan); font-weight: 700; margin: 0 2px; }
-        .inline-cite sup { font-size: 0.72em; vertical-align: super; }
-        .inline-cite:hover { text-decoration: underline; }
-
-        .pull-quote {
-          border-left: 4px solid var(--cyan);
-          background: var(--off-white-alt);
-          padding: 28px 32px; margin: 32px 0;
-          border-radius: 0 12px 12px 0;
-        }
-        .pull-quote p {
-          font-family: var(--font-serif-jp, 'Noto Serif JP', serif);
-          font-size: 18px; line-height: 1.8; font-weight: 500;
-          color: var(--charcoal); margin: 0 0 12px 0;
-        }
-        .pull-quote cite {
-          font-style: normal; font-size: 12px; color: var(--gray-500);
-          font-family: var(--font-sans-en);
-          letter-spacing: 0.06em;
-        }
-
-        .answer-block {
-          background: rgba(0,217,255,0.06);
-          border-left: 3px solid var(--cyan);
-          border-radius: 8px;
-          padding: 20px 24px;
-          margin: 20px 0 32px 0;
-        }
-        .answer-label {
-          font-family: var(--font-sans-en);
-          font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
-          color: var(--cyan); font-weight: 700; margin-bottom: 8px;
-        }
-        .answer-block p { margin: 0; font-size: 15px; line-height: 1.8; color: var(--charcoal); }
-
-        .stat-callout {
-          display: block;
-          width: 100%;
-          background: transparent;
-          border-top: 1px solid rgba(10,10,10,0.15);
-          border-bottom: 1px solid rgba(10,10,10,0.15);
-          padding: 32px 0;
-          margin: 40px 0;
-          text-align: center;
-        }
-        .stat-callout.inline {
-          display: grid;
-          grid-template-columns: auto 1fr auto;
-          gap: 28px;
-          align-items: center;
-          text-align: left;
-        }
-        .stat-value {
-          font-family: 'Archivo', 'Noto Sans JP', sans-serif;
-          font-size: clamp(48px, 7vw, 84px);
-          font-weight: 900; line-height: 0.95; letter-spacing: -0.03em;
-          color: var(--cyan);
-          display: block;
-          margin-bottom: 8px;
-        }
-        .stat-label {
-          font-size: 14px; color: var(--charcoal); font-weight: 600;
-          line-height: 1.6;
-        }
-        .stat-source {
-          font-size: 11px; margin-top: 10px;
-          color: var(--gray-500);
-          font-family: var(--font-sans-en);
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
+          .mn-v4 .article-shell .article-layout { grid-template-columns: 1fr; max-width: 760px; gap: 0; }
+          .mn-v4 .article-shell .article-side { display: none; }
         }
         @media (max-width: 700px) {
-          .stat-value { font-size: clamp(40px, 12vw, 56px); }
-          .stat-callout { padding: 24px 0; }
+          .mn-v4 .article-shell .article-layout { padding: 58px 22px; }
         }
-
-        .article-tags {
+        .mn-v4 .article-foot {
+          max-width: 720px; margin: 0 auto;
+        }
+        .mn-v4 .article-tags {
           display: flex; gap: 8px; flex-wrap: wrap;
-          margin-top: 48px; padding-top: 32px; border-top: 1px solid rgba(10,10,10,0.12);
+          margin-top: 56px; padding-top: 32px; border-top: 1px solid rgba(10,10,10,0.12);
         }
-        .article-tag-link { padding: 6px 14px; background: var(--off-white-alt); color: var(--gray-600); border-radius: 999px; font-size: 12px; text-decoration: none; transition: all 0.2s; }
-        .article-tag-link:hover { background: var(--charcoal); color: var(--off-white); }
-
-        .article-cta {
-          margin-top: 48px; padding: 40px;
-          background: var(--charcoal);
-          color: var(--off-white); border-radius: 20px; text-align: center;
+        .mn-v4 .article-tag-link {
+          padding: 9px 18px; border-radius: 999px;
+          border: 1px solid rgba(10,10,10,0.2);
+          font-family: var(--font-sans-en); font-size: 12px; font-weight: 600;
+          letter-spacing: 0.04em; color: #0A0A0A; text-decoration: none;
+          transition: all 0.2s;
         }
-        .article-cta h3 { font-family: 'Noto Sans JP', sans-serif; font-size: 22px; margin-bottom: 16px; color: var(--off-white); }
-        .article-cta p { color: rgba(245,241,232,0.85); margin-bottom: 24px; font-size: 14px; }
-        .article-cta .btn-cta { background: var(--cyan); color: var(--charcoal); padding: 14px 28px; border-radius: 999px; font-weight: 700; font-size: 14px; text-decoration: none; display: inline-block; transition: all 0.2s; }
-        .article-cta .btn-cta:hover { transform: translateY(-2px); }
-
-        .related { background: var(--off-white-alt); padding: 96px 32px; }
-        .related-inner { max-width: 1280px; margin: 0 auto; }
-        .related-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 32px; }
-        .related-card { background: var(--off-white); border: 1px solid rgba(10,10,10,0.08); border-radius: 16px; overflow: hidden; text-decoration: none; color: inherit; transition: all 0.3s; }
-        .related-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(10,10,10,0.08); }
-        .related-visual { aspect-ratio: 16/9; position: relative; background: var(--charcoal); }
-        .related-tag-pos { position: absolute; top: 16px; left: 16px; background: var(--off-white); color: var(--charcoal); padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; font-family: var(--font-sans-en); }
-        .related-body { padding: 24px; }
-        .related-date { font-size: 11px; color: var(--gray-400); font-family: var(--font-sans-en); margin-bottom: 8px; }
-        .related-title { font-family: 'Noto Sans JP', sans-serif; font-size: 15px; font-weight: 700; color: var(--charcoal); line-height: 1.5; }
-
-        @media (max-width: 900px) {
-          .related-grid { grid-template-columns: 1fr; }
-          .article-hero { padding: 120px 24px 48px; }
-          .article-meta-items { margin-left: 0; }
-          .article-meta-row { flex-wrap: wrap; }
-        }
+        .mn-v4 .article-tag-link:hover { background: #0A0A0A; color: #fff; border-color: #0A0A0A; }
       `}</style>
 
-      <section className="article-hero">
-        <div className="article-hero-inner">
-          <div className="breadcrumb" style={{ marginBottom: 20 }}>
-            <Link href="/">Home</Link> / <Link href="/insights">Insights</Link> / {post.category}
-          </div>
-          <span className="category-tag">{post.category}</span>
-          <h1>{post.title}</h1>
-          {post.subtitle && <p className="article-subtitle">{post.subtitle}</p>}
-          <div className="article-meta-row">
-            <div className="article-author-img" aria-hidden="true">N.I.</div>
-            <div>
-              <div className="article-author-name">{post.author}</div>
-              <div className="article-author-role">{post.authorRole}</div>
-            </div>
-            <div className="article-meta-items">
-              <span>{formattedDate}</span>
-              <span>·</span>
-              <span>{post.readTime}で読める</span>
-            </div>
+      {/* ===== HERO ===== */}
+      <header className="article-hero">
+        <canvas
+          className="hero-fx fxgen"
+          data-count="54"
+          data-interactive
+          aria-hidden="true"
+        ></canvas>
+        <div className="hero-veil" />
+        <div className="grain" aria-hidden="true" />
+        <div className="wrap">
+          <Link href="/insights" className="back-link reveal">
+            ← Insights に戻る
+          </Link>
+          <div className="article-cat-lg reveal">{post.category}</div>
+          <h1 className="article-title reveal">{post.title}</h1>
+          {post.subtitle && (
+            <p
+              className="reveal"
+              style={{
+                marginTop: 24,
+                maxWidth: 820,
+                fontFamily: "var(--font-serif-jp, 'Noto Serif JP', serif)",
+                fontSize: 17,
+                lineHeight: 1.95,
+                color: "rgba(255,255,255,0.72)",
+              }}
+            >
+              {post.subtitle}
+            </p>
+          )}
+          <div className="article-meta reveal">
+            <span>{formattedDate}</span>
+            <span>{post.author}</span>
+            {post.authorRole && <span>{post.authorRole}</span>}
+            <span>{post.readTime}で読める</span>
           </div>
         </div>
-      </section>
+      </header>
 
-      <div className="article-featured-image" />
+      {/* ===== LEAD IMAGE (only when the post has a real hero) ===== */}
+      {post.hero && (
+        <div className="article-lead-img reveal">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={post.hero} alt="" />
+        </div>
+      )}
 
       <ReadingProgressBar />
 
-      <article className="article-body" data-reading-target>
-        <div className="article-body-wrap">
-          <aside className="article-side">
-            <StickyToc />
-          </aside>
-          <div className="article-body-inner">
-            <MDXContent code={post.body} />
+      {/* ===== BODY ===== */}
+      <section className="article-shell">
+        <article data-reading-target>
+          <div className="article-layout">
+            <aside className="article-side">
+              <StickyToc />
+            </aside>
+            <div className="article-main">
+              <div className="prose">
+                <MDXContent code={post.body} />
+              </div>
 
-          <div className="article-tags">
-            {post.tags.map((tag) => (
-              <Link
-                key={tag}
-                href={`/insights/tag/${encodeURIComponent(tag)}`}
-                className="article-tag-link"
-              >
-                #{tag}
-              </Link>
-            ))}
+              <div className="article-foot">
+                <div className="article-tags">
+                  {post.tags.map((tag) => (
+                    <Link
+                      key={tag}
+                      href={`/insights/tag/${encodeURIComponent(tag)}`}
+                      className="article-tag-link"
+                    >
+                      #{tag}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
+        </article>
+      </section>
 
-          <div className="article-cta">
-            <h3>AI-first 組織の構築にご関心ありませんか?</h3>
-            <p>私たちの知見をあなたの事業に実装します。60分の無料相談をご予約ください。</p>
-            <Link href="/contact" className="btn-cta">無料相談を申し込む →</Link>
-          </div>
-          </div>
-        </div>
-      </article>
-
+      {/* ===== RELATED ===== */}
       {related.length > 0 && (
-        <section className="related">
-          <div className="related-inner">
-            <span className="section-label">Related Articles</span>
-            <h2 className="section-title" style={{ marginBottom: 32 }}>関連記事</h2>
-            <div className="related-grid">
+        <section className="sec white" style={{ paddingTop: 40 }}>
+          <div className="wrap">
+            <div className="sec-head">
+              <div className="eyebrow dark reveal">
+                <i className="pulse" /> Related
+              </div>
+              <h2 className="title reveal">
+                関連する<em>記事</em>。
+              </h2>
+            </div>
+            <div className="art-grid">
               {related.map((item) => (
-                <Link key={item.slug} href={item.permalink} className="related-card">
-                  <div
-                    className="related-visual"
-                    style={{
-                      background: item.hero
-                        ? `linear-gradient(135deg, rgba(0,217,255,0.18), rgba(10,10,10,0.85)), url('${item.hero}') center/cover no-repeat`
-                        : "var(--charcoal)",
-                    }}
-                  >
-                    <span className="related-tag-pos">{item.category}</span>
+                <Link key={item.slug} href={item.permalink} className="art reveal">
+                  <div className="art-img">
+                    <span className="art-cat">{item.category}</span>
+                    {item.hero ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={item.hero} alt="" />
+                    ) : (
+                      <div
+                        aria-hidden="true"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          background: "linear-gradient(135deg,#0A0A0A,#1a1d28)",
+                        }}
+                      />
+                    )}
                   </div>
-                  <div className="related-body">
-                    <div className="related-date">{item.date.slice(0, 10).replace(/-/g, ".")}</div>
-                    <div className="related-title">{item.title}</div>
+                  <div className="art-body">
+                    <div className="date">
+                      {item.date.slice(0, 10).replace(/-/g, ".")}
+                    </div>
+                    <h4>{item.title}</h4>
                   </div>
                 </Link>
               ))}
@@ -449,6 +293,31 @@ export default async function InsightsArticlePage({ params }: { params: Promise<
           </div>
         </section>
       )}
+
+      {/* ===== CTA ===== */}
+      <section className="cta">
+        <div className="cta-photo" data-parallax="0.16" aria-hidden="true" />
+        <canvas className="cta-fx fxgen" data-count="46" aria-hidden="true"></canvas>
+        <div className="cta-glow" aria-hidden="true" />
+        <div className="grain" aria-hidden="true" />
+        <div className="wrap cta-inner">
+          <div className="eyebrow reveal">
+            <i className="pulse" /> Let&apos;s build together
+          </div>
+          <h2 className="cta-h reveal">
+            AI-first 組織の
+            <br />
+            <em>実装</em>へ。
+          </h2>
+          <p className="reveal">
+            私たちの知見をあなたの事業に実装します。60分の無料相談をご予約ください。
+          </p>
+          <Link href="/contact" className="btn btn-cyan btn-lg magnetic reveal">
+            <span>無料相談を申し込む</span>
+            <i className="arr">↗</i>
+          </Link>
+        </div>
+      </section>
     </>
   );
 }

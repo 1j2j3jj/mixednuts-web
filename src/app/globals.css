@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./site-v4.css";
 
 /* ============================================================
    shadcn/ui design tokens — scoped to .dashboard-scope only.

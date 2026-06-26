@@ -75,13 +75,21 @@ export default function ContactForm() {
 
   if (state.status === "success") {
     return (
-      <div style={{ textAlign: "center", padding: "48px 24px" }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
-        <h3 style={{ fontFamily: "var(--font-serif-jp)", fontSize: 22, color: "var(--navy)", marginBottom: 12 }}>
-          メッセージを受け取りました。
+      <div style={{ padding: "48px 8px" }}>
+        <h3
+          style={{
+            fontFamily: "var(--font-display)",
+            fontWeight: 900,
+            fontSize: 34,
+            letterSpacing: "-0.02em",
+            color: "#0A0A0A",
+            marginBottom: 14,
+          }}
+        >
+          送信しました。
         </h3>
-        <p style={{ color: "#4B5563", fontSize: 14, lineHeight: 1.8 }}>
-          2 営業日以内に hello@mixednuts-inc.com から返信します。
+        <p style={{ fontSize: 15, lineHeight: 1.9, color: "#4B5563" }}>
+          2 営業日以内に hello@mixednuts-inc.com から返信します。お問い合わせ、ありがとうございます。
         </p>
       </div>
     );
@@ -93,28 +101,28 @@ export default function ContactForm() {
     <form onSubmit={handleSubmit}>
       <input type="text" name="_honey" style={{ display: "none" }} tabIndex={-1} autoComplete="off" />
 
-      <div className="form-group">
-        <label>お名前 <span className="req">*</span></label>
+      <div className="field">
+        <label>お名前 <span style={{ color: "#00B4D8" }}>*</span></label>
         <input type="text" name="name" placeholder="山田 太郎" required />
       </div>
-      <div className="form-group">
-        <label>会社名 <span className="req">*</span></label>
+      <div className="field">
+        <label>会社名 <span style={{ color: "#00B4D8" }}>*</span></label>
         <input type="text" name="company" placeholder="株式会社サンプル" required />
       </div>
-      <div className="form-group">
+      <div className="field">
         <label>役職</label>
         <input type="text" name="role" placeholder="例: 事業開発責任者、CMO 等" />
       </div>
-      <div className="form-group">
-        <label>メールアドレス <span className="req">*</span></label>
+      <div className="field">
+        <label>メールアドレス <span style={{ color: "#00B4D8" }}>*</span></label>
         <input type="email" name="email" placeholder="your@company.com" required />
       </div>
-      <div className="form-group">
+      <div className="field">
         <label>電話番号（任意）</label>
         <input type="tel" name="phone" placeholder="090-1234-5678" />
       </div>
-      <div className="form-group">
-        <label>ご関心のあるサービス <span className="req">*</span></label>
+      <div className="field">
+        <label>ご関心のあるサービス <span style={{ color: "#00B4D8" }}>*</span></label>
         <select name="subject" required defaultValue="">
           <option value="">選択してください</option>
           <option value="Strategy">Strategy Consulting（戦略コンサル）</option>
@@ -125,7 +133,7 @@ export default function ContactForm() {
           <option value="Other">その他・ご相談</option>
         </select>
       </div>
-      <div className="form-group">
+      <div className="field">
         <label>予算目安</label>
         <select name="budget" defaultValue="">
           <option value="">選択してください</option>
@@ -136,14 +144,14 @@ export default function ContactForm() {
           <option>応相談</option>
         </select>
       </div>
-      <div className="form-group">
-        <label>ご相談内容 <span className="req">*</span></label>
+      <div className="field">
+        <label>ご相談内容 <span style={{ color: "#00B4D8" }}>*</span></label>
         <textarea name="message" placeholder="現状の課題、達成したい状態、時間軸などをお聞かせください。" required />
       </div>
-      <div className="form-group" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div className="field" style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <input type="checkbox" required style={{ width: "auto" }} id="privacy" />
-        <label htmlFor="privacy" style={{ margin: 0, fontSize: 12, color: "#4B5563", cursor: "pointer" }}>
-          <Link href="/privacy" style={{ color: "var(--navy)", textDecoration: "underline" }}>プライバシーポリシー</Link>に同意する
+        <label htmlFor="privacy" style={{ margin: 0, fontSize: 12, color: "#4B5563", cursor: "pointer", textTransform: "none", letterSpacing: 0 }}>
+          <Link href="/privacy" style={{ color: "#0A0A0A", textDecoration: "underline" }}>プライバシーポリシー</Link>に同意する
         </label>
       </div>
 
@@ -153,14 +161,13 @@ export default function ContactForm() {
         </div>
       )}
 
-      <div className="form-actions">
-        <button type="submit" className="form-submit" disabled={pending}>
-          {pending ? "送信しています..." : "お問い合わせを送る →"}
-        </button>
-        <p className="form-note">
-          2 営業日以内に返信します。入力情報は相談対応のみに使用します。
-        </p>
-      </div>
+      <button type="submit" className="btn btn-dark btn-lg magnetic" disabled={pending}>
+        <span>{pending ? "送信しています..." : "お問い合わせを送る"}</span>
+        <i className="arr">↗</i>
+      </button>
+      <p style={{ fontSize: 12, color: "#9CA3AF", marginTop: 16, lineHeight: 1.7 }}>
+        2 営業日以内に返信します。入力情報は相談対応のみに使用します。
+      </p>
     </form>
   );
 }

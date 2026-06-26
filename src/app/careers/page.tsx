@@ -52,148 +52,102 @@ export const metadata: Metadata = {
   alternates: { canonical: "/careers" },
 };
 
+const hiringSteps = [
+  { num: "01", day: "Day 1", title: "カジュアル面談", desc: "30分のカジュアル面談で、お互いの興味と相性を確認。" },
+  { num: "02", day: "Week 1", title: "書類選考", desc: "職務経歴書 + ポートフォリオを2営業日以内に確認。" },
+  { num: "03", day: "Week 2", title: "実技・ケース", desc: "実際の業務に即したケース (持ち帰り2-3h程度) を提出。" },
+  { num: "04", day: "Week 3", title: "CEO 面談", desc: "CEO (石井 希実) と60分の最終面談。" },
+  { num: "05", day: "Week 4", title: "オファー", desc: "条件提示 → 合意 → 契約締結。最短翌週から着任可。" },
+];
+
 export default function CareersPage() {
   return (
     <>
       <JsonLd data={faqSchema} />
       <JsonLd data={breadcrumb} />
-      <style>{`
-        .page-hero-careers { background: var(--off-white); }
 
-        /* Why us */
-        .why-us { background: var(--white); padding: 120px 32px; }
-        .why-us-inner { max-width: 1280px; margin: 0 auto; }
-        .why-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 48px; }
-        .why-card {
-          background: #F9FAFB; border-radius: 20px; padding: 40px 32px;
-          transition: all 0.3s; border: 1px solid #E5E7EB;
-        }
-        .why-card:hover { transform: translateY(-4px); box-shadow: 0 24px 48px rgba(11,22,52,0.08); border-color: var(--cyan); }
-        .why-num { font-family: 'Playfair Display', serif; font-size: 48px; font-weight: 900; color: var(--cyan); line-height: 1; margin-bottom: 16px; }
-        .why-card h3 { font-family: 'Noto Serif JP', serif; font-size: 20px; font-weight: 700; color: var(--navy); margin-bottom: 12px; }
-        .why-card p { color: #4B5563; font-size: 14px; line-height: 1.9; }
-
-        /* Work styles */
-        .work-styles { background: #F9FAFB; padding: 120px 32px; }
-        .work-styles-inner { max-width: 1280px; margin: 0 auto; }
-        .styles-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 48px; }
-        .style-card { background: var(--white); border: 1px solid #E5E7EB; border-radius: 20px; padding: 40px; }
-        .style-card.featured { background: var(--navy); color: var(--white); position: relative; border: none; }
-        .style-card.featured::before {
-          content: 'POPULAR'; position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
-          background: var(--gold); color: var(--navy);
-          padding: 4px 16px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.15em; font-family: 'Inter', sans-serif;
-        }
-        .style-card h3 { font-family: 'Noto Serif JP', serif; font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-        .style-type { font-size: 11px; color: var(--cyan); letter-spacing: 0.15em; text-transform: uppercase; font-family: 'Inter', sans-serif; font-weight: 700; margin-bottom: 16px; }
-        .style-card p { font-size: 14px; line-height: 1.9; margin-bottom: 24px; opacity: 0.9; }
-        .style-card ul { list-style: none; margin-bottom: 24px; padding: 0; }
-        .style-card ul li { padding: 8px 0 8px 20px; font-size: 13px; position: relative; line-height: 1.7; border-bottom: 1px solid rgba(0,0,0,0.06); }
-        .style-card.featured ul li { border-bottom-color: rgba(255,255,255,0.08); }
-        .style-card ul li::before { content: '✓'; position: absolute; left: 0; color: var(--cyan); font-weight: 700; }
-
-        /* Open positions */
-        .positions { background: var(--white); padding: 120px 32px; }
-        .positions-inner { max-width: 1280px; margin: 0 auto; }
-        .position-list { margin-top: 48px; }
-        .position-item {
-          background: var(--white); border: 1px solid #E5E7EB; border-radius: 16px;
-          padding: 32px; margin-bottom: 16px; transition: all 0.2s;
-          display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 24px; align-items: center;
-          text-decoration: none; color: inherit;
-        }
-        .position-item:hover { border-color: var(--navy); transform: translateX(4px); }
-        .position-main h3 { font-family: 'Noto Serif JP', serif; font-size: 18px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
-        .position-tags { display: flex; gap: 8px; flex-wrap: wrap; }
-        .position-tag { padding: 3px 10px; background: #F9FAFB; color: #4B5563; font-size: 11px; border-radius: 4px; font-weight: 600; }
-        .position-meta { font-size: 13px; color: #9CA3AF; }
-        .position-arrow { font-size: 20px; color: #9CA3AF; transition: all 0.2s; }
-        .position-item:hover .position-arrow { color: var(--cyan); transform: translateX(4px); }
-
-        /* Process */
-        .hiring-process { background: #F9FAFB; padding: 120px 32px; }
-        .hiring-process-inner { max-width: 1280px; margin: 0 auto; }
-        .hiring-steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-top: 48px; }
-        .hiring-step { background: var(--white); border: 1px solid #E5E7EB; border-radius: 16px; padding: 28px 24px; position: relative; }
-        .hiring-step-num { position: absolute; top: -14px; left: 24px; background: var(--navy); color: var(--white); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Playfair Display', serif; font-weight: 700; font-size: 13px; }
-        .hiring-step h3 { font-family: 'Noto Serif JP', serif; font-size: 15px; font-weight: 700; color: var(--navy); margin: 12px 0 8px; }
-        .hiring-step .days { font-size: 11px; color: var(--cyan); letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; font-family: 'Inter', sans-serif; margin-bottom: 6px; }
-        .hiring-step p { font-size: 12px; color: #4B5563; line-height: 1.7; }
-
-        /* FAQ (details/summary accordion) */
-        .careers-faq { background: var(--white); padding: 120px 32px; }
-        .careers-faq-list { max-width: 900px; margin: 0 auto; }
-        .faq-item { background: #F9FAFB; border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
-        .faq-item summary {
-          padding: 24px 28px; font-family: 'Noto Serif JP', serif; font-size: 16px; font-weight: 700;
-          color: var(--navy); display: flex; justify-content: space-between; align-items: center;
-          cursor: pointer; list-style: none; gap: 16px;
-        }
-        .faq-item summary::-webkit-details-marker { display: none; }
-        .faq-item summary::after {
-          content: '+'; font-size: 28px; color: var(--cyan); line-height: 1; flex-shrink: 0;
-          transition: transform 0.2s ease;
-        }
-        .faq-item[open] summary::after { transform: rotate(45deg); }
-        .faq-item .faq-a { padding: 0 28px 24px; color: #4B5563; font-size: 14px; line-height: 1.9; }
-
-        @media (max-width: 900px) {
-          .why-grid, .styles-grid { grid-template-columns: 1fr; }
-          .position-item { grid-template-columns: 1fr; gap: 12px; }
-          .hiring-steps { grid-template-columns: 1fr 1fr; }
-        }
-      `}</style>
-
-      {/* HERO */}
-      <section className="page-hero page-hero-careers">
-        <div className="page-hero-inner">
-          <div className="breadcrumb">
+      {/* ===== HERO ===== */}
+      <header className="subhero">
+        <canvas
+          className="hero-fx fxgen"
+          data-count="60"
+          data-interactive
+          aria-hidden="true"
+        />
+        <div className="hero-orb o1" data-parallax="0.34" data-mouse="0.05" aria-hidden="true" />
+        <div className="hero-orb o2" data-parallax="0.22" data-mouse="0.035" aria-hidden="true" />
+        <div className="hero-veil" />
+        <div className="grain" aria-hidden="true" />
+        <div className="wrap subhero-inner">
+          <div className="crumb reveal">
             <Link href="/">Home</Link> / Careers
           </div>
-          <div className="page-hero-badge">Join Us</div>
-          <h1>
-            AI と&quot;<span className="accent">共に働く</span>&quot;<br />
-            プロフェッショナルを<br />
-            募集しています。
+          <div className="eyebrow reveal">
+            <i className="pulse" /> Join Us
+          </div>
+          <h1 className="big-title-jp reveal">
+            AI と&quot;<em>共に働く</em>&quot;
+            <br />
+            プロフェッショナルを募集中。
           </h1>
-          <p className="lead">
+          <p className="subhero-lead reveal">
             フルタイム社員、業務委託、プロジェクト単位のパートナーまで。多様な働き方を組み合わせ、
-            &quot;ミックス&quot;の文化を育てていく仲間を探しています。戦略 / AI / マーケ / デザイン / クリエイティブ、
-            あらゆる領域で出会いを歓迎します。
+            &quot;ミックス&quot;の文化を育てていく仲間を探しています。戦略 / AI / マーケ / デザイン /
+            クリエイティブ、あらゆる領域で出会いを歓迎します。
           </p>
+          <div className="subhero-meta reveal">
+            <div>
+              <div className="k">{positions.length}</div>
+              <div className="l">Open Roles</div>
+            </div>
+            <div>
+              <div className="k">Remote</div>
+              <div className="l">フルリモート可</div>
+            </div>
+            <div>
+              <div className="k">120+</div>
+              <div className="l">AI Coworkers</div>
+            </div>
+          </div>
         </div>
-      </section>
+      </header>
 
-      {/* WHY JOIN US */}
-      <section className="why-us">
-        <div className="why-us-inner">
-          <span className="section-label">Why Join Us</span>
-          <h2 className="section-title" style={{ marginBottom: 16 }}>
-            ミックスナッツで働く3つの魅力
-          </h2>
-          <p className="section-lead" style={{ marginBottom: 0 }}>
-            AI-first ファームで、&quot;自分の専門性&quot; × &quot;AIの拡張力&quot; を試せる場所。
-          </p>
-          <div className="why-grid">
-            <div className="why-card">
-              <div className="why-num">01</div>
-              <h3>AI が同僚になる</h3>
+      {/* ===== WHY JOIN US ===== */}
+      <section className="sec white">
+        <div className="wrap">
+          <div className="sec-head">
+            <div className="eyebrow dark reveal">
+              <i className="pulse" /> Why Join Us
+            </div>
+            <h2 className="title reveal">
+              ミックスナッツで働く、
+              <br />
+              <em>3つ</em>の魅力。
+            </h2>
+            <p className="lead-lg reveal">
+              AI-first ファームで、&quot;自分の専門性&quot; × &quot;AIの拡張力&quot; を試せる場所。
+            </p>
+          </div>
+          <div className="vgrid three">
+            <div className="vcard reveal">
+              <div className="vn">01</div>
+              <h4>AI が同僚になる</h4>
               <p>
                 120体超の AI エージェントがあなたの仕事を助けます。単純作業は AI に任せ、人間は戦略判断と
                 クリエイティビティに集中。&quot;自分の時間単価&quot; が2倍以上になる感覚を得られます。
               </p>
             </div>
-            <div className="why-card">
-              <div className="why-num">02</div>
-              <h3>領域を越えた学び</h3>
+            <div className="vcard reveal">
+              <div className="vn">02</div>
+              <h4>領域を越えた学び</h4>
               <p>
                 戦略ファーム、ビッグテック、事業会社CxO、クリエイター出身者と日常的に協業。
                 1年間で&quot;複数領域のプロフェッショナル&quot;になれるラーニング環境です。
               </p>
             </div>
-            <div className="why-card">
-              <div className="why-num">03</div>
-              <h3>決定権と責任</h3>
+            <div className="vcard reveal">
+              <div className="vn">03</div>
+              <h4>決定権と責任</h4>
               <p>
                 年次・肩書ではなく、成果と信頼で意思決定の範囲が広がる設計。
                 &quot;AIを使って、自分で判断する&quot; を当たり前にする組織です。
@@ -203,49 +157,59 @@ export default function CareersPage() {
         </div>
       </section>
 
-      {/* WORK STYLES */}
-      <section className="work-styles">
-        <div className="work-styles-inner">
-          <span className="section-label">Work Styles</span>
-          <h2 className="section-title" style={{ marginBottom: 16 }}>
-            3つの働き方
-          </h2>
-          <p className="section-lead" style={{ marginBottom: 0 }}>
-            ご自身のライフステージ・専門性・コミット度に合わせて選べます。
-          </p>
-          <div className="styles-grid">
-            <div className="style-card">
-              <div className="style-type">FULL-TIME</div>
-              <h3>正社員</h3>
-              <p>フルコミットで事業成長をドライブする中核メンバー。経営幹部候補としての採用を含みます。</p>
+      {/* ===== WORK STYLES ===== */}
+      <section className="sec">
+        <div className="wrap">
+          <div className="sec-head">
+            <div className="eyebrow dark reveal">
+              <i className="pulse" /> Work Styles
+            </div>
+            <h2 className="title reveal">
+              3つの<em>働き方</em>。
+            </h2>
+            <p className="lead-lg reveal">
+              ご自身のライフステージ・専門性・コミット度に合わせて選べます。
+            </p>
+          </div>
+          <div className="ws-grid">
+            <div className="ws-card reveal">
+              <div className="tag">FULL-TIME</div>
+              <h4>正社員</h4>
+              <p>
+                フルコミットで事業成長をドライブする中核メンバー。経営幹部候補としての採用を含みます。
+              </p>
               <ul>
                 <li>リモート + 週1オフィス (南青山)</li>
                 <li>ストックオプション検討</li>
                 <li>フレックス制</li>
                 <li>書籍・学習支援あり</li>
               </ul>
-              <a href="#open" style={{ fontSize: 13, fontWeight: 700, color: "var(--navy)", textDecoration: "underline" }}>
+              <a href="#open" className="ws-link">
                 Open positions ↓
               </a>
             </div>
-            <div className="style-card featured">
-              <div className="style-type">CONTRACT</div>
-              <h3>業務委託</h3>
-              <p>週2-4日のコミットで、特定案件に深く関わる形。副業可。大手企業在籍中の方も歓迎。</p>
+            <div className="ws-card reveal">
+              <div className="tag">CONTRACT</div>
+              <h4>業務委託</h4>
+              <p>
+                週2-4日のコミットで、特定案件に深く関わる形。副業可。大手企業在籍中の方も歓迎。
+              </p>
               <ul>
                 <li>完全リモート</li>
                 <li>週2日〜 柔軟に設計</li>
                 <li>プロジェクト開始は最短翌週</li>
                 <li>契約更新は3ヶ月ごと</li>
               </ul>
-              <a href="#open" style={{ fontSize: 13, fontWeight: 700, color: "var(--cyan)", textDecoration: "underline" }}>
+              <a href="#open" className="ws-link">
                 Open positions ↓
               </a>
             </div>
-            <div className="style-card">
-              <div className="style-type">PARTNER</div>
-              <h3>プロジェクト パートナー</h3>
-              <p>スポット案件や専門領域の助言で参画。1プロジェクト単位・1回コンサルから可能。</p>
+            <div className="ws-card reveal">
+              <div className="tag">PARTNER</div>
+              <h4>プロジェクト パートナー</h4>
+              <p>
+                スポット案件や専門領域の助言で参画。1プロジェクト単位・1回コンサルから可能。
+              </p>
               <ul>
                 <li>完全リモート</li>
                 <li>成果報酬 / プロジェクト単位</li>
@@ -253,7 +217,7 @@ export default function CareersPage() {
                 <li>継続的な関係性も歓迎</li>
                 <li>顧問・Advisory も相談可</li>
               </ul>
-              <a href="#open" style={{ fontSize: 13, fontWeight: 700, color: "var(--navy)", textDecoration: "underline" }}>
+              <a href="#open" className="ws-link">
                 Open positions ↓
               </a>
             </div>
@@ -261,87 +225,121 @@ export default function CareersPage() {
         </div>
       </section>
 
-      {/* OPEN POSITIONS */}
-      <section className="positions" id="open">
-        <div className="positions-inner">
-          <span className="section-label">Open Positions</span>
-          <h2 className="section-title" style={{ marginBottom: 16 }}>
-            募集中のポジション
-          </h2>
-          <p className="section-lead" style={{ marginBottom: 0 }}>
-            記載以外のポジションでも、スキルセットにフィットする方は随時相談可能です。
-          </p>
-          <div className="position-list">
+      {/* ===== OPEN POSITIONS ===== */}
+      <section className="sec white" id="open">
+        <div className="wrap">
+          <div className="sec-head">
+            <div className="eyebrow dark reveal">
+              <i className="pulse" /> Open Positions
+            </div>
+            <h2 className="title reveal">
+              募集中の<em>ポジション</em>。
+            </h2>
+            <p className="lead-lg reveal">
+              記載以外のポジションでも、スキルセットにフィットする方は随時相談可能です。
+            </p>
+          </div>
+          <div className="pos-list">
             {positions.map((pos) => (
-              <Link key={pos.slug} href={`/careers/apply?position=${pos.slug}`} className="position-item">
-                <div className="position-main">
-                  <h3>{pos.title}</h3>
-                  <div className="position-tags">
+              <Link
+                key={pos.slug}
+                href={`/careers/apply?position=${pos.slug}`}
+                className="pos reveal"
+              >
+                <div>
+                  <div className="pt">{pos.title}</div>
+                  <div className="ptags">
                     {pos.tags.map((t) => (
-                      <span key={t} className="position-tag">{t}</span>
+                      <span key={t} className="ptag">
+                        {t}
+                      </span>
                     ))}
                   </div>
                 </div>
-                <div className="position-meta">{pos.type}</div>
-                <div className="position-arrow">→</div>
+                <div className="pgo">{pos.type} →</div>
               </Link>
             ))}
           </div>
         </div>
       </section>
 
-      {/* HIRING PROCESS */}
-      <section className="hiring-process" id="process">
-        <div className="hiring-process-inner">
-          <span className="section-label">Hiring Process</span>
-          <h2 className="section-title" style={{ marginBottom: 16 }}>
-            選考フロー
-          </h2>
-          <p className="section-lead" style={{ marginBottom: 0 }}>
-            2-4週間で選考完了。スピーディーに、お互い納得できる形を目指します。
-          </p>
-          <div className="hiring-steps">
-            {[
-              { num: "1", day: "Day 1", title: "カジュアル面談", desc: "30分のカジュアル面談で、お互いの興味と相性を確認。" },
-              { num: "2", day: "Week 1", title: "書類選考", desc: "職務経歴書 + ポートフォリオを2営業日以内に確認。" },
-              { num: "3", day: "Week 2", title: "実技・ケース", desc: "実際の業務に即したケース (持ち帰り2-3h程度) を提出。" },
-              { num: "4", day: "Week 3", title: "CEO 面談", desc: "CEO (石井 希実) と60分の最終面談。" },
-              { num: "5", day: "Week 4", title: "オファー", desc: "条件提示 → 合意 → 契約締結。最短翌週から着任可。" },
-            ].map((step) => (
-              <div key={step.num} className="hiring-step">
-                <div className="hiring-step-num">{step.num}</div>
-                <div className="days">{step.day}</div>
-                <h3>{step.title}</h3>
-                <p>{step.desc}</p>
+      {/* ===== HIRING PROCESS ===== */}
+      <section className="sec" id="process" style={{ background: "#0A0A0A" }}>
+        <div className="wrap">
+          <div className="sec-head">
+            <div className="eyebrow reveal">
+              <i className="pulse" /> Hiring Process
+            </div>
+            <h2 className="title reveal" style={{ color: "#fff" }}>
+              選考<em>フロー</em>。
+            </h2>
+            <p className="lead-lg reveal" style={{ color: "rgba(255,255,255,.62)" }}>
+              2-4週間で選考完了。スピーディーに、お互い納得できる形を目指します。
+            </p>
+          </div>
+          <div className="proc">
+            {hiringSteps.map((step) => (
+              <div key={step.num} className="proc-step reveal">
+                <div className="proc-n">{step.num}</div>
+                <h4>{step.title}</h4>
+                <p>
+                  <span style={{ display: "block", color: "var(--cyan,#00D9FF)", fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 8 }}>
+                    {step.day}
+                  </span>
+                  {step.desc}
+                </p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="careers-faq">
-        <div className="careers-faq-list">
-          <span className="section-label">FAQ</span>
-          <h2 className="section-title" style={{ marginBottom: 48 }}>
-            採用に関するよくある質問
-          </h2>
-          {faqItems.map((item) => (
-            <details key={item.q} className="faq-item">
-              <summary>{item.q}</summary>
-              <div className="faq-a">{item.a}</div>
-            </details>
-          ))}
+      {/* ===== FAQ ===== */}
+      <section className="sec white">
+        <div className="wrap">
+          <div className="sec-head">
+            <div className="eyebrow dark reveal">
+              <i className="pulse" /> FAQ
+            </div>
+            <h2 className="title reveal">
+              採用に関する<em>質問</em>。
+            </h2>
+          </div>
+          <div style={{ maxWidth: 860 }}>
+            {faqItems.map((item) => (
+              <details key={item.q} className="faq reveal">
+                <summary>{item.q}</summary>
+                <p>{item.a}</p>
+              </details>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* CTA */}
+      {/* ===== CTA ===== */}
       <section className="cta">
-        <div className="cta-inner">
-          <h2>まずは、話しましょう。</h2>
-          <p>カジュアル面談 (30分) から始められます。応募前の質問も歓迎します。</p>
-          <Link href={`/careers/apply?position=${CASUAL_INTERVIEW_SLUG}`} className="btn-primary">
-            カジュアル面談を申し込む →
+        <div className="cta-photo" data-parallax="0.16" aria-hidden="true" />
+        <canvas className="cta-fx fxgen" data-count="46" aria-hidden="true" />
+        <div className="cta-glow" aria-hidden="true" />
+        <div className="grain" aria-hidden="true" />
+        <div className="wrap cta-inner">
+          <div className="eyebrow reveal">
+            <i className="pulse" /> Let&apos;s talk
+          </div>
+          <h2 className="cta-h reveal">
+            MIX WITH
+            <br />
+            <em>us.</em>
+          </h2>
+          <p className="reveal">
+            まずは、話しましょう。カジュアル面談 (30分) から始められます。応募前の質問も歓迎します。
+          </p>
+          <Link
+            href={`/careers/apply?position=${CASUAL_INTERVIEW_SLUG}`}
+            className="btn btn-cyan btn-lg magnetic reveal"
+          >
+            <span>カジュアル面談を申し込む</span>
+            <i className="arr">↗</i>
           </Link>
         </div>
       </section>
