@@ -119,274 +119,134 @@ const publishedArticles: ListItem[] = [...posts]
 const articles: ListItem[] = [...publishedArticles];
 void upcomingArticles; // 将来の予告枠として温存
 
+// CSS custom property in an inline style (React needs the cast)
+const heroVar = (src: string) => ({ ["--img"]: `url(${src})` } as React.CSSProperties);
+
 export default function InsightsPage() {
   const featured = articles[0];
   const rest = articles.slice(1);
 
   return (
     <>
+      {/*
+        Page-scoped extras: the v4 .art vocabulary ships .art / .art-img /
+        .art-cat / .art-body(.date/h4). The Insights index also surfaces an
+        excerpt, an author line, a "coming soon" badge, the cyan thumb number /
+        label overlay, and a wider featured card. Those few page-specific bits
+        are defined here, scoped under .mn-v4 (the page is rendered inside the
+        V4Shell .mn-v4 dark scope) so they inherit the v4 design tokens.
+      */}
       <style>{`
-        .filters {
-          background: var(--off-white);
-          padding: 32px 32px 0;
-          position: sticky; top: 70px; z-index: 50;
-          border-bottom: 1px solid rgba(10,10,10,0.08);
-        }
-        .filters-inner { max-width: 1280px; margin: 0 auto; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; padding-bottom: 24px; }
-        .filter-label { font-family: var(--font-sans-en); font-size: 11px; color: var(--gray-400); letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; margin-right: 8px; }
-        .filter-btn { padding: 8px 16px; background: var(--off-white); border: 1px solid rgba(10,10,10,0.15); border-radius: 999px; font-size: 13px; color: var(--gray-600); transition: all 0.2s; text-decoration: none; }
-        .filter-btn:hover, .filter-btn.active { background: var(--charcoal); color: var(--off-white); border-color: var(--charcoal); }
-
-        .featured { background: var(--off-white); padding: 64px 32px; }
-        .featured-inner { max-width: 1280px; margin: 0 auto; }
-        .featured-card {
-          display: grid; grid-template-columns: 1fr 1fr; gap: 48px;
-          background: var(--off-white-alt); border-radius: 24px; overflow: hidden;
-          transition: all 0.3s; text-decoration: none; color: inherit;
-        }
-        .featured-card:hover { transform: translateY(-4px); box-shadow: 0 24px 48px rgba(10,10,10,0.08); }
-        .featured-visual {
-          aspect-ratio: 4/3;
-          background: linear-gradient(135deg, var(--charcoal-soft) 0%, var(--charcoal) 100%);
-          position: relative; display: flex; align-items: center; justify-content: center;
-          color: rgba(255,255,255,0.4); font-size: 64px;
-        }
-        .featured-tag {
-          position: absolute; top: 20px; left: 20px;
-          background: var(--off-white); color: var(--charcoal);
-          padding: 6px 14px; border-radius: 4px;
-          font-size: 11px; font-weight: 700; letter-spacing: 0.1em; font-family: var(--font-sans-en);
-        }
-        .featured-body { padding: 48px; display: flex; flex-direction: column; justify-content: center; }
-        .featured-meta { display: flex; gap: 16px; font-size: 12px; color: var(--gray-400); font-family: var(--font-sans-en); margin-bottom: 16px; letter-spacing: 0.05em; }
-        .featured-body h2 { font-family: 'Noto Sans JP', sans-serif; font-size: 30px; line-height: 1.4; font-weight: 900; margin-bottom: 20px; color: var(--charcoal); word-break: keep-all; }
-        .featured-body p { color: var(--gray-600); font-size: 14px; line-height: 1.9; margin-bottom: 32px; }
-        .featured-author { display: flex; align-items: center; gap: 12px; }
-        .featured-author-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--charcoal), var(--charcoal-soft)); }
-        .featured-author-name { font-size: 13px; font-weight: 600; color: var(--charcoal); }
-        .featured-author-role { font-size: 11px; color: var(--gray-400); }
-
-        .articles { background: var(--off-white-alt); padding: 64px 32px 120px; }
-        .articles-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 1280px; margin: 0 auto; }
-        .article-card {
-          background: var(--off-white); border: 1px solid rgba(10,10,10,0.08); border-radius: 16px;
-          overflow: hidden; text-decoration: none; color: inherit;
-          transition: all 0.3s; display: flex; flex-direction: column;
-        }
-        .article-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(10,10,10,0.08); border-color: var(--charcoal); }
-        .article-visual {
-          aspect-ratio: 16/9; position: relative;
-          display: flex; align-items: center; justify-content: center;
-          color: rgba(255,255,255,0.3); font-size: 44px;
-        }
-        .art-ai { background: linear-gradient(135deg, var(--charcoal) 0%, var(--charcoal-soft) 100%); border-bottom: 2px solid var(--cyan); }
-        .art-strategy { background: linear-gradient(135deg, var(--charcoal-soft) 0%, var(--charcoal) 100%); border-bottom: 2px solid var(--cyan); }
-        .art-marketing { background: linear-gradient(135deg, var(--charcoal) 0%, #141414 100%); border-bottom: 2px solid var(--cyan); }
-        .art-finance { background: linear-gradient(135deg, var(--charcoal) 0%, var(--charcoal-soft) 100%); border-bottom: 2px solid var(--cyan); }
-        .article-tag-pos {
-          position: absolute; top: 16px; left: 16px;
-          background: var(--off-white); color: var(--charcoal);
-          padding: 4px 10px; border-radius: 4px;
-          font-size: 10px; font-weight: 700; letter-spacing: 0.1em; font-family: var(--font-sans-en);
-        }
-        .thumb-overlay {
-          position: absolute; right: 18px; bottom: 14px;
-          display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
-          color: var(--off-white);
-          text-shadow: 0 2px 12px rgba(10,10,10,0.45);
-          pointer-events: none;
-        }
-        .thumb-number {
-          font-family: 'Archivo', 'Noto Sans JP', sans-serif;
-          font-size: clamp(28px, 3.4vw, 44px);
-          font-weight: 900;
-          line-height: 1; letter-spacing: -0.02em;
-          color: var(--cyan, #00D9FF);
-        }
-        .thumb-label {
-          font-family: 'Noto Sans JP', sans-serif;
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.05em;
-          color: rgba(255,255,255,0.96);
-          text-shadow: 0 1px 4px rgba(0,0,0,0.6);
-        }
-        .featured-overlay {
-          position: absolute; right: 28px; bottom: 28px;
-          display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
-          color: var(--off-white);
-          text-shadow: 0 2px 12px rgba(10,10,10,0.5);
-          pointer-events: none;
-        }
-        .featured-overlay-num {
-          font-family: 'Archivo', 'Noto Sans JP', sans-serif;
-          font-size: clamp(40px, 5.5vw, 72px);
-          font-weight: 900;
-          line-height: 1; letter-spacing: -0.03em;
-          color: var(--cyan, #00D9FF);
-        }
-        .featured-overlay-label {
-          font-family: 'Noto Sans JP', sans-serif;
-          font-size: 13px;
-          font-weight: 700;
-          letter-spacing: 0.06em;
-          color: rgba(255,255,255,0.96);
-          text-shadow: 0 1px 4px rgba(0,0,0,0.6);
-        }
-        .article-body { padding: 24px; flex: 1; display: flex; flex-direction: column; }
-        .article-meta { display: flex; gap: 12px; font-size: 11px; color: var(--gray-400); font-family: var(--font-sans-en); margin-bottom: 10px; }
-        .article-body h3 { font-family: 'Noto Sans JP', sans-serif; font-size: 16px; font-weight: 700; line-height: 1.5; margin-bottom: 12px; color: var(--charcoal); flex: 1; }
-        .article-excerpt { font-size: 12px; color: var(--gray-600); line-height: 1.7; margin-bottom: 16px; }
-        .article-author-line { font-size: 11px; color: var(--gray-400); font-family: var(--font-sans-en); letter-spacing: 0.05em; padding-top: 12px; border-top: 1px solid rgba(10,10,10,0.08); }
-
-        .newsletter {
-          background: var(--charcoal); color: var(--off-white);
-          padding: 120px 32px; position: relative; overflow: hidden;
-        }
-        .newsletter::before {
-          content: ''; position: absolute; inset: 0;
-          background-image: radial-gradient(circle at 30% 50%, rgba(0,217,255,0.15) 0%, transparent 50%);
-        }
-        .newsletter-inner { max-width: 720px; margin: 0 auto; text-align: center; position: relative; z-index: 2; }
-        .newsletter h2 { font-family: 'Noto Sans JP', sans-serif; font-size: clamp(28px, 4vw, 42px); margin-bottom: 20px; color: var(--off-white); line-height: 1.3; word-break: keep-all; }
-        .newsletter p { color: rgba(245,241,232,0.8); font-size: 15px; margin-bottom: 40px; line-height: 1.9; }
-        .newsletter-form { display: flex; gap: 12px; max-width: 480px; margin: 0 auto; flex-wrap: wrap; justify-content: center; }
-        .newsletter-form input { flex: 1; min-width: 200px; padding: 14px 20px; border: 1px solid rgba(245,241,232,0.2); background: rgba(245,241,232,0.05); color: var(--off-white); border-radius: 999px; font-size: 14px; font-family: inherit; }
-        .newsletter-form input::placeholder { color: rgba(245,241,232,0.4); }
-        .newsletter-form button { padding: 14px 28px; background: var(--cyan); color: var(--charcoal); border: none; border-radius: 999px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
-        .newsletter-form button:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,217,255,0.4); }
-        .newsletter-disclaimer { font-size: 11px; color: rgba(245,241,232,0.4); margin-top: 16px; }
-
-        @media (max-width: 900px) {
-          .featured-card { grid-template-columns: 1fr; }
-          .articles-grid { grid-template-columns: 1fr; }
-          .filters { position: static; }
-        }
+        .mn-v4 .art-img.hasbg{display:block}
+        .mn-v4 .art-excerpt{font-size:13px;line-height:1.85;color:#52525B;margin:12px 0 0}
+        .mn-v4 .art-author{margin-top:16px;padding-top:14px;border-top:1px solid rgba(10,10,10,.08);font-family:var(--font-sans-en);font-size:11px;letter-spacing:.05em;color:#9CA3AF}
+        .mn-v4 .art-soon{position:absolute;top:14px;right:14px;padding:5px 11px;background:#fff;color:#0A0A0A;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.08em}
+        .mn-v4 .thumb-overlay{position:absolute;right:16px;bottom:14px;display:flex;flex-direction:column;align-items:flex-end;gap:3px;pointer-events:none;text-align:right}
+        .mn-v4 .thumb-number{font-family:var(--font-display,'Archivo');font-size:clamp(28px,3.4vw,44px);font-weight:900;line-height:1;letter-spacing:-.02em;color:var(--cyan,#00D9FF)}
+        .mn-v4 .thumb-label{font-family:var(--font-serif-jp);font-size:11px;font-weight:700;letter-spacing:.05em;color:rgba(255,255,255,.96);text-shadow:0 1px 4px rgba(0,0,0,.6)}
+        .mn-v4 .art.art-feature{grid-column:1/-1}
+        .mn-v4 .art.art-feature .art-img{aspect-ratio:21/8}
+        .mn-v4 .art.art-feature .art-body h4{font-size:clamp(22px,2.6vw,30px)}
+        .mn-v4 .art.art-feature .thumb-number{font-size:clamp(40px,5vw,72px)}
+        .mn-v4 .art.art-feature .thumb-label{font-size:13px}
+        @media(max-width:760px){.mn-v4 .art.art-feature .art-img{aspect-ratio:16/10}}
       `}</style>
 
-      <section className="page-hero">
-        <div className="page-hero-inner">
-          <div className="breadcrumb">
+      {/* ===== SUBHERO ===== */}
+      <header className="subhero">
+        <canvas
+          className="hero-fx fxgen"
+          data-count="60"
+          data-interactive
+          aria-hidden="true"
+        />
+        <div
+          className="hero-orb o1"
+          data-parallax="0.34"
+          data-mouse="0.05"
+          aria-hidden="true"
+        />
+        <div
+          className="hero-orb o2"
+          data-parallax="0.22"
+          data-mouse="0.035"
+          aria-hidden="true"
+        />
+        <div className="hero-veil" />
+        <div className="grain" aria-hidden="true" />
+        <div className="wrap subhero-inner">
+          <div className="crumb reveal">
             <Link href="/">Home</Link> / Insights
           </div>
-          <div className="page-hero-badge">Knowledge</div>
-          <h1>
-            実践から生まれる<br />
-            <span className="accent">知見</span>を届ける。
+          <div className="eyebrow reveal">
+            <i className="pulse" /> Knowledge · Insights
+          </div>
+          <h1 className="big-title-jp reveal">
+            実践から生まれる
+            <br />
+            <em>知見</em>を届ける。
           </h1>
-          <p className="lead">
+          <p className="subhero-lead reveal">
             戦略・AI・マーケティング・ファイナンスの最前線で得た知見を公開。
             「使えるノウハウ」だけを、実体験ベースで書いています。
           </p>
         </div>
-      </section>
+      </header>
 
-      {/* Category filter - implementation Coming Soon */}
-      <div className="filters" style={{ display: "none" }}>
-        <div className="filters-inner">
-          <span className="filter-label">Filter</span>
-          <span className="filter-btn active">All</span>
-          <span className="filter-btn">AI</span>
-          <span className="filter-btn">Strategy</span>
-          <span className="filter-btn">Marketing</span>
-          <span className="filter-btn">Finance</span>
-          <span className="filter-btn">Organization</span>
-        </div>
-      </div>
-
-      <section className="featured">
-        <div className="featured-inner">
-          {featured.href ? (
-            <Link href={featured.href} className="featured-card">
-              <FeaturedInner item={featured} />
-            </Link>
-          ) : (
-            <div className="featured-card" style={{ cursor: "default", opacity: 0.78 }}>
-              <FeaturedInner item={featured} />
+      {/* ===== ARTICLES ===== */}
+      <section className="sec white">
+        <div className="wrap">
+          <div className="sec-head reveal">
+            <div className="eyebrow dark">
+              <i className="pulse" /> Field Notes
             </div>
-          )}
+            <h2 className="title">
+              Field <em>notes</em>.
+            </h2>
+          </div>
+          <div className="art-grid">
+            {featured && (
+              <ArticleCard item={featured} feature />
+            )}
+            {rest.map((article) => (
+              <ArticleCard key={article.slug} item={article} />
+            ))}
+          </div>
         </div>
       </section>
 
-      <section className="articles">
-        <div className="articles-grid">
-          {rest.map((article) => {
-            const inner = (
-              <>
-                <div
-                  className={`article-visual ${article.colorClass}`}
-                  style={
-                    article.hero
-                      ? {
-                          backgroundImage: `linear-gradient(180deg, rgba(10,10,10,0.04) 0%, rgba(10,10,10,0.32) 100%), url('${article.hero}')`,
-                          backgroundSize: "cover",
-                          backgroundPosition: "center",
-                        }
-                      : undefined
-                  }
-                >
-                  <span className="article-tag-pos">{article.category}</span>
-                  {article.thumbNumber && (
-                    <div className="thumb-overlay">
-                      <span className="thumb-number">{article.thumbNumber}</span>
-                      {article.thumbLabel && <span className="thumb-label">{article.thumbLabel}</span>}
-                    </div>
-                  )}
-                  {!article.href && (
-                    <span style={{ position: "absolute", top: 16, right: 16, padding: "4px 10px", background: "var(--off-white)", color: "var(--charcoal)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", borderRadius: 999, textTransform: "uppercase" }}>
-                      近日公開
-                    </span>
-                  )}
-                </div>
-                <div className="article-body">
-                  <div className="article-meta">
-                    <span>{article.date}</span>
-                    <span>·</span>
-                    <span>{article.readTime}</span>
-                  </div>
-                  <h3>{article.title}</h3>
-                  <p className="article-excerpt">{article.excerpt}</p>
-                  <div className="article-author-line">By {article.author}</div>
-                </div>
-              </>
-            );
-            if (article.href) {
-              return (
-                <Link key={article.slug} href={article.href} className="article-card">
-                  {inner}
-                </Link>
-              );
-            }
-            return (
-              <div key={article.slug} className="article-card" style={{ cursor: "default", opacity: 0.78 }}>
-                {inner}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="newsletter">
-        <div className="newsletter-inner">
-          <h2>月2回、実践ノウハウを届けます。</h2>
-          <p>
+      {/* ===== CTA / NEWSLETTER ===== */}
+      <section className="cta">
+        <div
+          className="cta-photo"
+          data-parallax="0.16"
+          aria-hidden="true"
+          style={heroVar("/brand/manifesto_bg.jpg")}
+        />
+        <canvas className="cta-fx fxgen" data-count="46" aria-hidden="true" />
+        <div className="cta-glow" aria-hidden="true" />
+        <div className="grain" aria-hidden="true" />
+        <div className="wrap cta-inner">
+          <div className="eyebrow reveal">
+            <i className="pulse" /> Newsletter
+          </div>
+          <h2 className="cta-h reveal">
+            月2回、実践
+            <br />
+            <em>ノウハウ</em>を。
+          </h2>
+          <p className="reveal">
             戦略・AI・マーケティングの一次情報を、メールでお届けします。
             広告・スパムは一切なし。いつでも解除できます。
           </p>
-          <div className="newsletter-form">
-            <Link href="/contact" style={{
-              padding: "14px 28px",
-              background: "var(--off-white)",
-              color: "var(--charcoal)",
-              borderRadius: 999,
-              fontWeight: 700,
-              fontSize: 14,
-              letterSpacing: "0.04em",
-              textDecoration: "none",
-              display: "inline-block",
-            }}>配信開始をお知らせする →</Link>
-          </div>
-          <p className="newsletter-disclaimer">
+          <Link href="/contact" className="btn btn-cyan btn-lg magnetic reveal">
+            <span>配信開始をお知らせする</span>
+            <i className="arr">↗</i>
+          </Link>
+          <p
+            className="reveal"
+            style={{ fontSize: 13, opacity: 0.6, marginTop: 16 }}
+          >
             配信開始のお知らせを希望する方は、Contact からどうぞ。
           </p>
         </div>
@@ -395,50 +255,55 @@ export default function InsightsPage() {
   );
 }
 
-function FeaturedInner({ item }: { item: ListItem }) {
-  return (
+function ArticleCard({ item, feature }: { item: ListItem; feature?: boolean }) {
+  const inner = (
     <>
       <div
-        className="featured-visual"
+        className={`art-img ${item.colorClass}`}
         style={
           item.hero
             ? {
-                backgroundImage: `linear-gradient(135deg, rgba(10,10,10,0.04) 0%, rgba(10,10,10,0.28) 100%), url('${item.hero}')`,
+                backgroundImage: `linear-gradient(180deg, rgba(5,6,10,0.10) 0%, rgba(5,6,10,0.52) 100%), url('${item.hero}')`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
               }
             : undefined
         }
       >
-        <span className="featured-tag">{item.category}</span>
+        <span className="art-cat">{item.category}</span>
         {item.thumbNumber && (
-          <div className="featured-overlay">
-            <span className="featured-overlay-num">{item.thumbNumber}</span>
-            {item.thumbLabel && <span className="featured-overlay-label">{item.thumbLabel}</span>}
+          <div className="thumb-overlay">
+            <span className="thumb-number">{item.thumbNumber}</span>
+            {item.thumbLabel && (
+              <span className="thumb-label">{item.thumbLabel}</span>
+            )}
           </div>
         )}
-        {!item.href && (
-          <span style={{ position: "absolute", top: 20, right: 20, padding: "4px 10px", background: "var(--off-white)", color: "var(--charcoal)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", borderRadius: 999, textTransform: "uppercase" }}>
-            近日公開
-          </span>
-        )}
+        {!item.href && <span className="art-soon">近日公開</span>}
       </div>
-      <div className="featured-body">
-        <div className="featured-meta">
-          <span>{item.date}</span>
-          <span>·</span>
-          <span>{item.readTime}で読める</span>
+      <div className="art-body">
+        <div className="date">
+          {item.date} · {item.readTime}
         </div>
-        <h2>{item.title}</h2>
-        <p>{item.excerpt}</p>
-        <div className="featured-author">
-          <div className="featured-author-avatar" />
-          <div>
-            <div className="featured-author-name">{item.author}</div>
-            <div className="featured-author-role">CEO / FOUNDER</div>
-          </div>
-        </div>
+        <h4>{item.title}</h4>
+        <p className="art-excerpt">{item.excerpt}</p>
+        <div className="art-author">By {item.author}</div>
       </div>
     </>
+  );
+
+  const className = `art reveal${feature ? " art-feature" : ""}`;
+
+  if (item.href) {
+    return (
+      <Link href={item.href} className={className}>
+        {inner}
+      </Link>
+    );
+  }
+  return (
+    <div className={className} style={{ cursor: "default", opacity: 0.78 }}>
+      {inner}
+    </div>
   );
 }
