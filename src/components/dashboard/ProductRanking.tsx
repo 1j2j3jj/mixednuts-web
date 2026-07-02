@@ -6,8 +6,8 @@ interface Props {
   rows: ProductRow[];
   /** Limit rows shown; default 10. */
   limit?: number;
-  /** When GA4 item-scope revenue is known to be polluted (see
-   *  ProductsResult.revenueUnreliable), rank by CV and omit 単価/売上. */
+  /** 旧・売上非表示ガード（revenueBasis 導入後は既定経路で発動しない。
+   *  互換のため残置）。 */
   hideRevenue?: boolean;
 }
 
@@ -25,6 +25,7 @@ export default function ProductRanking({ rows, limit = 10, hideRevenue = false }
           <TableHead className="text-right">購入件数</TableHead>
           <TableHead className="text-right">点数</TableHead>
           {!hideRevenue && <TableHead className="text-right">売上</TableHead>}
+          {!hideRevenue && <TableHead className="text-right">単価</TableHead>}
           {!hideRevenue && <TableHead className="text-right">1件あたり</TableHead>}
         </TableRow>
       </TableHeader>
@@ -37,6 +38,7 @@ export default function ProductRanking({ rows, limit = 10, hideRevenue = false }
             <TableCell className="text-right tabular-nums">{fmtInt(r.orderCount)}</TableCell>
             <TableCell className="text-right tabular-nums">{fmtInt(r.conversions)}</TableCell>
             {!hideRevenue && <TableCell className="text-right tabular-nums">{fmtJpy(r.revenue)}</TableCell>}
+            {!hideRevenue && <TableCell className="text-right tabular-nums">{fmtJpy(r.unitPrice)}</TableCell>}
             {!hideRevenue && <TableCell className="text-right tabular-nums">{fmtJpy(r.perOrder)}</TableCell>}
           </TableRow>
         ))}

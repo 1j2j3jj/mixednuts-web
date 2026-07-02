@@ -51,27 +51,23 @@ export default async function InsightsScreen({
     getTopGscQueries(client, period),
   ]);
   const {
-    rows: { rows: products, dataQualityNote: productDataQualityNote, revenueUnreliable },
+    rows: { rows: products, dataQualityNote: productDataQualityNote, revenueUnreliable, revenueBasis },
   } = productsResult;
   const { rows: landingPages } = landingPagesResult;
   const { rows: queries } = queriesResult;
   const anyMock =
     productsResult.isMock || landingPagesResult.isMock || queriesResult.isMock;
 
-  // CSV mirrors the on-screen columns: when revenue is unreliable the
-  // 単価/売上 columns are hidden, so they are excluded from the export too.
-  const productCsv = products.map((p) =>
-    revenueUnreliable
-      ? { productName: p.productName, productId: p.sku, orderCount: p.orderCount, units: p.conversions }
-      : {
-          productName: p.productName,
-          productId: p.sku,
-          orderCount: p.orderCount,
-          units: p.conversions,
-          revenue: p.revenue,
-          perOrder: p.perOrder,
-        }
-  );
+  // CSV mirrors the on-screen columns（売上は revenueBasis に従う）。
+  const productCsv = products.map((p) => ({
+    productName: p.productName,
+    productId: p.sku,
+    orderCount: p.orderCount,
+    units: p.conversions,
+    revenue: p.revenue,
+    unitPrice: p.unitPrice,
+    perOrder: p.perOrder,
+  }));
   const landingCsv = landingPages.map((r) => ({
     path: r.path,
     sessions: r.sessions,
@@ -118,6 +114,13 @@ export default async function InsightsScreen({
         </CardHeader>
         <CardContent>
           <ProductRanking rows={products} limit={30} hideRevenue={revenueUnreliable} />
+          <p className="mt-2 text-xs text-muted-foreground">
+            購入件数=その商品を含む注文数（purchase件数） / 点数=注文点数（GA4 itemsPurchased） /
+            {revenueBasis === "order"
+              ? "売上=その商品を含む注文のGA売上合計（複数商品の注文は各商品行に全額計上のため列合計はサイト全体と一致しない）"
+              : "売上=商品自身のGA売上（itemRevenue）"} /
+            単価=売上÷点数 / 1件あたり=売上÷購入件数
+          </p>
           {productDataQualityNote && (
             <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
               {productDataQualityNote}

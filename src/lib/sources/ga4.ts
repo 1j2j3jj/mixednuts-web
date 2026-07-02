@@ -502,6 +502,9 @@ export interface ProductsResult {
   /** Set when one or more item-day rows were dropped for exceeding the
    *  pollution threshold, so the UI can disclose the adjustment. */
   dataQualityNote: string | null;
+  /** 売上列の定義: item=商品自身のitemRevenue（健全時） / order=商品を含む
+   *  注文のGA売上合計（item計測汚染時のフォールバック、2026-07-03 CEO協議）。 */
+  revenueBasis: "item" | "order";
   /** True when the post-filter item-scope revenue total still exceeds the
    *  transaction-scope purchaseRevenue by >3x — i.e. the site's `purchase`
    *  items[] payload is structurally broken (confirmed on HS: quantity is
@@ -518,7 +521,7 @@ async function realProducts(propertyId: string, period: Period): Promise<Product
   // transactionId per item（CEO要望の「1件あたり売上」の分母）、(b) HS の
   // purchase イベント汚染は特定の壊れた注文に集中している（実測: 1注文で
   // 21,000点/¥123億 等）ため、注文単位で除外する方が item-day 除外より精密。
-  const [res, txnRes] = await Promise.all([
+  const [res, txnRes, txRevRes] = await Promise.all([
     analyticsdata.properties.runReport({
       property: `properties/${propertyId}`,
       auth,
@@ -542,8 +545,25 @@ async function realProducts(propertyId: string, period: Period): Promise<Product
         metrics: [{ name: "purchaseRevenue" }],
       },
     }),
+    // 注文ごとの GA 売上（transaction-scope、item計測汚染の影響を受けない）。
+    // 「売上」列 = その商品を含む注文の purchaseRevenue 合計（CEO指定 2026-07-03）。
+    analyticsdata.properties.runReport({
+      property: `properties/${propertyId}`,
+      auth,
+      requestBody: {
+        dateRanges: [{ startDate: period.start, endDate: period.end }],
+        dimensions: [{ name: "transactionId" }],
+        metrics: [{ name: "purchaseRevenue" }],
+        limit: "100000",
+      },
+    }),
   ]);
   const txnRevenue = Number(txnRes.data.rows?.[0]?.metricValues?.[0]?.value ?? 0);
+  const txRevenueMap = new Map<string, number>();
+  for (const r of txRevRes.data.rows ?? []) {
+    const tx = r.dimensionValues?.[0]?.value ?? "";
+    if (tx && tx !== "(not set)") txRevenueMap.set(tx, Number(r.metricValues?.[0]?.value ?? 0));
+  }
   const truncated = Number(res.data.rowCount ?? 0) > (res.data.rows?.length ?? 0);
 
   // 汚染注文の除外（注文まるごと）: 1個あたり単価 > ¥10万、または単一注文内の
@@ -583,33 +603,45 @@ async function realProducts(propertyId: string, period: Period): Promise<Product
     byItem.set(key, cur);
   }
 
-  const all = Array.from(byItem.values()).map((r) => ({
-    productName: r.productName,
-    sku: r.sku,
-    orderCount: r.tx.size,
-    conversions: r.conversions,
-    revenue: r.revenue,
-    unitPrice: r.conversions > 0 ? Math.round(r.revenue / r.conversions) : 0,
-    perOrder: r.tx.size > 0 ? Math.round(r.revenue / r.tx.size) : 0,
-  }));
-  const itemScopeTotal = all.reduce((acc, r) => acc + r.revenue, 0);
-  // 取引単位の除外後もなお item計測合計がサイト全体売上の3倍を超える場合は
-  // 売上系列を非表示にする（誤った数字を出さない）。
-  const revenueUnreliable = txnRevenue > 0 && itemScopeTotal > txnRevenue * 3;
-  const rows = all
-    .sort((a, b) => (revenueUnreliable ? b.orderCount - a.orderCount : b.revenue - a.revenue))
-    .slice(0, 30);
+  // 売上列の basis 選択（2026-07-03 CEO協議）:
+  //  - item計測が健全（除外後の合計 ≦ サイト全体売上の3倍）→ 商品自身の
+  //    itemRevenue（DOZO実測1.01x。複数商品注文でも按分済みで最も正確）
+  //  - 汚染残存（HS実測10.3x）→ 注文ベースGA売上（その商品を含む注文の
+  //    purchaseRevenue合計）へフォールバック。複数商品注文は各商品行に
+  //    注文全額を計上（按分しない）ため列合計はサイト全体と一致しない。
+  const itemScopeTotal = Array.from(byItem.values()).reduce((acc, r) => acc + r.revenue, 0);
+  const itemScopePolluted = txnRevenue > 0 && itemScopeTotal > txnRevenue * 3;
+  const revenueBasis: "item" | "order" = itemScopePolluted ? "order" : "item";
+  const all = Array.from(byItem.values()).map((r) => {
+    const revenue = revenueBasis === "order"
+      ? Array.from(r.tx).reduce((acc, tx) => acc + (txRevenueMap.get(tx) ?? 0), 0)
+      : r.revenue;
+    return {
+      productName: r.productName,
+      sku: r.sku,
+      orderCount: r.tx.size,
+      conversions: r.conversions,
+      revenue: Math.round(revenue),
+      unitPrice: r.conversions > 0 ? Math.round(revenue / r.conversions) : 0,
+      perOrder: r.tx.size > 0 ? Math.round(revenue / r.tx.size) : 0,
+    };
+  });
+  const revenueUnreliable = false;
+  const rows = all.sort((a, b) => b.revenue - a.revenue).slice(0, 30);
 
   let dataQualityNote: string | null = null;
-  if (revenueUnreliable) {
-    dataQualityNote = `GA4 item計測が汚染されているため売上系列は非表示（item計測合計がサイト全体売上の${Math.round(itemScopeTotal / txnRevenue)}倍）。購入件数順で表示中。根本対処はサイト側purchaseイベント実装の修正が必要`;
-  } else if (droppedTx > 0) {
-    dataQualityNote = `GA4 item計測の異常注文（単価>¥10万/個 または 1注文¥1,000万超）を${pollutedTxIds.size}注文（明細${droppedTx}行）除外済み。根本対処はサイト側purchaseイベント実装の修正が必要`;
+  const notes: string[] = [];
+  if (pollutedTxIds.size > 0 || droppedTx > 0) {
+    notes.push(`GA4 item計測の異常注文（単価>¥10万/個 または 1注文¥1,000万超）を${pollutedTxIds.size}注文（明細${droppedTx}行）除外済み`);
   }
+  if (itemScopePolluted) {
+    notes.push(`item計測の汚染が残存（合計がサイト全体売上の${Math.round(itemScopeTotal / txnRevenue)}倍）のため、売上は注文ベース（商品を含む注文のGA売上合計）で表示中。「点数」は過大の可能性 — 根本対処はサイト側purchaseイベント実装の修正`);
+  }
+  if (notes.length) dataQualityNote = notes.join(" / ");
   if (truncated) {
     dataQualityNote = `${dataQualityNote ? dataQualityNote + " / " : ""}期間が長く取引明細が10万行を超えたため一部集計対象外（期間を短くすると正確）`;
   }
-  return { rows, dataQualityNote, revenueUnreliable };
+  return { rows, dataQualityNote, revenueUnreliable, revenueBasis };
 }
 
 /** Paid-campaign report. Returns one row per (source × medium × cid × cname)
@@ -903,7 +935,7 @@ export async function getTopProducts(
   period?: Period
 ): Promise<Ga4Result<ProductsResult>> {
   const p = period ?? defaultPeriod();
-  const mockFallback = (): ProductsResult => ({ rows: mockProducts(), dataQualityNote: null, revenueUnreliable: false });
+  const mockFallback = (): ProductsResult => ({ rows: mockProducts(), dataQualityNote: null, revenueUnreliable: false, revenueBasis: "item" as const });
   if (!client.ga4PropertyId) return mockResult(mockFallback());
   const pid = client.ga4PropertyId;
   return unstable_cache(
