@@ -1,5 +1,6 @@
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getDailyRows, type DailyRow } from "@/lib/sources/raw";
+import type { DailyRowWithTracking } from "@/lib/sources/bq-raw";
 import { getGa4MonthlyChannels, getGa4PaidCampaigns, type Ga4CampaignRow } from "@/lib/sources/ga4";
 import { getTargetsForMonth } from "@/lib/sources/target";
 import { resolveFromSearchParams, type DateRange } from "@/lib/range";
@@ -91,21 +92,28 @@ export default async function AdsScreen({
   const source = readSource(sp);
   const client = await assertUserCanAccessClientBySlug(slug);
 
-  const { rows, fetchedAt, isMock } = await getDailyRows(client);
+  const { rows: rawRows, fetchedAt, isMock } = await getDailyRows(client);
+  // BQ_SOURCE_RAW path (bq-raw.ts) attaches trackingId (Yahoo only, see
+  // DailyRowWithTracking); the Sheet path never sets it. DailyRow itself
+  // (raw.ts) isn't widened, so this is a same-shape cast, not a real type
+  // change — trackingId is simply absent/undefined off the Sheet path.
+  const rows = rawRows as DailyRowWithTracking[];
   const allDates = rows.map((r) => r.date).filter(Boolean).sort();
   const anchor = allDates[allDates.length - 1] ?? new Date().toISOString().slice(0, 10);
 
   const rr = resolveFromSearchParams(sp, { preset: "thisMonth", compare: "prev" }, anchor);
 
-  const cur = filterByRange(rows, rr.current.start, rr.current.end);
-  const prev = rr.previous ? filterByRange(rows, rr.previous.start, rr.previous.end) : [];
+  const cur = filterByRange(rows, rr.current.start, rr.current.end) as DailyRowWithTracking[];
+  const prev = rr.previous
+    ? (filterByRange(rows, rr.previous.start, rr.previous.end) as DailyRowWithTracking[])
+    : [];
   const curTotals = sumRows(cur);
   const prevTotals = sumRows(prev);
 
   // Top-level KPIs prefer GA4 for Revenue / ROAS (site-side truth). The
   // media table stays ad-platform side because only that source breaks out
   // per-media. Differences between the two are expected (attribution).
-  const ga4All = await getGa4MonthlyChannels(client);
+  const { rows: ga4All, isMock: ga4AllIsMock } = await getGa4MonthlyChannels(client);
   const curGa4 = ga4RevenueAndCv(ga4All, rr.current);
   const prevGa4 = rr.previous ? ga4RevenueAndCv(ga4All, rr.previous) : { revenue: 0, conversions: 0 };
   const curGa4RoasPct = curTotals.cost > 0 ? (curGa4.revenue / curTotals.cost) * 100 : null;
@@ -114,26 +122,42 @@ export default async function AdsScreen({
 
   // Pull GA4 paid-campaign data for the same window so the media table can
   // JOIN real GA4 CV / Revenue per media (not a fake 0.9x multiplier).
-  const ga4Campaigns = await getGa4PaidCampaigns(client, rr.current.start, rr.current.end);
+  const { rows: ga4Campaigns, isMock: ga4CampaignsIsMock } = await getGa4PaidCampaigns(client, rr.current.start, rr.current.end);
   const ga4MediaTot = ga4TotalsByMedia(ga4Campaigns);
   const ga4DailyTot = ga4DailyTotals(ga4Campaigns);
 
   // GA4 totals per (media, campaign matchKey) — used for the campaign-grain JOIN.
   // Sheet-side campaignId is the canonical join key for Google; for
-  // Microsoft/Yahoo/meta where the ad-platform id is only surfaced as name
-  // through GA4 auto-tagging, `ga4MatchKey()` (in ga4.ts) already falls back
-  // to the campaignName at build time. Here we just aggregate to (media, key).
+  // Microsoft/meta where the ad-platform id is only surfaced as name through
+  // GA4 auto-tagging, `ga4MatchKey()` (in ga4.ts) already falls back to the
+  // campaignName at build time. Here we just aggregate to (media, key).
   const ga4CampaignTot = new Map<string, { conversions: number; revenue: number }>();
+  // Yahoo-only: GA4 always reports sessionCampaignId="(not set)" for yhl/cpc
+  // sessions, with the true numeric tracking id surfacing in
+  // sessionCampaignName instead — same shape as the Meta id quirk, but
+  // ga4MatchKey() doesn't special-case it, so matchKey is unusable for
+  // Yahoo (confirmed 2026-07-02: GA4 REST check on HS property showed
+  // sessionCampaignId="(not set)" / sessionCampaignName="15510337322" for
+  // yhl/cpc). JOIN directly on raw campaignName (= campaign_tracking_id)
+  // instead of matchKey for this one media.
+  const ga4YahooByTrackingId = new Map<string, { conversions: number; revenue: number }>();
   for (const r of ga4Campaigns) {
     const key = `${r.media}|${r.matchKey}`;
     const cur = ga4CampaignTot.get(key) ?? { conversions: 0, revenue: 0 };
     cur.conversions += r.conversions;
     cur.revenue += r.revenue;
     ga4CampaignTot.set(key, cur);
+
+    if (r.media === "Yahoo" && r.campaignName) {
+      const yCur = ga4YahooByTrackingId.get(r.campaignName) ?? { conversions: 0, revenue: 0 };
+      yCur.conversions += r.conversions;
+      yCur.revenue += r.revenue;
+      ga4YahooByTrackingId.set(r.campaignName, yCur);
+    }
   }
 
-  function byMediaCampaign(list: DailyRow[]): MediaCampaignRow[] {
-    const map = new Map<string, MediaCampaignRow>();
+  function byMediaCampaign(list: DailyRowWithTracking[]): MediaCampaignRow[] {
+    const map = new Map<string, MediaCampaignRow & { trackingId?: string }>();
     for (const r of list) {
       const key = `${r.media}|${r.campaignId || r.campaignName}`;
       const c = map.get(key) ?? {
@@ -147,20 +171,26 @@ export default async function AdsScreen({
         ga4Cv: 0,
         conversionValue: 0,
         ga4Revenue: 0,
+        trackingId: r.trackingId,
       };
       c.spend += r.cost;
       c.impressions += r.impressions;
       c.clicks += r.clicks;
       c.adsCv += r.conversions;
       c.conversionValue += r.conversionValue;
+      if (!c.trackingId && r.trackingId) c.trackingId = r.trackingId;
       map.set(key, c);
     }
-    // JOIN GA4 by (media, campaignId) first; fallback to (media, campaignName)
-    // for non-Google media where GA4 surfaces the id in the name slot.
+    // JOIN GA4: Yahoo uses campaign_tracking_id (see ga4YahooByTrackingId
+    // above); other media join by (media, campaignId) first, falling back to
+    // (media, campaignName) for media where GA4 surfaces the id in the name
+    // slot.
     return Array.from(map.values()).map((m) => {
       const g =
-        ga4CampaignTot.get(`${m.media}|${m.campaignId}`) ??
-        ga4CampaignTot.get(`${m.media}|${m.campaignName}`);
+        m.media === "Yahoo" && m.trackingId
+          ? ga4YahooByTrackingId.get(m.trackingId)
+          : ga4CampaignTot.get(`${m.media}|${m.campaignId}`) ??
+            ga4CampaignTot.get(`${m.media}|${m.campaignName}`);
       return {
         ...m,
         ga4Cv: g ? Math.round(g.conversions) : 0,
@@ -228,7 +258,7 @@ export default async function AdsScreen({
 
   return (
     <div className="space-y-6">
-      <MockBanner isMock={isMock} />
+      <MockBanner isMock={isMock || ga4AllIsMock || ga4CampaignsIsMock} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">Ads</div>

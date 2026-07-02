@@ -2,17 +2,20 @@
 
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { ChannelDay, ChannelGroup } from "@/lib/sources/ga4";
+import type { ChannelDay, ChannelGroup, SecondaryEventDef } from "@/lib/sources/ga4";
 
 interface Props {
   data: ChannelDay[];
-  defaultMetric?: Metric;
+  /** Initial metric. Secondary-event keys (e.g. "thanks", "wedding") are
+   *  also valid once `secondaryDefs` supplies them. */
+  defaultMetric?: BaseMetric | string;
   defaultGranularity?: Granularity;
-  /** 第4トグルの表示名（クライアント別: HS=会員登録 / DOZO=Wedding）。 */
-  secondaryLabel?: string;
+  /** クライアント別の第4トグル以降の定義（HS=[会員登録] / DOZO=[Thanks,Wedding]）。 */
+  secondaryDefs?: SecondaryEventDef[];
 }
 
-type Metric = "sessions" | "conversions" | "revenue" | "signUps";
+type BaseMetric = "sessions" | "conversions" | "revenue";
+type Metric = BaseMetric | string;
 type Granularity = "day" | "week";
 
 const BASE_METRICS: Array<{ key: Metric; label: string }> = [
@@ -56,13 +59,23 @@ function weekBucket(iso: string): string {
   return d.toISOString().slice(0, 10);
 }
 
+const BASE_METRIC_KEYS = new Set<string>(BASE_METRICS.map((m) => m.key));
+
+/** Reads a metric value off a ChannelDay row — base metrics (sessions /
+ *  conversions / revenue) are direct fields, anything else is looked up in
+ *  the per-client `secondary` map by key. */
+function metricValue(row: ChannelDay, metric: Metric): number {
+  if (BASE_METRIC_KEYS.has(metric)) return row[metric as BaseMetric];
+  return row.secondary[metric] ?? 0;
+}
+
 export default function ChannelTrendChart({
   data,
   defaultMetric = "sessions",
   defaultGranularity = "day",
-  secondaryLabel = "会員登録",
+  secondaryDefs = [],
 }: Props) {
-  const METRICS = [...BASE_METRICS, { key: "signUps" as Metric, label: secondaryLabel }];
+  const METRICS = [...BASE_METRICS, ...secondaryDefs.map((d) => ({ key: d.key, label: d.label }))];
   const [metric, setMetric] = useState<Metric>(defaultMetric);
   const [granularity, setGranularity] = useState<Granularity>(defaultGranularity);
 
@@ -71,7 +84,7 @@ export default function ChannelTrendChart({
   for (const row of data) {
     const bucket = granularity === "week" ? weekBucket(row.date) : row.date;
     const entry = byBucket.get(bucket) ?? { bucket };
-    entry[row.channel] = ((entry[row.channel] as number | undefined) ?? 0) + (row[metric] as number);
+    entry[row.channel] = ((entry[row.channel] as number | undefined) ?? 0) + metricValue(row, metric);
     byBucket.set(bucket, entry);
   }
   const wide = Array.from(byBucket.values()).sort((a, b) =>
@@ -83,7 +96,7 @@ export default function ChannelTrendChart({
   const yTickFormat =
     metric === "revenue"
       ? (v: number) => `¥${Math.round(v / 1_000_000).toLocaleString()}M`
-      : metric === "signUps"
+      : !BASE_METRIC_KEYS.has(metric)
       ? (v: number) => Math.round(v).toLocaleString()
       : (v: number) => `${Math.round(v / 1000).toLocaleString()}k`;
 

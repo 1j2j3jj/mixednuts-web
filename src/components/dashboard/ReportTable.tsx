@@ -24,12 +24,22 @@ import type { EventCvDef } from "@/lib/sources/bq-rpt";
  * average ratios, and the view ROAS columns are multipliers, not %).
  *
  * GA_CV semantics (changed 2026-07-02): GA_CV / GA_CVR / GA_CPA / GA_ROAS
- * are now computed from gaCvPurchase (the purchase key event), NOT the
- * legacy ga_cv aggregate (sum of all GA4 key events). Secondary key events
- * (client-specific — dozo: Thanks/Wedding, hs: 会員登録/問合せ) are shown
- * as additional columns via the eventDefs prop; gaCv (aggregate) is kept on
- * the row shape for callers but intentionally not rendered as a column —
- * see the report/page.tsx footer note.
+ * are computed from gaCvPurchase, NOT the legacy ga_cv aggregate — EXCEPT
+ * on the daily/monthly (site-wide) views, where gaCvPurchase now holds the
+ * caller-supplied SITE-WIDE purchase figure (report/page.tsx maps
+ * RptAllRow.gaCv/gaValue — the genuinely site-wide columns — into this
+ * row's gaCvPurchase/gaValue for those two views; see that file's module
+ * doc). Secondary key events (client-specific — dozo: Thanks/Wedding, hs:
+ * 会員登録/問合せ) are shown as additional columns via the eventDefs prop;
+ * gaCv (aggregate) is kept on the row shape for callers but intentionally
+ * not rendered as a column — see the report/page.tsx footer note.
+ *
+ * adCvPurchase (added 2026-07-02, daily/monthly only): the ad-attributed
+ * purchase CV (fct_ad_daily-sourced), shown as a reference column ONLY when
+ * present — it is genuinely a different number from the site-wide
+ * gaCvPurchase on these two tabs (dozo verified 6.3x, hs 2.2x, 2026-06).
+ * Other views leave this undefined; gaCvPurchase there is already
+ * ad-attributed so a separate column would be redundant.
  */
 
 export interface ReportTableRow {
@@ -60,11 +70,15 @@ export interface ReportTableRow {
    *  callers/back-compat only. */
   gaCv: number;
   gaValue: number;
-  /** Primary conversion (purchase). Drives the GA_CV/GA_CVR/GA_CPA/GA_ROAS
-   *  columns. */
+  /** Primary conversion driving the GA_CV/GA_CVR/GA_CPA/GA_ROAS columns.
+   *  Ad-attributed on weekly/media/cpn/adg; SITE-WIDE on daily/monthly (see
+   *  module doc + report/page.tsx). */
   gaCvPurchase: number;
   /** Secondary key events, keyed by EventCvDef.key (see eventDefs prop). */
   gaCvEvents: Record<string, number>;
+  /** Ad-attributed purchase CV, shown as a reference column when present
+   *  (daily/monthly only — see module doc). */
+  adCvPurchase?: number;
   overallCv: number | null;
   overallValue: number | null;
 }
@@ -83,10 +97,16 @@ interface Props {
   showOverallValue?: boolean;
   /** Header label of the GA group — clarifies site-wide vs ad-attributed. */
   gaGroupLabel?: string;
+  /** Label for the primary GA_CV column (defaults to "GA_CV(購入)"). Callers
+   *  pass a site-wide-clarifying label on daily/monthly. */
+  gaCvLabel?: string;
   /** Render labels in monospace (dates). */
   monoLabel?: boolean;
   /** Client-specific secondary event-CV columns (RPT_SUPPORTED[client].secondaryEvents). */
   eventDefs?: EventCvDef[];
+  /** Show the ad-attributed purchase reference column (rows must carry
+   *  adCvPurchase — daily/monthly only). */
+  showAdCvPurchase?: boolean;
 }
 
 const MATCH_STATUS_DESC: Record<string, string> = {
@@ -124,6 +144,7 @@ type SortKey =
   | "gaRoasPct"
   | "overallCv"
   | "overallValue"
+  | "adCvPurchase"
   | `event:${string}`;
 
 type SortDir = "asc" | "desc";
@@ -186,11 +207,13 @@ export default function ReportTable({
   overallLabel = "全体CV",
   showOverallValue = false,
   gaGroupLabel = "GA",
+  gaCvLabel = "GA_CV(購入)",
   monoLabel = false,
   eventDefs = [],
+  showAdCvPurchase = false,
 }: Props) {
   const mediaCols = 10; // COST..CV Value
-  const gaCols = 6 + eventDefs.length; // SESSION..GA_ROAS + secondary event CVs
+  const gaCols = 6 + eventDefs.length + (showAdCvPurchase ? 1 : 0); // SESSION..GA_ROAS + secondary event CVs + ad-attributed reference
   const overallCols = showOverall ? (showOverallValue ? 2 : 1) : 0;
   const headCols = 1 + (showMedia ? 1 : 0);
   const colSpan = headCols + mediaCols + gaCols + overallCols;
@@ -338,7 +361,7 @@ export default function ReportTable({
               {...sortableHeadProps("gaCvPurchase", "text-right")}
               title="GA4 purchase イベント基準"
             >
-              GA_CV(購入)
+              {gaCvLabel}
               {sortIndicator("gaCvPurchase")}
             </TableHead>
             <TableHead {...sortableHeadProps("gaCvr", "text-right")}>
@@ -366,6 +389,15 @@ export default function ReportTable({
                 {sortIndicator(`event:${ev.key}`)}
               </TableHead>
             ))}
+            {showAdCvPurchase && (
+              <TableHead
+                {...sortableHeadProps("adCvPurchase", "text-right whitespace-nowrap")}
+                title="fct_ad_daily 由来（広告エンティティに帰属したGA計測分）。参考列 — サイト全体のGA_CV(購入)とは別の数字"
+              >
+                GA_CV(広告帰属)
+                {sortIndicator("adCvPurchase")}
+              </TableHead>
+            )}
             {showOverall && (
               <TableHead
                 {...sortableHeadProps("overallCv", "border-l text-right whitespace-nowrap")}
@@ -464,6 +496,11 @@ export default function ReportTable({
                     {fmtInt(r.gaCvEvents[ev.key] ?? 0)}
                   </TableCell>
                 ))}
+                {showAdCvPurchase && (
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {fmtInt(r.adCvPurchase ?? 0)}
+                  </TableCell>
+                )}
                 {showOverall && (
                   <TableCell className="border-l text-right tabular-nums">
                     {fmtInt(r.overallCv)}

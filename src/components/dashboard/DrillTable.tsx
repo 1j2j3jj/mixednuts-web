@@ -26,18 +26,27 @@ export interface DrillRow {
 
 interface Props {
   rows: DrillRow[];
-  /** Target ROAS percentage for cell colouring. */
+  /** Fallback target ROAS percentage (anchor month) — used only when
+   *  targetsByMonth has no entry for a row's month. */
   targetRoasPct: number;
-  /** Target CPA for cell colouring. */
+  /** Fallback target CPA (anchor month) — same fallback rule as above. */
   targetCpa: number;
   /** Current drill level — decides whether the "ラベル" column is rendered. */
   level?: "media" | "campaign" | "adgroup" | "bucket";
   /** "ga4" | "media" — which side drives CV / 売上 / CPA / ROAS cells. */
   source?: MetricSource;
+  /** Per-row-month targets ("YYYY-MM" → MonthlyTargets), keyed by each row's
+   *  own bucket month rather than a single anchor month. A month with no
+   *  configured target (roasPct<=0 or cpa<=0 — several clients' static
+   *  fallback is all-zero) gets no colour on that metric. */
+  targetsByMonth?: Map<string, { roasPct: number; cpa: number }>;
 }
 
 function roasClass(actualPct: number | null, targetPct: number): string {
   if (actualPct == null || !Number.isFinite(actualPct)) return "";
+  // targetPct<=0 means no configured target for this row's month (P2-1) —
+  // don't colour-code against a meaningless zero target.
+  if (targetPct <= 0) return "";
   if (actualPct >= targetPct) return "text-emerald-700";
   if (actualPct >= targetPct * 0.8) return "text-amber-700";
   return "text-rose-700 font-medium";
@@ -45,12 +54,30 @@ function roasClass(actualPct: number | null, targetPct: number): string {
 
 function cpaClass(actual: number | null, target: number): string {
   if (actual == null || !Number.isFinite(actual)) return "";
+  if (target <= 0) return "";
   if (actual <= target) return "text-emerald-700";
   if (actual <= target * 1.2) return "text-amber-700";
   return "text-rose-700 font-medium";
 }
 
-export default function DrillTable({ rows, targetRoasPct, targetCpa, level = "campaign", source = "ga4" }: Props) {
+export default function DrillTable({
+  rows,
+  targetRoasPct,
+  targetCpa,
+  level = "campaign",
+  source = "ga4",
+  targetsByMonth,
+}: Props) {
+  // Resolve the ROAS/CPA target that applies to a given row, using its own
+  // bucket month (P2-1) — falls back to the anchor-month targetRoasPct/
+  // targetCpa props when targetsByMonth has no entry for that month (e.g.
+  // level="bucket" rows, whose date is the raw bucket key, not necessarily
+  // "YYYY-MM"-prefixed in a way targetsByMonth was populated for).
+  function targetsForRow(row: DrillRow): { roasPct: number; cpa: number } {
+    const ym = row.date.slice(0, 7);
+    return targetsByMonth?.get(ym) ?? { roasPct: targetRoasPct, cpa: targetCpa };
+  }
+
   // Primary sort: date desc (latest first). Secondary: spend desc.
   const sorted = [...rows].sort((a, b) => {
     if (a.date !== b.date) return b.date.localeCompare(a.date);
@@ -104,6 +131,7 @@ export default function DrillTable({ rows, targetRoasPct, targetCpa, level = "ca
             const rev = source === "ga4" ? r.ga4Revenue ?? 0 : r.conversionValue;
             const cpa = safeDiv(r.spend, cv);
             const roasPct = r.spend > 0 ? (rev / r.spend) * 100 : null;
+            const rowTargets = targetsForRow(r);
             const spendFlag = spendFlags[i];
             const cvFlag = cvFlags[i];
             const hasAnomaly = spendFlag !== "normal" || cvFlag !== "normal";
@@ -154,10 +182,10 @@ export default function DrillTable({ rows, targetRoasPct, targetCpa, level = "ca
                   {fmtInt(cv)}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{fmtJpy(rev)}</TableCell>
-                <TableCell className={cn("text-right tabular-nums", cpaClass(cpa, targetCpa))}>
+                <TableCell className={cn("text-right tabular-nums", cpaClass(cpa, rowTargets.cpa))}>
                   {fmtJpy(cpa)}
                 </TableCell>
-                <TableCell className={cn("text-right tabular-nums", roasClass(roasPct, targetRoasPct))}>
+                <TableCell className={cn("text-right tabular-nums", roasClass(roasPct, rowTargets.roasPct))}>
                   {fmtRatioPct(roasPct, 0)}
                 </TableCell>
                 <TableCell className="text-right">

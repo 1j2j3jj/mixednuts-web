@@ -29,11 +29,26 @@ import { fmtInt, fmtJpy, fmtRatioPct } from "@/lib/utils";
  *
  * Reads the GA × ads reconciled reporting marts ({client}_marts.rpt_*)
  * and shows the three CV layers side by side:
- *   媒体CV (ad platform) / GA_CV(購入) (GA4 purchase) / 全体CV (dozo: Shopify, hs: EC-CUBE).
+ *   媒体CV (ad platform) / GA_CV(購入) / 全体CV (dozo: Shopify, hs: EC-CUBE).
  * GA_CV is purchase-event based (see bq-rpt.ts); secondary key events
  * (client-specific: dozo Thanks/Wedding, hs 会員登録/問合せ) show as extra
  * columns via RPT_SUPPORTED[client].secondaryEvents. add_to_cart is fetched
  * but not shown as a default column (soft signal).
+ *
+ * 🔴 GA_CV(購入) grain differs by tab (verified 2026-07-02 against
+ * ga4_daily / fct_ad_daily / rpt_all.sql — see bq-rpt.ts module doc for the
+ * full derivation):
+ *  - daily / monthly ("GA（サイト全体）" group): GA_CV(購入) is SITE-WIDE
+ *    (RptAllRow.gaCv/gaValue — ga4_daily's ecommercePurchases, NOT
+ *    RptAllRow.gaCvPurchase, which is ad-attributed despite living on the
+ *    "site-wide" rpt_all view). These two tabs also show a reference
+ *    "GA_CV(広告帰属)" column (adCvPurchase) for the ad-attributed number,
+ *    since the two diverge materially (dozo 2026-06: site 2,334 vs
+ *    ad-attributed 369 = 6.3x; hs 2026-06: site 1,846 vs ad-attributed
+ *    842 = 2.2x).
+ *  - weekly / media / cpn / adg ("GA（広告帰属）" group): GA_CV(購入) is
+ *    genuinely ad-attributed (fct_ad_daily-grained rpt_daily/rpt_media/
+ *    rpt_cpn/rpt_adg) — no separate reference column needed there.
  *
  * Granularity tabs: Daily / 週次 / 月次 / 媒体 / キャンペーン / 広告グループ (?view=).
  * Daily merges rpt_daily (ads metrics) with rpt_all daily rows (site-wide
@@ -69,6 +84,9 @@ function addNullable(acc: number | null, v: number | null): number | null {
 interface Bucket extends RptMetrics {
   overallCv: number | null;
   overallValue: number | null;
+  /** Ad-attributed purchase CV reference column (daily/monthly only — see
+   *  module doc). Undefined on tabs that don't populate it. */
+  adCvPurchase?: number;
 }
 
 function emptyBucket(): Bucket {
@@ -91,8 +109,14 @@ function emptyBucket(): Bucket {
 
 /** Accepts RptMetrics rows AND ReportTableRow rows (the latter omits
  *  gaCvAddToCart — a soft signal not surfaced in the table, so totalRow()'s
- *  fold-up over already-mapped ReportTableRow[] doesn't carry it). */
-function addMetrics(b: Bucket, m: Omit<RptMetrics, "gaCvAddToCart"> & { gaCvAddToCart?: number }): void {
+ *  fold-up over already-mapped ReportTableRow[] doesn't carry it).
+ *  adCvPurchase is summed only when present on the source row (daily/
+ *  monthly); absent on other tabs, so the total row's adCvPurchase stays
+ *  undefined there rather than folding in a spurious 0. */
+function addMetrics(
+  b: Bucket,
+  m: Omit<RptMetrics, "gaCvAddToCart"> & { gaCvAddToCart?: number; adCvPurchase?: number },
+): void {
   b.cost += m.cost;
   b.impressions += m.impressions;
   b.clicks += m.clicks;
@@ -103,6 +127,9 @@ function addMetrics(b: Bucket, m: Omit<RptMetrics, "gaCvAddToCart"> & { gaCvAddT
   b.gaValue += m.gaValue;
   b.gaCvPurchase += m.gaCvPurchase;
   b.gaCvAddToCart += m.gaCvAddToCart ?? 0;
+  if (m.adCvPurchase != null) {
+    b.adCvPurchase = (b.adCvPurchase ?? 0) + m.adCvPurchase;
+  }
   for (const [k, v] of Object.entries(m.gaCvEvents)) {
     b.gaCvEvents[k] = (b.gaCvEvents[k] ?? 0) + v;
   }
@@ -172,11 +199,16 @@ export default async function ReportScreen({
   /* ---------------- Period KPI (window totals, tab-independent) ------- */
   const kpi = emptyBucket();
   for (const r of dailyCur) addMetrics(kpi, r);
-  let kpiSiteGaCvPurchase = 0;
+  // 🔴 Site-wide purchase CV/value MUST come from RptAllRow.gaCv/gaValue
+  // (ga4_daily's ecommercePurchases), NOT gaCvPurchase — the latter is
+  // ad-attributed even on rpt_all (see bq-rpt.ts module doc). Using
+  // gaCvPurchase here previously understated the KPI card by 6.3x (dozo) /
+  // 2.2x (hs) for 2026-06.
+  let kpiSiteGaCv = 0;
   let kpiSiteGaValue = 0;
   let kpiOverallCv: number | null = null;
   for (const r of allCur) {
-    kpiSiteGaCvPurchase += r.gaCvPurchase;
+    kpiSiteGaCv += r.gaCv;
     kpiSiteGaValue += r.gaValue;
     kpiOverallCv = addNullable(kpiOverallCv, r.overallCv);
   }
@@ -190,8 +222,10 @@ export default async function ReportScreen({
   let showBadges = false;
   let showOverall = false;
   let showOverallValue = false;
+  let showAdCvPurchase = false;
   let monoLabel = false;
   let gaGroupLabel = "GA（広告帰属）";
+  let gaCvLabel = "GA_CV(購入)";
   // Monthly tab only: achievement-rate column (全体売上 ÷ 目標). Rendered
   // as a lightweight table below the main ReportTable rather than wired
   // into ReportTable's generic column set (target/achievement is a
@@ -207,6 +241,12 @@ export default async function ReportScreen({
     // Merge rpt_daily (ads side) with rpt_all daily (site GA + overall CV)
     // by date. GA columns on this tab are the site-wide GA4 numbers — this
     // is the classic daily report layout (ads block | GA block | overall).
+    //
+    // 🔴 gaCvPurchase/gaValue here are mapped from a.gaCv/a.gaValue (the
+    // genuinely site-wide columns), NOT a.gaCvPurchase (which is
+    // ad-attributed even on rpt_all — see bq-rpt.ts module doc). The
+    // ad-attributed purchase count is still surfaced, as a separate
+    // reference column (adCvPurchase → "GA_CV(広告帰属)").
     const byDate = new Map<string, { d?: RptDailyRow; a?: RptAllRow }>();
     for (const r of dailyCur) byDate.set(r.date, { d: r });
     for (const r of allCur) byDate.set(r.date, { ...byDate.get(r.date), a: r });
@@ -222,8 +262,9 @@ export default async function ReportScreen({
         sessions: a?.sessions ?? 0,
         gaCv: a?.gaCv ?? 0,
         gaValue: a?.gaValue ?? 0,
-        gaCvPurchase: a?.gaCvPurchase ?? 0,
+        gaCvPurchase: a?.gaCv ?? 0,
         gaCvEvents: a?.gaCvEvents ?? {},
+        adCvPurchase: a?.gaCvPurchase ?? 0,
         overallCv: a?.overallCv ?? null,
         overallValue: a?.overallValue ?? null,
       }));
@@ -231,7 +272,9 @@ export default async function ReportScreen({
     monoLabel = true;
     showOverall = true;
     showOverallValue = meta.hasOverallValue;
+    showAdCvPurchase = true;
     gaGroupLabel = "GA（サイト全体）";
+    gaCvLabel = "GA_CV(サイト全体·購入)";
   } else if (view === "weekly") {
     // Ads-side rollup only (rpt_daily grouped by ISO week) — same shape as
     // the ads block on the Daily tab, no site-wide GA/overall join (that
@@ -276,6 +319,11 @@ export default async function ReportScreen({
     // uses calendar-month overlap (a month row "counts" if its first day
     // falls in [start,end] OR the selected range is entirely inside that
     // month) so a mid-month "This Month" preset still shows the row.
+    //
+    // 🔴 Same site-wide vs ad-attributed split as the Daily tab: gaCvPurchase
+    // here is all?.gaCv (site-wide), not all?.gaCvPurchase (ad-attributed —
+    // see bq-rpt.ts module doc). Ad-attributed purchase count is exposed
+    // separately via adCvPurchase → "GA_CV(広告帰属)".
     const adsRes = await getRptMonthlyAds(client.id);
     warnings.push(...adsRes.warnings);
     fetchedAt = Math.max(fetchedAt, adsRes.fetchedAt);
@@ -296,8 +344,9 @@ export default async function ReportScreen({
         sessions: all?.sessions ?? 0,
         gaCv: all?.gaCv ?? 0,
         gaValue: all?.gaValue ?? 0,
-        gaCvPurchase: all?.gaCvPurchase ?? 0,
+        gaCvPurchase: all?.gaCv ?? 0,
         gaCvEvents: all?.gaCvEvents ?? {},
+        adCvPurchase: all?.gaCvPurchase ?? 0,
         overallCv: all?.overallCv ?? null,
         overallValue: all?.overallValue ?? null,
       }));
@@ -317,7 +366,9 @@ export default async function ReportScreen({
     monoLabel = true;
     showOverall = true;
     showOverallValue = meta.hasOverallValue;
+    showAdCvPurchase = true;
     gaGroupLabel = "GA（サイト全体・月次）";
+    gaCvLabel = "GA_CV(サイト全体·購入)";
   } else if (view === "media") {
     const res = await getRptMedia(client.id);
     warnings.push(...res.warnings);
@@ -427,6 +478,11 @@ export default async function ReportScreen({
   // default (server-computed) sort — cost desc for entity views, date desc
   // for daily/weekly/monthly — since client-side re-sort state isn't
   // available server-side (documented in the footer note below).
+  // ga_cv_purchase column name reflects grain per the same split as the
+  // table (site-wide on daily/monthly via showAdCvPurchase, ad-attributed
+  // elsewhere) — see module doc. The ad-attributed reference column is only
+  // included when the tab actually populates adCvPurchase.
+  const gaCvPurchaseCsvKey = showAdCvPurchase ? "ga_cv_purchase_sitewide" : "ga_cv_purchase";
   function toCsvRow(r: ReportTableRow) {
     const eventCols: Record<string, number> = {};
     for (const ev of meta.secondaryEvents) {
@@ -445,7 +501,8 @@ export default async function ReportScreen({
       media_cv: r.mediaCv,
       media_value: r.mediaValue,
       sessions: r.sessions,
-      ga_cv_purchase: r.gaCvPurchase,
+      [gaCvPurchaseCsvKey]: r.gaCvPurchase,
+      ...(showAdCvPurchase ? { ga_cv_purchase_ad_attributed: r.adCvPurchase ?? "" } : {}),
       ...eventCols,
       ga_value: r.gaValue,
       overall_cv: r.overallCv ?? "",
@@ -498,8 +555,8 @@ export default async function ReportScreen({
         <BigKpiCard label="Cost" value={fmtJpy(kpi.cost)} lowerIsBetter />
         <BigKpiCard label="媒体CV" value={fmtInt(kpi.mediaCv)} />
         <BigKpiCard
-          label="GA_CV(購入)（サイト全体）"
-          value={fmtInt(kpiSiteGaCvPurchase)}
+          label="GA_CV(サイト全体·購入)"
+          value={fmtInt(kpiSiteGaCv)}
           comparisons={[]}
         />
         <BigKpiCard
@@ -530,8 +587,10 @@ export default async function ReportScreen({
           overallLabel={meta.overallCvLabel}
           showOverallValue={showOverallValue}
           gaGroupLabel={gaGroupLabel}
+          gaCvLabel={gaCvLabel}
           monoLabel={monoLabel}
           eventDefs={meta.secondaryEvents}
+          showAdCvPurchase={showAdCvPurchase}
         />
         {view === "monthly" && monthlyTargetRows.length > 0 && (
           <div className="rounded-md border">
@@ -567,7 +626,7 @@ export default async function ReportScreen({
             CSVは合計行を含み、表の既定ソート順（並び替え前の順序）で出力されます。テーブル上でソートを変更してもCSVの行順には反映されません。
           </div>
           <div>
-            GA_CV(購入) は GA4 purchase イベント基準（旧表示の GA_CV は全 key event 合算だったが、purchase 基準に変更）。
+            {gaCvLabel} は GA4 purchase（ecommercePurchases）イベント基準（旧表示の GA_CV は全 key event 合算だったが、purchase 基準に変更）。
             {meta.secondaryEvents.length > 0 && (
               <>
                 {" "}
@@ -577,7 +636,7 @@ export default async function ReportScreen({
           </div>
           {view === "daily" || view === "monthly" ? (
             <div>
-              GA列はサイト全体（全チャネル）の GA4 実測（返品は0フロア済）。全体CV（{meta.overallCvLabel}）は連携未取得の期間は「—」表示。
+              GA列はサイト全体（全チャネル）の GA4 実測（返品は0フロア済）。{gaCvLabel} はサイト全体の purchase 件数、GA_CV(広告帰属) は広告エンティティに帰属した参考値（媒体別/CPN/ADGタブの GA_CV(購入) と同一系列）——両者は一致しない（未計測トラフィックや直接流入分だけサイト全体側が上回るため）。全体CV（{meta.overallCvLabel}）は連携未取得の期間は「—」表示。
             </div>
           ) : view === "weekly" ? (
             <div>

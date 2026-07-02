@@ -28,8 +28,10 @@ export interface ChannelMonth {
   sessions: number;
   conversions: number;
   revenue: number;
-  /** GA4 `sign_up` event count — proxy for 会員登録数. */
-  signUps: number;
+  /** Client-specific secondary event counts, keyed by SecondaryEventDef.key
+   *  (e.g. HS: {member: N}, DOZO: {thanks: N, wedding: N}). See
+   *  ga4SecondaryEventDefs() for the per-client toggle list. */
+  secondary: Record<string, number>;
   newUsers: number;
   returningUsers: number;
 }
@@ -39,6 +41,27 @@ export interface Ga4Totals {
   conversions: number;
   revenue: number;
   newCvRatio: number;
+}
+
+/**
+ * Generic result envelope for every GA4/GSC "top N" / breakdown query.
+ * `isMock` is true whenever the caller ultimately received deterministic
+ * mock data (no ga4PropertyId / gscSiteUrl configured, empty real result,
+ * or an API failure) so pages can render a "サンプルデータ" disclosure
+ * instead of silently presenting mock numbers as real.
+ */
+export interface Ga4Result<T> {
+  rows: T;
+  isMock: boolean;
+  warnings: string[];
+}
+
+function mockResult<T>(rows: T): Ga4Result<T> {
+  return { rows, isMock: true, warnings: [] };
+}
+
+function realResult<T>(rows: T, warnings: string[] = []): Ga4Result<T> {
+  return { rows, isMock: false, warnings };
 }
 
 export type Device = "mobile" | "desktop" | "tablet";
@@ -90,14 +113,15 @@ export interface Ga4CampaignRow {
  * Google-Ads-only ADG row. `matchKey` is the raw ADG id so it joins directly
  * against the sheet's adgroupId.
  */
-/** Daily channel row (with sign-ups). Used by the "日別／週別" chart. */
+/** Daily channel row (with secondary events). Used by the "日別／週別" chart. */
 export interface ChannelDay {
   date: string; // ISO yyyy-mm-dd
   channel: ChannelGroup;
   sessions: number;
   conversions: number;
   revenue: number;
-  signUps: number;
+  /** See ChannelMonth.secondary. */
+  secondary: Record<string, number>;
 }
 
 export interface Ga4AdgroupRow {
@@ -161,15 +185,49 @@ function normaliseAdMedia(source: string, medium: string): string | null {
   return null;
 }
 
-/** Pick the best JOIN key between GA4 and the ads sheet. Google's cid is
- *  usually the pure numeric campaign id; for bing/yahoo/meta the id shows up
- *  in the *name* field instead because auto-tagging writes utm_campaign from
- *  the platform-side campaign id. */
-function ga4MatchKey(cid: string, cname: string): string {
+/** Meta-family source detector, used to pick which GA4 dimension actually
+ *  carries the platform campaign id (see ga4MatchKey below). */
+function isMetaSource(source: string): boolean {
+  const s = source.toLowerCase();
+  return (
+    s === "fb" ||
+    s === "facebook" ||
+    s === "instagram" ||
+    s === "ig" ||
+    s === "meta" ||
+    s.includes("facebook")
+  );
+}
+
+/** Pick the best JOIN key between GA4 and the ads sheet/BQ.
+ *
+ *  Google: sessionCampaignId is the pure numeric campaign id — use it
+ *  directly, falling back to the name only when the id is "(not set)".
+ *
+ *  Meta (facebook/instagram/ig/fb/meta): GA4's sessionCampaignId instead
+ *  carries the ad-set-level UTM string written by Meta's auto-tagging
+ *  (e.g. "120242725939000218_v2_s10_e7658"), while the *true* numeric
+ *  platform campaign id (e.g. "120242725938990218", matching
+ *  ads_meta_daily.campaign_id) surfaces in sessionCampaignName instead.
+ *  Confirmed 2026-07-02 on DOZO: 172-sample manual check + full-month
+ *  (2026-06) validation — old cid-first key matched 0/928 meta session
+ *  rows (0%) against ads_meta campaign_id, name-first key matched
+ *  925/928 rows / 40,022 of 40,109 sessions (99.8%).
+ *
+ *  Bing/Yahoo/other paid sources keep the legacy cid-first behaviour
+ *  (unchanged — not part of this fix, no counter-evidence found). */
+function ga4MatchKey(source: string, cid: string, cname: string): string {
+  // 🔴 "(not set)" 判定は clean() より先に行う。clean() が括弧を剥がすため
+  // 後判定だと "not set" になり永遠に不成立 → Yahoo 等 cid が常に "(not set)"
+  // のソースで matchKey がリテラル "not set" になっていた（2026-07-03 監査で発見）。
+  const isUnset = (v: string) => !v || v.trim() === "(not set)";
   const clean = (v: string) => v.replace(/^[[(]+|[\])]+$/g, "").trim();
-  const cidClean = clean(cid);
-  if (cidClean && cidClean !== "(not set)") return cidClean;
-  return clean(cname);
+  if (isMetaSource(source)) {
+    if (!isUnset(cname)) return clean(cname);
+    return isUnset(cid) ? "" : clean(cid);
+  }
+  if (!isUnset(cid)) return clean(cid);
+  return isUnset(cname) ? "" : clean(cname);
 }
 
 const CHANNEL_NORMAL: Record<string, ChannelGroup> = {
@@ -202,25 +260,59 @@ function yearMonthFromGa4(v: string): string {
   return v;
 }
 
-/* ------------- secondary channel event (4th chart toggle) ------------- */
+/* ------------- secondary channel events (4th+ chart toggles) ------------- */
 
-/** クライアント（GA4プロパティ）ごとのチャネルチャート第4指標。
- *  HS は会員登録（key event 会員登録完了 763/28d ≈ sign_up 785）、
- *  DOZO に sign_up は存在せず（実測0行）、Wedding complete が正
- *  （CEO指摘 2026-07-02、GA4 Data API 実測）。 */
-const SECONDARY_EVENT: Record<string, { label: string; events: string[] }> = {
-  "302745512": { label: "会員登録", events: ["会員登録完了"] }, // HS
-  "311951480": { label: "Wedding", events: ["Wedding complete"] }, // DOZO
-};
-const DEFAULT_SECONDARY = { label: "会員登録", events: ["sign_up"] };
-
-function secondaryEventFor(propertyId: string): { label: string; events: string[] } {
-  return SECONDARY_EVENT[propertyId] ?? DEFAULT_SECONDARY;
+/** A single named secondary-event toggle. `key` is the stable identifier
+ *  used as the map key in ChannelMonth.secondary / ChannelDay.secondary;
+ *  `events` are the GA4 eventName values that roll up into it. */
+export interface SecondaryEventDef {
+  key: string;
+  label: string;
+  events: string[];
 }
 
-/** チャートのトグル表示名（page 側から参照）。 */
+/** クライアント（GA4プロパティ）ごとのチャネルチャート第4指標以降。
+ *  HS は会員登録（key event 会員登録完了 763/28d ≈ sign_up 785）のみ。
+ *  DOZO に sign_up は存在せず（実測0行）、Thanks complete（実測4,873/90d）
+ *  と Wedding complete（実測314/90d）の2イベントが正
+ *  （CEO指摘 2026-07-02、GA4 Data API 実測）。 */
+const SECONDARY_EVENTS: Record<string, SecondaryEventDef[]> = {
+  "302745512": [{ key: "member", label: "会員登録", events: ["会員登録完了"] }], // HS
+  "311951480": [
+    { key: "thanks", label: "Thanks", events: ["Thanks complete"] },
+    { key: "wedding", label: "Wedding", events: ["Wedding complete"] },
+  ], // DOZO
+};
+const DEFAULT_SECONDARY: SecondaryEventDef[] = [{ key: "member", label: "会員登録", events: ["sign_up"] }];
+
+function secondaryEventsFor(propertyId: string): SecondaryEventDef[] {
+  return SECONDARY_EVENTS[propertyId] ?? DEFAULT_SECONDARY;
+}
+
+/** All secondary-event event-names for a property, flattened — used as a
+ *  single `inListFilter` so the GA4 query count stays at one extra request
+ *  regardless of how many named toggles a client has. */
+function allSecondaryEventNames(propertyId: string): string[] {
+  return secondaryEventsFor(propertyId).flatMap((d) => d.events);
+}
+
+/** Reverse lookup: GA4 eventName → the toggle key it belongs to. */
+function secondaryKeyForEventName(propertyId: string, eventName: string): string | null {
+  for (const def of secondaryEventsFor(propertyId)) {
+    if (def.events.includes(eventName)) return def.key;
+  }
+  return null;
+}
+
+/** チャートのトグル定義一覧（page 側から参照）。 */
+export function ga4SecondaryEventDefs(client: ClientConfig): SecondaryEventDef[] {
+  return secondaryEventsFor(client.ga4PropertyId ?? "");
+}
+
+/** 後方互換: 最初のトグルの表示名のみを返す。新規呼び出しは
+ *  ga4SecondaryEventDefs() を使うこと。 */
 export function ga4SecondaryEventLabel(client: ClientConfig): string {
-  return secondaryEventFor(client.ga4PropertyId ?? "").label;
+  return secondaryEventsFor(client.ga4PropertyId ?? "")[0]?.label ?? "会員登録";
 }
 
 /* ---------------------- real calls (cached) ---------------------- */
@@ -229,7 +321,8 @@ async function realChannels(propertyId: string): Promise<ChannelMonth[]> {
   const auth = makeAuth();
   if (!auth) throw new Error("no-ga4-auth");
   const analyticsdata = google.analyticsdata("v1beta");
-  const [res, signUps] = await Promise.all([
+  const secondaryEventNames = allSecondaryEventNames(propertyId);
+  const [res, secondaryRes] = await Promise.all([
     analyticsdata.properties.runReport({
       property: `properties/${propertyId}`,
       auth,
@@ -244,32 +337,38 @@ async function realChannels(propertyId: string): Promise<ChannelMonth[]> {
         limit: "1000",
       },
     }),
-    // Parallel: secondary event count per (yearMonth, channel). Event name is
-    // per-client (HS=会員登録完了, DOZO=Wedding complete) — filtered on
-    // eventName so the metric stays isolated from the main query.
+    // Parallel: secondary event counts per (yearMonth, channel, eventName).
+    // Event names are per-client (HS=[会員登録完了], DOZO=[Thanks complete,
+    // Wedding complete]) — a single inListFilter + eventName dimension keeps
+    // this to one extra request regardless of how many toggles a client has.
     analyticsdata.properties.runReport({
       property: `properties/${propertyId}`,
       auth,
       requestBody: {
         dateRanges: [{ startDate: "730daysAgo", endDate: "today" }],
-        dimensions: [{ name: "yearMonth" }, { name: "sessionDefaultChannelGroup" }],
+        dimensions: [{ name: "yearMonth" }, { name: "sessionDefaultChannelGroup" }, { name: "eventName" }],
         metrics: [{ name: "eventCount" }],
         dimensionFilter: {
           filter: {
             fieldName: "eventName",
-            inListFilter: { values: secondaryEventFor(propertyId).events },
+            inListFilter: { values: secondaryEventNames },
           },
         },
         limit: "1000",
       },
     }),
   ]);
-  const signUpMap = new Map<string, number>();
-  for (const r of signUps.data.rows ?? []) {
+  const secondaryMap = new Map<string, Record<string, number>>();
+  for (const r of secondaryRes.data.rows ?? []) {
     const ym = yearMonthFromGa4(r.dimensionValues?.[0]?.value ?? "");
     const ch = normaliseChannel(r.dimensionValues?.[1]?.value);
+    const eventName = r.dimensionValues?.[2]?.value ?? "";
+    const secondaryKey = secondaryKeyForEventName(propertyId, eventName);
+    if (!secondaryKey) continue;
     const key = `${ym}|${ch}`;
-    signUpMap.set(key, (signUpMap.get(key) ?? 0) + Number(r.metricValues?.[0]?.value ?? 0));
+    const bucket = secondaryMap.get(key) ?? {};
+    bucket[secondaryKey] = (bucket[secondaryKey] ?? 0) + Number(r.metricValues?.[0]?.value ?? 0);
+    secondaryMap.set(key, bucket);
   }
 
   const map = new Map<string, ChannelMonth>();
@@ -287,7 +386,7 @@ async function realChannels(propertyId: string): Promise<ChannelMonth[]> {
       sessions: 0,
       conversions: 0,
       revenue: 0,
-      signUps: signUpMap.get(key) ?? 0,
+      secondary: secondaryMap.get(key) ?? {},
       newUsers: 0,
       returningUsers: 0,
     };
@@ -341,7 +440,20 @@ async function realDevices(propertyId: string, anchor: string): Promise<DeviceTo
   return result;
 }
 
-async function realLandingPages(propertyId: string): Promise<LandingPageRow[]> {
+/** Default lookback window (matches the previous hardcoded "28daysAgo"
+ *  behaviour) used whenever a caller omits explicit {start,end}. */
+const DEFAULT_PERIOD_DAYS = 28;
+
+export interface Period {
+  start: string;
+  end: string;
+}
+
+function defaultPeriod(): Period {
+  return { start: `${DEFAULT_PERIOD_DAYS}daysAgo`, end: "today" };
+}
+
+async function realLandingPages(propertyId: string, period: Period): Promise<LandingPageRow[]> {
   const auth = makeAuth();
   if (!auth) throw new Error("no-ga4-auth");
   const analyticsdata = google.analyticsdata("v1beta");
@@ -349,7 +461,7 @@ async function realLandingPages(propertyId: string): Promise<LandingPageRow[]> {
     property: `properties/${propertyId}`,
     auth,
     requestBody: {
-      dateRanges: [{ startDate: "28daysAgo", endDate: "today" }],
+      dateRanges: [{ startDate: period.start, endDate: period.end }],
       dimensions: [{ name: "landingPagePlusQueryString" }],
       metrics: [
         { name: "sessions" },
@@ -389,20 +501,20 @@ export interface ProductsResult {
   revenueUnreliable: boolean;
 }
 
-async function realProducts(propertyId: string): Promise<ProductsResult> {
+async function realProducts(propertyId: string, period: Period): Promise<ProductsResult> {
   const auth = makeAuth();
   if (!auth) throw new Error("no-ga4-auth");
   const analyticsdata = google.analyticsdata("v1beta");
   // Fetch at the (item × date) grain — not pre-aggregated by item — so a
   // single-day pollution spike can be excluded before rolling up to item
   // totals. Pre-aggregating first would let one polluted day drown out an
-  // item's genuine 28-day performance.
+  // item's genuine period performance.
   const [res, txnRes] = await Promise.all([
     analyticsdata.properties.runReport({
       property: `properties/${propertyId}`,
       auth,
       requestBody: {
-        dateRanges: [{ startDate: "28daysAgo", endDate: "today" }],
+        dateRanges: [{ startDate: period.start, endDate: period.end }],
         dimensions: [{ name: "itemName" }, { name: "itemId" }, { name: "date" }],
         metrics: [
           { name: "itemsPurchased" },
@@ -417,7 +529,7 @@ async function realProducts(propertyId: string): Promise<ProductsResult> {
       property: `properties/${propertyId}`,
       auth,
       requestBody: {
-        dateRanges: [{ startDate: "28daysAgo", endDate: "today" }],
+        dateRanges: [{ startDate: period.start, endDate: period.end }],
         metrics: [{ name: "purchaseRevenue" }],
       },
     }),
@@ -513,7 +625,7 @@ async function realPaidCampaigns(propertyId: string, startDate: string, endDate:
       media,
       campaignId,
       campaignName,
-      matchKey: ga4MatchKey(campaignId, campaignName),
+      matchKey: ga4MatchKey(source, campaignId, campaignName),
       sessions: Number(r.metricValues?.[0]?.value ?? 0),
       conversions: Number(r.metricValues?.[1]?.value ?? 0),
       revenue: Number(r.metricValues?.[2]?.value ?? 0),
@@ -570,16 +682,16 @@ async function realGoogleAdgroups(propertyId: string, startDate: string, endDate
 
 /* ---------------------- public (cached) API ---------------------- */
 
-export async function getGa4MonthlyChannels(client: ClientConfig): Promise<ChannelMonth[]> {
-  if (!client.ga4PropertyId) return mockChannels();
+export async function getGa4MonthlyChannels(client: ClientConfig): Promise<Ga4Result<ChannelMonth[]>> {
+  if (!client.ga4PropertyId) return mockResult(mockChannels());
   const pid = client.ga4PropertyId;
   return unstable_cache(
-    async () => {
+    async (): Promise<Ga4Result<ChannelMonth[]>> => {
       try {
-        return await realChannels(pid);
+        return realResult(await realChannels(pid));
       } catch (err) {
         console.error("[ga4] channels fetch failed, using mock:", err);
-        return mockChannels();
+        return mockResult(mockChannels());
       }
     },
     [`ga4-channels-${pid}`],
@@ -587,16 +699,16 @@ export async function getGa4MonthlyChannels(client: ClientConfig): Promise<Chann
   )();
 }
 
-export async function getDeviceTotals(client: ClientConfig, anchor: string): Promise<DeviceTotals[]> {
-  if (!client.ga4PropertyId) return mockDevices(anchor);
+export async function getDeviceTotals(client: ClientConfig, anchor: string): Promise<Ga4Result<DeviceTotals[]>> {
+  if (!client.ga4PropertyId) return mockResult(mockDevices(anchor));
   const pid = client.ga4PropertyId;
   return unstable_cache(
-    async () => {
+    async (): Promise<Ga4Result<DeviceTotals[]>> => {
       try {
-        return await realDevices(pid, anchor);
+        return realResult(await realDevices(pid, anchor));
       } catch (err) {
         console.error("[ga4] device fetch failed, using mock:", err);
-        return mockDevices(anchor);
+        return mockResult(mockDevices(anchor));
       }
     },
     [`ga4-device-${pid}-${anchor.slice(0, 7)}`],
@@ -604,30 +716,35 @@ export async function getDeviceTotals(client: ClientConfig, anchor: string): Pro
   )();
 }
 
-export async function getTopLandingPages(client: ClientConfig): Promise<LandingPageRow[]> {
-  if (!client.ga4PropertyId) return mockLandingPages();
+export async function getTopLandingPages(
+  client: ClientConfig,
+  period?: Period
+): Promise<Ga4Result<LandingPageRow[]>> {
+  const p = period ?? defaultPeriod();
+  if (!client.ga4PropertyId) return mockResult(mockLandingPages());
   const pid = client.ga4PropertyId;
   return unstable_cache(
-    async () => {
+    async (): Promise<Ga4Result<LandingPageRow[]>> => {
       try {
-        return await realLandingPages(pid);
+        return realResult(await realLandingPages(pid, p));
       } catch (err) {
         console.error("[ga4] lp fetch failed, using mock:", err);
-        return mockLandingPages();
+        return mockResult(mockLandingPages());
       }
     },
-    [`ga4-lp-${pid}`],
+    [`ga4-lp-${pid}-${p.start}-${p.end}`],
     { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] }
   )();
 }
 
-/** Daily channel report (last 90 days). Includes sign_up event count via a
- *  second filtered query, same pattern as realChannels. */
+/** Daily channel report (last 90 days). Includes per-client secondary event
+ *  counts via a second filtered query, same pattern as realChannels. */
 async function realDailyChannels(propertyId: string): Promise<ChannelDay[]> {
   const auth = makeAuth();
   if (!auth) throw new Error("no-ga4-auth");
   const analyticsdata = google.analyticsdata("v1beta");
-  const [res, signUps] = await Promise.all([
+  const secondaryEventNames = allSecondaryEventNames(propertyId);
+  const [res, secondaryRes] = await Promise.all([
     analyticsdata.properties.runReport({
       property: `properties/${propertyId}`,
       auth,
@@ -647,23 +764,29 @@ async function realDailyChannels(propertyId: string): Promise<ChannelDay[]> {
       auth,
       requestBody: {
         dateRanges: [{ startDate: "90daysAgo", endDate: "today" }],
-        dimensions: [{ name: "date" }, { name: "sessionDefaultChannelGroup" }],
+        dimensions: [{ name: "date" }, { name: "sessionDefaultChannelGroup" }, { name: "eventName" }],
         metrics: [{ name: "eventCount" }],
         dimensionFilter: {
           filter: {
             fieldName: "eventName",
-            inListFilter: { values: secondaryEventFor(propertyId).events },
+            inListFilter: { values: secondaryEventNames },
           },
         },
         limit: "10000",
       },
     }),
   ]);
-  const signUpMap = new Map<string, number>();
-  for (const r of signUps.data.rows ?? []) {
+  const secondaryMap = new Map<string, Record<string, number>>();
+  for (const r of secondaryRes.data.rows ?? []) {
     const date = ga4DateToIso(r.dimensionValues?.[0]?.value ?? "");
     const ch = normaliseChannel(r.dimensionValues?.[1]?.value);
-    signUpMap.set(`${date}|${ch}`, Number(r.metricValues?.[0]?.value ?? 0));
+    const eventName = r.dimensionValues?.[2]?.value ?? "";
+    const secondaryKey = secondaryKeyForEventName(propertyId, eventName);
+    if (!secondaryKey) continue;
+    const key = `${date}|${ch}`;
+    const bucket = secondaryMap.get(key) ?? {};
+    bucket[secondaryKey] = (bucket[secondaryKey] ?? 0) + Number(r.metricValues?.[0]?.value ?? 0);
+    secondaryMap.set(key, bucket);
   }
   const out: ChannelDay[] = [];
   for (const r of res.data.rows ?? []) {
@@ -675,22 +798,22 @@ async function realDailyChannels(propertyId: string): Promise<ChannelDay[]> {
       sessions: Number(r.metricValues?.[0]?.value ?? 0),
       conversions: Number(r.metricValues?.[1]?.value ?? 0),
       revenue: Number(r.metricValues?.[2]?.value ?? 0),
-      signUps: signUpMap.get(`${date}|${ch}`) ?? 0,
+      secondary: secondaryMap.get(`${date}|${ch}`) ?? {},
     });
   }
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export async function getGa4DailyChannels(client: ClientConfig): Promise<ChannelDay[]> {
-  if (!client.ga4PropertyId) return mockDailyChannels();
+export async function getGa4DailyChannels(client: ClientConfig): Promise<Ga4Result<ChannelDay[]>> {
+  if (!client.ga4PropertyId) return mockResult(mockDailyChannels());
   const pid = client.ga4PropertyId;
   return unstable_cache(
-    async () => {
+    async (): Promise<Ga4Result<ChannelDay[]>> => {
       try {
-        return await realDailyChannels(pid);
+        return realResult(await realDailyChannels(pid));
       } catch (err) {
         console.error("[ga4] daily channels fetch failed, using mock:", err);
-        return mockDailyChannels();
+        return mockResult(mockDailyChannels());
       }
     },
     [`ga4-daily-channels-${pid}`],
@@ -702,16 +825,16 @@ export async function getGa4PaidCampaigns(
   client: ClientConfig,
   startDate: string,
   endDate: string
-): Promise<Ga4CampaignRow[]> {
-  if (!client.ga4PropertyId) return [];
+): Promise<Ga4Result<Ga4CampaignRow[]>> {
+  if (!client.ga4PropertyId) return { rows: [], isMock: false, warnings: [] };
   const pid = client.ga4PropertyId;
   return unstable_cache(
-    async () => {
+    async (): Promise<Ga4Result<Ga4CampaignRow[]>> => {
       try {
-        return await realPaidCampaigns(pid, startDate, endDate);
+        return realResult(await realPaidCampaigns(pid, startDate, endDate));
       } catch (err) {
         console.error("[ga4] paid campaigns fetch failed:", err);
-        return [];
+        return { rows: [], isMock: false, warnings: [String(err)] };
       }
     },
     [`ga4-paid-${pid}-${startDate}-${endDate}`],
@@ -723,16 +846,16 @@ export async function getGa4GoogleAdgroups(
   client: ClientConfig,
   startDate: string,
   endDate: string
-): Promise<Ga4AdgroupRow[]> {
-  if (!client.ga4PropertyId) return [];
+): Promise<Ga4Result<Ga4AdgroupRow[]>> {
+  if (!client.ga4PropertyId) return { rows: [], isMock: false, warnings: [] };
   const pid = client.ga4PropertyId;
   return unstable_cache(
-    async () => {
+    async (): Promise<Ga4Result<Ga4AdgroupRow[]>> => {
       try {
-        return await realGoogleAdgroups(pid, startDate, endDate);
+        return realResult(await realGoogleAdgroups(pid, startDate, endDate));
       } catch (err) {
         console.error("[ga4] adgroups fetch failed:", err);
-        return [];
+        return { rows: [], isMock: false, warnings: [String(err)] };
       }
     },
     [`ga4-adg-${pid}-${startDate}-${endDate}`],
@@ -740,22 +863,27 @@ export async function getGa4GoogleAdgroups(
   )();
 }
 
-export async function getTopProducts(client: ClientConfig): Promise<ProductsResult> {
-  if (!client.ga4PropertyId) return { rows: mockProducts(), dataQualityNote: null, revenueUnreliable: false };
+export async function getTopProducts(
+  client: ClientConfig,
+  period?: Period
+): Promise<Ga4Result<ProductsResult>> {
+  const p = period ?? defaultPeriod();
+  const mockFallback = (): ProductsResult => ({ rows: mockProducts(), dataQualityNote: null, revenueUnreliable: false });
+  if (!client.ga4PropertyId) return mockResult(mockFallback());
   const pid = client.ga4PropertyId;
   return unstable_cache(
-    async () => {
+    async (): Promise<Ga4Result<ProductsResult>> => {
       try {
-        const result = await realProducts(pid);
+        const result = await realProducts(pid, p);
         // If GA4 items API returns nothing (no e-commerce tagging), fall back
         // so the dashboard isn't empty-looking.
-        return result.rows.length > 0 ? result : { rows: mockProducts(), dataQualityNote: null, revenueUnreliable: false };
+        return result.rows.length > 0 ? realResult(result) : mockResult(mockFallback());
       } catch (err) {
         console.error("[ga4] products fetch failed, using mock:", err);
-        return { rows: mockProducts(), dataQualityNote: null, revenueUnreliable: false };
+        return mockResult(mockFallback());
       }
     },
-    [`ga4-products-${pid}`],
+    [`ga4-products-${pid}-${p.start}-${p.end}`],
     { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] }
   )();
 }
@@ -845,8 +973,11 @@ function mockChannels(): ChannelMonth[] {
         sessions,
         conversions,
         revenue,
-        // Mock sign-ups: ~2% of sessions for paid-search-like channels, half for others.
-        signUps: Math.round(sessions * (ch === "Paid Search" || ch === "Paid Social" ? 0.02 : 0.01)),
+        // Mock secondary event: ~2% of sessions for paid-search-like channels,
+        // half for others. Keyed generically as "member" — mocks are only
+        // used when no ga4PropertyId is configured, so the per-client
+        // SecondaryEventDef key list is unavailable here.
+        secondary: { member: Math.round(sessions * (ch === "Paid Search" || ch === "Paid Social" ? 0.02 : 0.01)) },
         newUsers: Math.round(sessions * newRatio),
         returningUsers: Math.round(sessions * (1 - newRatio)),
       });
@@ -882,7 +1013,7 @@ function mockDailyChannels(): ChannelDay[] {
         sessions,
         conversions,
         revenue,
-        signUps: Math.round(sessions * (ch === "Paid Search" || ch === "Paid Social" ? 0.02 : 0.01)),
+        secondary: { member: Math.round(sessions * (ch === "Paid Search" || ch === "Paid Social" ? 0.02 : 0.01)) },
       });
     }
   }

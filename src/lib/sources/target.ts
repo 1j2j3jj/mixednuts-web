@@ -36,22 +36,34 @@ export const UNMAPPED_PLAN_CHANNEL = "その他";
  *      uploader at /dashboard/admin/masters/targets. Highest priority, but
  *      only consulted when env `BQ_SOURCE_TARGETS=1` (defaults OFF, mirrors
  *      BQ_SOURCE_RAW). With the flag OFF the Sheet/static path below is used.
- *   2. CEO's HS_計画 spreadsheet (matrix layout, only HS has it today).
+ *   2. CEO's 計画 spreadsheet (HS / DOZO today — see the two layouts below).
  *   3. ClientConfig.monthlyTargets (hardcoded fallback in clients.ts).
  *
  * Each source falls through to the next when it has no row for the
  * requested (clientId, yearMonth) — never breaks the dashboard.
  *
- * Expected layout (tab `シート1`):
- *   col A  : metric name        ("セッション" / "受注件数" / "受注金額" / "広告費用")
- *   col B  : channel             ("organic" / "direct" / "mail" / "referral" / "広告")
- *   col C  : "目標" / "実績"     (we read 目標 only for now)
- *   col D+ : month labels        ("2024年9月", "2024年10月", …)
+ * Two sheet layouts (tab `シート1`), auto-detected in pivot():
+ *
+ *   JA matrix (HS):
+ *     col A  : metric name        ("セッション" / "受注件数" / "受注金額" / "広告費用")
+ *     col B  : channel             ("organic" / "direct" / "mail" / "referral" / "広告")
+ *     col C  : "目標" / "実績"     (we read 目標 only for now)
+ *     col D+ : month labels        ("2024年9月", "2024年10月", …)
+ *
+ *   EN annual template (DOZO):
+ *     col A  : metric name (English) — "revenue" / "conversions" /
+ *              "adSpendBudget" / "roasPct" / "cpa"
+ *     col B  : channel — "all" (whole-account total) / "google" / "yahoo" /
+ *              "meta" / "microsoft"
+ *     col C+ : month labels — "Jan".."Dec" (no year; the template is
+ *              recurring, so a row applies to that calendar month in any
+ *              requested year)
  *
  * Derived per-month KPIs (matches the dashboard's definitions):
- *   revenue       = sum(受注金額 × all channels)
- *   conversions   = sum(受注件数 × all channels)
- *   adSpendBudget = 広告費用 × 広告
+ *   revenue       = sum(受注金額 × all channels), or the "all" row directly
+ *                   when present (EN template)
+ *   conversions   = sum(受注件数 × all channels), or "all" directly
+ *   adSpendBudget = 広告費用 × 広告, or "all" directly
  *   roasPct       = 受注金額(広告) / 広告費用(広告) × 100
  *   cpa           = 広告費用(広告) / 受注件数(広告)
  *
@@ -86,12 +98,73 @@ function parseJaYm(label: string): string {
   return "";
 }
 
-/** Pivot the matrix into a flat list of points. */
+const EN_MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "Jan"/"jan"/"January" → 1-12 month number. Returns 0 when unrecognised. */
+function parseEnMonth(label: string): number {
+  const s = String(label ?? "").trim().toLowerCase();
+  const idx = EN_MONTH_ABBR.findIndex((abbr) => s === abbr.toLowerCase() || s.startsWith(abbr.toLowerCase()));
+  return idx >= 0 ? idx + 1 : 0;
+}
+
+/** English metric names (some 計画 sheets, e.g. DOZO, use these directly
+ *  instead of the Japanese 受注金額/受注件数/広告費用 vocabulary). Mapped to
+ *  the same canonical metric strings the rest of this module reads. */
+const EN_METRIC_ALIAS: Record<string, Metric> = {
+  revenue: "受注金額",
+  conversions: "受注件数",
+  adspendbudget: "広告費用",
+};
+
+function normaliseMetric(raw: string): Metric {
+  const alias = EN_METRIC_ALIAS[raw.toLowerCase()];
+  return alias ?? raw;
+}
+
+/**
+ * Pivot the matrix into a flat list of points. Supports two sheet layouts:
+ *
+ *   1. JA matrix (HS 計画): col C is "目標"/"実績", months start at col D
+ *      (index 3), labelled "YYYY年M月".
+ *   2. EN annual template (DOZO 計画): no kind column — months start at
+ *      col C (index 2), labelled "Jan".."Dec" with no year (the sheet is a
+ *      recurring yearly template). Metric names are English
+ *      (revenue/conversions/adSpendBudget/roasPct/cpa) and a `channel='all'`
+ *      row carries the whole-account target rather than a per-channel
+ *      breakdown — see getChannelTargetsForMonth, which skips it.
+ *
+ * Layout is detected from the header: if header[2] parses as a bare month
+ * name (no "kind" column present), months start at index 2 and every row
+ * is expanded across all years the caller might ask for (the EN template
+ * has no year, so "Jan" matches Jan of any requested yearMonth).
+ */
 function pivot(values: string[][]): TargetPoint[] {
   if (values.length < 2) return [];
   const [header, ...rows] = values;
-  const monthKeys = header.slice(3).map((h) => parseJaYm(String(h ?? "")));
+  const isEnTemplate = parseEnMonth(String(header[2] ?? "")) > 0;
   const out: TargetPoint[] = [];
+
+  if (isEnTemplate) {
+    const monthNums = header.slice(2).map((h) => parseEnMonth(String(h ?? "")));
+    for (const r of rows) {
+      const metric = normaliseMetric(String(r[0] ?? "").trim());
+      const channel = String(r[1] ?? "").trim();
+      if (!metric || !channel) continue;
+      for (let i = 0; i < monthNums.length; i++) {
+        const mo = monthNums[i];
+        if (!mo) continue;
+        const v = toNumber(r[2 + i]);
+        if (v === 0) continue;
+        // No year in the template — value applies to that calendar month in
+        // any year. Encode as a wildcard yearMonth ("*-MM") and let callers
+        // match it against the requested month.
+        out.push({ yearMonth: `*-${String(mo).padStart(2, "0")}`, metric, channel, value: v });
+      }
+    }
+    return out;
+  }
+
+  const monthKeys = header.slice(3).map((h) => parseJaYm(String(h ?? "")));
   for (const r of rows) {
     const metric = String(r[0] ?? "").trim();
     const channel = String(r[1] ?? "").trim();
@@ -107,6 +180,14 @@ function pivot(values: string[][]): TargetPoint[] {
     }
   }
   return out;
+}
+
+/** True when a point's yearMonth (possibly a "*-MM" wildcard from the EN
+ *  annual template) matches the requested "YYYY-MM". */
+function matchesYearMonth(point: TargetPoint, yearMonth: string): boolean {
+  if (point.yearMonth === yearMonth) return true;
+  const wildcardMonth = point.yearMonth.match(/^\*-(\d{2})$/)?.[1];
+  return wildcardMonth != null && wildcardMonth === yearMonth.slice(5, 7);
 }
 
 /**
@@ -179,7 +260,10 @@ export async function getChannelTargetsForMonth(
     const res = await fetchSheetCached(sheetId, src.targetsRange);
     if (!res.values || res.values.length < 2 || res.isMock) return [];
     const points = pivot(res.values);
-    const monthPoints = points.filter((p) => p.yearMonth === yearMonth);
+    // "all" is the whole-account target row on the EN annual template
+    // (DOZO) — it's a total, not a channel breakdown, so exclude it here
+    // and let getTargetsForMonth's aggregate summation pick it up instead.
+    const monthPoints = points.filter((p) => matchesYearMonth(p, yearMonth) && p.channel !== "all");
     if (monthPoints.length === 0) return [];
 
     const channels = Array.from(new Set(monthPoints.map((p) => p.channel)));
@@ -233,13 +317,22 @@ export async function getTargetsForMonth(
     const res = await fetchSheetCached(sheetId, src.targetsRange);
     if (!res.values || res.values.length < 2 || res.isMock) return fallback;
     const points = pivot(res.values);
-    const monthPoints = points.filter((p) => p.yearMonth === yearMonth);
+    const monthPoints = points.filter((p) => matchesYearMonth(p, yearMonth));
     if (monthPoints.length === 0) return fallback;
 
-    const sumBy = (metric: Metric, channels?: string[]) =>
-      monthPoints
-        .filter((p) => p.metric === metric && (!channels || channels.includes(p.channel)))
+    // "all" is the whole-account total on the EN annual template (DOZO) —
+    // prefer it when present so per-channel rows (google/yahoo/meta/...)
+    // aren't double-counted on top of it. Falls through to summing the
+    // requested `channels` set (the JA matrix format's convention, e.g.
+    // 広告費用 × ["広告"] for HS) when there's no "all" row for the metric.
+    const sumBy = (metric: Metric, channels?: string[]) => {
+      const metricPoints = monthPoints.filter((p) => p.metric === metric);
+      const allPoints = metricPoints.filter((p) => p.channel === "all");
+      if (allPoints.length > 0) return allPoints.reduce((s, p) => s + p.value, 0);
+      return metricPoints
+        .filter((p) => !channels || channels.includes(p.channel))
         .reduce((s, p) => s + p.value, 0);
+    };
 
     const revenue = sumBy("受注金額") || fallback.revenue;
     const conversions = sumBy("受注件数") || fallback.conversions;

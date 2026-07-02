@@ -37,12 +37,27 @@ import { getBigQuery, BQ_LOCATION } from "@/lib/bigquery";
  * ga_cv aggregate that already existed):
  *  - hs:   ga_cv_purchase / ga_cv_member / ga_cv_contact / ga_cv_add_to_cart
  *  - dozo: ga_cv_purchase / ga_cv_thanks / ga_cv_wedding_ev / ga_cv_add_to_cart
- *  - ga_cv_purchase is now the PRIMARY conversion for GA_CVR/GA_CPA/GA_ROAS
- *    (the legacy ga_cv aggregate — sum of all GA4 key events — is kept on
- *    every row for reference but is not surfaced as a table column).
+ *  - ga_cv_purchase is the PRIMARY conversion for GA_CVR/GA_CPA/GA_ROAS on
+ *    the **ad-attributed** views (rpt_daily / rpt_weekly / rpt_media /
+ *    rpt_cpn / rpt_adg) — there it is genuinely GA joined to the ad entity.
  *  - add_to_cart is fetched but intentionally not part of EVENT_CV_COLUMNS
  *    (soft signal, not a report-default column); it is still selected in
  *    SQL so it is available if a caller needs it later.
+ *  - 🔴 IMPORTANT (verified 2026-07-02 against ga4_daily / fct_ad_daily /
+ *    rpt_all.sql): on rpt_all, ga_cv_purchase (and every ga_cv_{event}
+ *    column) is summed from fct_ad_daily's `ad` CTE — i.e. it is STILL
+ *    ad-attributed, not site-wide, even though it lives on the "site-wide"
+ *    view. rpt_all's only genuinely site-wide purchase-count metric is
+ *    ga_cv / ga_value (sourced from ga4_daily's `ga_total` CTE, whose
+ *    `conversions` column is GA4's `ecommercePurchases` metric — i.e. despite
+ *    the "legacy aggregate of all key events" name, for this mart it IS a
+ *    purchase count, GA4 has no eventName dimension on this pull). Verified
+ *    2026-06 actuals: dozo site ga_cv=2,334 vs ad-attributed
+ *    ga_cv_purchase=369 (6.3x); hs site ga_cv=1,846 vs ad-attributed
+ *    ga_cv_purchase=842 (2.2x). Callers on daily/monthly (RptAllRow) must
+ *    use gaCv/gaValue for the "site-wide purchases" figure and treat
+ *    gaCvPurchase there as a separate ad-attributed reference column (see
+ *    RptAllRow doc below).
  *
  * Weekly / monthly granularity (added 2026-07-02):
  *  - Weekly rolls up rpt_daily by ISO week (Monday start).
@@ -209,13 +224,20 @@ export interface RptAllRow {
   cost: number;
   /** Site-wide GA sessions. */
   sessions: number;
-  /** Site-wide GA CV / value (returns floored at 0 in the mart). Legacy
-   *  aggregate — gaCvPurchase is the primary conversion. */
+  /** Site-wide GA purchase CV / value (ga4_daily's ecommercePurchases /
+   *  purchase_revenue, returns floored at 0 in the mart). This is the
+   *  PRIMARY site-wide conversion figure — use this, not gaCvPurchase,
+   *  for "GA(サイト全体)" reporting. */
   gaCv: number;
   gaValue: number;
-  /** Site-wide primary conversion (purchase). */
+  /** 🔴 Ad-attributed purchase CV (summed from fct_ad_daily via rpt_all's
+   *  `ad` CTE — NOT site-wide, despite living on this "site-wide" view).
+   *  Kept as a reference/comparison column; do not label it "サイト全体".
+   *  See module doc for the verified divergence (dozo 6.3x / hs 2.2x). */
   gaCvPurchase: number;
-  /** Site-wide secondary key events, keyed by EventCvDef.key. */
+  /** Ad-attributed secondary key events (same `ad` CTE as gaCvPurchase —
+   *  NOT site-wide; ga4_daily has no eventName dimension to derive a
+   *  site-wide equivalent), keyed by EventCvDef.key. */
   gaCvEvents: Record<string, number>;
   /** Overall CV layer (dozo: shopify_cv / hs: eccube_cv). NULL until the
    *  shop-side ingest lands — render as "—", never as 0. */

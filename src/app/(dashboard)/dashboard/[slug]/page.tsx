@@ -4,8 +4,9 @@ import {
   getGa4MonthlyChannels,
   getGa4DailyChannels,
   getDeviceTotals,
-  ga4SecondaryEventLabel,
+  ga4SecondaryEventDefs,
   type ChannelGroup,
+  type ChannelDay,
 } from "@/lib/sources/ga4";
 import { getEccubeDaily, sumEccubeRange } from "@/lib/sources/eccube";
 import { getTargetsForMonth, getChannelTargetsForMonth, GA4_TO_PLAN_CHANNEL, UNMAPPED_PLAN_CHANNEL } from "@/lib/sources/target";
@@ -31,7 +32,33 @@ import { fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-function filterGa4ByRange<T extends { yearMonth: string }>(rows: T[], r: DateRange): T[] {
+/** GA4 daily-channel fetch window (see realDailyChannels in ga4.ts: fixed
+ *  "90daysAgo"-"today"). Ranges that fit entirely inside this window can be
+ *  summed exactly from ga4Daily; ranges reaching further back fall back to
+ *  the coarser month-level `ga4` rows (see filterGa4MonthlyByRange below). */
+const GA4_DAILY_WINDOW_DAYS = 90;
+
+function withinGa4DailyWindow(r: DateRange): boolean {
+  const today = new Date().toISOString().slice(0, 10);
+  const cutoff = new Date();
+  cutoff.setUTCDate(cutoff.getUTCDate() - GA4_DAILY_WINDOW_DAYS);
+  const cutoffIso = cutoff.toISOString().slice(0, 10);
+  return r.start >= cutoffIso && r.end <= today;
+}
+
+function filterChannelDaysByRange(rows: ChannelDay[], r: DateRange): ChannelDay[] {
+  return rows.filter((x) => x.date >= r.start && x.date <= r.end);
+}
+
+/** Month-rounded fallback for ranges that reach outside the 90-day daily
+ *  window (e.g. 過去6ヶ月/過去12ヶ月) — a full-month approximation is an
+ *  acceptable trade-off there since the range already spans many months.
+ *  NOT used for short/day-level presets (last7/last28/thisMonth/lastMonth)
+ *  any more — those go through filterChannelDaysByRange, which fixed a bug
+ *  where any preset crossing a month boundary picked up whole extra months
+ *  of GA4 sessions (up to ~4x over-count, confirmed on HS last7: real daily
+ *  sum 60,745 sessions vs. old month-rounded 237,327). */
+function filterGa4MonthlyByRange<T extends { yearMonth: string }>(rows: T[], r: DateRange): T[] {
   return rows.filter((x) => {
     const monthStart = `${x.yearMonth}-01`;
     const [y, m] = x.yearMonth.split("-").map(Number);
@@ -40,16 +67,47 @@ function filterGa4ByRange<T extends { yearMonth: string }>(rows: T[], r: DateRan
   });
 }
 
-function sumGa4(rows: Array<{ sessions: number; conversions: number; revenue: number; newUsers: number; returningUsers: number }>) {
-  let sessions = 0, conversions = 0, revenue = 0, newUsers = 0, returningUsers = 0;
+interface Ga4SumRow {
+  sessions: number;
+  conversions: number;
+  revenue: number;
+}
+
+function sumGa4(rows: Ga4SumRow[]) {
+  let sessions = 0, conversions = 0, revenue = 0;
   for (const r of rows) {
     sessions += r.sessions;
     conversions += r.conversions;
     revenue += r.revenue;
-    newUsers += r.newUsers;
-    returningUsers += r.returningUsers;
   }
-  return { sessions, conversions, revenue, newUsers, returningUsers };
+  return { sessions, conversions, revenue };
+}
+
+/** Resolve the effective-window GA4 channel rows for a DateRange: exact
+ *  daily sum when the range fits inside ga4Daily's 90-day window, else the
+ *  coarser month-rounded fallback (see filterGa4MonthlyByRange doc). Both
+ *  branches return rows shaped like { channel, sessions, conversions,
+ *  revenue } so downstream sumGa4()/byChannel logic doesn't need to care
+ *  which path was taken. */
+function resolveGa4ChannelRows(
+  ga4Daily: ChannelDay[],
+  ga4Monthly: Array<{ yearMonth: string; channel: ChannelGroup; sessions: number; conversions: number; revenue: number }>,
+  r: DateRange
+): Array<{ channel: ChannelGroup; sessions: number; conversions: number; revenue: number }> {
+  if (withinGa4DailyWindow(r)) {
+    return filterChannelDaysByRange(ga4Daily, r).map((d) => ({
+      channel: d.channel,
+      sessions: d.sessions,
+      conversions: d.conversions,
+      revenue: d.revenue,
+    }));
+  }
+  return filterGa4MonthlyByRange(ga4Monthly, r).map((m) => ({
+    channel: m.channel,
+    sessions: m.sessions,
+    conversions: m.conversions,
+    revenue: m.revenue,
+  }));
 }
 
 function pct(a: number, b: number): number | null {
@@ -70,8 +128,13 @@ export default async function Overview({
   const client = await assertUserCanAccessClientBySlug(slug);
 
   const { rows: adRows, fetchedAt, isMock } = await getDailyRows(client);
-  const ga4 = await getGa4MonthlyChannels(client);
-  const eccube = await getEccubeDaily(client);
+  const [ga4Result, ga4DailyResult, eccube] = await Promise.all([
+    getGa4MonthlyChannels(client),
+    getGa4DailyChannels(client),
+    getEccubeDaily(client),
+  ]);
+  const ga4 = ga4Result.rows;
+  const ga4Daily = ga4DailyResult.rows;
   const hasEccube = eccube.rows.length > 0;
 
   const adDates = adRows.map((r) => r.date).filter(Boolean).sort();
@@ -82,12 +145,12 @@ export default async function Overview({
   const rr = resolveFromSearchParams(sp, { preset: "thisMonth", compare: "prev" }, anchor);
 
   const adCur = filterByRange(adRows, rr.current.start, rr.current.end);
-  const gaCurRows = filterGa4ByRange(ga4, rr.current);
+  const gaCurRows = resolveGa4ChannelRows(ga4Daily, ga4, rr.current);
   const gaCur = sumGa4(gaCurRows);
   const costCur = adCur.reduce((s, r) => s + r.cost, 0);
 
   const adPrev = rr.previous ? filterByRange(adRows, rr.previous.start, rr.previous.end) : [];
-  const gaPrevRows = rr.previous ? filterGa4ByRange(ga4, rr.previous) : [];
+  const gaPrevRows = rr.previous ? resolveGa4ChannelRows(ga4Daily, ga4, rr.previous) : [];
   const gaPrev = sumGa4(gaPrevRows);
   const costPrev = adPrev.reduce((s, r) => s + r.cost, 0);
 
@@ -162,6 +225,17 @@ export default async function Overview({
     .slice(-6)
     .map(([ym, v]) => ({ yearMonth: ym, new: v.new, returning: v.returning }));
 
+  // Monthly channel chart is titled "過去12ヶ月" but ga4 (getGa4MonthlyChannels)
+  // actually spans ~24 months (730daysAgo) — previously passed through
+  // unsliced, silently rendering up to 2 years of bars under a 12-month
+  // label. yearMonth strings sort lexicographically, so the last 12 distinct
+  // months (× channels) is a plain tail slice of the sorted-ascending series.
+  const last12Months = Array.from(new Set(ga4.map((r) => r.yearMonth)))
+    .sort()
+    .slice(-12);
+  const last12MonthsSet = new Set(last12Months);
+  const ga4Last12Months = ga4.filter((r) => last12MonthsSet.has(r.yearMonth));
+
   // Channels (current-month GA4 rows) — full set feeds the channel-target
   // table's actuals; top 5 by revenue feeds the fallback Top-5 table.
   const byChannel = new Map<string, { channel: ChannelGroup; sessions: number; conversions: number; revenue: number }>();
@@ -182,24 +256,41 @@ export default async function Overview({
     : null;
 
   const showGoals = rr.preset === "thisMonth" || rr.preset === "lastMonth";
-  const anchorYm = anchor.slice(0, 7);
+  // Target month follows the *selected* period, not always the anchor's
+  // month — previously this was hardcoded to anchor.slice(0,7), so picking
+  // "先月" (lastMonth) still queried the current month's row in the 計画
+  // sheet/targets_monthly table (targets and actuals silently mismatched by
+  // one month). rr.current.start is authoritative for both thisMonth and
+  // lastMonth since resolvePreset() already resolves lastMonth to the prior
+  // calendar month's [start,end].
+  const targetYm = rr.current.start.slice(0, 7);
 
   // Extra context modules (parallel fetch for speed). Products & GSC queries
   // now live on the /insights tab — dropped from here to declutter Overview.
-  // Prefer the sheet-based monthly target for the anchor month; static config
-  // is the fallback. Only one month is fetched — goals are only rendered for
-  // single-month presets anyway. Channel-level targets are only populated
-  // for clients whose 計画 sheet carries a per-channel breakdown for the
-  // anchor month (today: HS) — getChannelTargetsForMonth returns [] otherwise
-  // and the Overview falls back to the plain Top-5-by-GA4-channel table.
-  const [devices, ga4Daily, tgt, channelTargets] = await Promise.all([
+  // Prefer the sheet-based monthly target for the selected month; static
+  // config is the fallback. Only one month is fetched — goals/channel-target
+  // table are only rendered for single-month presets anyway. Channel-level
+  // targets are only populated for clients whose 計画 sheet carries a
+  // per-channel breakdown for the selected month (today: HS) —
+  // getChannelTargetsForMonth returns [] otherwise and the Overview falls
+  // back to the plain Top-5-by-GA4-channel table.
+  const [devicesResult, tgt, channelTargets] = await Promise.all([
     getDeviceTotals(client, anchor),
-    getGa4DailyChannels(client),
-    getTargetsForMonth(client, anchorYm),
-    getChannelTargetsForMonth(client, anchorYm),
+    getTargetsForMonth(client, targetYm),
+    getChannelTargetsForMonth(client, targetYm),
   ]);
+  const devices = devicesResult.rows;
 
+  // Actuals (topChannelsAll, from gaCurRows) follow whatever period the user
+  // picked, but channelTargets is always a single-month row (targetYm) — the
+  // two are only comparable when the selected preset resolves to exactly one
+  // calendar month. showGoals already gates on thisMonth/lastMonth for the
+  // same reason (the 3 GoalGauge cards above), so reuse it here rather than
+  // rendering a target-vs-actual table where actuals span e.g. 6 months
+  // against a 1-month target (previously ungated — any preset with an
+  // HS-style channel-target sheet would render this table regardless).
   const channelTargetRows: ChannelTargetRow[] = (() => {
+    if (!showGoals) return [];
     if (channelTargets.length === 0) return [];
     const byPlanChannel = new Map<string, { revenue: number; conversions: number }>();
     for (const c of topChannelsAll) {
@@ -230,6 +321,7 @@ export default async function Overview({
 
   const monthProgressNote = (() => {
     if (channelTargetRows.length === 0) return undefined;
+    if (rr.preset === "lastMonth") return `${rr.presetLabel}（確定月）`;
     const d = new Date(`${anchor}T00:00:00Z`);
     const dayOfMonth = d.getUTCDate();
     const daysInMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
@@ -293,9 +385,16 @@ export default async function Overview({
     minute: "2-digit",
   });
 
+  // Any upstream source running on mock fallback should surface the banner —
+  // previously only the ad-sheet isMock was wired in, so a client with a
+  // working ad sheet but a missing/failing GA4 property (or ECCUBE sheet)
+  // silently showed mock GA4/ECCUBE numbers with no disclosure.
+  const anyMock =
+    isMock || ga4Result.isMock || ga4DailyResult.isMock || devicesResult.isMock || eccube.isMock;
+
   return (
     <div className="space-y-6">
-      <MockBanner isMock={isMock} />
+      <MockBanner isMock={anyMock} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">Overview</div>
@@ -418,7 +517,7 @@ export default async function Overview({
           </div>
         </CardHeader>
         <CardContent>
-          <ChannelStackedBar data={ga4} defaultMetric="sessions" secondaryLabel={ga4SecondaryEventLabel(client)} />
+          <ChannelStackedBar data={ga4Last12Months} defaultMetric="sessions" secondaryDefs={ga4SecondaryEventDefs(client)} />
         </CardContent>
       </Card>
 
@@ -431,7 +530,7 @@ export default async function Overview({
             data={ga4Daily}
             defaultMetric="sessions"
             defaultGranularity="day"
-            secondaryLabel={ga4SecondaryEventLabel(client)}
+            secondaryDefs={ga4SecondaryEventDefs(client)}
           />
         </CardContent>
       </Card>
@@ -452,9 +551,11 @@ export default async function Overview({
         {channelTargetRows.length > 0 ? (
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">チャネル別 目標vs実績（当月）</CardTitle>
+              {/* 期間ラベルを動的化 — 固定「（当月）」だと 先月 選択時に実績と表示が矛盾する
+                  （channelTargetRows は showGoals=thisMonth/lastMonth の時のみ populate、上参照）。 */}
+              <CardTitle className="text-sm">チャネル別 目標vs実績（{rr.presetLabel}）</CardTitle>
               <div className="mt-1 text-xs text-muted-foreground">
-                実績は GA4 チャネル別（当月）を計画シートのチャネル区分（organic/direct/mail/referral/広告）へ集約。目標欄が「—」の行は計画シートに対応する区分がないチャネル（実績のみ表示）
+                実績は GA4 チャネル別（{rr.presetLabel}）を計画シートのチャネル区分（organic/direct/mail/referral/広告）へ集約。目標欄が「—」の行は計画シートに対応する区分がないチャネル（実績のみ表示）
               </div>
             </CardHeader>
             <CardContent>

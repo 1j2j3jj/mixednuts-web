@@ -2,6 +2,7 @@ import "server-only";
 import { google } from "googleapis";
 import { unstable_cache } from "next/cache";
 import type { ClientConfig } from "@/config/clients";
+import type { Ga4Result, Period } from "@/lib/sources/ga4";
 import type { OAuth2Client, GoogleAuth } from "google-auth-library";
 
 /**
@@ -169,10 +170,15 @@ async function realMonthly(siteUrl: string): Promise<GscMonth[]> {
   return Array.from(map.values()).sort((a, b) => a.yearMonth.localeCompare(b.yearMonth));
 }
 
-async function realQueries(siteUrl: string): Promise<GscQueryRow[]> {
+/** Default GSC query-report window (matches the previous hardcoded 28-day
+ *  behaviour), used whenever a caller omits explicit {start,end}. GSC data
+ *  lags ~1-3 days, so `end` stays anchored to yesterday regardless. */
+function defaultGscPeriod(): Period {
+  return { start: isoDaysAgo(28), end: isoDaysAgo(1) };
+}
+
+async function realQueries(siteUrl: string, period: Period): Promise<GscQueryRow[]> {
   const sc = google.searchconsole("v1");
-  const start = isoDaysAgo(28);
-  const end = isoDaysAgo(1);
   const res = await withAuthFallback((auth) =>
     sc.searchanalytics.query({
       // googleapis accepts GoogleAuth or OAuth2Client; cast to satisfy the
@@ -180,8 +186,8 @@ async function realQueries(siteUrl: string): Promise<GscQueryRow[]> {
       auth: auth as never,
       siteUrl,
       requestBody: {
-        startDate: start,
-        endDate: end,
+        startDate: period.start,
+        endDate: period.end,
         dimensions: ["query"],
         rowLimit: 50,
       },
@@ -213,20 +219,26 @@ export async function getGscMonthly(client: ClientConfig): Promise<GscMonth[]> {
   )();
 }
 
-export async function getTopGscQueries(client: ClientConfig): Promise<GscQueryRow[]> {
-  if (!client.gscSiteUrl) return mockQueries();
+export async function getTopGscQueries(
+  client: ClientConfig,
+  period?: Period
+): Promise<Ga4Result<GscQueryRow[]>> {
+  const p = period ?? defaultGscPeriod();
+  if (!client.gscSiteUrl) return { rows: mockQueries(), isMock: true, warnings: [] };
   const site = client.gscSiteUrl;
   return unstable_cache(
-    async () => {
+    async (): Promise<Ga4Result<GscQueryRow[]>> => {
       try {
-        const rows = await realQueries(site);
-        return rows.length > 0 ? rows : mockQueries();
+        const rows = await realQueries(site, p);
+        return rows.length > 0
+          ? { rows, isMock: false, warnings: [] }
+          : { rows: mockQueries(), isMock: true, warnings: [] };
       } catch (err) {
         console.error("[gsc] queries fetch failed, using mock:", err);
-        return mockQueries();
+        return { rows: mockQueries(), isMock: true, warnings: [] };
       }
     },
-    [`gsc-queries-${site}`],
+    [`gsc-queries-${site}-${p.start}-${p.end}`],
     { revalidate: CACHE_TTL_SECONDS, tags: [`gsc-${site}`] }
   )();
 }

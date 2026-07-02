@@ -7,6 +7,7 @@ import {
   type Ga4AdgroupRow,
 } from "@/lib/sources/ga4";
 import { getTargetsForMonth } from "@/lib/sources/target";
+import type { MonthlyTargets } from "@/config/clients";
 import { resolveFromSearchParams } from "@/lib/range";
 import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
 import { lastN } from "@/lib/analysis";
@@ -165,11 +166,16 @@ export default async function DrillScreen({
   const scopeMedia = new Set(filtered.map((r) => r.media).filter(Boolean));
   // sheetToGa4MatchKey mirrors ga4MatchKey in ga4.ts from the sheet side:
   // Google auto-tag writes campaignId into GA4 sessionCampaignId (numeric),
-  // so matchKey=campaignId. Microsoft/Yahoo/meta auto-tag writes the
-  // platform-side campaign *name* into sessionCampaignName (sessionCampaignId
-  // often comes back as "(not set)"), so matchKey=campaignName.
+  // so matchKey=campaignId. Meta の入稿規約は utm_campaign={campaign_id} で
+  // GA4 sessionCampaignName に数値IDが入る（ga4MatchKey 2026-07-03 修正で
+  // name-first化）ため、ads側の campaignId がそのまま matchKey に一致する。
+  // Microsoft/Yahoo は campaignName（Yahoo は別途 trackingId JOIN）。
   const scopeCampaignKeys = new Set(
-    filtered.map((r) => (r.media === "Google" ? r.campaignId : r.campaignName)).filter(Boolean)
+    filtered
+      .map((r) =>
+        r.media === "Google" || r.media.toLowerCase() === "meta" ? r.campaignId : r.campaignName
+      )
+      .filter(Boolean)
   );
   const scopeAdgroupIds = new Set(filtered.map((r) => r.adgroupId).filter(Boolean));
   const isGoogleOnlyScope = scopeMedia.size === 1 && scopeMedia.has("Google");
@@ -177,18 +183,24 @@ export default async function DrillScreen({
 
   // Fetch GA4 data. Current + previous windows in parallel so KPI deltas are
   // real (prev was hardcoded 0 before, making GA4 deltas meaningless).
-  const [ga4Campaigns, ga4Adgroups, ga4CampaignsPrev, ga4AdgroupsPrev] = await Promise.all([
+  // getGa4PaidCampaigns / getGa4GoogleAdgroups return a Ga4Result<T> envelope
+  // ({rows, isMock, warnings}) — unwrap .rows for the array below.
+  const [ga4CampaignsRes, ga4AdgroupsRes, ga4CampaignsPrevRes, ga4AdgroupsPrevRes] = await Promise.all([
     getGa4PaidCampaigns(client, rr.current.start, rr.current.end),
     needAdgroupData
       ? getGa4GoogleAdgroups(client, rr.current.start, rr.current.end)
-      : Promise.resolve([] as Ga4AdgroupRow[]),
+      : Promise.resolve({ rows: [] as Ga4AdgroupRow[], isMock: false, warnings: [] }),
     rr.previous
       ? getGa4PaidCampaigns(client, rr.previous.start, rr.previous.end)
-      : Promise.resolve([] as Ga4CampaignRow[]),
+      : Promise.resolve({ rows: [] as Ga4CampaignRow[], isMock: false, warnings: [] }),
     rr.previous && needAdgroupData
       ? getGa4GoogleAdgroups(client, rr.previous.start, rr.previous.end)
-      : Promise.resolve([] as Ga4AdgroupRow[]),
+      : Promise.resolve({ rows: [] as Ga4AdgroupRow[], isMock: false, warnings: [] }),
   ]);
+  const ga4Campaigns = ga4CampaignsRes.rows;
+  const ga4Adgroups = ga4AdgroupsRes.rows;
+  const ga4CampaignsPrev = ga4CampaignsPrevRes.rows;
+  const ga4AdgroupsPrev = ga4AdgroupsPrevRes.rows;
 
   // Apply cascade scope to GA4 rows. For Google + ADG filter we further
   // restrict to ga4Adgroups (the only source with ADG-level grain). For
@@ -242,7 +254,22 @@ export default async function DrillScreen({
 
   const table = aggregate(filtered, granularity, level, join);
 
-  const tgt = await getTargetsForMonth(client, anchor.slice(0, 7));
+  // P2-1: colour-code ROAS/CPA against each row's own month, not a single
+  // anchor-month target. week/month granularity buckets can straddle two
+  // calendar months (e.g. a week bucket starting 2026-06-29 spans into
+  // July) — row.date is sliced to its first 7 chars ("YYYY-MM") as the
+  // month key, which for week buckets means the bucket's *start* month.
+  // getTargetsForMonth always falls back to client.monthlyTargets (never
+  // returns null), and several clients' static fallback is all-zero — so a
+  // resolved target with roasPct<=0 or cpa<=0 is treated as "no configured
+  // target for this month" and gets no colour (see targetsForMonth below).
+  const rowMonths = Array.from(new Set(table.map((r) => r.date.slice(0, 7)).filter(Boolean)));
+  if (rowMonths.length === 0) rowMonths.push(anchor.slice(0, 7));
+  const targetsEntries = await Promise.all(
+    rowMonths.map(async (ym): Promise<[string, MonthlyTargets]> => [ym, await getTargetsForMonth(client, ym)])
+  );
+  const targetsByMonth = new Map<string, MonthlyTargets>(targetsEntries);
+  const tgt = targetsByMonth.get(anchor.slice(0, 7)) ?? (await getTargetsForMonth(client, anchor.slice(0, 7)));
 
   // Period KPIs (reflect the filter: facet filters narrow, so KPIs change).
   const curTotals = sumRows(filtered);
@@ -381,6 +408,9 @@ export default async function DrillScreen({
     clicks: r.clicks,
     conversions: r.conversions,
     conversionValue: r.conversionValue,
+    ga4Sessions: r.ga4Sessions ?? "",
+    ga4Conversions: r.ga4Conversions ?? "",
+    ga4Revenue: r.ga4Revenue ?? "",
   }));
 
   const fetchedAtLabel = new Date(fetchedAt).toLocaleTimeString("ja-JP", {
@@ -539,6 +569,7 @@ export default async function DrillScreen({
             source={source}
             targetRoasPct={tgt.roasPct}
             targetCpa={tgt.cpa}
+            targetsByMonth={targetsByMonth}
           />
         </CardContent>
       </Card>
