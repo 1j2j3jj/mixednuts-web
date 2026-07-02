@@ -6,10 +6,15 @@ interface Props {
   rows: ProductRow[];
   /** Limit rows shown; default 10. */
   limit?: number;
+  /** When GA4 item-scope revenue is known to be polluted (see
+   *  ProductsResult.revenueUnreliable), rank by CV and omit 単価/売上. */
+  hideRevenue?: boolean;
 }
 
-export default function ProductRanking({ rows, limit = 10 }: Props) {
-  const sorted = [...rows].sort((a, b) => b.revenue - a.revenue).slice(0, limit);
+export default function ProductRanking({ rows, limit = 10, hideRevenue = false }: Props) {
+  const sorted = [...rows]
+    .sort((a, b) => (hideRevenue ? b.conversions - a.conversions : b.revenue - a.revenue))
+    .slice(0, limit);
   return (
     <Table>
       <TableHeader>
@@ -18,8 +23,8 @@ export default function ProductRanking({ rows, limit = 10 }: Props) {
           <TableHead>商品</TableHead>
           <TableHead>SKU</TableHead>
           <TableHead className="text-right">CV</TableHead>
-          <TableHead className="text-right">単価</TableHead>
-          <TableHead className="text-right">売上</TableHead>
+          {!hideRevenue && <TableHead className="text-right">単価</TableHead>}
+          {!hideRevenue && <TableHead className="text-right">売上</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -29,8 +34,8 @@ export default function ProductRanking({ rows, limit = 10 }: Props) {
             <TableCell className="font-medium">{r.productName}</TableCell>
             <TableCell className="font-mono text-xs text-muted-foreground">{r.sku}</TableCell>
             <TableCell className="text-right tabular-nums">{fmtInt(r.conversions)}</TableCell>
-            <TableCell className="text-right tabular-nums">{fmtJpy(r.unitPrice)}</TableCell>
-            <TableCell className="text-right tabular-nums">{fmtJpy(r.revenue)}</TableCell>
+            {!hideRevenue && <TableCell className="text-right tabular-nums">{fmtJpy(r.unitPrice)}</TableCell>}
+            {!hideRevenue && <TableCell className="text-right tabular-nums">{fmtJpy(r.revenue)}</TableCell>}
           </TableRow>
         ))}
       </TableBody>

@@ -286,7 +286,12 @@ async function realDevices(propertyId: string, anchor: string): Promise<DeviceTo
   const ym = anchor.slice(0, 7); // yyyy-mm
   const start = `${ym}-01`;
   const [y, m] = ym.split("-").map(Number);
-  const end = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+  const monthEnd = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
+  // GA4 rejects date ranges whose endDate is in the future (surfaces as a
+  // currency-conversion error on some properties) — clamp to today so the
+  // current (in-progress) month never sends a future end date.
+  const end = monthEnd < today ? monthEnd : today;
   const analyticsdata = google.analyticsdata("v1beta");
   const res = await analyticsdata.properties.runReport({
     property: `properties/${propertyId}`,
@@ -342,35 +347,101 @@ async function realLandingPages(propertyId: string): Promise<LandingPageRow[]> {
   }));
 }
 
-async function realProducts(propertyId: string): Promise<ProductRow[]> {
+/** Item-day rows whose implied unit price exceeds this are treated as GA4
+ *  measurement pollution (confirmed on HS: a single `purchase` event firing
+ *  with a cart-quantity/estimate value instead of an actual order, e.g.
+ *  21,180 units of a pen in one day at an implied ¥2.39M/unit). Excluding
+ *  them is a dashboard-side mitigation, not a fix — root cause is the site's
+ *  `purchase` event implementation. */
+const PRODUCT_UNIT_PRICE_POLLUTION_THRESHOLD = 100_000;
+
+export interface ProductsResult {
+  rows: ProductRow[];
+  /** Set when one or more item-day rows were dropped for exceeding the
+   *  pollution threshold, so the UI can disclose the adjustment. */
+  dataQualityNote: string | null;
+  /** True when the post-filter item-scope revenue total still exceeds the
+   *  transaction-scope purchaseRevenue by >3x — i.e. the site's `purchase`
+   *  items[] payload is structurally broken (confirmed on HS: quantity is
+   *  also inflated, so the unit-price filter alone cannot recover a sane
+   *  total). The UI must not present 単価/売上 as real figures. */
+  revenueUnreliable: boolean;
+}
+
+async function realProducts(propertyId: string): Promise<ProductsResult> {
   const auth = makeAuth();
   if (!auth) throw new Error("no-ga4-auth");
   const analyticsdata = google.analyticsdata("v1beta");
-  const res = await analyticsdata.properties.runReport({
-    property: `properties/${propertyId}`,
-    auth,
-    requestBody: {
-      dateRanges: [{ startDate: "28daysAgo", endDate: "today" }],
-      dimensions: [{ name: "itemName" }, { name: "itemId" }],
-      metrics: [
-        { name: "itemsPurchased" },
-        { name: "itemRevenue" },
-      ],
-      orderBys: [{ metric: { metricName: "itemRevenue" }, desc: true }],
-      limit: "30",
-    },
-  });
-  return (res.data.rows ?? []).map((r) => {
+  // Fetch at the (item × date) grain — not pre-aggregated by item — so a
+  // single-day pollution spike can be excluded before rolling up to item
+  // totals. Pre-aggregating first would let one polluted day drown out an
+  // item's genuine 28-day performance.
+  const [res, txnRes] = await Promise.all([
+    analyticsdata.properties.runReport({
+      property: `properties/${propertyId}`,
+      auth,
+      requestBody: {
+        dateRanges: [{ startDate: "28daysAgo", endDate: "today" }],
+        dimensions: [{ name: "itemName" }, { name: "itemId" }, { name: "date" }],
+        metrics: [
+          { name: "itemsPurchased" },
+          { name: "itemRevenue" },
+        ],
+        limit: "100000",
+      },
+    }),
+    // Transaction-scope total for the same window: the sanity yardstick the
+    // item-scope rollup is compared against (unaffected by items[] pollution).
+    analyticsdata.properties.runReport({
+      property: `properties/${propertyId}`,
+      auth,
+      requestBody: {
+        dateRanges: [{ startDate: "28daysAgo", endDate: "today" }],
+        metrics: [{ name: "purchaseRevenue" }],
+      },
+    }),
+  ]);
+  const txnRevenue = Number(txnRes.data.rows?.[0]?.metricValues?.[0]?.value ?? 0);
+
+  let droppedRows = 0;
+  const byItem = new Map<string, { productName: string; sku: string; conversions: number; revenue: number }>();
+  for (const r of res.data.rows ?? []) {
+    const productName = r.dimensionValues?.[0]?.value ?? "";
+    const sku = r.dimensionValues?.[1]?.value ?? "";
     const conversions = Number(r.metricValues?.[0]?.value ?? 0);
     const revenue = Number(r.metricValues?.[1]?.value ?? 0);
-    return {
-      productName: r.dimensionValues?.[0]?.value ?? "",
-      sku: r.dimensionValues?.[1]?.value ?? "",
-      conversions,
-      revenue,
-      unitPrice: conversions > 0 ? Math.round(revenue / conversions) : 0,
-    };
-  });
+    const impliedUnitPrice = conversions > 0 ? revenue / conversions : 0;
+    if (impliedUnitPrice > PRODUCT_UNIT_PRICE_POLLUTION_THRESHOLD) {
+      droppedRows += 1;
+      continue;
+    }
+    const key = `${sku}|${productName}`;
+    const cur = byItem.get(key) ?? { productName, sku, conversions: 0, revenue: 0 };
+    cur.conversions += conversions;
+    cur.revenue += revenue;
+    byItem.set(key, cur);
+  }
+
+  const all = Array.from(byItem.values()).map((r) => ({
+    ...r,
+    unitPrice: r.conversions > 0 ? Math.round(r.revenue / r.conversions) : 0,
+  }));
+  const itemScopeTotal = all.reduce((acc, r) => acc + r.revenue, 0);
+  // Even after dropping polluted item-days, HS's item-scope total remains
+  // ~40x the transaction-scope total (quantity is inflated too). When the
+  // gap exceeds 3x, treat 単価/売上 as unusable and rank by CV instead.
+  const revenueUnreliable = txnRevenue > 0 && itemScopeTotal > txnRevenue * 3;
+  const rows = all
+    .sort((a, b) => (revenueUnreliable ? b.conversions - a.conversions : b.revenue - a.revenue))
+    .slice(0, 30);
+
+  let dataQualityNote: string | null = null;
+  if (revenueUnreliable) {
+    dataQualityNote = `GA4 item計測が汚染されているため売上・単価は非表示（item計測合計がサイト全体売上の${Math.round(itemScopeTotal / txnRevenue)}倍）。件数(CV)順で表示中。根本対処はサイト側purchaseイベント実装の修正が必要`;
+  } else if (droppedRows > 0) {
+    dataQualityNote = `GA4 item計測の異常値（単価>¥10万/個）を検出したため該当日データを除外（${droppedRows}件）。根本対処はサイト側purchaseイベント実装の修正が必要`;
+  }
+  return { rows, dataQualityNote, revenueUnreliable };
 }
 
 /** Paid-campaign report. Returns one row per (source × medium × cid × cname)
@@ -648,19 +719,19 @@ export async function getGa4GoogleAdgroups(
   )();
 }
 
-export async function getTopProducts(client: ClientConfig): Promise<ProductRow[]> {
-  if (!client.ga4PropertyId) return mockProducts();
+export async function getTopProducts(client: ClientConfig): Promise<ProductsResult> {
+  if (!client.ga4PropertyId) return { rows: mockProducts(), dataQualityNote: null, revenueUnreliable: false };
   const pid = client.ga4PropertyId;
   return unstable_cache(
     async () => {
       try {
-        const rows = await realProducts(pid);
+        const result = await realProducts(pid);
         // If GA4 items API returns nothing (no e-commerce tagging), fall back
         // so the dashboard isn't empty-looking.
-        return rows.length > 0 ? rows : mockProducts();
+        return result.rows.length > 0 ? result : { rows: mockProducts(), dataQualityNote: null, revenueUnreliable: false };
       } catch (err) {
         console.error("[ga4] products fetch failed, using mock:", err);
-        return mockProducts();
+        return { rows: mockProducts(), dataQualityNote: null, revenueUnreliable: false };
       }
     },
     [`ga4-products-${pid}`],
@@ -724,7 +795,11 @@ function seeded(n: number): number {
 }
 
 function mockChannels(): ChannelMonth[] {
-  const anchor = new Date("2026-04-21T00:00:00Z");
+  // Anchored to "now" (not a hardcoded past date) so mockDevices()'s
+  // yearMonth filter always has a matching month — a stale hardcoded anchor
+  // falls outside the generated 12-month window once enough time passes,
+  // silently producing an empty filter result (device breakdown shows 0).
+  const anchor = new Date();
   const rows: ChannelMonth[] = [];
   for (let m = 11; m >= 0; m--) {
     const d = new Date(anchor);

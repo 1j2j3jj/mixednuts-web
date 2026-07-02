@@ -5,6 +5,8 @@ import {
   getRptCpn,
   getRptDaily,
   getRptMedia,
+  getRptMonthlyAds,
+  getRptWeekly,
   isRptSupported,
   RPT_SUPPORTED,
   type RptAllRow,
@@ -27,12 +29,26 @@ import { fmtInt, fmtJpy, fmtRatioPct } from "@/lib/utils";
  *
  * Reads the GA × ads reconciled reporting marts ({client}_marts.rpt_*)
  * and shows the three CV layers side by side:
- *   媒体CV (ad platform) / GA_CV (GA4) / 全体CV (dozo: Shopify, hs: EC-CUBE).
+ *   媒体CV (ad platform) / GA_CV(購入) (GA4 purchase) / 全体CV (dozo: Shopify, hs: EC-CUBE).
+ * GA_CV is purchase-event based (see bq-rpt.ts); secondary key events
+ * (client-specific: dozo Thanks/Wedding, hs 会員登録/問合せ) show as extra
+ * columns via RPT_SUPPORTED[client].secondaryEvents. add_to_cart is fetched
+ * but not shown as a default column (soft signal).
  *
- * Granularity tabs: Daily / 媒体 / キャンペーン / 広告グループ (?view=).
+ * Granularity tabs: Daily / 週次 / 月次 / 媒体 / キャンペーン / 広告グループ (?view=).
  * Daily merges rpt_daily (ads metrics) with rpt_all daily rows (site-wide
- * GA + overall CV). Entity tabs aggregate the per-day view rows over the
- * selected window; ratios are recomputed from sums (never averaged).
+ * GA + overall CV). Weekly/Monthly roll rpt_daily up by week/month; Monthly
+ * additionally joins rpt_all's monthly rows for target_cv/target_value +
+ * the overall-CV layer (see getMonthlyRows()). Entity tabs (media/cpn/adg)
+ * aggregate the per-day view rows over the selected window; ratios are
+ * recomputed from sums (never averaged).
+ *
+ * cpn/adg rows are grouped by (media, campaign[, ad_group]) WITHOUT
+ * match_status in the key (changed 2026-07-02) — matched and unmapped rows
+ * for the same entity are folded into one row so a campaign's total isn't
+ * split across two lines. matchStatus displayed = "matched" if any
+ * constituent row matched, else the first status seen; hasUnmapped flags
+ * when unmapped rows were folded in (renders "+未突合分" badge).
  *
  * Only dozo / hs have rpt_* views — other clients get an explicit
  * "未対応" card (the nav tab is also hidden for them, defence in depth).
@@ -65,12 +81,18 @@ function emptyBucket(): Bucket {
     mediaValue: 0,
     gaCv: 0,
     gaValue: 0,
+    gaCvPurchase: 0,
+    gaCvEvents: {},
+    gaCvAddToCart: 0,
     overallCv: null,
     overallValue: null,
   };
 }
 
-function addMetrics(b: Bucket, m: RptMetrics): void {
+/** Accepts RptMetrics rows AND ReportTableRow rows (the latter omits
+ *  gaCvAddToCart — a soft signal not surfaced in the table, so totalRow()'s
+ *  fold-up over already-mapped ReportTableRow[] doesn't carry it). */
+function addMetrics(b: Bucket, m: Omit<RptMetrics, "gaCvAddToCart"> & { gaCvAddToCart?: number }): void {
   b.cost += m.cost;
   b.impressions += m.impressions;
   b.clicks += m.clicks;
@@ -79,6 +101,11 @@ function addMetrics(b: Bucket, m: RptMetrics): void {
   b.mediaValue += m.mediaValue;
   b.gaCv += m.gaCv;
   b.gaValue += m.gaValue;
+  b.gaCvPurchase += m.gaCvPurchase;
+  b.gaCvAddToCart += m.gaCvAddToCart ?? 0;
+  for (const [k, v] of Object.entries(m.gaCvEvents)) {
+    b.gaCvEvents[k] = (b.gaCvEvents[k] ?? 0) + v;
+  }
 }
 
 function totalRow(rows: ReportTableRow[], label = "合計"): ReportTableRow {
@@ -129,6 +156,7 @@ export default async function ReportScreen({
   const warnings = [...dailyRes.warnings, ...allRes.warnings];
 
   const allDaily = allRes.rows.filter((r) => r.granularity === "daily");
+  const allMonthly = allRes.rows.filter((r) => r.granularity === "monthly");
   const anchorDates = [...dailyRes.rows, ...allDaily]
     .map((r) => r.date)
     .filter(Boolean)
@@ -144,11 +172,11 @@ export default async function ReportScreen({
   /* ---------------- Period KPI (window totals, tab-independent) ------- */
   const kpi = emptyBucket();
   for (const r of dailyCur) addMetrics(kpi, r);
-  let kpiSiteGaCv = 0;
+  let kpiSiteGaCvPurchase = 0;
   let kpiSiteGaValue = 0;
   let kpiOverallCv: number | null = null;
   for (const r of allCur) {
-    kpiSiteGaCv += r.gaCv;
+    kpiSiteGaCvPurchase += r.gaCvPurchase;
     kpiSiteGaValue += r.gaValue;
     kpiOverallCv = addNullable(kpiOverallCv, r.overallCv);
   }
@@ -164,6 +192,16 @@ export default async function ReportScreen({
   let showOverallValue = false;
   let monoLabel = false;
   let gaGroupLabel = "GA（広告帰属）";
+  // Monthly tab only: achievement-rate column (全体売上 ÷ 目標). Rendered
+  // as a lightweight table below the main ReportTable rather than wired
+  // into ReportTable's generic column set (target/achievement is a
+  // monthly-only concept, unlike the other granularities).
+  let monthlyTargetRows: {
+    month: string;
+    overallValue: number | null;
+    targetValue: number | null;
+    achievementRate: number | null;
+  }[] = [];
 
   if (view === "daily") {
     // Merge rpt_daily (ads side) with rpt_all daily (site GA + overall CV)
@@ -184,6 +222,8 @@ export default async function ReportScreen({
         sessions: a?.sessions ?? 0,
         gaCv: a?.gaCv ?? 0,
         gaValue: a?.gaValue ?? 0,
+        gaCvPurchase: a?.gaCvPurchase ?? 0,
+        gaCvEvents: a?.gaCvEvents ?? {},
         overallCv: a?.overallCv ?? null,
         overallValue: a?.overallValue ?? null,
       }));
@@ -192,6 +232,92 @@ export default async function ReportScreen({
     showOverall = true;
     showOverallValue = meta.hasOverallValue;
     gaGroupLabel = "GA（サイト全体）";
+  } else if (view === "weekly") {
+    // Ads-side rollup only (rpt_daily grouped by ISO week) — same shape as
+    // the ads block on the Daily tab, no site-wide GA/overall join (that
+    // would need a rpt_all weekly rollup which the mart doesn't provide;
+    // Monthly below is the one granularity that does the rpt_all join).
+    //
+    // The [start,end] window is applied INSIDE getRptWeekly's SQL (filter
+    // rpt_daily by date, then DATE_TRUNC to week) rather than here by
+    // filtering on week_start — filtering by week_start after grouping
+    // would either drop a straddling week entirely or (with the old "OR"
+    // check) admit a week whose truncated start falls outside the window
+    // while still carrying summed days from the adjacent month. Rows
+    // returned here are already scoped to the window, so no further date
+    // filter is applied — only the display sort.
+    const res = await getRptWeekly(client.id, { start, end });
+    warnings.push(...res.warnings);
+    fetchedAt = Math.max(fetchedAt, res.fetchedAt);
+    rows = res.rows
+      .slice()
+      .sort((a, b) => b.weekStart.localeCompare(a.weekStart))
+      .map((r) => ({
+        label: r.weekStart,
+        cost: r.cost,
+        impressions: r.impressions,
+        clicks: r.clicks,
+        mediaCv: r.mediaCv,
+        mediaValue: r.mediaValue,
+        sessions: r.sessions,
+        gaCv: r.gaCv,
+        gaValue: r.gaValue,
+        gaCvPurchase: r.gaCvPurchase,
+        gaCvEvents: r.gaCvEvents,
+        overallCv: null,
+        overallValue: null,
+      }));
+    labelHeader = "週（月曜起点）";
+    monoLabel = true;
+    gaGroupLabel = "GA（広告帰属・週次集計）";
+  } else if (view === "monthly") {
+    // Ads-side block from rpt_daily (month-truncated) joined with rpt_all's
+    // monthly rows (site GA + overall CV + target) by month. Window filter
+    // uses calendar-month overlap (a month row "counts" if its first day
+    // falls in [start,end] OR the selected range is entirely inside that
+    // month) so a mid-month "This Month" preset still shows the row.
+    const adsRes = await getRptMonthlyAds(client.id);
+    warnings.push(...adsRes.warnings);
+    fetchedAt = Math.max(fetchedAt, adsRes.fetchedAt);
+    const byMonth = new Map<string, { ads?: (typeof adsRes.rows)[number]; all?: RptAllRow }>();
+    for (const r of adsRes.rows) byMonth.set(r.month, { ads: r });
+    for (const r of allMonthly) byMonth.set(r.date, { ...byMonth.get(r.date), all: r });
+    const monthInWindow = (month: string) => month <= end && month.slice(0, 7) >= start.slice(0, 7);
+    rows = Array.from(byMonth.entries())
+      .filter(([month]) => monthInWindow(month))
+      .sort((x, y) => y[0].localeCompare(x[0]))
+      .map(([month, { ads, all }]) => ({
+        label: month,
+        cost: ads?.cost ?? all?.cost ?? 0,
+        impressions: ads?.impressions ?? 0,
+        clicks: ads?.clicks ?? 0,
+        mediaCv: ads?.mediaCv ?? 0,
+        mediaValue: ads?.mediaValue ?? 0,
+        sessions: all?.sessions ?? 0,
+        gaCv: all?.gaCv ?? 0,
+        gaValue: all?.gaValue ?? 0,
+        gaCvPurchase: all?.gaCvPurchase ?? 0,
+        gaCvEvents: all?.gaCvEvents ?? {},
+        overallCv: all?.overallCv ?? null,
+        overallValue: all?.overallValue ?? null,
+      }));
+    monthlyTargetRows = Array.from(byMonth.entries())
+      .filter(([month]) => monthInWindow(month))
+      .sort((x, y) => y[0].localeCompare(x[0]))
+      .map(([month, { all }]) => {
+        const overallValue = all?.overallValue ?? null;
+        const targetValue = all?.targetValue ?? null;
+        const achievementRate =
+          overallValue != null && targetValue != null && targetValue !== 0
+            ? overallValue / targetValue
+            : null;
+        return { month, overallValue, targetValue, achievementRate };
+      });
+    labelHeader = "月";
+    monoLabel = true;
+    showOverall = true;
+    showOverallValue = meta.hasOverallValue;
+    gaGroupLabel = "GA（サイト全体・月次）";
   } else if (view === "media") {
     const res = await getRptMedia(client.id);
     warnings.push(...res.warnings);
@@ -211,10 +337,17 @@ export default async function ReportScreen({
     const res = await getRptCpn(client.id);
     warnings.push(...res.warnings);
     fetchedAt = Math.max(fetchedAt, res.fetchedAt);
+    // Grouped WITHOUT match_status — matched/unmapped rows for the same
+    // campaign are unified into one row (see module doc + hasUnmapped).
+    // sawMatched/sawUnmapped are tracked separately from the displayed
+    // matchStatus so the fold-in detection is independent of which status's
+    // row happens to arrive first in res.rows (dates interleave the two).
     const map = new Map<string, ReportTableRow>();
+    const sawMatched = new Set<string>();
+    const sawUnmapped = new Set<string>();
     for (const r of res.rows) {
       if (!inRange(r.date, start, end)) continue;
-      const key = `${r.media}|${r.campaignId}|${r.matchStatus}`;
+      const key = `${r.media}|${r.campaignId}`;
       const cur =
         map.get(key) ??
         ({
@@ -222,23 +355,38 @@ export default async function ReportScreen({
           subLabel: r.campaignId,
           media: r.media,
           matchStatus: r.matchStatus,
+          hasUnmapped: false,
           ...emptyBucket(),
         } as ReportTableRow);
       addMetrics(cur as unknown as Bucket, r);
+      // "matched" wins as the representative badge.
+      if (r.matchStatus === "matched") cur.matchStatus = "matched";
+      if (r.matchStatus === "matched") sawMatched.add(key);
+      if (r.matchStatus === "unmapped") sawUnmapped.add(key);
       map.set(key, cur);
+    }
+    // hasUnmapped ("+未突合分") means "this matched total also folds in some
+    // unmapped rows" — a purely-unmapped entity (no matched constituent row)
+    // must NOT get the badge; it's shown via the plain unmapped badge alone.
+    for (const [key, cur] of map) {
+      cur.hasUnmapped = sawMatched.has(key) && sawUnmapped.has(key);
     }
     rows = Array.from(map.values()).sort((a, b) => b.cost - a.cost);
     labelHeader = "キャンペーン";
     showMedia = true;
     showBadges = true;
-  } else {
+  } else if (view === "adg") {
     const res = await getRptAdg(client.id);
     warnings.push(...res.warnings);
     fetchedAt = Math.max(fetchedAt, res.fetchedAt);
+    // Grouped WITHOUT match_status — same unification as cpn above
+    // (sawMatched/sawUnmapped tracked separately, order-independent).
     const map = new Map<string, ReportTableRow>();
+    const sawMatched = new Set<string>();
+    const sawUnmapped = new Set<string>();
     for (const r of res.rows) {
       if (!inRange(r.date, start, end)) continue;
-      const key = `${r.media}|${r.campaignId}|${r.adGroupId}|${r.grainLevel}|${r.matchStatus}`;
+      const key = `${r.media}|${r.campaignId}|${r.adGroupId}|${r.grainLevel}`;
       const cur =
         map.get(key) ??
         ({
@@ -249,10 +397,19 @@ export default async function ReportScreen({
           media: r.media,
           grainLevel: r.grainLevel,
           matchStatus: r.matchStatus,
+          hasUnmapped: false,
           ...emptyBucket(),
         } as ReportTableRow);
       addMetrics(cur as unknown as Bucket, r);
+      if (r.matchStatus === "matched") cur.matchStatus = "matched";
+      if (r.matchStatus === "matched") sawMatched.add(key);
+      if (r.matchStatus === "unmapped") sawUnmapped.add(key);
       map.set(key, cur);
+    }
+    // hasUnmapped ("+未突合分") = matched total that also folds in unmapped
+    // rows; a purely-unmapped entity keeps hasUnmapped=false (see cpn above).
+    for (const [key, cur] of map) {
+      cur.hasUnmapped = sawMatched.has(key) && sawUnmapped.has(key);
     }
     rows = Array.from(map.values()).sort((a, b) => b.cost - a.cost);
     labelHeader = "広告グループ";
@@ -260,26 +417,46 @@ export default async function ReportScreen({
     showBadges = true;
   }
 
-  // Period summary pinned first.
-  const tableRows = rows.length > 0 ? [totalRow(rows), ...rows] : rows;
+  // Period summary pinned first — same total row shown at the top of the
+  // table, so CSV export must include it too (see csvRows below).
+  const periodTotalRow = rows.length > 0 ? totalRow(rows) : null;
+  const tableRows = periodTotalRow ? [periodTotalRow, ...rows] : rows;
 
-  const csvRows = rows.map((r) => ({
-    label: r.label,
-    id: r.subLabel ?? "",
-    media: r.media ?? "",
-    grain_level: r.grainLevel ?? "",
-    match_status: r.matchStatus ?? "",
-    cost: r.cost,
-    impressions: r.impressions,
-    clicks: r.clicks,
-    media_cv: r.mediaCv,
-    media_value: r.mediaValue,
-    sessions: r.sessions,
-    ga_cv: r.gaCv,
-    ga_value: r.gaValue,
-    overall_cv: r.overallCv ?? "",
-    overall_value: r.overallValue ?? "",
-  }));
+  // CSV column set mirrors ReportTable's displayed columns (label/media/
+  // badges + the three CV-layer blocks); row order matches the table's
+  // default (server-computed) sort — cost desc for entity views, date desc
+  // for daily/weekly/monthly — since client-side re-sort state isn't
+  // available server-side (documented in the footer note below).
+  function toCsvRow(r: ReportTableRow) {
+    const eventCols: Record<string, number> = {};
+    for (const ev of meta.secondaryEvents) {
+      eventCols[`ga_cv_${ev.key}`] = r.gaCvEvents[ev.key] ?? 0;
+    }
+    return {
+      label: r.label,
+      id: r.subLabel ?? "",
+      media: r.media ?? "",
+      grain_level: r.grainLevel ?? "",
+      match_status: r.matchStatus ?? "",
+      has_unmapped: r.hasUnmapped ? "1" : "",
+      cost: r.cost,
+      impressions: r.impressions,
+      clicks: r.clicks,
+      media_cv: r.mediaCv,
+      media_value: r.mediaValue,
+      sessions: r.sessions,
+      ga_cv_purchase: r.gaCvPurchase,
+      ...eventCols,
+      ga_value: r.gaValue,
+      overall_cv: r.overallCv ?? "",
+      overall_value: r.overallValue ?? "",
+    };
+  }
+
+  const csvRows = [
+    ...(periodTotalRow ? [toCsvRow(periodTotalRow)] : []),
+    ...rows.map(toCsvRow),
+  ];
 
   const fetchedAtLabel = new Date(fetchedAt).toLocaleTimeString("ja-JP", {
     hour: "2-digit",
@@ -296,7 +473,7 @@ export default async function ReportScreen({
             レポート（GA×広告 突合） · {rr.presetLabel}
           </h1>
           <div className="mt-1 text-sm text-muted-foreground">
-            {start} 〜 {end} · CV3層: 媒体CV / GA_CV / 全体CV（{meta.overallCvLabel}）
+            {start} 〜 {end} · CV3層: 媒体CV / GA_CV(購入) / 全体CV（{meta.overallCvLabel}）
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -321,8 +498,8 @@ export default async function ReportScreen({
         <BigKpiCard label="Cost" value={fmtJpy(kpi.cost)} lowerIsBetter />
         <BigKpiCard label="媒体CV" value={fmtInt(kpi.mediaCv)} />
         <BigKpiCard
-          label="GA_CV（サイト全体）"
-          value={fmtInt(kpiSiteGaCv)}
+          label="GA_CV(購入)（サイト全体）"
+          value={fmtInt(kpiSiteGaCvPurchase)}
           comparisons={[]}
         />
         <BigKpiCard
@@ -354,18 +531,63 @@ export default async function ReportScreen({
           showOverallValue={showOverallValue}
           gaGroupLabel={gaGroupLabel}
           monoLabel={monoLabel}
+          eventDefs={meta.secondaryEvents}
         />
+        {view === "monthly" && monthlyTargetRows.length > 0 && (
+          <div className="rounded-md border">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-muted/30">
+                  <th className="px-3 py-2 text-left font-semibold">月</th>
+                  <th className="px-3 py-2 text-right font-semibold">全体売上（{meta.overallCvLabel.replace(" CV", "")}）</th>
+                  <th className="px-3 py-2 text-right font-semibold">売上目標</th>
+                  <th className="px-3 py-2 text-right font-semibold">達成率</th>
+                </tr>
+              </thead>
+              <tbody>
+                {monthlyTargetRows.map((r) => (
+                  <tr key={r.month} className="border-t">
+                    <td className="px-3 py-1.5 font-mono">{r.month}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums">{fmtJpy(r.overallValue)}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums">{fmtJpy(r.targetValue)}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums">
+                      {r.achievementRate != null ? fmtRatioPct(r.achievementRate * 100, 1) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
         <div className="space-y-1 text-[11px] text-muted-foreground">
           <div>
             ROAS = 売上 ÷ Cost の%表示（例 1677% = 16.77倍）。比率は期間合計から再計算（日次比率の平均ではない）。
           </div>
-          {view === "daily" ? (
+          <div>
+            CSVは合計行を含み、表の既定ソート順（並び替え前の順序）で出力されます。テーブル上でソートを変更してもCSVの行順には反映されません。
+          </div>
+          <div>
+            GA_CV(購入) は GA4 purchase イベント基準（旧表示の GA_CV は全 key event 合算だったが、purchase 基準に変更）。
+            {meta.secondaryEvents.length > 0 && (
+              <>
+                {" "}
+                {meta.secondaryEvents.map((ev) => ev.label).join(" / ")} は別列で参考表示。
+              </>
+            )}
+          </div>
+          {view === "daily" || view === "monthly" ? (
             <div>
               GA列はサイト全体（全チャネル）の GA4 実測（返品は0フロア済）。全体CV（{meta.overallCvLabel}）は連携未取得の期間は「—」表示。
             </div>
+          ) : view === "weekly" ? (
+            <div>
+              GA列は広告エンティティに帰属した GA4 計測分の週次集計。全体CV（サイト全体・目標比較）は月次タブを参照。
+            </div>
           ) : (
             <div>
-              GA列は広告エンティティに帰属した GA4 計測分。match_status: matched=マスタ突合済 / unmapped=マスタ未対応 / ad_only=GA側データなし。
+              GA列は広告エンティティに帰属した GA4 計測分。バッジ:
+              matched=広告費とGA計測が突合済み / unmapped=GA計測はあるが対応広告費が未着（1日遅れで翌日回収）/
+              ad_only=広告費のみでGA計測なし。同一キャンペーン・広告グループ配下に matched と unmapped が混在する場合は1行に統合し「+未突合分」バッジを付与。
             </div>
           )}
           {view === "adg" && (
