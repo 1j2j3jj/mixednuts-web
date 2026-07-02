@@ -6,14 +6,20 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   slug: string;
+  /** Show the レポート tab (BQ rpt_* views) — only clients with rpt_* marts
+   *  (dozo / hs). Decided server-side in layout.tsx via isRptSupported. */
+  showReport?: boolean;
 }
 
-export default function DashboardTabs({ slug }: Props) {
+export default function DashboardTabs({ slug, showReport = false }: Props) {
   const pathname = usePathname() || "";
   const tabs: Array<{ href: string; label: string }> = [
     { href: `/dashboard/${slug}`, label: "サマリー" },
     { href: `/dashboard/${slug}/ads`, label: "広告詳細" },
     { href: `/dashboard/${slug}/drill`, label: "フィルター詳細" },
+    ...(showReport
+      ? [{ href: `/dashboard/${slug}/report`, label: "レポート" }]
+      : []),
     { href: `/dashboard/${slug}/insights`, label: "商品・検索" },
     // メンバー = Org 内のユーザー招待・管理。
     // クライアント Org Owner/Admin と mixednuts admin の両方がアクセス可。
