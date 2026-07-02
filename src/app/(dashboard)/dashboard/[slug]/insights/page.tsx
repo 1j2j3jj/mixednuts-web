@@ -51,7 +51,7 @@ export default async function InsightsScreen({
     getTopGscQueries(client, period),
   ]);
   const {
-    rows: { rows: products, dataQualityNote: productDataQualityNote, revenueUnreliable, revenueBasis },
+    rows: { rows: products, revenueUnreliable, revenueBasis },
   } = productsResult;
   const { rows: landingPages } = landingPagesResult;
   const { rows: queries } = queriesResult;
@@ -121,11 +121,6 @@ export default async function InsightsScreen({
               : "売上=商品自身のGA売上（itemRevenue）"} /
             単価=売上÷点数 / 1件あたり=売上÷購入件数
           </p>
-          {productDataQualityNote && (
-            <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-              {productDataQualityNote}
-            </div>
-          )}
         </CardContent>
       </Card>
 
