@@ -12,10 +12,8 @@ import {
   type RptMetrics,
 } from "@/lib/sources/bq-rpt";
 import { resolveFromSearchParams } from "@/lib/range";
-import ReportViewTabs, {
-  REPORT_VIEWS,
-  type ReportViewKey,
-} from "@/components/dashboard/ReportViewTabs";
+import { REPORT_VIEWS, type ReportViewKey } from "@/lib/report-views";
+import ReportViewTabs from "@/components/dashboard/ReportViewTabs";
 import ReportTable, { type ReportTableRow } from "@/components/dashboard/ReportTable";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
 import CsvExportButton from "@/components/dashboard/CsvExportButton";

@@ -242,13 +242,22 @@ async function _runRptQuery(
   });
   const [rows] = await job.getQueryResults();
   // Map to plain JSON-safe objects *before* unstable_cache serialises the
-  // result: BigQueryDate → string, NUMERIC (Big) → number.
+  // result. Two object wrappers appear in results: BigQueryDate ({ value })
+  // and NUMERIC as Big.js instances (no .value — coerce via toString()).
   return (rows as unknown as RawRow[]).map((r) => {
     const out: RawRow = {};
     for (const [k, v] of Object.entries(r)) {
-      if (v == null) out[k] = null;
-      else if (typeof v === "object") out[k] = (v as { value: string }).value;
-      else out[k] = v;
+      if (v == null) {
+        out[k] = null;
+      } else if (typeof v === "object") {
+        const wrapped = (v as { value?: unknown }).value;
+        out[k] =
+          typeof wrapped === "string" || typeof wrapped === "number"
+            ? wrapped
+            : String(v);
+      } else {
+        out[k] = v;
+      }
     }
     return out;
   });

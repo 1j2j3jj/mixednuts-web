@@ -2,15 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
-
-export const REPORT_VIEWS = [
-  { key: "daily", label: "Daily" },
-  { key: "media", label: "媒体" },
-  { key: "cpn", label: "キャンペーン" },
-  { key: "adg", label: "広告グループ" },
-] as const;
-
-export type ReportViewKey = (typeof REPORT_VIEWS)[number]["key"];
+import { REPORT_VIEWS, type ReportViewKey } from "@/lib/report-views";
 
 interface Props {
   slug: string;
