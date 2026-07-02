@@ -97,9 +97,11 @@ async function _runQuery(client: string): Promise<DailyRow[]> {
     `;
   });
 
-  // LEFT JOIN campaign_master so utm_campaign overrides campaign_name where
-  // a master entry exists. Specificity: ad_id > adgroup_id > campaign_id-only.
-  // Empty (utm_campaign NULL) entries fall through to the original campaign_name.
+  // LEFT JOIN campaign_master for the utm_* echo. Display name prefers the ad
+  // platform's native campaign_name — utm_campaign is a JOIN key that under
+  // the 入稿規約 is often just the numeric campaign_id (Meta/Yahoo/MS), so
+  // using it as the label rendered raw IDs in the UI (CEO-reported 2026-07-02;
+  // supersedes the Step-7 utm-override decision in 068946e).
   const sql = `
     WITH ads AS (
       ${selects.join("\nUNION ALL\n")}
@@ -109,10 +111,11 @@ async function _runQuery(client: string): Promise<DailyRow[]> {
       a.media,
       a.campaign_id,
       COALESCE(
+        NULLIF(a.campaign_name, ''),
         cm_ad.utm_campaign,
         cm_adg.utm_campaign,
         cm_cpn.utm_campaign,
-        a.campaign_name
+        a.campaign_id
       ) AS campaign_name,
       a.ad_group_id,
       a.ad_group_name,
