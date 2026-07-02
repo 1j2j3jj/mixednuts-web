@@ -35,19 +35,26 @@ export default async function InsightsScreen({
   const { slug } = await params;
   const client = await assertUserCanAccessClientBySlug(slug);
 
-  const [products, landingPages, queries] = await Promise.all([
+  const [productsResult, landingPages, queries] = await Promise.all([
     getTopProducts(client),
     getTopLandingPages(client),
     getTopGscQueries(client),
   ]);
+  const { rows: products, dataQualityNote: productDataQualityNote, revenueUnreliable } = productsResult;
 
-  const productCsv = products.map((p) => ({
-    productName: p.productName,
-    sku: p.sku,
-    conversions: p.conversions,
-    unitPrice: p.unitPrice,
-    revenue: p.revenue,
-  }));
+  // CSV mirrors the on-screen columns: when revenue is unreliable the
+  // 単価/売上 columns are hidden, so they are excluded from the export too.
+  const productCsv = products.map((p) =>
+    revenueUnreliable
+      ? { productName: p.productName, sku: p.sku, conversions: p.conversions }
+      : {
+          productName: p.productName,
+          sku: p.sku,
+          conversions: p.conversions,
+          unitPrice: p.unitPrice,
+          revenue: p.revenue,
+        }
+  );
   const landingCsv = landingPages.map((r) => ({
     path: r.path,
     sessions: r.sessions,
@@ -91,7 +98,12 @@ export default async function InsightsScreen({
           />
         </CardHeader>
         <CardContent>
-          <ProductRanking rows={products} limit={30} />
+          <ProductRanking rows={products} limit={30} hideRevenue={revenueUnreliable} />
+          {productDataQualityNote && (
+            <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              {productDataQualityNote}
+            </div>
+          )}
         </CardContent>
       </Card>
 
