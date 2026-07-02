@@ -8,15 +8,16 @@ interface Props {
   data: ChannelMonth[];
   /** Initial metric. Defaults to sessions. */
   defaultMetric?: "sessions" | "conversions" | "revenue" | "signUps";
+  /** 第4トグルの表示名（クライアント別: HS=会員登録 / DOZO=Wedding）。 */
+  secondaryLabel?: string;
 }
 
 type Metric = "sessions" | "conversions" | "revenue" | "signUps";
 
-const METRICS: Array<{ key: Metric; label: string }> = [
+const BASE_METRICS: Array<{ key: Metric; label: string }> = [
   { key: "sessions", label: "Sessions" },
   { key: "conversions", label: "CV" },
   { key: "revenue", label: "売上" },
-  { key: "signUps", label: "会員登録" },
 ];
 
 /**
@@ -48,7 +49,8 @@ const CHANNEL_ORDER: ChannelGroup[] = [
   "Other",
 ];
 
-export default function ChannelStackedBar({ data, defaultMetric = "sessions" }: Props) {
+export default function ChannelStackedBar({ data, defaultMetric = "sessions", secondaryLabel = "会員登録" }: Props) {
+  const METRICS = [...BASE_METRICS, { key: "signUps" as Metric, label: secondaryLabel }];
   const [metric, setMetric] = useState<Metric>(defaultMetric);
 
   const byMonth = new Map<string, Record<string, number | string>>();

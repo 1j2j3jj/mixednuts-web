@@ -3,6 +3,31 @@ import { fetchSheetCached } from "@/lib/sheets";
 import { getBigQuery } from "@/lib/bigquery";
 import { unstable_cache } from "next/cache";
 import type { ClientConfig, MonthlyTargets } from "@/config/clients";
+import type { ChannelGroup } from "@/lib/sources/ga4";
+
+/**
+ * Maps GA4's default channel grouping onto the 計画 sheet's channel labels
+ * (organic / direct / mail / referral / 広告). GA4 channels with no mapping
+ * (e.g. an "Other" bucket the sheet doesn't budget for) fall into "その他" —
+ * rendered with actuals only, no target/achievement.
+ *
+ * Input is the already-normalised `ChannelGroup` (see ga4.ts CHANNEL_NORMAL),
+ * not GA4's raw defaultChannelGroup string — raw names like "Paid Shopping"
+ * and "Cross-network" are folded into "Paid Search" upstream, and "Display"
+ * into "Paid Social", before reaching this map.
+ */
+export const GA4_TO_PLAN_CHANNEL: Record<ChannelGroup, string> = {
+  "Organic Search": "organic",
+  Direct: "direct",
+  Email: "mail",
+  Referral: "referral",
+  "Paid Search": "広告",
+  "Paid Social": "広告",
+  Other: "その他",
+};
+
+/** Channel label shown for GA4 channels with no counterpart in the 計画 sheet. */
+export const UNMAPPED_PLAN_CHANNEL = "その他";
 
 /**
  * Monthly targets source. Resolution order (first hit wins):
@@ -125,6 +150,56 @@ const _bqTargetsCached = unstable_cache(
   ["bq-targets-monthly"],
   { revalidate: 300, tags: ["bq-targets"] },
 );
+
+/** Per-channel target row, resolved for a single month. */
+export interface ChannelTarget {
+  /** Sheet's own channel label — "organic" / "direct" / "mail" / "referral" / "広告". */
+  channel: string;
+  revenue: number;
+  conversions: number;
+}
+
+/**
+ * Per-channel monthly targets from the CEO's 計画 spreadsheet (matrix
+ * layout — see file header). Only meaningful for clients whose targetsRange
+ * uses the metric×channel×month matrix with populated 受注金額/受注件数 rows
+ * for the requested month (today: HS). Returns `[]` when the sheet is
+ * absent, unreadable, mocked, or has no rows for the month — callers should
+ * fall back to the aggregate Top-N-by-GA4-channel view in that case.
+ */
+export async function getChannelTargetsForMonth(
+  client: ClientConfig,
+  yearMonth: string
+): Promise<ChannelTarget[]> {
+  const src = client.dataSource;
+  if (!src || !src.targetsRange) return [];
+  const sheetId = src.targetsSheetId ?? src.sheetId;
+
+  try {
+    const res = await fetchSheetCached(sheetId, src.targetsRange);
+    if (!res.values || res.values.length < 2 || res.isMock) return [];
+    const points = pivot(res.values);
+    const monthPoints = points.filter((p) => p.yearMonth === yearMonth);
+    if (monthPoints.length === 0) return [];
+
+    const channels = Array.from(new Set(monthPoints.map((p) => p.channel)));
+    const out: ChannelTarget[] = [];
+    for (const channel of channels) {
+      const revenue = monthPoints
+        .filter((p) => p.metric === "受注金額" && p.channel === channel)
+        .reduce((s, p) => s + p.value, 0);
+      const conversions = monthPoints
+        .filter((p) => p.metric === "受注件数" && p.channel === channel)
+        .reduce((s, p) => s + p.value, 0);
+      if (revenue === 0 && conversions === 0) continue;
+      out.push({ channel, revenue, conversions });
+    }
+    return out;
+  } catch (err) {
+    console.error("[target] channel fetch failed:", err);
+    return [];
+  }
+}
 
 export async function getTargetsForMonth(
   client: ClientConfig,

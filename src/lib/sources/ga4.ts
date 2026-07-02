@@ -202,6 +202,27 @@ function yearMonthFromGa4(v: string): string {
   return v;
 }
 
+/* ------------- secondary channel event (4th chart toggle) ------------- */
+
+/** クライアント（GA4プロパティ）ごとのチャネルチャート第4指標。
+ *  HS は会員登録（key event 会員登録完了 763/28d ≈ sign_up 785）、
+ *  DOZO に sign_up は存在せず（実測0行）、Wedding complete が正
+ *  （CEO指摘 2026-07-02、GA4 Data API 実測）。 */
+const SECONDARY_EVENT: Record<string, { label: string; events: string[] }> = {
+  "302745512": { label: "会員登録", events: ["会員登録完了"] }, // HS
+  "311951480": { label: "Wedding", events: ["Wedding complete"] }, // DOZO
+};
+const DEFAULT_SECONDARY = { label: "会員登録", events: ["sign_up"] };
+
+function secondaryEventFor(propertyId: string): { label: string; events: string[] } {
+  return SECONDARY_EVENT[propertyId] ?? DEFAULT_SECONDARY;
+}
+
+/** チャートのトグル表示名（page 側から参照）。 */
+export function ga4SecondaryEventLabel(client: ClientConfig): string {
+  return secondaryEventFor(client.ga4PropertyId ?? "").label;
+}
+
 /* ---------------------- real calls (cached) ---------------------- */
 
 async function realChannels(propertyId: string): Promise<ChannelMonth[]> {
@@ -223,9 +244,9 @@ async function realChannels(propertyId: string): Promise<ChannelMonth[]> {
         limit: "1000",
       },
     }),
-    // Parallel: sign_up event count per (yearMonth, channel). Filtered on
-    // eventName so the metric is only sign-ups — keeps the main query
-    // unaffected (it still counts all sessions).
+    // Parallel: secondary event count per (yearMonth, channel). Event name is
+    // per-client (HS=会員登録完了, DOZO=Wedding complete) — filtered on
+    // eventName so the metric stays isolated from the main query.
     analyticsdata.properties.runReport({
       property: `properties/${propertyId}`,
       auth,
@@ -236,7 +257,7 @@ async function realChannels(propertyId: string): Promise<ChannelMonth[]> {
         dimensionFilter: {
           filter: {
             fieldName: "eventName",
-            stringFilter: { matchType: "EXACT", value: "sign_up" },
+            inListFilter: { values: secondaryEventFor(propertyId).events },
           },
         },
         limit: "1000",
@@ -631,7 +652,7 @@ async function realDailyChannels(propertyId: string): Promise<ChannelDay[]> {
         dimensionFilter: {
           filter: {
             fieldName: "eventName",
-            stringFilter: { matchType: "EXACT", value: "sign_up" },
+            inListFilter: { values: secondaryEventFor(propertyId).events },
           },
         },
         limit: "10000",

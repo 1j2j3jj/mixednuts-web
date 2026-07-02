@@ -4,9 +4,11 @@ import {
   getGa4MonthlyChannels,
   getGa4DailyChannels,
   getDeviceTotals,
+  ga4SecondaryEventLabel,
+  type ChannelGroup,
 } from "@/lib/sources/ga4";
 import { getEccubeDaily, sumEccubeRange } from "@/lib/sources/eccube";
-import { getTargetsForMonth } from "@/lib/sources/target";
+import { getTargetsForMonth, getChannelTargetsForMonth, GA4_TO_PLAN_CHANNEL, UNMAPPED_PLAN_CHANNEL } from "@/lib/sources/target";
 import { resolveFromSearchParams, type DateRange } from "@/lib/range";
 import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
 import { analysePacing, lastN } from "@/lib/analysis";
@@ -15,6 +17,7 @@ import SourceToggle from "@/components/dashboard/SourceToggle";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
 import ChannelStackedBar from "@/components/dashboard/ChannelStackedBar";
 import ChannelTrendChart from "@/components/dashboard/ChannelTrendChart";
+import ChannelTargetTable, { type ChannelTargetRow } from "@/components/dashboard/ChannelTargetTable";
 import NewVsRepeatChart from "@/components/dashboard/NewVsRepeatChart";
 import GoalGauge from "@/components/dashboard/GoalGauge";
 import PacingAlert from "@/components/dashboard/PacingAlert";
@@ -159,8 +162,9 @@ export default async function Overview({
     .slice(-6)
     .map(([ym, v]) => ({ yearMonth: ym, new: v.new, returning: v.returning }));
 
-  // Top 5 channels.
-  const byChannel = new Map<string, { channel: string; sessions: number; conversions: number; revenue: number }>();
+  // Channels (current-month GA4 rows) — full set feeds the channel-target
+  // table's actuals; top 5 by revenue feeds the fallback Top-5 table.
+  const byChannel = new Map<string, { channel: ChannelGroup; sessions: number; conversions: number; revenue: number }>();
   for (const r of gaCurRows) {
     const cur = byChannel.get(r.channel) ?? { channel: r.channel, sessions: 0, conversions: 0, revenue: 0 };
     cur.sessions += r.sessions;
@@ -168,7 +172,8 @@ export default async function Overview({
     cur.revenue += r.revenue;
     byChannel.set(r.channel, cur);
   }
-  const topChannels = Array.from(byChannel.values()).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+  const topChannelsAll = Array.from(byChannel.values());
+  const topChannels = topChannelsAll.slice().sort((a, b) => b.revenue - a.revenue).slice(0, 5);
 
   // Budget pacing — only when the preset is "当月".
   const showPacing = rr.preset === "thisMonth";
@@ -177,17 +182,60 @@ export default async function Overview({
     : null;
 
   const showGoals = rr.preset === "thisMonth" || rr.preset === "lastMonth";
-  // Prefer the sheet-based monthly target for the anchor month; static config
-  // is the fallback. Only one month is fetched — goals are only rendered for
-  // single-month presets anyway.
-  const tgt = await getTargetsForMonth(client, anchor.slice(0, 7));
+  const anchorYm = anchor.slice(0, 7);
 
   // Extra context modules (parallel fetch for speed). Products & GSC queries
   // now live on the /insights tab — dropped from here to declutter Overview.
-  const [devices, ga4Daily] = await Promise.all([
+  // Prefer the sheet-based monthly target for the anchor month; static config
+  // is the fallback. Only one month is fetched — goals are only rendered for
+  // single-month presets anyway. Channel-level targets are only populated
+  // for clients whose 計画 sheet carries a per-channel breakdown for the
+  // anchor month (today: HS) — getChannelTargetsForMonth returns [] otherwise
+  // and the Overview falls back to the plain Top-5-by-GA4-channel table.
+  const [devices, ga4Daily, tgt, channelTargets] = await Promise.all([
     getDeviceTotals(client, anchor),
     getGa4DailyChannels(client),
+    getTargetsForMonth(client, anchorYm),
+    getChannelTargetsForMonth(client, anchorYm),
   ]);
+
+  const channelTargetRows: ChannelTargetRow[] = (() => {
+    if (channelTargets.length === 0) return [];
+    const byPlanChannel = new Map<string, { revenue: number; conversions: number }>();
+    for (const c of topChannelsAll) {
+      const planChannel = GA4_TO_PLAN_CHANNEL[c.channel] ?? UNMAPPED_PLAN_CHANNEL;
+      const acc = byPlanChannel.get(planChannel) ?? { revenue: 0, conversions: 0 };
+      acc.revenue += c.revenue;
+      acc.conversions += c.conversions;
+      byPlanChannel.set(planChannel, acc);
+    }
+    const targetByChannel = new Map(channelTargets.map((t) => [t.channel, t]));
+    // Union of sheet-budgeted channels and GA4-observed channels, sheet order first.
+    const order = [...channelTargets.map((t) => t.channel)];
+    for (const k of byPlanChannel.keys()) {
+      if (!order.includes(k)) order.push(k);
+    }
+    return order.map((channel) => {
+      const actual = byPlanChannel.get(channel) ?? { revenue: 0, conversions: 0 };
+      const target = targetByChannel.get(channel);
+      return {
+        channel,
+        revenue: actual.revenue,
+        conversions: actual.conversions,
+        revenueTarget: target ? target.revenue : null,
+        conversionsTarget: target ? target.conversions : null,
+      };
+    });
+  })();
+
+  const monthProgressNote = (() => {
+    if (channelTargetRows.length === 0) return undefined;
+    const d = new Date(`${anchor}T00:00:00Z`);
+    const dayOfMonth = d.getUTCDate();
+    const daysInMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+    const pct = Math.round((dayOfMonth / daysInMonth) * 100);
+    return `当月進捗: 経過${dayOfMonth}日/${daysInMonth}日（${pct}%）`;
+  })();
 
   // Build a site-wide daily GA4 map so Big KPI sparklines reflect the actual
   // headline source. Previously sessions/ROAS sparks were faked (monthly
@@ -370,7 +418,7 @@ export default async function Overview({
           </div>
         </CardHeader>
         <CardContent>
-          <ChannelStackedBar data={ga4} defaultMetric="sessions" />
+          <ChannelStackedBar data={ga4} defaultMetric="sessions" secondaryLabel={ga4SecondaryEventLabel(client)} />
         </CardContent>
       </Card>
 
@@ -379,7 +427,12 @@ export default async function Overview({
           <CardTitle className="text-sm">日別/週別チャネル別（GA4 · 過去90日）</CardTitle>
         </CardHeader>
         <CardContent>
-          <ChannelTrendChart data={ga4Daily} defaultMetric="sessions" defaultGranularity="day" />
+          <ChannelTrendChart
+            data={ga4Daily}
+            defaultMetric="sessions"
+            defaultGranularity="day"
+            secondaryLabel={ga4SecondaryEventLabel(client)}
+          />
         </CardContent>
       </Card>
 
@@ -393,38 +446,55 @@ export default async function Overview({
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Top 5 チャネル（GA4）</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>チャネル</TableHead>
-                  <TableHead className="text-right">Sessions</TableHead>
-                  <TableHead className="text-right">CV</TableHead>
-                  <TableHead className="text-right">CVR</TableHead>
-                  <TableHead className="text-right">Revenue</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {topChannels.map((c) => {
-                  const cvr = safeDiv(c.conversions, c.sessions);
-                  return (
-                    <TableRow key={c.channel}>
-                      <TableCell className="font-medium">{c.channel}</TableCell>
-                      <TableCell className="text-right tabular-nums">{fmtInt(c.sessions)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{fmtInt(c.conversions)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{fmtPct(cvr, 2)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{fmtJpy(c.revenue)}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        {/* 意図的にデータ駆動: チャネル別目標(matrix形式シート)が取れるクライアントは自動で
+            目標対比カードへ切替。HS固定ゲートにしない（他クライアントのシートが matrix 化されたら
+            自動有効化する設計、2026-07-02 Codex監査で協議の上維持）。非対応クライアントは Top5 表示。 */}
+        {channelTargetRows.length > 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">チャネル別 目標vs実績（当月）</CardTitle>
+              <div className="mt-1 text-xs text-muted-foreground">
+                実績は GA4 チャネル別（当月）を計画シートのチャネル区分（organic/direct/mail/referral/広告）へ集約。目標欄が「—」の行は計画シートに対応する区分がないチャネル（実績のみ表示）
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ChannelTargetTable rows={channelTargetRows} progressNote={monthProgressNote} />
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Top 5 チャネル（GA4）</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>チャネル</TableHead>
+                    <TableHead className="text-right">Sessions</TableHead>
+                    <TableHead className="text-right">CV</TableHead>
+                    <TableHead className="text-right">CVR</TableHead>
+                    <TableHead className="text-right">Revenue</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topChannels.map((c) => {
+                    const cvr = safeDiv(c.conversions, c.sessions);
+                    return (
+                      <TableRow key={c.channel}>
+                        <TableCell className="font-medium">{c.channel}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtInt(c.sessions)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtInt(c.conversions)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtPct(cvr, 2)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtJpy(c.revenue)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
