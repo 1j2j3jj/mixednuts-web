@@ -62,13 +62,14 @@ export default async function InsightsScreen({
   // 単価/売上 columns are hidden, so they are excluded from the export too.
   const productCsv = products.map((p) =>
     revenueUnreliable
-      ? { productName: p.productName, sku: p.sku, conversions: p.conversions }
+      ? { productName: p.productName, productId: p.sku, orderCount: p.orderCount, units: p.conversions }
       : {
           productName: p.productName,
-          sku: p.sku,
-          conversions: p.conversions,
-          unitPrice: p.unitPrice,
+          productId: p.sku,
+          orderCount: p.orderCount,
+          units: p.conversions,
           revenue: p.revenue,
+          perOrder: p.perOrder,
         }
   );
   const landingCsv = landingPages.map((r) => ({

@@ -82,9 +82,15 @@ export interface LandingPageRow {
 export interface ProductRow {
   productName: string;
   sku: string;
+  /** その商品を含む注文数（transactionId のユニークカウント）。 */
+  orderCount: number;
+  /** 注文点数（GA4 itemsPurchased = units）。旧「CV」列。 */
   conversions: number;
   revenue: number;
+  /** 1個あたり（revenue ÷ 点数）。B2Bロット販売では参考値。 */
   unitPrice: number;
+  /** 1件あたり売上（revenue ÷ 注文数）。CEO要望 2026-07-03。 */
+  perOrder: number;
 }
 
 /**
@@ -487,6 +493,9 @@ async function realLandingPages(propertyId: string, period: Period): Promise<Lan
  *  them is a dashboard-side mitigation, not a fix — root cause is the site's
  *  `purchase` event implementation. */
 const PRODUCT_UNIT_PRICE_POLLUTION_THRESHOLD = 100_000;
+/** 単一注文内の1商品売上がこの額を超える行は壊れた purchase イベントとみなす
+ *  （HS実測: 1注文で¥13.7億等。正当な大口B2B注文は数百万円台まで）。 */
+const PRODUCT_TX_REVENUE_POLLUTION_THRESHOLD = 10_000_000;
 
 export interface ProductsResult {
   rows: ProductRow[];
@@ -505,17 +514,17 @@ async function realProducts(propertyId: string, period: Period): Promise<Product
   const auth = makeAuth();
   if (!auth) throw new Error("no-ga4-auth");
   const analyticsdata = google.analyticsdata("v1beta");
-  // Fetch at the (item × date) grain — not pre-aggregated by item — so a
-  // single-day pollution spike can be excluded before rolling up to item
-  // totals. Pre-aggregating first would let one polluted day drown out an
-  // item's genuine period performance.
+  // Fetch at the (item × transactionId) grain: (a) 購入件数 = distinct
+  // transactionId per item（CEO要望の「1件あたり売上」の分母）、(b) HS の
+  // purchase イベント汚染は特定の壊れた注文に集中している（実測: 1注文で
+  // 21,000点/¥123億 等）ため、注文単位で除外する方が item-day 除外より精密。
   const [res, txnRes] = await Promise.all([
     analyticsdata.properties.runReport({
       property: `properties/${propertyId}`,
       auth,
       requestBody: {
         dateRanges: [{ startDate: period.start, endDate: period.end }],
-        dimensions: [{ name: "itemName" }, { name: "itemId" }, { name: "date" }],
+        dimensions: [{ name: "itemName" }, { name: "itemId" }, { name: "transactionId" }],
         metrics: [
           { name: "itemsPurchased" },
           { name: "itemRevenue" },
@@ -535,44 +544,70 @@ async function realProducts(propertyId: string, period: Period): Promise<Product
     }),
   ]);
   const txnRevenue = Number(txnRes.data.rows?.[0]?.metricValues?.[0]?.value ?? 0);
+  const truncated = Number(res.data.rowCount ?? 0) > (res.data.rows?.length ?? 0);
 
-  let droppedRows = 0;
-  const byItem = new Map<string, { productName: string; sku: string; conversions: number; revenue: number }>();
+  // 汚染注文の除外（注文まるごと）: 1個あたり単価 > ¥10万、または単一注文内の
+  // 商品売上 > ¥1,000万 の行を含む注文は、壊れた purchase イベント由来とみなし
+  // **その注文の全行**を除外する（two-pass。壊れた注文の他商品行の残留を防ぐ）。
+  const hasRealTxId = (v: string) => !!v && v !== "(not set)";
+  const isPolluted = (units: number, revenue: number) => {
+    const impliedUnitPrice = units > 0 ? revenue / units : 0;
+    return impliedUnitPrice > PRODUCT_UNIT_PRICE_POLLUTION_THRESHOLD || revenue > PRODUCT_TX_REVENUE_POLLUTION_THRESHOLD;
+  };
+  const pollutedTxIds = new Set<string>();
+  for (const r of res.data.rows ?? []) {
+    const txId = r.dimensionValues?.[2]?.value ?? "";
+    const conversions = Number(r.metricValues?.[0]?.value ?? 0);
+    const revenue = Number(r.metricValues?.[1]?.value ?? 0);
+    if (hasRealTxId(txId) && isPolluted(conversions, revenue)) pollutedTxIds.add(txId);
+  }
+  let droppedTx = 0;
+  const byItem = new Map<string, { productName: string; sku: string; tx: Set<string>; conversions: number; revenue: number }>();
   for (const r of res.data.rows ?? []) {
     const productName = r.dimensionValues?.[0]?.value ?? "";
     const sku = r.dimensionValues?.[1]?.value ?? "";
+    const txId = r.dimensionValues?.[2]?.value ?? "";
     const conversions = Number(r.metricValues?.[0]?.value ?? 0);
     const revenue = Number(r.metricValues?.[1]?.value ?? 0);
-    const impliedUnitPrice = conversions > 0 ? revenue / conversions : 0;
-    if (impliedUnitPrice > PRODUCT_UNIT_PRICE_POLLUTION_THRESHOLD) {
-      droppedRows += 1;
+    // 汚染注文の全行、または txId 不明かつ行単体で汚染判定の行を落とす。
+    if ((hasRealTxId(txId) && pollutedTxIds.has(txId)) || (!hasRealTxId(txId) && isPolluted(conversions, revenue))) {
+      droppedTx += 1;
       continue;
     }
     const key = `${sku}|${productName}`;
-    const cur = byItem.get(key) ?? { productName, sku, conversions: 0, revenue: 0 };
+    const cur = byItem.get(key) ?? { productName, sku, tx: new Set<string>(), conversions: 0, revenue: 0 };
+    // "(not set)" は注文IDとして数えない（orderCount は実IDのユニーク数のみ）。
+    if (hasRealTxId(txId)) cur.tx.add(txId);
     cur.conversions += conversions;
     cur.revenue += revenue;
     byItem.set(key, cur);
   }
 
   const all = Array.from(byItem.values()).map((r) => ({
-    ...r,
+    productName: r.productName,
+    sku: r.sku,
+    orderCount: r.tx.size,
+    conversions: r.conversions,
+    revenue: r.revenue,
     unitPrice: r.conversions > 0 ? Math.round(r.revenue / r.conversions) : 0,
+    perOrder: r.tx.size > 0 ? Math.round(r.revenue / r.tx.size) : 0,
   }));
   const itemScopeTotal = all.reduce((acc, r) => acc + r.revenue, 0);
-  // Even after dropping polluted item-days, HS's item-scope total remains
-  // ~40x the transaction-scope total (quantity is inflated too). When the
-  // gap exceeds 3x, treat 単価/売上 as unusable and rank by CV instead.
+  // 取引単位の除外後もなお item計測合計がサイト全体売上の3倍を超える場合は
+  // 売上系列を非表示にする（誤った数字を出さない）。
   const revenueUnreliable = txnRevenue > 0 && itemScopeTotal > txnRevenue * 3;
   const rows = all
-    .sort((a, b) => (revenueUnreliable ? b.conversions - a.conversions : b.revenue - a.revenue))
+    .sort((a, b) => (revenueUnreliable ? b.orderCount - a.orderCount : b.revenue - a.revenue))
     .slice(0, 30);
 
   let dataQualityNote: string | null = null;
   if (revenueUnreliable) {
-    dataQualityNote = `GA4 item計測が汚染されているため売上・単価は非表示（item計測合計がサイト全体売上の${Math.round(itemScopeTotal / txnRevenue)}倍）。件数(CV)順で表示中。根本対処はサイト側purchaseイベント実装の修正が必要`;
-  } else if (droppedRows > 0) {
-    dataQualityNote = `GA4 item計測の異常値（単価>¥10万/個）を検出したため該当日データを除外（${droppedRows}件）。根本対処はサイト側purchaseイベント実装の修正が必要`;
+    dataQualityNote = `GA4 item計測が汚染されているため売上系列は非表示（item計測合計がサイト全体売上の${Math.round(itemScopeTotal / txnRevenue)}倍）。購入件数順で表示中。根本対処はサイト側purchaseイベント実装の修正が必要`;
+  } else if (droppedTx > 0) {
+    dataQualityNote = `GA4 item計測の異常注文（単価>¥10万/個 または 1注文¥1,000万超）を${pollutedTxIds.size}注文（明細${droppedTx}行）除外済み。根本対処はサイト側purchaseイベント実装の修正が必要`;
+  }
+  if (truncated) {
+    dataQualityNote = `${dataQualityNote ? dataQualityNote + " / " : ""}期間が長く取引明細が10万行を超えたため一部集計対象外（期間を短くすると正確）`;
   }
   return { rows, dataQualityNote, revenueUnreliable };
 }
@@ -1075,11 +1110,17 @@ function mockProducts(): ProductRow[] {
     ["ブランケット フリース", "BLK-FL-01", 42, 5500],
     ["折りたたみ傘", "UMB-FLD-01", 55, 2200],
   ];
-  return base.map(([productName, sku, cv, unitPrice]) => ({
-    productName,
-    sku,
-    conversions: cv,
-    revenue: cv * unitPrice,
-    unitPrice,
-  }));
+  return base.map(([productName, sku, cv, unitPrice]) => {
+    const orderCount = Math.max(1, Math.round(cv / 4));
+    const revenue = cv * unitPrice;
+    return {
+      productName,
+      sku,
+      orderCount,
+      conversions: cv,
+      revenue,
+      unitPrice,
+      perOrder: Math.round(revenue / orderCount),
+    };
+  });
 }
