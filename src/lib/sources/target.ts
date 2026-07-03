@@ -33,17 +33,16 @@ export const UNMAPPED_PLAN_CHANNEL = "その他";
  * Monthly targets source. Resolution order (first hit wins), evaluated
  * per-field so a partially-populated higher source doesn't blank out lower ones:
  *
- *   1. BigQuery `app_analytics.targets_monthly` — the canonical source, fed by
- *      the client-facing masters CSV uploader at /dashboard/admin/masters/targets.
- *      This is now the primary target of record: uploading a target in the 目標
- *      tab and refreshing the dashboard changes the displayed numbers. Read
- *      unconditionally (no longer gated behind BQ_SOURCE_TARGETS). Each column
- *      that is present (non-NULL) wins; a NULL column falls through to the Sheet
- *      / static value for that field only — so 0 (a deliberately-set zero
- *      target) and NULL ("not set, use fallback") are treated differently.
- *   2. CEO's 計画 spreadsheet (HS / DOZO today — see the two layouts below).
+ *   1. BigQuery `app_analytics.targets_long` — 正本（tidy 形式・2026-07-03 統一）。
+ *      client-facing self-upload (settings/targets) の書き込み先。metric×channel×
+ *      year_month の long 行を月内で SUM して MonthlyTargets に集計する（_bqTargetsCached）。
+ *      該当月の行が 1 件でもあればその集計（0 でも）が per-field で下位を上書きし、
+ *      行が皆無なフィールドだけ下位へフォールスルーする。
+ *   2. BigQuery `app_analytics.targets_monthly` — wide fallback。admin 一括
+ *      アップローダ (masters.ts) のテーブル。long に行が無い月のフォールバックへ降格。
+ *   3. CEO's 計画 spreadsheet (HS / DOZO today — see the two layouts below).
  *      Retained as a fallback while the Sheet-based plan is retired gradually.
- *   3. ClientConfig.monthlyTargets (hardcoded fallback in clients.ts).
+ *   4. ClientConfig.monthlyTargets (hardcoded fallback in clients.ts).
  *
  * Each source falls through to the next when it has no row / no value for the
  * requested (clientId, yearMonth) — never breaks the dashboard.
@@ -218,43 +217,140 @@ function numOrNull(v: unknown): number | null {
  * Crucially, a stored 0 is kept as 0 (a deliberate zero target) and is *not*
  * confused with NULL ("not configured, use fallback").
  */
+/**
+ * Aggregate app_analytics.targets_long (tidy 形式・2026-07-03 統一) for one month
+ * into the same MonthlyTargets shape, matching the dashboard's KPI definitions.
+ * This is the primary target of record; when it has no rows for the month the
+ * wide targets_monthly / Sheet / static fallback (resolveMonthlyBase) is used.
+ *
+ *   revenue       = SUM(value WHERE metric='受注金額')         全チャネル合計
+ *   conversions   = SUM(value WHERE metric='受注件数')         全チャネル合計
+ *   adSpendBudget = SUM(value WHERE metric='広告費用')         全チャネル合計
+ *   sessions      = SUM(value WHERE metric='セッション')       (集計のみ・KPI 未使用)
+ *   roasPct       = 受注金額(広告) / 広告費用(広告) × 100
+ *   cpa           = 広告費用(広告) / 受注件数(広告)
+ *
+ * 「全体」チャネル行を metric に持つデータ（全体集計のみで channel 別が無い）にも
+ * 対応: 全チャネル SUM は '全体' 行だけでも合計として成立する。ただし roasPct/cpa は
+ * 「広告」チャネルの内訳が要るため、'広告' 行が無いときは base(fallback) に委ねる。
+ *
+ * kind='目標' のみを読む（将来 '実績' が同居しても目標だけを対象にする）。
+ * 各フィールドは 0 と「行なし(NULL)」を区別する: 該当 metric の行が 1 件でもあれば
+ * その SUM（0 でも）を採用、行が皆無なら null にして base へフォールスルー。
+ */
 const _bqTargetsCached = unstable_cache(
   async (clientId: string, yearMonth: string): Promise<Partial<MonthlyTargets> | null> => {
     try {
       const bq = getBigQuery();
       const [job] = await bq.createQueryJob({
         query: `
-          SELECT revenue_target, cv_target, ad_spend_budget, roas_target_pct, cpa_target
-          FROM \`ai-agent-mixednuts.app_analytics.targets_monthly\`
-          WHERE client_id = @cid AND year_month = DATE(@ym || '-01')
-          LIMIT 1
+          SELECT
+            SUM(IF(metric='受注金額', value, NULL)) AS revenue,
+            SUM(IF(metric='受注件数', value, NULL)) AS conversions,
+            SUM(IF(metric='広告費用', value, NULL)) AS ad_spend_budget,
+            SUM(IF(metric='受注金額' AND channel='広告', value, NULL)) AS ad_revenue,
+            SUM(IF(metric='受注件数' AND channel='広告', value, NULL)) AS ad_cv,
+            SUM(IF(metric='広告費用' AND channel='広告', value, NULL)) AS ad_spend
+          FROM \`ai-agent-mixednuts.app_analytics.targets_long\`
+          WHERE client_id = @cid
+            AND year_month = DATE(@ym || '-01')
+            AND (kind = '目標' OR kind IS NULL)
         `,
         location: "asia-northeast1",
         params: { cid: clientId, ym: yearMonth },
+        types: { cid: "STRING", ym: "STRING" },
       });
       const [rows] = await job.getQueryResults();
       if (!rows || rows.length === 0) return null;
       const r = rows[0] as Record<string, unknown>;
-      // Map BQ column → MonthlyTargets field, keeping only non-NULL values so
-      // each present field overrides the Sheet/static base (see getTargetsForMonth).
-      const out: Partial<MonthlyTargets> = {};
-      const revenue = numOrNull(r.revenue_target);
-      const conversions = numOrNull(r.cv_target);
+
+      // SUM over zero matched rows is NULL in BQ → numOrNull → null → fall
+      // through to base for that field. A matched metric (even summing to 0)
+      // yields a finite number and overrides base.
+      const revenue = numOrNull(r.revenue);
+      const conversions = numOrNull(r.conversions);
       const adSpendBudget = numOrNull(r.ad_spend_budget);
-      const roasPct = numOrNull(r.roas_target_pct);
-      const cpa = numOrNull(r.cpa_target);
+      const adRevenue = numOrNull(r.ad_revenue);
+      const adCv = numOrNull(r.ad_cv);
+      const adSpend = numOrNull(r.ad_spend);
+
+      // No target rows at all for this (client, month) → let base take over.
+      if (
+        revenue == null &&
+        conversions == null &&
+        adSpendBudget == null &&
+        adRevenue == null &&
+        adCv == null &&
+        adSpend == null
+      ) {
+        return null;
+      }
+
+      const out: Partial<MonthlyTargets> = {};
       if (revenue != null) out.revenue = revenue;
       if (conversions != null) out.conversions = conversions;
       if (adSpendBudget != null) out.adSpendBudget = adSpendBudget;
-      if (roasPct != null) out.roasPct = roasPct;
-      if (cpa != null) out.cpa = cpa;
+      // roasPct / cpa は「広告」チャネル内訳から導出。内訳が無ければ base へ委ねる。
+      if (adSpend != null && adSpend > 0 && adRevenue != null) {
+        out.roasPct = Math.round((adRevenue / adSpend) * 100);
+      }
+      if (adCv != null && adCv > 0 && adSpend != null) {
+        out.cpa = Math.round(adSpend / adCv);
+      }
       return out;
     } catch (err) {
-      console.error("[target] BQ fetch failed:", err);
+      console.error("[target] BQ targets_long fetch failed:", err);
       return null;
     }
   },
-  ["bq-targets-monthly"],
+  ["bq-targets-long"],
+  { revalidate: 300, tags: ["bq-targets"] },
+);
+
+/** Per-channel target from targets_long for one month (channel='全体' を除く). */
+interface ChannelLongTarget {
+  channel: string;
+  revenue: number;
+  conversions: number;
+}
+
+const _bqChannelTargetsLongCached = unstable_cache(
+  async (clientId: string, yearMonth: string): Promise<ChannelLongTarget[]> => {
+    try {
+      const bq = getBigQuery();
+      const [job] = await bq.createQueryJob({
+        query: `
+          SELECT
+            channel,
+            SUM(IF(metric='受注金額', value, 0)) AS revenue,
+            SUM(IF(metric='受注件数', value, 0)) AS conversions
+          FROM \`ai-agent-mixednuts.app_analytics.targets_long\`
+          WHERE client_id = @cid
+            AND year_month = DATE(@ym || '-01')
+            AND (kind = '目標' OR kind IS NULL)
+            AND channel != '全体'
+            AND metric IN ('受注金額', '受注件数')
+          GROUP BY channel
+        `,
+        location: "asia-northeast1",
+        params: { cid: clientId, ym: yearMonth },
+        types: { cid: "STRING", ym: "STRING" },
+      });
+      const [rows] = await job.getQueryResults();
+      if (!rows || rows.length === 0) return [];
+      return (rows as Array<Record<string, unknown>>)
+        .map((r) => ({
+          channel: String(r.channel ?? "").trim(),
+          revenue: numOrNull(r.revenue) ?? 0,
+          conversions: numOrNull(r.conversions) ?? 0,
+        }))
+        .filter((r) => r.channel !== "" && (r.revenue !== 0 || r.conversions !== 0));
+    } catch (err) {
+      console.error("[target] BQ channel targets_long fetch failed:", err);
+      return [];
+    }
+  },
+  ["bq-channel-targets-long"],
   { revalidate: 300, tags: ["bq-targets"] },
 );
 
@@ -274,17 +370,25 @@ export interface ChannelTarget {
  * absent, unreadable, mocked, or has no rows for the month — callers should
  * fall back to the aggregate Top-N-by-GA4-channel view in that case.
  *
- * NOTE: unlike getTargetsForMonth (org-level, now sourced primarily from
- * targets_monthly), this stays Sheet-only for now. The client-upload path
- * (targets_monthly) carries org-level targets with no per-channel breakdown,
- * so there is nothing to read here yet. Channel-level targets are planned to
- * move to targets_monthly via a future template extension (per-channel rows);
- * until then the CEO 計画 Sheet remains the sole source for channel targets.
+ * 2026-07-03: targets_long (per-channel long 形式) を第一ソースに切替。当該
+ * client・月に channel 別（'全体' を除く）の 受注金額/受注件数 行があればそれを
+ * 返す。無ければ従来どおり CEO 計画 Sheet を fallback として読む（Sheet も無ければ []）。
  */
 export async function getChannelTargetsForMonth(
   client: ClientConfig,
   yearMonth: string
 ): Promise<ChannelTarget[]> {
+  // 1) targets_long の channel 別（'全体' 除外）を最優先。
+  const longRows = await _bqChannelTargetsLongCached(client.id, yearMonth);
+  if (longRows.length > 0) {
+    return longRows.map((r) => ({
+      channel: r.channel,
+      revenue: r.revenue,
+      conversions: r.conversions,
+    }));
+  }
+
+  // 2) fallback: CEO 計画 Sheet（行が無いときのみ）。
   const src = client.dataSource;
   if (!src || !src.targetsRange) return [];
   const sheetId = src.targetsSheetId ?? src.sheetId;
@@ -370,28 +474,90 @@ async function resolveSheetOrStatic(
   }
 }
 
+/**
+ * Wide `targets_monthly` — demoted to a fallback layer (2026-07-03) below
+ * targets_long. Read per-field, keeping only non-NULL columns so a present
+ * value overrides the Sheet/static below it and a NULL column falls through.
+ * Returns null when there is no row at all. This is the admin cross-client
+ * uploader's table (masters.ts) — kept as fallback while long adoption spreads.
+ */
+const _bqMonthlyWideCached = unstable_cache(
+  async (clientId: string, yearMonth: string): Promise<Partial<MonthlyTargets> | null> => {
+    try {
+      const bq = getBigQuery();
+      const [job] = await bq.createQueryJob({
+        query: `
+          SELECT revenue_target, cv_target, ad_spend_budget, roas_target_pct, cpa_target
+          FROM \`ai-agent-mixednuts.app_analytics.targets_monthly\`
+          WHERE client_id = @cid AND year_month = DATE(@ym || '-01')
+          LIMIT 1
+        `,
+        location: "asia-northeast1",
+        params: { cid: clientId, ym: yearMonth },
+        types: { cid: "STRING", ym: "STRING" },
+      });
+      const [rows] = await job.getQueryResults();
+      if (!rows || rows.length === 0) return null;
+      const r = rows[0] as Record<string, unknown>;
+      const out: Partial<MonthlyTargets> = {};
+      const revenue = numOrNull(r.revenue_target);
+      const conversions = numOrNull(r.cv_target);
+      const adSpendBudget = numOrNull(r.ad_spend_budget);
+      const roasPct = numOrNull(r.roas_target_pct);
+      const cpa = numOrNull(r.cpa_target);
+      if (revenue != null) out.revenue = revenue;
+      if (conversions != null) out.conversions = conversions;
+      if (adSpendBudget != null) out.adSpendBudget = adSpendBudget;
+      if (roasPct != null) out.roasPct = roasPct;
+      if (cpa != null) out.cpa = cpa;
+      return out;
+    } catch (err) {
+      console.error("[target] BQ targets_monthly (fallback) fetch failed:", err);
+      return null;
+    }
+  },
+  ["bq-targets-monthly-fallback"],
+  { revalidate: 300, tags: ["bq-targets"] },
+);
+
+/**
+ * Resolution order (first non-NULL per field wins), 2026-07-03 統一:
+ *   1. targets_long   — 正本（tidy 形式・self-upload の書き込み先）
+ *   2. targets_monthly — wide fallback（admin 一括アップロード。行が無い時のみ）
+ *   3. CEO 計画 Sheet  — fallback
+ *   4. ClientConfig.monthlyTargets — static fallback
+ *
+ * base(2→3→4) を先に完全解決し、その上に targets_long(1) を per-field で重ねる。
+ * long にその月の行が全く無ければ base がそのまま返り、退行しない。
+ */
 export async function getTargetsForMonth(
   client: ClientConfig,
   yearMonth: string
 ): Promise<MonthlyTargets> {
-  // Source 2 & 3 (Sheet → static) resolved first as the complete base, so any
-  // BQ column that is NULL/absent inherits the previous behaviour exactly.
-  const base = await resolveSheetOrStatic(client, yearMonth);
+  // base = Sheet → static（3 & 4）。
+  const sheetStatic = await resolveSheetOrStatic(client, yearMonth);
 
-  // Source 1 (BigQuery targets_monthly) — the canonical target of record.
-  // Read unconditionally (the old BQ_SOURCE_TARGETS gate is removed) so the
-  // client-uploaded 目標 flows straight to the dashboard. Overlay per field:
-  // a present (non-NULL) BQ column overrides base; a NULL column keeps base.
-  // When there's no BQ row at all, `base` is returned unchanged — i.e. exact
-  // parity with the prior Sheet → static behaviour (no regression).
-  const bqRow = await _bqTargetsCached(client.id, yearMonth);
-  if (!bqRow) return base;
+  // 2) wide targets_monthly を base に per-field 重ね（fallback 昇格）。
+  const wide = await _bqMonthlyWideCached(client.id, yearMonth);
+  const base: MonthlyTargets = wide
+    ? {
+        revenue: wide.revenue ?? sheetStatic.revenue,
+        conversions: wide.conversions ?? sheetStatic.conversions,
+        adSpendBudget: wide.adSpendBudget ?? sheetStatic.adSpendBudget,
+        roasPct: wide.roasPct ?? sheetStatic.roasPct,
+        cpa: wide.cpa ?? sheetStatic.cpa,
+      }
+    : sheetStatic;
+
+  // 1) targets_long（正本）を最上位で per-field 重ね。行なしなら base をそのまま。
+  const longRow = await _bqTargetsCached(client.id, yearMonth);
+  if (!longRow) return base;
 
   return {
-    revenue: bqRow.revenue ?? base.revenue,
-    conversions: bqRow.conversions ?? base.conversions,
-    adSpendBudget: bqRow.adSpendBudget ?? base.adSpendBudget,
-    roasPct: bqRow.roasPct ?? base.roasPct,
-    cpa: bqRow.cpa ?? base.cpa,
+    revenue: longRow.revenue ?? base.revenue,
+    conversions: longRow.conversions ?? base.conversions,
+    adSpendBudget: longRow.adSpendBudget ?? base.adSpendBudget,
+    roasPct: longRow.roasPct ?? base.roasPct,
+    cpa: longRow.cpa ?? base.cpa,
   };
 }

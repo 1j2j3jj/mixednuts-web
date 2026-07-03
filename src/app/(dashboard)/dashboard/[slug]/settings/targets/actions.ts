@@ -21,8 +21,10 @@ import { parseClientTargetsCsv, type UploadTargetsResult } from "./targets-schem
  *   入力 CSV に client_id 列は存在せず、他クライアントの行は絶対に触らない
  *   （この client_id 限定の DELETE→INSERT。masters.ts の全 client MERGE は使わない）。
  *
- * テンプレは組織レベル月次（client_id 列なし・6 列）:
- *   年月, 売上目標, CV目標, 広告予算, 目標ROAS(%), 目標CPA
+ * テンプレは long (tidy) 形式（client_id 列なし・4 列、2026-07-03 統一）:
+ *   指標, チャネル, 年月, 値
+ * 実 HS シート(tab データテーブル)の long 形式に準拠し、旧・横型 6 列を撤回。
+ * kind 列は自己アップロードでは持たせず、常に '目標' として targets_long へ書く。
  *
  * 純ロジック（ヘッダ定数・型・CSV パース）は ./targets-schema に切り出している
  * （"use server" モジュールは async 関数以外を export できないため）。
@@ -30,7 +32,7 @@ import { parseClientTargetsCsv, type UploadTargetsResult } from "./targets-schem
 
 const PROJECT = "ai-agent-mixednuts";
 const LOC = "asia-northeast1";
-const TABLE = `${PROJECT}.app_analytics.targets_monthly`;
+const TABLE = `${PROJECT}.app_analytics.targets_long`;
 
 /**
  * 編集者以上ゲート + slug→client 解決。member(閲覧者)/未知の viewer は throw。
@@ -141,6 +143,7 @@ export async function uploadClientTargets(
     )[0].getQueryResults();
 
     // 2) DML INSERT（VALUES を SELECT UNION ALL で構築）。streaming buffer 非経由。
+    // long 形式: 1 行 = (指標, チャネル, 年月, 値)。kind は常に '目標'。
     if (rows.length > 0) {
       const params: Record<string, string | number | null> = {
         by: actorEmail,
@@ -149,34 +152,28 @@ export async function uploadClientTargets(
       const types: Record<string, string> = { by: "STRING", cid: "STRING" };
 
       const selects = rows.map((r, i) => {
+        params[`m${i}`] = r.metric;
+        params[`ch${i}`] = r.channel;
         params[`ym${i}`] = r.year_month;
-        params[`rev${i}`] = numStr(r.revenue_target);
-        params[`cv${i}`] = r.cv_target == null ? null : Math.round(r.cv_target);
-        params[`bud${i}`] = numStr(r.ad_spend_budget);
-        params[`roas${i}`] = numStr(r.roas_target_pct);
-        params[`cpa${i}`] = numStr(r.cpa_target);
+        params[`v${i}`] = numStr(r.value);
 
+        types[`m${i}`] = "STRING";
+        types[`ch${i}`] = "STRING";
         types[`ym${i}`] = "STRING";
-        types[`rev${i}`] = "NUMERIC";
-        types[`cv${i}`] = "INT64";
-        types[`bud${i}`] = "NUMERIC";
-        types[`roas${i}`] = "NUMERIC";
-        types[`cpa${i}`] = "NUMERIC";
+        types[`v${i}`] = "NUMERIC";
 
         // client_id は必ずバインド済みの @cid（入力由来ではない）を使う。
+        // kind は自己アップロードでは常に '目標' 固定。
         return (
-          `SELECT @cid AS client_id, DATE(@ym${i}) AS year_month, ` +
-          `@rev${i} AS revenue_target, @cv${i} AS cv_target, ` +
-          `@bud${i} AS ad_spend_budget, @roas${i} AS roas_target_pct, ` +
-          `@cpa${i} AS cpa_target, CAST(NULL AS STRING) AS notes, ` +
+          `SELECT @cid AS client_id, @m${i} AS metric, @ch${i} AS channel, ` +
+          `DATE(@ym${i}) AS year_month, @v${i} AS value, '目標' AS kind, ` +
           `CURRENT_TIMESTAMP() AS updated_at, @by AS updated_by`
         );
       });
 
       const sql = `
         INSERT INTO \`${TABLE}\` (
-          client_id, year_month, revenue_target, cv_target,
-          ad_spend_budget, roas_target_pct, cpa_target, notes,
+          client_id, metric, channel, year_month, value, kind,
           updated_at, updated_by
         )
         ${selects.join("\n        UNION ALL\n        ")}

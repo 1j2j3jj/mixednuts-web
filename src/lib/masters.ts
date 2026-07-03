@@ -77,6 +77,49 @@ export async function fetchTargets(clientId?: string): Promise<TargetRow[]> {
   }));
 }
 
+// ============================================================
+// targets_long (tidy 形式・2026-07-03 統一)
+// ============================================================
+
+/** long 形式の 1 目標行 = (指標, チャネル, 年月, 値)。kind は '目標' 既定。 */
+export interface TargetLongRow {
+  client_id: string;
+  metric: string;
+  channel: string;
+  year_month: string; // ISO date (yyyy-mm-01)
+  value: number | null;
+  kind: string;
+}
+
+/**
+ * Read app_analytics.targets_long for a single client (self-upload の現状表示用)。
+ * metric / channel / year_month 昇順。kind は '目標' 既定だが値でフィルタしない
+ * (将来 '実績' が同居した場合の互換のため呼び出し側が絞る)。
+ */
+export async function fetchClientTargetsLong(
+  clientId: string,
+): Promise<TargetLongRow[]> {
+  const bq = getBigQuery();
+  const [job] = await bq.createQueryJob({
+    query: `SELECT client_id, metric, channel, year_month, value, kind
+            FROM \`${PROJECT}.app_analytics.targets_long\`
+            WHERE client_id = @cid
+            ORDER BY metric, channel, year_month`,
+    location: LOC,
+    params: { cid: clientId },
+    types: { cid: "STRING" },
+  });
+  const [rows] = await job.getQueryResults();
+  return (rows as unknown as Array<Record<string, unknown>>).map((r) => ({
+    client_id: r.client_id as string,
+    metric: (r.metric as string) ?? "",
+    channel: (r.channel as string) ?? "",
+    year_month: dateValue(r.year_month),
+    value: numOrNull(r.value),
+    kind: (r.kind as string | null) ?? "目標",
+  }));
+}
+
 /**
  * Idempotent upsert into targets_monthly keyed on (client_id, year_month).
  *

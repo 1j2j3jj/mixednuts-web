@@ -2,8 +2,12 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getViewerOrgRole, canInviteMembers } from "@/lib/org-role";
-import { fetchTargets } from "@/lib/masters";
-import { CLIENT_TARGETS_HEADER } from "./targets-schema";
+import { fetchClientTargetsLong, type TargetLongRow } from "@/lib/masters";
+import {
+  CLIENT_TARGETS_HEADER,
+  RECOMMENDED_METRICS,
+  TOTAL_CHANNEL,
+} from "./targets-schema";
 import TargetsClient from "./TargetsClient";
 
 /**
@@ -43,38 +47,35 @@ function csvCell(v: unknown): string {
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-/** 当月起点 12 行・空欄のテンプレ（年月だけ埋める）。 */
+/**
+ * long テンプレ（指標,チャネル,年月,値）。推奨 4 指標 × '全体' チャネル ×
+ * 当月起点 12 か月ぶんの空欄行を用意（値だけ埋めてもらう）。チャネル別に分けたい
+ * 場合は '全体' を organic / direct / 広告 等へ書き換えれば行を増やせる。
+ */
 function buildTemplateCsv(): string {
   const header = CLIENT_TARGETS_HEADER.join(",");
-  const body = upcomingMonths(12)
-    .map((ym) => `${ym},,,,,`)
-    .join("\n");
-  return `${header}\n${body}\n`;
+  const months = upcomingMonths(12);
+  const lines: string[] = [];
+  for (const metric of RECOMMENDED_METRICS) {
+    for (const ym of months) {
+      lines.push([metric, TOTAL_CHANNEL, ym, ""].map(csvCell).join(","));
+    }
+  }
+  return `${header}\n${lines.join("\n")}\n`;
 }
 
-/** 現状の目標行（このクライアントのみ）を 6 列 CSV 化。 */
-function buildCurrentCsv(
-  rows: Array<{
-    year_month: string;
-    revenue_target: number | null;
-    cv_target: number | null;
-    ad_spend_budget: number | null;
-    roas_target_pct: number | null;
-    cpa_target: number | null;
-  }>,
-): string {
+/** 現状の目標行（このクライアントのみ）を long 4 列 CSV 化。 */
+function buildCurrentCsv(rows: TargetLongRow[]): string {
   const header = CLIENT_TARGETS_HEADER.join(",");
   if (rows.length === 0) return `${header}\n`;
   const body = rows
     .map((r) =>
       [
+        r.metric,
+        r.channel,
         // year_month は 'YYYY-MM-01' → 'YYYY-MM' に縮約（テンプレと同形式）。
         r.year_month ? r.year_month.slice(0, 7) : "",
-        r.revenue_target,
-        r.cv_target,
-        r.ad_spend_budget,
-        r.roas_target_pct,
-        r.cpa_target,
+        r.value,
       ]
         .map(csvCell)
         .join(","),
@@ -83,11 +84,9 @@ function buildCurrentCsv(
   return `${header}\n${body}\n`;
 }
 
-function fmt(v: number | null, type: "yen" | "int" | "pct"): string {
+function fmtNum(v: number | null): string {
   if (v == null) return "—";
-  if (type === "yen") return "¥" + Math.round(v).toLocaleString();
-  if (type === "int") return Math.round(v).toLocaleString();
-  return v.toFixed(1) + "%";
+  return Math.round(v).toLocaleString();
 }
 
 export default async function TenantTargetsPage({ params }: PageProps) {
@@ -100,10 +99,10 @@ export default async function TenantTargetsPage({ params }: PageProps) {
   const orgRole = await getViewerOrgRole(slug);
   if (!canInviteMembers(orgRole)) redirect(`/dashboard/${slug}`);
 
-  // 現状の目標（このクライアントのみ）。BQ 未接続時は notFound で保護。
-  let rows;
+  // 現状の目標（このクライアントのみ・long 形式）。BQ 未接続時は notFound で保護。
+  let rows: TargetLongRow[];
   try {
-    rows = await fetchTargets(client.id);
+    rows = await fetchClientTargetsLong(client.id);
   } catch {
     notFound();
   }
@@ -129,8 +128,10 @@ export default async function TenantTargetsPage({ params }: PageProps) {
         </div>
         <h1 className="mt-2 text-xl font-semibold tracking-tight">目標設定</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          月次の売上・CV・広告予算などの目標を CSV でアップロードします。テンプレを
-          ダウンロードして数値を埋め、プレビューで検証してから確定してください。
+          月次の目標を long 形式（指標・チャネル・年月・値）の CSV でアップロードします。
+          テンプレをダウンロードして数値を埋め、プレビューで検証してから確定してください。
+          指標は セッション / 受注件数 / 受注金額 / 広告費用、チャネルは organic / direct /
+          mail / referral / 広告、全体集計は「全体」を使います。
         </p>
       </div>
 
@@ -145,19 +146,17 @@ export default async function TenantTargetsPage({ params }: PageProps) {
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-xs text-muted-foreground">
               <tr>
+                <th className="p-2 text-left">指標</th>
+                <th className="p-2 text-left">チャネル</th>
                 <th className="p-2 text-left">年月</th>
-                <th className="p-2 text-right">売上目標</th>
-                <th className="p-2 text-right">CV目標</th>
-                <th className="p-2 text-right">広告予算</th>
-                <th className="p-2 text-right">目標ROAS</th>
-                <th className="p-2 text-right">目標CPA</th>
+                <th className="p-2 text-right">値</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={4}
                     className="p-4 text-center text-muted-foreground"
                   >
                     データなし — テンプレ CSV をダウンロードして目標を登録してください
@@ -166,18 +165,14 @@ export default async function TenantTargetsPage({ params }: PageProps) {
               )}
               {rows.map((r, i) => (
                 <tr key={i} className="border-t">
+                  <td className="p-2">{r.metric}</td>
+                  <td className="p-2">{r.channel}</td>
                   <td className="p-2 font-mono text-xs">
                     {r.year_month ? r.year_month.slice(0, 7) : "—"}
                   </td>
-                  <td className="p-2 text-right">{fmt(r.revenue_target, "yen")}</td>
-                  <td className="p-2 text-right">{fmt(r.cv_target, "int")}</td>
-                  <td className="p-2 text-right">
-                    {fmt(r.ad_spend_budget, "yen")}
+                  <td className="p-2 text-right tabular-nums">
+                    {fmtNum(r.value)}
                   </td>
-                  <td className="p-2 text-right">
-                    {fmt(r.roas_target_pct, "pct")}
-                  </td>
-                  <td className="p-2 text-right">{fmt(r.cpa_target, "yen")}</td>
                 </tr>
               ))}
             </tbody>
