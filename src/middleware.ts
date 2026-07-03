@@ -167,6 +167,11 @@ function isExemptPath(pathname: string): boolean {
     pathname === "/login" ||
     pathname.startsWith("/login/") ||
     pathname.startsWith("/api/auth/") ||
+    // Cron endpoints authenticate themselves with Bearer CRON_SECRET
+    // (fail-closed, 2026-07-03). Without this exemption the Basic-Auth wall
+    // 401s Vercel Cron before the route runs — membership-cleanup had been
+    // silently failing daily because of exactly that (found 2026-07-04).
+    pathname.startsWith("/api/cron/") ||
     pathname === "/api/events" ||
     pathname === "/favicon.ico" ||
     pathname === "/robots.txt" ||
