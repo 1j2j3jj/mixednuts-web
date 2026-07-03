@@ -84,7 +84,8 @@ export default function TargetsClient({ slug, templateCsv, currentCsv }: Props) 
   }
 
   function downloadBlob(text: string, name: string) {
-    const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
+    // UTF-8 BOM を先頭に付け、Excel(Win/Mac)で日本語が文字化けしないようにする。
+    const blob = new Blob(["﻿", text], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
