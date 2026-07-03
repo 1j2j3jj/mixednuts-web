@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/freshness-check",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/audit-log-purge",
+      "schedule": "30 3 * * *"
     }
   ]
 }
