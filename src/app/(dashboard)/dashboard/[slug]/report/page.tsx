@@ -71,6 +71,9 @@ import { fmtInt, fmtJpy, fmtRatioPct } from "@/lib/utils";
  * "未対応" card (the nav tab is also hidden for them, defence in depth).
  */
 export const dynamic = "force-dynamic";
+// Allow up to 60s (Vercel default 30s was a timeout risk for the parallel
+// BQ/GA4/Sheets fetches on cold cache — 監査#11). Within Hobby/Pro limits.
+export const maxDuration = 60;
 
 function inRange(date: string, start: string, end: string): boolean {
   return !!date && date >= start && date <= end;

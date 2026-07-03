@@ -32,6 +32,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
+// Allow up to 60s (Vercel default 30s was a timeout risk for the parallel
+// BQ/GA4/Sheets fetches on cold cache — 監査#11). Within Hobby/Pro limits.
+export const maxDuration = 60;
 
 /** GA4 daily-channel fetch window (see realDailyChannels in ga4.ts: fixed
  *  "90daysAgo"-"today"). Ranges that fit entirely inside this window can be

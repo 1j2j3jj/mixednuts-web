@@ -14,10 +14,15 @@ import type { DailyRow, DailyFetchResult } from "@/lib/sources/raw";
  * migration v2 layout. We rebuild the unified shape here so callers don't
  * need to know about the storage split.
  *
- * Caching: 5-minute LRU via unstable_cache, same TTL as the Sheet path.
+ * Caching: 1-hour unstable_cache, same TTL as bq-rpt.ts. The marts refresh
+ * once daily (daily_sync_all.py), so 1h loses no practical freshness; the
+ * dashboard「更新」button purges the "bq-raw" tag via revalidateTag
+ * (dashboard/actions.ts refreshClientData) for on-demand re-reads. Raised
+ * from 300s on 2026-07-04 (監査#11: concurrent visitors each re-triggering
+ * full BQ scans every 5 min).
  */
 
-const CACHE_TTL_SECONDS = 300;
+const CACHE_TTL_SECONDS = 3600;
 
 const SUPPORTED_CLIENTS = new Set([
   "hs",
@@ -175,6 +180,12 @@ async function _runQuery(client: string): Promise<DailyRowWithTracking[]> {
   const [job] = await bq.createQueryJob({
     query: sql,
     location: "asia-northeast1",
+    // Cost/latency guards (監査#11) — same rationale as bq-rpt.ts: kill
+    // runaway jobs at 30s and fail (charge-free) any query scanning >2GB.
+    // Normal reads are far below the cap, so returned values are unaffected;
+    // a tripped cap surfaces through the existing catch → warnings path.
+    jobTimeoutMs: 30_000,
+    maximumBytesBilled: String(2 * 1024 * 1024 * 1024), // 2 GiB
   });
   const [rows] = await job.getQueryResults();
   const typed = rows as unknown as RawBqRow[];

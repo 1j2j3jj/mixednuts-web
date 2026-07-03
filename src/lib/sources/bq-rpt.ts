@@ -70,11 +70,16 @@ import { classifyFetchError, tagWarning } from "@/lib/fetch-warnings";
  *    the ads block always comes from rpt_daily, the site/overall block
  *    always comes from rpt_all.
  *
- * All queries are SELECT-only. Caching: 5-min unstable_cache (same TTL as
+ * All queries are SELECT-only. Caching: 1-hour unstable_cache (same TTL as
  * bq-raw.ts) tagged "bq-rpt" so the manual refresh action can purge it.
+ * The marts refresh once daily (daily_sync_all.py), so a 1h TTL loses no
+ * freshness in practice; on-demand freshness stays available because the
+ * dashboard「更新」button (dashboard/actions.ts refreshClientData) calls
+ * revalidateTag(BQ_RPT_CACHE_TAG). Raised from 300s on 2026-07-04 (監査#11:
+ * concurrent visitors each re-triggering full BQ scans every 5 min).
  */
 
-const CACHE_TTL_SECONDS = 300;
+const CACHE_TTL_SECONDS = 3600;
 export const BQ_RPT_CACHE_TAG = "bq-rpt";
 
 export type RptClientId = "dozo" | "hs" | "msec" | "ogc" | "ogp";
@@ -485,6 +490,15 @@ async function _runRptQuery(
   const [job] = await bq.createQueryJob({
     query: buildSql(clientId, view, range),
     location: BQ_LOCATION,
+    // Cost/latency guards (監査#11). jobTimeoutMs kills runaway jobs before
+    // the Vercel function itself times out; maximumBytesBilled fails (without
+    // charge) any query that would scan >2GB — the rpt_* views scan far less
+    // today, so this only trips on pathological growth/regression, never on
+    // normal reads (read values are unaffected: the limit either passes the
+    // query through untouched or fails it outright, surfaced via the existing
+    // fetchView() warning path).
+    jobTimeoutMs: 30_000,
+    maximumBytesBilled: String(2 * 1024 * 1024 * 1024), // 2 GiB
   });
   const [rows] = await job.getQueryResults();
   // Map to plain JSON-safe objects *before* unstable_cache serialises the

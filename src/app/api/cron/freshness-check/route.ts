@@ -26,6 +26,9 @@ import { daysBehindJst, isStaleForAlert, jstTodayIso } from "@/lib/freshness";
  * Schedule: vercel.json crons — daily 00:00 UTC (09:00 JST).
  */
 export const dynamic = "force-dynamic";
+// Allow up to 60s (Vercel default 30s was a timeout risk for the parallel
+// BQ/GA4/Sheets fetches on cold cache — 監査#11). Within Hobby/Pro limits.
+export const maxDuration = 60;
 
 function isAuthorised(req: NextRequest): boolean {
   // CRON_SECRET の Bearer 一致のみを認可根拠にする（fail-closed）。

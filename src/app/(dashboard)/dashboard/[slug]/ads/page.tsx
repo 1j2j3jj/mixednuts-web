@@ -25,6 +25,9 @@ import { fmtInt, fmtJpy, fmtRatioPct, safeDiv } from "@/lib/utils";
  * equivalent) via the picker. Media table totals reflect the current window.
  */
 export const dynamic = "force-dynamic";
+// Allow up to 60s (Vercel default 30s was a timeout risk for the parallel
+// BQ/GA4/Sheets fetches on cold cache — 監査#11). Within Hobby/Pro limits.
+export const maxDuration = 60;
 
 /** Sum GA4 paid-campaign rows per internal media. */
 function ga4TotalsByMedia(rows: Ga4CampaignRow[]): Map<string, { sessions: number; conversions: number; revenue: number }> {

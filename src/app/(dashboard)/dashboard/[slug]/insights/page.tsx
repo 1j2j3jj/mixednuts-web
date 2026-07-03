@@ -29,6 +29,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
  * on this tab) — only `current` is used.
  */
 export const dynamic = "force-dynamic";
+// Allow up to 60s (Vercel default 30s was a timeout risk for the parallel
+// BQ/GA4/Sheets fetches on cold cache — 監査#11). Within Hobby/Pro limits.
+export const maxDuration = 60;
 
 export default async function InsightsScreen({
   params,

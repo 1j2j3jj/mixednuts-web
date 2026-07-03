@@ -29,8 +29,18 @@ const pool =
   new Pool({
     connectionString: url,
     // Neon uses TLS; pg auto-negotiates from the sslmode=require in URL.
-    // Keep pool small — Vercel function concurrency is the real limit.
-    max: 5,
+    // max=10 (was 5): 6+ concurrent request handlers in one warm function
+    // instance were exhausting the pool (監査#11). Still well under Neon's
+    // pooled-connection ceiling since we connect via the pooler endpoint.
+    max: 10,
+    // Release idle sockets after 30s so a traffic burst doesn't pin 10
+    // connections on Neon forever; fail fast (10s) when a connection can't
+    // be established instead of queueing until the function times out.
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
+    // Server-side kill switch: no single statement may run >25s (below the
+    // function maxDuration so the DB never outlives its request).
+    statement_timeout: 25_000,
   });
 
 if (process.env.NODE_ENV !== "production") {
