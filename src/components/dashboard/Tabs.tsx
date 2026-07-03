@@ -9,8 +9,10 @@ interface Props {
   /** Show the レポート tab (BQ rpt_* views) — only clients with rpt_* marts
    *  (dozo / hs). Decided server-side in layout.tsx via isRptSupported. */
   showReport?: boolean;
-  /** Show the メンバー tab — org内ロールが owner/admin（+ mixednuts admin）の
-   *  場合のみ。layout.tsx が getViewerOrgRole で決定（2026-07-03）。 */
+  /** Show the メンバー / 目標設定 タブ — 編集者以上（owner/admin/editor +
+   *  mixednuts admin）の場合のみ。layout.tsx が getViewerOrgRole →
+   *  canInviteMembers で決定（2026-07-03）。目標設定も同じ編集者ゲート
+   *  （閲覧者=member はタブ非表示・直URLはリダイレクト・操作はサーバ拒否）。 */
   showMembers?: boolean;
 }
 
@@ -28,6 +30,12 @@ export default function DashboardTabs({ slug, showReport = false, showMembers = 
     //（直URLも members/page.tsx がリダイレクト、操作は actions.ts が拒否）。
     ...(showMembers
       ? [{ href: `/dashboard/${slug}/settings/members`, label: "メンバー" }]
+      : []),
+    // 目標設定 = 月次目標の自己アップロード。編集者以上のみ（メンバーと同ゲート）。
+    // 閲覧者=member には非表示（直URLは targets/page.tsx がリダイレクト、
+    // 操作は actions.ts の assertCanEditTargets が拒否）。
+    ...(showMembers
+      ? [{ href: `/dashboard/${slug}/settings/targets`, label: "目標設定" }]
       : []),
   ];
   return (
