@@ -272,6 +272,161 @@ export async function createTenantInvite(
   return { ok: true, link };
 }
 
+/** 1 件分の一括招待結果。 */
+export interface BulkInviteItem {
+  email: string;
+  ok: boolean;
+  link?: string;
+  /** ok=false / skipped の理由。 */
+  error?: string;
+  /** 既にメンバー or 保留中招待があり作成をスキップした。 */
+  skipped?: boolean;
+}
+
+export interface BulkInviteResult {
+  ok: boolean;
+  items: BulkInviteItem[];
+  error?: string;
+}
+
+/**
+ * 一括招待（貼り付けた複数メールを 1 ロールでまとめて発行）。
+ * 区切りは 改行 / カンマ / セミコロン / 空白。バッチ全体で 1 ロール。
+ * ガード: assertCanInvite（編集者以上）+ role ランタイム検証 + 自社org スコープ。
+ * クォータはバッチ合計で判定（超過分は作らず理由を返す）。既存メンバー / 保留招待は skip。
+ */
+export async function createTenantInvites(
+  slug: string,
+  emailsRaw: string,
+  role: "editor" | "member",
+): Promise<BulkInviteResult> {
+  const { orgId, actorEmail } = await assertCanInvite(slug);
+  if (role !== "editor" && role !== "member") {
+    return { ok: false, items: [], error: "無効なロールです" };
+  }
+
+  // パース: 区切り分割 → 正規化 → 重複除去 → 形式チェック。
+  const seen = new Set<string>();
+  const parsed: { email: string; valid: boolean }[] = [];
+  for (const raw of emailsRaw.split(/[\s,;]+/)) {
+    const e = raw.trim().toLowerCase();
+    if (!e) continue;
+    if (seen.has(e)) continue;
+    seen.add(e);
+    parsed.push({ email: e, valid: /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e) });
+  }
+  if (parsed.length === 0) {
+    return { ok: false, items: [], error: "メールアドレスを入力してください" };
+  }
+
+  // 🔴 クォータ判定→insert は org 行ロックのトランザクション内で行う。
+  // 別の一括招待が並走すると count→insert 分離で maxMembers/maxAdmins を
+  // 突破しうる（TOCTOU、監査指摘）。org 行を FOR UPDATE でロックし、同一 org の
+  // 招待作成を直列化する（読み・上限判定・insert を同一トランザクションに閉じる）。
+  const { items, createdEmails } = await db.transaction(async (tx) => {
+    // org 行ロック（同一 org の並走招待を直列化）。
+    await tx.execute(sql`SELECT id FROM "organization" WHERE id = ${orgId} FOR UPDATE`);
+
+    const [orgRows, memberRows, pendingRows] = await Promise.all([
+      tx
+        .select({ maxMembers: organizationTable.maxMembers, maxAdmins: organizationTable.maxAdmins })
+        .from(organizationTable)
+        .where(eq(organizationTable.id, orgId)),
+      tx
+        .select({ role: memberTable.role, email: userTable.email })
+        .from(memberTable)
+        .leftJoin(userTable, eq(userTable.id, memberTable.userId))
+        .where(eq(memberTable.organizationId, orgId)),
+      tx
+        .select({ email: invitationTable.email })
+        .from(invitationTable)
+        .where(and(eq(invitationTable.organizationId, orgId), eq(invitationTable.status, "pending"))),
+    ]);
+    const maxMembers = orgRows[0]?.maxMembers ?? null;
+    const maxAdmins = orgRows[0]?.maxAdmins ?? null;
+    const existingMemberEmails = new Set(
+      memberRows.map((m) => (m.email ?? "").toLowerCase()).filter(Boolean),
+    );
+    const pendingEmails = new Set(pendingRows.map((p) => p.email.toLowerCase()));
+    let currentTotal = memberRows.length + pendingRows.length;
+    let currentEditors = memberRows.filter(
+      (m) => m.role === "editor" || m.role === "admin" || m.role === "owner",
+    ).length;
+
+    // inviter を 1 回だけ解決（トランザクション内）。
+    const inviterRows = await tx.select().from(userTable).where(eq(userTable.email, actorEmail));
+    let inviterId: string;
+    if (inviterRows.length) {
+      inviterId = inviterRows[0].id;
+    } else {
+      inviterId = crypto.randomUUID();
+      await tx.insert(userTable).values({
+        id: inviterId,
+        name: "Admin",
+        email: actorEmail,
+        emailVerified: true,
+        role: "admin",
+      });
+    }
+
+    const items: BulkInviteItem[] = [];
+    const createdEmails: string[] = [];
+    for (const { email, valid } of parsed) {
+      if (!valid) {
+        items.push({ email, ok: false, error: "形式が不正" });
+        continue;
+      }
+      if (existingMemberEmails.has(email)) {
+        items.push({ email, ok: false, skipped: true, error: "既にメンバー" });
+        continue;
+      }
+      if (pendingEmails.has(email)) {
+        items.push({ email, ok: false, skipped: true, error: "招待済み（保留中）" });
+        continue;
+      }
+      if (maxMembers !== null && currentTotal >= maxMembers) {
+        items.push({ email, ok: false, error: `メンバー上限（${maxMembers}名）超過` });
+        continue;
+      }
+      if (role === "editor" && maxAdmins !== null && currentEditors >= maxAdmins) {
+        items.push({ email, ok: false, error: `編集者上限（${maxAdmins}名）超過` });
+        continue;
+      }
+
+      const id = crypto.randomUUID();
+      const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+      await tx.insert(invitationTable).values({
+        id,
+        organizationId: orgId,
+        email,
+        role,
+        status: "pending",
+        expiresAt,
+        inviterId,
+      });
+      // 同一バッチ内の重複作成防止（既にパース段でdedupe済みだが二重ガード）。
+      pendingEmails.add(email);
+      currentTotal += 1;
+      if (role === "editor") currentEditors += 1;
+      createdEmails.push(email);
+      items.push({ email, ok: true, link: `${baseURL}/api/auth/accept-invitation?id=${id}` });
+    }
+    return { items, createdEmails };
+  });
+
+  if (createdEmails.length > 0) {
+    await writeAuditLog({
+      actorEmail,
+      targetOrgId: orgId,
+      targetOrgSlug: slug,
+      action: "invitation.created",
+      metadata: { emails: createdEmails, role, count: createdEmails.length, source: "tenant_settings_bulk" },
+    });
+  }
+
+  return { ok: items.some((i) => i.ok), items };
+}
+
 /** Revoke a pending invitation. */
 export async function revokeTenantInvite(
   slug: string,
