@@ -76,7 +76,7 @@ import { getBigQuery, BQ_LOCATION } from "@/lib/bigquery";
 const CACHE_TTL_SECONDS = 300;
 export const BQ_RPT_CACHE_TAG = "bq-rpt";
 
-export type RptClientId = "dozo" | "hs" | "msec";
+export type RptClientId = "dozo" | "hs" | "msec" | "ogc" | "ogp";
 
 /** One of the client-specific GA4 key-event columns (ga_cv_* in the marts). */
 export interface EventCvDef {
@@ -129,6 +129,24 @@ export const RPT_SUPPORTED: Record<RptClientId, RptClientMeta> = {
     mediaHasOverallCv: false,
     secondaryEvents: [
       { key: "signup", label: "会員登録CV" },
+    ],
+  },
+  ogc: {
+    // OGC も自社受注集計ソースなし（overallCv=null）。4媒体の GA×広告突合。
+    overallCvLabel: "全体CV",
+    hasOverallValue: false,
+    mediaHasOverallCv: false,
+    secondaryEvents: [
+      { key: "member", label: "会員登録CV" },
+    ],
+  },
+  ogp: {
+    overallCvLabel: "全体CV",
+    hasOverallValue: false,
+    mediaHasOverallCv: false,
+    secondaryEvents: [
+      { key: "member", label: "会員登録CV" },
+      { key: "contact", label: "問合せCV" },
     ],
   },
 };
