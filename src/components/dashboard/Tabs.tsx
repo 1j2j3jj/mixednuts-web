@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -18,6 +18,12 @@ interface Props {
 
 export default function DashboardTabs({ slug, showReport = false, showMembers = true }: Props) {
   const pathname = usePathname() || "";
+  // Carry the active date-range selection (?preset/?cmp/?start/?end, managed by
+  // DateRangePicker) onto every tab link so the period survives tab navigation —
+  // matches Google Ads / Meta Ads where the date chip is global. Without this the
+  // <Link> drops the query and each page falls back to its default range.
+  const sp = useSearchParams();
+  const qs = sp.toString();
   const tabs: Array<{ href: string; label: string }> = [
     { href: `/dashboard/${slug}`, label: "サマリー" },
     { href: `/dashboard/${slug}/ads`, label: "広告詳細" },
@@ -45,12 +51,14 @@ export default function DashboardTabs({ slug, showReport = false, showMembers = 
           t.href === `/dashboard/${slug}`
             ? pathname === t.href
             : pathname.startsWith(t.href);
+        const href = qs ? `${t.href}?${qs}` : t.href;
         return (
           <Link
             key={t.href}
-            href={t.href}
+            href={href}
+            aria-current={isActive ? "page" : undefined}
             className={cn(
-              "relative px-4 py-2 text-sm font-medium transition-colors",
+              "relative rounded-sm px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               isActive
                 ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground"

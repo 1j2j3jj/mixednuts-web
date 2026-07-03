@@ -681,7 +681,9 @@ export default async function ReportScreen({
             <CardTitle className="text-sm">データなし</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            選択期間（{start} 〜 {end}）に rpt ビューのデータがありません。期間プリセットを変更してください。
+            選択期間（{start} 〜 {end}）に表示できるレポートデータがありません。
+            上部の「期間」を広げるか別の期間に変更してください。データ連携直後は
+            反映まで時間がかかる場合があります。
           </CardContent>
         </Card>
       )}

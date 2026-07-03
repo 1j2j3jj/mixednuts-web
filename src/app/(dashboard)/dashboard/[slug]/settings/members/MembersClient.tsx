@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createTenantInvites, revokeTenantInvite, type BulkInviteResult } from "./actions";
+import { useRouter } from "next/navigation";
+import { createTenantInvites, revokeTenantInvite } from "./actions";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -50,15 +51,25 @@ export default function MembersClient({
   maxAdmins,
   canInvite,
 }: Props) {
+  const router = useRouter();
   // Gmail 風チップ入力: 確定済みアドレス(chips) + 入力中(draft)。
   const [chips, setChips] = useState<string[]>([]);
   const [draft, setDraft] = useState("");
   const [inviteRole, setInviteRole] = useState<"editor" | "member">("member");
-  const [bulkResult, setBulkResult] = useState<BulkInviteResult | null>(null);
-  const [copiedAll, setCopiedAll] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [revokeError, setRevokeError] = useState<string | null>(null);
+  // 発行直後の控えめな成功トースト（自動で消える）。冗長な結果パネルは廃止し、
+  // 承認待ち一覧を唯一の一覧ソースにした（CEO 指摘: 一時パネルの二重表示解消）。
+  const [toast, setToast] = useState<string | null>(null);
+  // スキップ/失敗の理由だけは一覧に載らないためインラインで簡潔に表示する。
+  const [issues, setIssues] = useState<{ email: string; reason: string }[]>([]);
+  // 送信状況の永続化（sentAt 列追加）は deferred。当面はこのセッション中に
+  // 発行したメールと送信可否・時刻をクライアント側に保持し、承認待ち一覧の
+  // 「送信状況」列に ✉送信済み(日時) を出す。リロードで消えるのは許容。
+  const [sentInfo, setSentInfo] = useState<
+    Record<string, { sent: boolean; at: number }>
+  >({});
 
   const totalMembers = members.length;
   const totalEditors = members.filter(
@@ -103,32 +114,42 @@ export default function MembersClient({
     const d = draft.trim();
     if (d && !all.some((c) => c.toLowerCase() === d.toLowerCase())) all.push(d);
     if (all.length === 0) return;
-    setBulkResult(null);
-    setCopiedAll(false);
+    setIssues([]);
     const payload = all.join(",");
     startTransition(async () => {
       const res = await createTenantInvites(slug, payload, inviteRole);
-      setBulkResult(res);
-      // 全件が作成済み or skip（=残す理由なし）なら入力欄をクリア。
-      if (res.ok && res.items.every((i) => i.ok || i.skipped)) {
+      if (res.error) {
+        setToast(null);
+        setIssues([{ email: "", reason: res.error }]);
+        return;
+      }
+      const created = res.items.filter((i) => i.ok);
+      const failed = res.items.filter((i) => !i.ok);
+      // スキップ/失敗はインラインに簡潔表示（成功分は一覧へ集約）。
+      setIssues(
+        failed.map((i) => ({ email: i.email, reason: i.error ?? "失敗" }))
+      );
+      // このセッションでの送信状況を記録（承認待ち一覧の「送信状況」列に反映）。
+      if (created.length > 0) {
+        const now = Date.now();
+        setSentInfo((prev) => {
+          const next = { ...prev };
+          for (const i of created) {
+            next[i.email.toLowerCase()] = { sent: !!i.emailSent, at: now };
+          }
+          return next;
+        });
+        setToast(`${created.length}件の招待を発行しました`);
+        setTimeout(() => setToast(null), 4000);
+        // 承認待ち一覧を即更新（サーバから最新の pending を再取得）。
+        router.refresh();
+      }
+      // 発行できた or 全件スキップ済みなら入力欄をクリア。
+      if (created.length > 0 || res.items.every((i) => i.ok || i.skipped)) {
         setChips([]);
         setDraft("");
       }
     });
-  }
-
-  async function handleCopyAll() {
-    const links = (bulkResult?.items ?? [])
-      .filter((i) => i.ok && i.link)
-      .map((i) => i.link as string);
-    if (links.length === 0) return;
-    try {
-      await navigator.clipboard.writeText(links.join("\n"));
-      setCopiedAll(true);
-      setTimeout(() => setCopiedAll(false), 2000);
-    } catch {
-      // ignore
-    }
   }
 
   function handleRevoke(invitationId: string) {
@@ -136,7 +157,7 @@ export default function MembersClient({
     startTransition(async () => {
       const res = await revokeTenantInvite(slug, invitationId);
       if (!res.ok) setRevokeError(res.error ?? "取消に失敗しました");
-      else window.location.reload();
+      else router.refresh();
     });
   }
 
@@ -186,10 +207,10 @@ export default function MembersClient({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>名前</TableHead>
-                <TableHead>メールアドレス</TableHead>
-                <TableHead>ロール</TableHead>
-                <TableHead>参加日</TableHead>
+                <TableHead scope="col">名前</TableHead>
+                <TableHead scope="col">メールアドレス</TableHead>
+                <TableHead scope="col">ロール</TableHead>
+                <TableHead scope="col">参加日</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -236,21 +257,45 @@ export default function MembersClient({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>招待先</TableHead>
-                  <TableHead>ロール</TableHead>
-                  <TableHead>有効期限</TableHead>
-                  <TableHead>招待リンク</TableHead>
-                  {canInvite && <TableHead></TableHead>}
+                  <TableHead scope="col">招待先</TableHead>
+                  <TableHead scope="col">ロール</TableHead>
+                  <TableHead scope="col">送信状況</TableHead>
+                  <TableHead scope="col">有効期限</TableHead>
+                  <TableHead scope="col">招待リンク</TableHead>
+                  {canInvite && <TableHead scope="col"><span className="sr-only">操作</span></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pendingInvites.map((inv) => (
+                {pendingInvites.map((inv) => {
+                  const sent = sentInfo[inv.email.toLowerCase()];
+                  return (
                   <TableRow key={inv.id}>
                     <TableCell className="font-medium">{inv.email}</TableCell>
                     <TableCell>
                       <Badge variant={roleBadgeVariant(inv.role ?? "member")}>
                         {roleLabel(inv.role ?? "member")}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {sent ? (
+                        sent.sent ? (
+                          <span className="font-medium text-emerald-600">
+                            ✉ 送信済み{" "}
+                            <span className="font-normal text-neutral-400">
+                              {new Date(sent.at).toLocaleString("ja-JP", {
+                                month: "numeric",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="text-amber-600">リンク発行のみ</span>
+                        )
+                      ) : (
+                        <span className="text-neutral-400">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-xs text-neutral-500">
                       {new Date(inv.expiresAt).toLocaleDateString("ja-JP")}
@@ -277,7 +322,8 @@ export default function MembersClient({
                       </TableCell>
                     )}
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
@@ -398,75 +444,46 @@ export default function MembersClient({
             </div>
           </form>
 
-          {bulkResult && (
-            <div className="mt-3 space-y-2">
-              {bulkResult.error && (
-                <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-                  {bulkResult.error}
-                </div>
-              )}
-              {bulkResult.items.length > 0 && (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">
-                      発行 {bulkResult.items.filter((i) => i.ok).length} 件 / スキップ・失敗{" "}
-                      {bulkResult.items.filter((i) => !i.ok).length} 件
-                    </span>
-                    {bulkResult.items.some((i) => i.ok && i.link) && (
-                      <button
-                        type="button"
-                        onClick={handleCopyAll}
-                        className="rounded bg-neutral-100 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-200"
-                      >
-                        {copiedAll ? "コピーしました！" : "全リンクをコピー"}
-                      </button>
-                    )}
-                  </div>
-                  <div className="rounded-md border border-neutral-200 bg-white">
-                    <ul className="divide-y divide-neutral-100 text-sm">
-                      {bulkResult.items.map((item) => (
-                        <li key={item.email} className="flex flex-wrap items-center gap-2 px-3 py-2">
-                          <span className="min-w-[180px] flex-1 font-medium">{item.email}</span>
-                          {item.ok && item.link ? (
-                            <>
-                              <code className="max-w-full break-all text-xs text-neutral-500">
-                                {item.link}
-                              </code>
-                              <button
-                                type="button"
-                                onClick={() => item.link && handleCopy(item.link)}
-                                className="text-xs underline"
-                              >
-                                {copiedLink === item.link ? "コピー済" : "コピー"}
-                              </button>
-                              {item.emailSent && (
-                                <span className="text-xs font-medium text-emerald-600">
-                                  ✉ 自動送信済み
-                                </span>
-                              )}
-                            </>
-                          ) : (
-                            <span
-                              className={`text-xs ${
-                                item.skipped ? "text-amber-700" : "text-rose-600"
-                              }`}
-                            >
-                              {item.error ?? "失敗"}
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    招待メールは招待先へ自動送信されます（送信元:
-                    dashboard@mixednuts-inc.com）。上のリンクは Slack
-                    等での手動送付用にもコピーできます。
-                  </p>
-                </>
-              )}
+          {/* 控えめな成功トースト（数秒で自動消滅）。発行済みは上の
+              「承認待ち招待」一覧に集約され、リンクコピー・送信状況・取消は
+              そこで行う（一時パネルの二重表示を廃止）。 */}
+          {toast && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="mt-3 flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800"
+            >
+              <span aria-hidden="true">✓</span>
+              <span>
+                {toast}。承認待ち招待の一覧で送信状況とリンクを確認できます。
+              </span>
             </div>
           )}
+
+          {/* スキップ / 失敗の理由だけインライン表示（成功分は一覧へ）。 */}
+          {issues.length > 0 && (
+            <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <p className="mb-1 font-medium">
+                発行できなかった招待（{issues.length}件）
+              </p>
+              <ul className="space-y-0.5 text-xs">
+                {issues.map((it, i) => (
+                  <li key={`${it.email}-${i}`}>
+                    {it.email && (
+                      <span className="font-medium">{it.email}: </span>
+                    )}
+                    {it.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <p className="mt-3 text-xs text-muted-foreground">
+            招待メールは招待先へ自動送信されます（送信元:
+            dashboard@mixednuts-inc.com）。手動送付用のリンクは「承認待ち招待」
+            一覧からコピーできます。
+          </p>
         </div>
       )}
     </div>

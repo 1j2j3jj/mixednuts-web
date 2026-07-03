@@ -46,13 +46,24 @@ export default function DateRangePicker({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 text-sm" data-print-hide="true">
+    <div
+      className={`flex flex-wrap items-center gap-2 text-sm transition-opacity ${
+        isPending ? "opacity-60" : ""
+      }`}
+      data-print-hide="true"
+      aria-busy={isPending}
+    >
       <div className="flex items-center gap-1.5">
-        <label className="text-xs text-muted-foreground">期間</label>
+        <label htmlFor="range-preset" className="text-xs text-muted-foreground">
+          期間
+        </label>
         <select
+          id="range-preset"
+          aria-label="表示期間"
           value={preset}
+          disabled={isPending}
           onChange={(e) => update({ preset: e.target.value })}
-          className="h-8 rounded-md border bg-background px-2 text-sm"
+          className="h-8 rounded-md border bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed"
         >
           {PRESETS.map((p) => (
             <option key={p.key} value={p.key}>
@@ -65,25 +76,34 @@ export default function DateRangePicker({
         <div className="flex items-center gap-1.5">
           <input
             type="date"
+            aria-label="開始日"
             value={start}
+            disabled={isPending}
             onChange={(e) => update({ start: e.target.value })}
-            className="h-8 rounded-md border bg-background px-2 text-sm"
+            className="h-8 rounded-md border bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
-          <span className="text-xs text-muted-foreground">〜</span>
+          <span className="text-xs text-muted-foreground" aria-hidden="true">〜</span>
           <input
             type="date"
+            aria-label="終了日"
             value={end}
+            disabled={isPending}
             onChange={(e) => update({ end: e.target.value })}
-            className="h-8 rounded-md border bg-background px-2 text-sm"
+            className="h-8 rounded-md border bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
       )}
       <div className="flex items-center gap-1.5">
-        <label className="text-xs text-muted-foreground">比較</label>
+        <label htmlFor="range-compare" className="text-xs text-muted-foreground">
+          比較
+        </label>
         <select
+          id="range-compare"
+          aria-label="比較対象"
           value={compare}
+          disabled={isPending}
           onChange={(e) => update({ cmp: e.target.value })}
-          className="h-8 rounded-md border bg-background px-2 text-sm"
+          className="h-8 rounded-md border bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed"
         >
           {COMPARES.map((c) => (
             <option key={c.key} value={c.key}>
@@ -92,7 +112,9 @@ export default function DateRangePicker({
           ))}
         </select>
       </div>
-      {isPending && <span className="text-xs text-muted-foreground">更新中…</span>}
+      <span aria-live="polite" className="text-xs text-muted-foreground">
+        {isPending ? "更新中…" : ""}
+      </span>
     </div>
   );
 }
