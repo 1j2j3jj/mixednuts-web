@@ -35,6 +35,13 @@ function roleBadgeVariant(role: string): "success" | "outline" | "secondary" {
   return "secondary";
 }
 
+// メールアドレスの簡易バリデーション（チップの正/不正の見た目分けに使う。
+// 最終判定はサーバ側 createTenantInvites が行う）。
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function isValidEmail(s: string): boolean {
+  return EMAIL_RE.test(s.trim());
+}
+
 export default function MembersClient({
   slug,
   members,
@@ -43,7 +50,9 @@ export default function MembersClient({
   maxAdmins,
   canInvite,
 }: Props) {
-  const [inviteEmail, setInviteEmail] = useState("");
+  // Gmail 風チップ入力: 確定済みアドレス(chips) + 入力中(draft)。
+  const [chips, setChips] = useState<string[]>([]);
+  const [draft, setDraft] = useState("");
   const [inviteRole, setInviteRole] = useState<"editor" | "member">("member");
   const [bulkResult, setBulkResult] = useState<BulkInviteResult | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
@@ -61,16 +70,50 @@ export default function MembersClient({
     inviteRole === "editor" && maxAdmins !== null && totalEditors >= maxAdmins;
   const inviteDisabled = memberQuotaReached || editorQuotaReached || !canInvite;
 
+  // 生文字列（貼り付け/入力）を区切り、重複を除いてチップに追加する。
+  function addTokens(raw: string) {
+    const toks = raw
+      .split(/[\s,;]+/)
+      .map((t) => t.trim())
+      .filter(Boolean);
+    if (toks.length > 0) {
+      setChips((prev) => {
+        const seen = new Set(prev.map((c) => c.toLowerCase()));
+        const next = [...prev];
+        for (const t of toks) {
+          if (!seen.has(t.toLowerCase())) {
+            seen.add(t.toLowerCase());
+            next.push(t);
+          }
+        }
+        return next;
+      });
+    }
+    setDraft("");
+  }
+
+  function removeChip(target: string) {
+    setChips((prev) => prev.filter((c) => c !== target));
+  }
+
   function handleInvite(e: React.FormEvent) {
     e.preventDefault();
-    if (!inviteEmail.trim()) return;
+    // 入力中の draft も取り込む。
+    const all = [...chips];
+    const d = draft.trim();
+    if (d && !all.some((c) => c.toLowerCase() === d.toLowerCase())) all.push(d);
+    if (all.length === 0) return;
     setBulkResult(null);
     setCopiedAll(false);
+    const payload = all.join(",");
     startTransition(async () => {
-      const res = await createTenantInvites(slug, inviteEmail, inviteRole);
+      const res = await createTenantInvites(slug, payload, inviteRole);
       setBulkResult(res);
       // 全件が作成済み or skip（=残す理由なし）なら入力欄をクリア。
-      if (res.ok && res.items.every((i) => i.ok || i.skipped)) setInviteEmail("");
+      if (res.ok && res.items.every((i) => i.ok || i.skipped)) {
+        setChips([]);
+        setDraft("");
+      }
     });
   }
 
@@ -255,18 +298,73 @@ export default function MembersClient({
           )}
 
           <p className="mb-2 text-xs text-muted-foreground">
-            複数のメールアドレスを貼り付け可（改行・カンマ・スペース区切り）。まとめて 1 つのロールで招待します。
+            メールアドレスを入力または貼り付け（Enter・カンマ・スペース・改行で区切ってチップ化）。まとめて 1 つのロールで招待します。
           </p>
           <form onSubmit={handleInvite} className="flex flex-col gap-2 sm:flex-row sm:items-start">
-            <textarea
-              required
-              rows={3}
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder={"email@example.com\nother@example.com（複数可）"}
-              disabled={inviteDisabled}
-              className="min-w-[220px] flex-1 resize-y rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-            />
+            <div
+              onClick={() => document.getElementById("invite-chip-input")?.focus()}
+              className={`flex min-h-[46px] min-w-[220px] flex-1 flex-wrap items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-2 py-1.5 focus-within:border-neutral-900 ${
+                inviteDisabled ? "cursor-not-allowed opacity-50" : "cursor-text"
+              }`}
+            >
+              {chips.map((c) => {
+                const ok = isValidEmail(c);
+                return (
+                  <span
+                    key={c}
+                    title={ok ? c : "メールアドレスの形式が正しくない可能性があります"}
+                    className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs ${
+                      ok
+                        ? "border-neutral-300 bg-neutral-100 text-neutral-800"
+                        : "border-rose-300 bg-rose-50 text-rose-700"
+                    }`}
+                  >
+                    <span className="truncate">{c}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeChip(c);
+                      }}
+                      disabled={inviteDisabled}
+                      aria-label={`${c} を削除`}
+                      className="shrink-0 text-neutral-400 hover:text-neutral-700"
+                    >
+                      ×
+                    </button>
+                  </span>
+                );
+              })}
+              <input
+                id="invite-chip-input"
+                type="text"
+                value={draft}
+                disabled={inviteDisabled}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  // 区切り文字が入ったら即チップ化。
+                  if (/[\s,;]/.test(v)) addTokens(v);
+                  else setDraft(v);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addTokens(draft);
+                  } else if (e.key === "Backspace" && draft === "" && chips.length > 0) {
+                    setChips((prev) => prev.slice(0, -1));
+                  }
+                }}
+                onPaste={(e) => {
+                  e.preventDefault();
+                  addTokens(e.clipboardData.getData("text"));
+                }}
+                onBlur={() => {
+                  if (draft.trim()) addTokens(draft);
+                }}
+                placeholder={chips.length ? "" : "email@example.com（複数可）"}
+                className="min-w-[140px] flex-1 border-0 bg-transparent px-1 py-0.5 text-sm focus:outline-none disabled:cursor-not-allowed"
+              />
+            </div>
             <div className="flex gap-2 sm:flex-col">
               <select
                 value={inviteRole}
@@ -281,7 +379,11 @@ export default function MembersClient({
               </select>
               <button
                 type="submit"
-                disabled={inviteDisabled || isPending}
+                disabled={
+                  inviteDisabled ||
+                  isPending ||
+                  (chips.length === 0 && draft.trim() === "")
+                }
                 title={
                   memberQuotaReached
                     ? "上限に達しています。運営にお問い合わせください。"
