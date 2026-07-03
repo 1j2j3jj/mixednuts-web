@@ -51,8 +51,8 @@ export default function PrivacyPage() {
           </p>
           <div className="legal-meta">
             <span>制定日: 2021年4月19日</span>
-            <span>最終改定日: 2026年4月17日</span>
-            <span>版: v3.0</span>
+            <span>最終改定日: 2026年7月4日</span>
+            <span>版: v3.1</span>
           </div>
         </div>
       </section>
@@ -66,7 +66,7 @@ export default function PrivacyPage() {
               <li><a href="#sec2">収集する個人情報</a></li>
               <li><a href="#sec3">利用目的</a></li>
               <li><a href="#sec4">第三者への提供</a></li>
-              <li><a href="#sec5">個人情報の委託</a></li>
+              <li><a href="#sec5">個人情報の委託</a>（<a href="#sec5b">5-2. 外国にある第三者への提供</a> / <a href="#sec5c">5-3. 採用応募情報</a> / <a href="#sec5d">5-4. クライアント向けダッシュボード</a>）</li>
               <li><a href="#sec6">安全管理措置</a></li>
               <li><a href="#sec7">クッキー（Cookie）の使用</a></li>
               <li><a href="#sec8">AI ツール利用時の取扱い</a></li>
@@ -83,6 +83,7 @@ export default function PrivacyPage() {
           <ul>
             <li>当社ウェブサイトのお問い合わせフォームをご利用いただいた場合</li>
             <li>当社のサービス・コンサルティング契約を締結した場合</li>
+            <li>当社が提供するクライアント向けダッシュボードに招待・登録された場合</li>
             <li>当社主催のセミナー、ウェビナー、イベントにお申し込みいただいた場合</li>
             <li>当社のニュースレター・メールマガジンにご登録いただいた場合</li>
             <li>採用応募をいただいた場合</li>
@@ -131,10 +132,11 @@ export default function PrivacyPage() {
               <tr><th>事業者</th><th>所在国</th><th>用途</th></tr>
             </thead>
             <tbody>
-              <tr><td>Vercel Inc.</td><td>米国</td><td>ウェブサイトホスティング、Edge Functions</td></tr>
-              <tr><td>Neon Inc. (AWS us-east-1)</td><td>米国</td><td>認証データベース</td></tr>
+              <tr><td>Vercel Inc.</td><td>米国</td><td>ウェブサイトホスティング、Edge Functions、クライアント向けダッシュボードのホスティング</td></tr>
+              <tr><td>Neon Inc. (AWS us-east-1)</td><td>米国</td><td>認証データベース（クライアント向けダッシュボードのアカウント情報を含む）</td></tr>
               <tr><td>Web3Forms</td><td>米国</td><td>お問い合わせ・採用応募の通知配信</td></tr>
-              <tr><td>Google LLC</td><td>米国</td><td>採用応募ファイル保存（Google Drive）、Google Workspace</td></tr>
+              <tr><td>Google LLC</td><td>米国</td><td>採用応募ファイル保存（Google Drive）、Google Workspace、クライアント向けダッシュボードのログイン認証（Google OAuth）</td></tr>
+              <tr><td>Resend（Plus Five Five, Inc.）</td><td>米国</td><td>クライアント向けダッシュボードの招待メール配信</td></tr>
             </tbody>
           </table>
           <p>各国の個人情報保護制度に関する情報は、個人情報保護委員会のウェブサイト（<a href="https://www.ppc.go.jp/personalinfo/legal/kaiseihogohou/" target="_blank" rel="noopener noreferrer">https://www.ppc.go.jp/personalinfo/legal/kaiseihogohou/</a>）にて確認できます。米国は十分性認定国ではないため、当社は個人情報保護委員会規則第 16 条に基づく相当措置（標準契約条項または GDPR 同等の保護水準の確認）を実施します。</p>
@@ -147,6 +149,69 @@ export default function PrivacyPage() {
             <li><strong>保存期間</strong>: 不採用の場合、応募受付から 6 ヶ月経過後に削除します。採用の場合は雇用契約継続中保管します</li>
             <li><strong>第三者提供</strong>: 法令に基づく場合を除き、本人の同意なく第三者に提供しません</li>
           </ul>
+
+          <h2 id="sec5d">5-4. クライアント向けダッシュボードにおける個人情報の取扱い</h2>
+          <p>当社は、コンサルティングサービスの一環として、クライアント企業向けの BI ダッシュボード（以下「本ダッシュボード」）を提供しています。本ダッシュボードの利用に関する個人情報の取扱いは、本条の定めによります。</p>
+
+          <h3>(1) 取得する情報と取得の方法</h3>
+          <p>当社は、本ダッシュボードの利用にあたり、以下の情報を取得します。</p>
+          <ul>
+            <li><strong>アカウント情報</strong>: 氏名、メールアドレス（クライアント企業の管理者からの招待、または Google アカウントによるログイン時に取得します）</li>
+            <li><strong>利用記録</strong>: ログイン日時、閲覧・操作の記録（監査ログとして取得します）</li>
+          </ul>
+          <p>本ダッシュボードは招待制であり、クライアント企業との契約に基づき、当社またはクライアント企業の管理者が招待したご本人のみが利用できます。</p>
+
+          <h3>(2) 利用目的</h3>
+          <p>取得した個人情報は、以下の目的でのみ利用します。</p>
+          <ol className="numbered">
+            <li>本ダッシュボードへのログイン認証およびアカウント管理</li>
+            <li>クライアント企業ごと・ユーザーごとの閲覧権限の制御</li>
+            <li>招待メール、およびアカウントに関する通知の送信</li>
+            <li>不正アクセスの検知・調査のための監査ログの記録・点検</li>
+          </ol>
+          <p>上記の目的を超えて利用する場合は、事前にご本人の同意を得ます。取得した個人情報を広告配信・マーケティング目的で利用することはありません。</p>
+
+          <h3>(3) 表示するデータについて</h3>
+          <p>本ダッシュボードは、クライアント企業から預託を受けた広告運用データ（Google 広告・Meta 広告等）、アクセス解析データ（Google アナリティクス）、売上データを、当社が管理する Google Cloud BigQuery（東京リージョン）に集約し、集計値として表示するものです。これらのデータはクライアント企業の事業データであり、当該クライアント企業との業務委託契約および秘密保持契約に基づいて取り扱います。</p>
+
+          <h3>(4) 保存場所・保存期間</h3>
+          <table>
+            <thead>
+              <tr><th>情報</th><th>保存場所</th><th>保存期間</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>アカウント情報（氏名・メールアドレス・招待記録）</td><td>Neon Inc. が運営するデータベース（米国）</td><td>アカウント削除まで。削除の申出を受けた場合、または退会手続が行われた場合、遅滞なく削除します</td></tr>
+              <tr><td>監査ログ</td><td>同上</td><td>取得から原則 1 年間（不正アクセス調査等で必要な場合を除く）</td></tr>
+              <tr><td>集計対象のクライアント事業データ</td><td>Google Cloud BigQuery（東京リージョン）</td><td>クライアント企業との契約終了後、契約に定める期間内に削除します</td></tr>
+            </tbody>
+          </table>
+
+          <h3>(5) 第三者提供・委託</h3>
+          <p>当社は、法令に基づく場合を除き、本ダッシュボードで取得した個人情報を第三者に提供しません。あるクライアント企業のユーザー情報・事業データを、他のクライアント企業が閲覧することはできません（アクセス権限により論理的に分離しています）。</p>
+          <p>システムの運用にあたり、以下の事業者に個人情報の取扱いを委託します（外国にある第三者への委託を含みます。詳細は第 5-2 条の表をご参照ください）。当社は各委託先との間でデータ処理に関する契約（DPA 等）を確認・締結し、委託先を適切に監督します。</p>
+          <ul>
+            <li>Vercel Inc.（米国）— アプリケーションのホスティング</li>
+            <li>Neon Inc.（米国）— 認証・アカウントデータベース</li>
+            <li>Google LLC / Google Cloud（データ保存は東京リージョン）— 事業データの集計基盤（BigQuery）、Google アカウントによるログイン認証（Google OAuth）</li>
+            <li>Resend（Plus Five Five, Inc.、米国）— 招待メール等の配信（送信元: dashboard@mixednuts-inc.com）</li>
+          </ul>
+
+          <h3>(6) ご本人の権利（開示・訂正・削除等）</h3>
+          <p>ご本人は、当社に対し、ご自身の個人情報について以下を請求できます。手続・手数料（無料）・回答期限は第 9 条の定めに従います。</p>
+          <ul>
+            <li>利用目的の通知、保有個人データの開示（個人情報保護法第 32 条・第 33 条）</li>
+            <li>内容の訂正・追加・削除（同法第 34 条）</li>
+            <li>利用停止・消去・第三者提供の停止（同法第 35 条）</li>
+          </ul>
+          <p>アカウントの削除（退会）をご希望の場合は、所属するクライアント企業の管理者、または下記窓口までお申し出ください。削除の申出を受けた場合、認証データベース上のアカウント情報を遅滞なく削除します。なお、法令上保存が必要な記録（監査ログ等）は、当該保存義務の範囲でのみ保持します。</p>
+
+          <h3>(7) 管理者（事業者）情報・お問い合わせ窓口</h3>
+          <div className="info-box">
+            <strong>事業者</strong>: ミックスナッツ株式会社（東京都港区南青山3-8-40）<br />
+            <strong>本ダッシュボードに関するお問い合わせ</strong>: <a href="mailto:info@mixednuts-inc.com" style={{color: 'var(--navy)', textDecoration: 'underline'}}>info@mixednuts-inc.com</a><br />
+            <strong>個人情報の開示等の請求</strong>: <a href="mailto:privacy@mixednuts-inc.com" style={{color: 'var(--navy)', textDecoration: 'underline'}}>privacy@mixednuts-inc.com</a>（第 9 条の窓口）
+          </div>
+          <p>EU 域内から本ダッシュボードを利用する場合、上記の事業者が GDPR 上の管理者（Controller）に相当します。取扱いの法的根拠は、契約の履行（アカウント管理・認証）および正当な利益（不正アクセス防止のための監査ログ）です。ご本人にはアクセス権・訂正権・消去権・処理制限権・データポータビリティ権・異議申立権があり、監督機関へ苦情を申し立てる権利を有します。</p>
 
           <h2 id="sec6">6. 安全管理措置</h2>
           <p>当社は、個人情報の漏洩、滅失、毀損の防止その他の安全管理のために、組織的・人的・物理的・技術的な安全管理措置を講じます。</p>
