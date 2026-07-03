@@ -12,6 +12,12 @@ import { eq, and, sql } from "drizzle-orm";
 import { getClientBySlug } from "@/config/clients";
 import { writeAuditLog } from "@/lib/audit";
 import { lookupOrgRoleByEmail, canInviteMembers } from "@/lib/org-role";
+import { sendInvitationEmail } from "@/lib/email";
+
+/** role 値 → 招待メール用の権限表示名。 */
+function roleLabelOf(role: "editor" | "member"): string {
+  return role === "editor" ? "編集者" : "閲覧者";
+}
 
 /**
  * Server actions for the tenant-side member management page.
@@ -167,6 +173,8 @@ export interface InviteResult {
   ok: boolean;
   link?: string;
   error?: string;
+  /** 招待メールが送信されたか（UI 表示用。キー未設定時は false）。 */
+  emailSent?: boolean;
 }
 
 /** Issue a new invitation from the tenant settings page. */
@@ -269,7 +277,15 @@ export async function createTenantInvite(
     `[tenant-invite] slug=${slug} email=${normalizedEmail} role=${role}\n[tenant-invite] link=${link}`
   );
 
-  return { ok: true, link };
+  // 招待メール送信（失敗しても招待結果は ok のまま・リンクは常に返す）。
+  const emailResult = await sendInvitationEmail({
+    to: normalizedEmail,
+    clientLabel: getClientBySlug(slug)?.label ?? slug,
+    roleLabel: roleLabelOf(role),
+    acceptUrl: link,
+  });
+
+  return { ok: true, link, emailSent: emailResult.sent };
 }
 
 /** 1 件分の一括招待結果。 */
@@ -281,6 +297,8 @@ export interface BulkInviteItem {
   error?: string;
   /** 既にメンバー or 保留中招待があり作成をスキップした。 */
   skipped?: boolean;
+  /** 招待メールが送信されたか（UI 表示用。キー未設定時は false）。 */
+  emailSent?: boolean;
 }
 
 export interface BulkInviteResult {
@@ -422,6 +440,24 @@ export async function createTenantInvites(
       action: "invitation.created",
       metadata: { emails: createdEmails, role, count: createdEmails.length, source: "tenant_settings_bulk" },
     });
+  }
+
+  // 招待メール送信は FOR UPDATE トランザクションの外で行う（メール I/O で
+  // org 行ロックを保持し続けないため）。作成に成功した item だけ送信し、
+  // 送信可否を emailSent に反映する（失敗しても招待結果は変えない）。
+  if (createdEmails.length > 0) {
+    const clientLabel = getClientBySlug(slug)?.label ?? slug;
+    const roleLabel = roleLabelOf(role);
+    for (const item of items) {
+      if (!item.ok || !item.link) continue;
+      const emailResult = await sendInvitationEmail({
+        to: item.email,
+        clientLabel,
+        roleLabel,
+        acceptUrl: item.link,
+      });
+      item.emailSent = emailResult.sent;
+    }
   }
 
   return { ok: items.some((i) => i.ok), items };
