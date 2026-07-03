@@ -17,8 +17,8 @@ import { and, eq, isNull, lt, inArray } from "drizzle-orm";
  * Admins (ADMIN_EMAILS env) bypass this — they're never reaching this
  * resolver path because role-resolver short-circuits on admin email match.
  *
- * Auth: Vercel Cron sends `x-vercel-cron-signature` header for scheduled
- * invocations. For manual / debug runs, accept Bearer ${CRON_SECRET}.
+ * Auth: Bearer ${CRON_SECRET} only (Vercel Cron auto-attaches it when the
+ * env var is set; manual runs pass the same header).
  *
  * Schedule: daily at 03:00 UTC (12:00 JST). Light query, 1-2 round trips.
  */
@@ -27,13 +27,13 @@ export const dynamic = "force-dynamic";
 const SIX_MONTHS_MS = 6 * 30 * 24 * 60 * 60 * 1000;
 
 function isAuthorised(req: NextRequest): boolean {
-  // Vercel Cron header
-  if (req.headers.get("x-vercel-cron-signature")) return true;
-  // Manual / debug: Bearer CRON_SECRET
+  // CRON_SECRET の Bearer 一致のみを認可根拠にする（fail-closed）。
+  // 旧実装の x-vercel-cron-signature「存在」チェックは値未検証で、外部から
+  // 同名ヘッダを付けるだけで member block/delete が無認可実行できるスプーフ穴
+  // だったため撤去（2026-07-03 敵対検証で検出。CRON_SECRET は Vercel に設定済）。
   const auth = req.headers.get("authorization");
   const secret = process.env.CRON_SECRET;
-  if (secret && auth === `Bearer ${secret}`) return true;
-  return false;
+  return Boolean(secret) && auth === `Bearer ${secret}`;
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {

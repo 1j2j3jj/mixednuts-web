@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/membership-cleanup",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/freshness-check",
+      "schedule": "0 0 * * *"
     }
   ]
 }

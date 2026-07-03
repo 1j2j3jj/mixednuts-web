@@ -1,6 +1,7 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
 import { getBigQuery, BQ_LOCATION } from "@/lib/bigquery";
+import { classifyFetchError, tagWarning } from "@/lib/fetch-warnings";
 
 /**
  * BigQuery-backed fetchers for the rpt_* reporting views
@@ -582,11 +583,17 @@ async function fetchView<T>(
     const raw = await _cachedRptQuery(clientId, view, range?.start ?? "", range?.end ?? "");
     return { rows: raw.map(map), fetchedAt: Date.now(), warnings: [] };
   } catch (err) {
+    // Tagged with a machine-readable reason ([permission] / [fetch_failed])
+    // so the display layer can tell「権限なし」from「取得失敗」without
+    // parsing free-form BQ error text (Batch2 監査P0 §4, fetch-warnings.ts).
     return {
       rows: [],
       fetchedAt: Date.now(),
       warnings: [
-        `bq rpt_${view} fetch failed: ${err instanceof Error ? err.message : String(err)}`,
+        tagWarning(
+          classifyFetchError(err),
+          `bq rpt_${view} fetch failed: ${err instanceof Error ? err.message : String(err)}`,
+        ),
       ],
     };
   }

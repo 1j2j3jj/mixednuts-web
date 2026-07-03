@@ -1,6 +1,7 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
 import { getBigQuery } from "@/lib/bigquery";
+import { classifyFetchError, tagWarning } from "@/lib/fetch-warnings";
 import type { ClientConfig } from "@/config/clients";
 import type { DailyRow, DailyFetchResult } from "@/lib/sources/raw";
 
@@ -223,7 +224,13 @@ export async function getDailyRowsFromBq(
     const rows = await _cachedQuery(client.id);
     return { rows, fetchedAt: Date.now(), isMock: false, warnings };
   } catch (err) {
-    warnings.push(`bq fetch failed: ${err instanceof Error ? err.message : String(err)}`);
+    // Reason-tagged ([permission] / [fetch_failed]) — see fetch-warnings.ts.
+    warnings.push(
+      tagWarning(
+        classifyFetchError(err),
+        `bq fetch failed: ${err instanceof Error ? err.message : String(err)}`,
+      ),
+    );
     return { rows: [], fetchedAt: Date.now(), isMock: false, warnings };
   }
 }

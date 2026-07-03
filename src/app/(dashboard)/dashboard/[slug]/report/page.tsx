@@ -16,6 +16,8 @@ import {
 import { resolveFromSearchParams } from "@/lib/range";
 import { REPORT_VIEWS, type ReportViewKey } from "@/lib/report-views";
 import ReportViewTabs from "@/components/dashboard/ReportViewTabs";
+import StaleDataBanner from "@/components/dashboard/StaleDataBanner";
+import { hasWarnReason } from "@/lib/fetch-warnings";
 import ReportTable, { type ReportTableRow } from "@/components/dashboard/ReportTable";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
 import CsvExportButton from "@/components/dashboard/CsvExportButton";
@@ -188,8 +190,11 @@ export default async function ReportScreen({
     .map((r) => r.date)
     .filter(Boolean)
     .sort();
-  const anchor =
-    anchorDates[anchorDates.length - 1] ?? new Date().toISOString().slice(0, 10);
+  // Data-freshness banner input (Batch2 監査P0): MAX(date) across the two
+  // always-fetched views — derived from rows already in hand, no extra query.
+  // null (no rows at all) renders no banner; the empty state covers that.
+  const maxDataDate = anchorDates[anchorDates.length - 1] ?? null;
+  const anchor = maxDataDate ?? new Date().toISOString().slice(0, 10);
   const rr = resolveFromSearchParams(sp, { preset: "thisMonth", compare: "none" }, anchor);
   const { start, end } = rr.current;
 
@@ -545,6 +550,8 @@ export default async function ReportScreen({
         </div>
       </div>
 
+      <StaleDataBanner maxDate={maxDataDate} />
+
       {warnings.length > 0 && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
           データ取得で問題が発生した項目があります: {warnings.join(" / ")}
@@ -717,18 +724,44 @@ export default async function ReportScreen({
         </div>
       </section>
 
-      {rows.length === 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">データなし</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            選択期間（{start} 〜 {end}）に表示できるレポートデータがありません。
-            上部の「期間」を広げるか別の期間に変更してください。データ連携直後は
-            反映まで時間がかかる場合があります。
-          </CardContent>
-        </Card>
-      )}
+      {rows.length === 0 &&
+        // Empty-state 3分類 (Batch2 監査P0 §4): 「データなし」「取得失敗」
+        // 「権限なし」を warnings の reason タグ ([permission]/[fetch_failed],
+        // fetch-warnings.ts) で分岐。permission 優先 — 権限が無いのに
+        // 「期間を広げて」と案内するのは誤誘導のため。
+        (hasWarnReason(warnings, "permission") ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">データにアクセスできません（権限エラー）</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              データソース（BigQuery）への権限が不足しているため取得できませんでした。
+              期間を変更しても解消しません。管理者に連絡してください。
+            </CardContent>
+          </Card>
+        ) : hasWarnReason(warnings, "fetch_failed") ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">データの取得に失敗しました</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              一時的なエラーでデータを取得できませんでした（表示されている他の数値は
+              古いキャッシュの可能性があります）。時間をおいて再読み込みするか、
+              右上の「更新」を実行してください。解消しない場合は管理者に連絡してください。
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">データなし</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              選択期間（{start} 〜 {end}）に表示できるレポートデータがありません。
+              上部の「期間」を広げるか別の期間に変更してください。データ連携直後は
+              反映まで時間がかかる場合があります。
+            </CardContent>
+          </Card>
+        ))}
     </div>
   );
 }

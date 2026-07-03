@@ -26,6 +26,7 @@ import DeviceBar from "@/components/dashboard/DeviceBar";
 import RefreshButton from "@/components/dashboard/RefreshButton";
 import PrintButton from "@/components/dashboard/PrintButton";
 import MockBanner from "@/components/dashboard/MockBanner";
+import StaleDataBanner from "@/components/dashboard/StaleDataBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
@@ -392,9 +393,16 @@ export default async function Overview({
   const anyMock =
     isMock || ga4Result.isMock || ga4DailyResult.isMock || devicesResult.isMock || eccube.isMock;
 
+  // Data-freshness banner (Batch2 監査P0): the ad rows' MAX(date) is already
+  // in hand (adDates, sorted asc — also feeds `anchor` above), so no extra
+  // query. Suppressed on mock data (MockBanner already covers that mode —
+  // mock dates would make the freshness judgment meaningless anyway).
+  const adMaxDate = anyMock ? null : adDates[adDates.length - 1] ?? null;
+
   return (
     <div className="space-y-6">
       <MockBanner isMock={anyMock} />
+      <StaleDataBanner maxDate={adMaxDate} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">Overview</div>
