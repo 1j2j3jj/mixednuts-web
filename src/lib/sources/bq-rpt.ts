@@ -281,6 +281,28 @@ export interface RptAllRow {
    *  and for months with no target configured. */
   targetCv: number | null;
   targetValue: number | null;
+  /** External (offline) CV, broken down by source type and totalled.
+   *  Uploaded via admin/masters/external-cv → {client}_marts.external_cv_daily,
+   *  pre-aggregated to month grain and LEFT JOINed into rpt_all's monthly
+   *  rollup only (external CV is an offline, month-oriented layer — the same
+   *  monthly-only treatment as shopify_cv / targets). NULL on daily rows and
+   *  on months with no external CV uploaded (render as "—", never 0). Kept
+   *  separate from the ad-attribution join (no mkey mixing) so it never
+   *  distorts GA×ads reconciliation. */
+  externalCv: ExternalCvBreakdown | null;
+}
+
+/** Per-source external CV counts + total conversions/value for one month. */
+export interface ExternalCvBreakdown {
+  phone: number;
+  store: number;
+  event: number;
+  form: number;
+  other: number;
+  /** SUM(conversions) across all sources. */
+  total: number;
+  /** SUM(conversions_value) across all sources. NULL when no value uploaded. */
+  value: number | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -435,7 +457,9 @@ function buildSql(clientId: RptClientId, view: RptView, range?: { start: string;
                ${overallCv} AS overall_cv,
                ${overallValue} AS overall_value,
                ad_media_cv, ad_media_value,
-               target_cv, target_value
+               target_cv, target_value,
+               ext_cv_phone, ext_cv_store, ext_cv_event, ext_cv_form,
+               ext_cv_other, external_cv_total, external_cv_value
         FROM ${ds}.rpt_all
         ORDER BY granularity, date`;
     }
@@ -504,6 +528,23 @@ function eventCvs(
     gaCvPurchase: _num(r.event_purchase),
     gaCvEvents,
     gaCvAddToCart: _num(r.event_add_to_cart),
+  };
+}
+
+/** Reads the ext_cv_* / external_cv_* columns (present on rpt_all only, and
+ *  non-NULL only on monthly rows) into ExternalCvBreakdown. Returns null when
+ *  no external CV exists for the row (daily rows, or months with nothing
+ *  uploaded) so callers render "—" rather than a spurious all-zero row. */
+function externalCv(r: RawRow): ExternalCvBreakdown | null {
+  if (r.external_cv_total == null) return null;
+  return {
+    phone: _num(r.ext_cv_phone),
+    store: _num(r.ext_cv_store),
+    event: _num(r.ext_cv_event),
+    form: _num(r.ext_cv_form),
+    other: _num(r.ext_cv_other),
+    total: _num(r.external_cv_total),
+    value: _numOrNull(r.external_cv_value),
   };
 }
 
@@ -647,5 +688,6 @@ export function getRptAll(clientId: RptClientId): Promise<RptFetchResult<RptAllR
     adMediaValue: _num(r.ad_media_value),
     targetCv: _numOrNull(r.target_cv),
     targetValue: _numOrNull(r.target_value),
+    externalCv: externalCv(r),
   }));
 }

@@ -17,7 +17,8 @@ import type { ClientId } from "@/config/clients";
 const PROJECT = "ai-agent-mixednuts";
 const LOC = "asia-northeast1";
 
-export const CLIENTS_WITH_EXTERNAL_CV: ClientId[] = ["hs", "dozo", "ogc", "ogp"];
+// msec も外部CV欄を確保（EC-CUBE 系の外部集計を持つ前提・全5案件統一スキーマ。CEO 2026-07-03）
+export const CLIENTS_WITH_EXTERNAL_CV: ClientId[] = ["hs", "dozo", "msec", "ogc", "ogp"];
 
 /** Master kinds. Keep in sync with the page routes. */
 export type MasterKind = "targets" | "external_cv" | "campaign_master";

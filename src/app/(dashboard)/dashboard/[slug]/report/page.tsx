@@ -235,6 +235,7 @@ export default async function ReportScreen({
     overallValue: number | null;
     targetValue: number | null;
     achievementRate: number | null;
+    externalCv: RptAllRow["externalCv"];
   }[] = [];
 
   if (view === "daily") {
@@ -360,7 +361,7 @@ export default async function ReportScreen({
           overallValue != null && targetValue != null && targetValue !== 0
             ? overallValue / targetValue
             : null;
-        return { month, overallValue, targetValue, achievementRate };
+        return { month, overallValue, targetValue, achievementRate, externalCv: all?.externalCv ?? null };
       });
     labelHeader = "月";
     monoLabel = true;
@@ -636,6 +637,47 @@ export default async function ReportScreen({
             </table>
           </div>
         )}
+        {view === "monthly" &&
+          monthlyTargetRows.some((r) => r.externalCv != null) && (
+            <div className="rounded-md border">
+              <div className="border-b bg-muted/30 px-3 py-2 text-xs font-semibold">
+                外部CV（オフライン／アップロード分・GA×広告突合とは別系列）
+              </div>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-muted/20">
+                    <th className="px-3 py-2 text-left font-semibold">月</th>
+                    <th className="px-3 py-2 text-right font-semibold">電話</th>
+                    <th className="px-3 py-2 text-right font-semibold">店舗</th>
+                    <th className="px-3 py-2 text-right font-semibold">イベント</th>
+                    <th className="px-3 py-2 text-right font-semibold">フォーム</th>
+                    <th className="px-3 py-2 text-right font-semibold">その他</th>
+                    <th className="px-3 py-2 text-right font-semibold">合計CV</th>
+                    <th className="px-3 py-2 text-right font-semibold">売上</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthlyTargetRows
+                    .filter((r) => r.externalCv != null)
+                    .map((r) => {
+                      const e = r.externalCv!;
+                      return (
+                        <tr key={r.month} className="border-t">
+                          <td className="px-3 py-1.5 font-mono">{r.month}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums">{fmtInt(e.phone)}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums">{fmtInt(e.store)}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums">{fmtInt(e.event)}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums">{fmtInt(e.form)}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums">{fmtInt(e.other)}</td>
+                          <td className="px-3 py-1.5 text-right font-semibold tabular-nums">{fmtInt(e.total)}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums">{fmtJpy(e.value)}</td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          )}
         <div className="space-y-1 text-[11px] text-muted-foreground">
           <div>
             ROAS = 売上 ÷ Cost の%表示（例 1677% = 16.77倍）。比率は期間合計から再計算（日次比率の平均ではない）。
