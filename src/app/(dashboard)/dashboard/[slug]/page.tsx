@@ -27,6 +27,7 @@ import RefreshButton from "@/components/dashboard/RefreshButton";
 import PrintButton from "@/components/dashboard/PrintButton";
 import MockBanner from "@/components/dashboard/MockBanner";
 import StaleDataBanner from "@/components/dashboard/StaleDataBanner";
+import FirstRunGuide from "@/components/dashboard/FirstRunGuide";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
@@ -406,6 +407,7 @@ export default async function Overview({
     <div className="space-y-6">
       <MockBanner isMock={anyMock} />
       <StaleDataBanner maxDate={adMaxDate} />
+      <FirstRunGuide />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">Overview</div>

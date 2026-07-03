@@ -51,6 +51,17 @@ export default async function ClientLayout({
         <DateRangePicker />
       </div>
       {children}
+      {/* サポート導線（Batch5）: 行き止まりを作らない。バグ報告も同じ窓口。 */}
+      <footer className="border-t border-neutral-200 pt-3 pb-2 text-center text-xs text-muted-foreground">
+        お困りですか？{" "}
+        <a
+          href="mailto:info@mixednuts-inc.com?subject=ダッシュボードについて"
+          className="underline hover:text-foreground"
+        >
+          info@mixednuts-inc.com
+        </a>
+        （バグ報告もこちら）
+      </footer>
     </div>
   );
 }

@@ -191,6 +191,7 @@ function isExemptPath(pathname: string): boolean {
     pathname.startsWith("/careers") ||
     pathname.startsWith("/team") ||
     pathname === "/contact" ||
+    pathname === "/beta" || // クローズドβ紹介LP（未リンク・Batch5）
     pathname === "/privacy" ||
     pathname === "/legal" ||
     pathname === "/llms.txt" ||

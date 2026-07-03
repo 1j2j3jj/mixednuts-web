@@ -117,10 +117,12 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     ga4PropertyId: "302745512",
     gscSiteUrl: "https://www.hansoku-style.jp/",
     currency: "JPY",
+    // 2026-07 計画値。目標の正本は targets_long(BQ) → 計画シート → この static
+    // の per-field フォールバック（src/lib/sources/target.ts）。ここは最終安全網。
     monthlyTargets: {
-      revenue: 250_000_000,
-      conversions: 1_200,
-      adSpendBudget: 18_000_000,
+      revenue: 205_189_380,
+      conversions: 2_169,
+      adSpendBudget: 11_760_000,
       roasPct: 1_300,
       cpa: 15_000,
     },
