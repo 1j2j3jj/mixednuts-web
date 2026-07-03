@@ -578,6 +578,24 @@ export default async function ReportScreen({
           </h2>
           <ReportViewTabs slug={slug} active={view} />
         </div>
+        {/* GA_CV の定義がタブで切替わる（サイト全体 ⇄ 広告帰属）ことを常時明示。
+            サイト全体は広告以外の流入も含むため広告帰属より大きく出る（誤読防止・監査P1-4）。 */}
+        {(() => {
+          const siteWide = view === "daily" || view === "monthly";
+          return (
+            <div
+              className={`rounded-md border px-3 py-2 text-xs ${
+                siteWide
+                  ? "border-sky-200 bg-sky-50 text-sky-900"
+                  : "border-amber-200 bg-amber-50 text-amber-900"
+              }`}
+            >
+              {siteWide
+                ? "このタブの GA_CV / GA売上 は「サイト全体」の GA4 計測です（広告以外の流入も含むため広告帰属より大きく出ます）。広告経由の購入CVは「GA_CV(購入)」列で別掲。"
+                : "このタブの GA_CV / GA売上 は「広告帰属」（この広告経由の GA4 計測のみ）です。サイト全体の数値は Daily / 月次 タブで確認できます。"}
+            </div>
+          );
+        })()}
         <ReportTable
           rows={tableRows}
           labelHeader={labelHeader}
