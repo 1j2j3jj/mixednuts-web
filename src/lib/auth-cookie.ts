@@ -16,7 +16,7 @@ export const COOKIE_NAME = "mn_session";
 export const TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 export type Session =
-  | { kind: "admin" }
+  | { kind: "admin"; email?: string }
   /** email: 2026-07-03 追加（org内ロール解決用）。optional なので旧cookieも
    *  検証は通る — email 不在のセッションは最小権限（メンバー扱い）に倒す。 */
   | { kind: "client"; clientId: string; slug: string; email?: string }
@@ -87,7 +87,7 @@ export async function verifySession(token: string | undefined | null): Promise<S
     return null;
   }
   if (typeof payload.exp !== "number" || payload.exp < Math.floor(Date.now() / 1000)) return null;
-  if (payload.kind === "admin") return { kind: "admin" };
+  if (payload.kind === "admin") return { kind: "admin", ...(typeof payload.email === "string" ? { email: payload.email } : {}) };
   if (
     payload.kind === "client" &&
     typeof payload.clientId === "string" &&

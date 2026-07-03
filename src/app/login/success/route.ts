@@ -88,7 +88,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   let target: string;
   try {
     if (role.kind === "admin") {
-      token = await signSession({ kind: "admin" });
+      token = await signSession({ kind: "admin", email });
       target = "/dashboard";
     } else if (role.kind === "client") {
       token = await signSession({ kind: "client", clientId: role.clientId, slug: role.slug, email });

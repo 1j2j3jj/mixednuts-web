@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/db/client";
 import { invitation, member, organization, user as userTable } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { CLIENTS, CLIENT_IDS, type ClientId } from "@/config/clients";
 import { writeAuditLog } from "@/lib/audit";
 
@@ -269,6 +269,81 @@ export async function removeMember(memberId: string): Promise<{ ok: boolean; err
     targetOrgSlug: orgSlug,
     action: "member.removed",
     metadata: { memberId },
+  });
+
+  return { ok: true };
+}
+
+/**
+ * 運営（mixednuts admin）によるメンバーのロール変更。
+ * ガード: assertAdmin / owner のロールは変更不可 / admin 昇格時は maxAdmins 尊重。
+ * 2026-07-03 追加。
+ */
+export async function updateMemberRole(
+  memberId: string,
+  newRole: "admin" | "member"
+): Promise<{ ok: boolean; error?: string }> {
+  await assertAdmin();
+  if (newRole !== "admin" && newRole !== "member") {
+    return { ok: false, error: "無効なロールです" };
+  }
+
+  const rows = await db
+    .select({ role: member.role, orgId: member.organizationId })
+    .from(member)
+    .where(eq(member.id, memberId));
+  const target = rows[0];
+  if (!target) return { ok: false, error: "メンバーが見つかりません" };
+  if (target.role === "owner") {
+    return { ok: false, error: "オーナーのロールは変更できません" };
+  }
+  if (target.role === newRole) return { ok: true };
+
+  if (newRole === "admin") {
+    // 原子的条件付きUPDATE（TOCTOU回避、2026-07-03 Codex監査 #1）。
+    const upd = await db
+      .update(member)
+      .set({ role: "admin" })
+      .where(
+        and(
+          eq(member.id, memberId),
+          sql`${member.role} <> 'owner'`,
+          sql`(SELECT count(*) FROM "member" m2 WHERE m2."organization_id" = ${target.orgId} AND m2."role" IN ('admin','owner')) < COALESCE((SELECT "max_admins" FROM "organization" o WHERE o."id" = ${target.orgId}), 2147483647)`
+        )
+      );
+    if ((upd.rowCount ?? 0) === 0) {
+      const orgRows = target.orgId
+        ? await db.select({ maxAdmins: organization.maxAdmins }).from(organization).where(eq(organization.id, target.orgId))
+        : [];
+      const maxAdmins = orgRows[0]?.maxAdmins ?? null;
+      return {
+        ok: false,
+        error: maxAdmins !== null ? `管理者上限（${maxAdmins}名）に達しています。` : "ロールを変更できませんでした",
+      };
+    }
+  } else {
+    await db.update(member).set({ role: "member" }).where(eq(member.id, memberId));
+  }
+
+  let orgSlug: string | undefined;
+  if (target.orgId) {
+    const orgRows = await db
+      .select({ slug: organization.slug })
+      .from(organization)
+      .where(eq(organization.id, target.orgId));
+    orgSlug = orgRows[0]?.slug ?? undefined;
+  }
+  const h = await headers();
+  const actorEmail =
+    h.get("x-viewer-email") ||
+    ((process.env.ADMIN_EMAILS ?? "").split(",").map((s) => s.trim()).filter(Boolean)[0] ??
+      "admin@mixednuts-inc.com");
+  await writeAuditLog({
+    actorEmail,
+    targetOrgId: target.orgId ?? undefined,
+    targetOrgSlug: orgSlug,
+    action: "member.role_updated",
+    metadata: { memberId, from: target.role, to: newRole },
   });
 
   return { ok: true };

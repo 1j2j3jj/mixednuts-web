@@ -6,7 +6,7 @@ import type { ClientConfig, ClientId } from "@/config/clients";
 import type { ClientAccess } from "../../actions";
 import type { OrgSummary, InviteRow, MemberRow } from "../../invites/actions";
 import type { EnvStatus } from "../../actions";
-import { createInvite, revokeInvite, removeMember, activateMember } from "../../invites/actions";
+import { createInvite, revokeInvite, removeMember, activateMember, updateMemberRole } from "../../invites/actions";
 import { generateClientPassword, updateOrgQuota } from "../../actions";
 import {
   setClientCredentials as setClientCredentialsAction,
@@ -283,15 +283,31 @@ function AccessTab({
                     <div className="text-xs text-muted-foreground truncate">{m.name}</div>
                   )}
                 </div>
-                <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
-                  m.role === "owner"
-                    ? "bg-neutral-900 text-white"
-                    : m.role === "admin"
-                    ? "bg-blue-100 text-blue-800"
-                    : "bg-neutral-100 text-neutral-700"
-                }`}>
-                  {m.role === "owner" ? "オーナー" : m.role === "admin" ? "管理者" : "閲覧者"}
-                </span>
+                {m.role === "owner" ? (
+                  <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-xs font-medium text-white">
+                    オーナー
+                  </span>
+                ) : (
+                  <select
+                    value={m.role === "admin" ? "admin" : "member"}
+                    disabled={removePending}
+                    onChange={(e) =>
+                      startRemoveTransition(async () => {
+                        const res = await updateMemberRole(
+                          m.id,
+                          e.target.value as "admin" | "member"
+                        );
+                        if (!res.ok) alert(res.error ?? "ロール変更に失敗しました");
+                        router.refresh();
+                      })
+                    }
+                    className="h-7 rounded-md border border-neutral-300 bg-white px-2 text-xs disabled:opacity-60"
+                    aria-label={`${m.email} のロール`}
+                  >
+                    <option value="member">閲覧者</option>
+                    <option value="admin">管理者</option>
+                  </select>
+                )}
                 <span className="text-xs text-muted-foreground">
                   {m.joinedAt.toLocaleDateString("ja-JP")} 参加
                 </span>

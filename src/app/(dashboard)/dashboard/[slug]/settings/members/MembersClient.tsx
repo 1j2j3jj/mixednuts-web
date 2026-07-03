@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createTenantInvite, revokeTenantInvite } from "./actions";
+import { createTenantInvite, revokeTenantInvite, updateTenantMemberRole } from "./actions";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -26,7 +26,7 @@ interface Props {
 function roleLabel(role: string): string {
   if (role === "owner") return "オーナー";
   if (role === "admin") return "管理者";
-  return "メンバー";
+  return "閲覧者";
 }
 
 function roleBadgeVariant(role: string): "success" | "outline" | "secondary" {
@@ -84,6 +84,16 @@ export default function MembersClient({
     });
   }
 
+  const [roleError, setRoleError] = useState<string | null>(null);
+  function handleRoleChange(memberId: string, newRole: "admin" | "member") {
+    setRoleError(null);
+    startTransition(async () => {
+      const res = await updateTenantMemberRole(slug, memberId, newRole);
+      if (!res.ok) setRoleError(res.error ?? "ロール変更に失敗しました");
+      else window.location.reload();
+    });
+  }
+
   async function handleCopy(link: string) {
     try {
       await navigator.clipboard.writeText(link);
@@ -126,6 +136,7 @@ export default function MembersClient({
         <h2 className="mb-2 text-sm font-semibold text-neutral-900">
           メンバー一覧
         </h2>
+        {roleError && <p className="mb-2 text-sm text-rose-600">{roleError}</p>}
         <div className="rounded-lg border border-neutral-200 bg-white">
           <Table>
             <TableHeader>
@@ -152,9 +163,24 @@ export default function MembersClient({
                     <TableCell className="font-medium">{m.name || "—"}</TableCell>
                     <TableCell className="text-sm text-neutral-600">{m.email}</TableCell>
                     <TableCell>
-                      <Badge variant={roleBadgeVariant(m.role)}>
-                        {roleLabel(m.role)}
-                      </Badge>
+                      {isAdmin && m.role !== "owner" ? (
+                        <select
+                          value={m.role === "admin" ? "admin" : "member"}
+                          onChange={(e) =>
+                            handleRoleChange(m.id, e.target.value as "admin" | "member")
+                          }
+                          disabled={isPending}
+                          className="h-7 rounded-md border border-neutral-300 bg-white px-2 text-xs disabled:opacity-40"
+                          aria-label={`${m.name || m.email} のロール`}
+                        >
+                          <option value="member">閲覧者</option>
+                          <option value="admin">管理者</option>
+                        </select>
+                      ) : (
+                        <Badge variant={roleBadgeVariant(m.role)}>
+                          {roleLabel(m.role)}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-xs text-neutral-500">
                       {new Date(m.joinedAt).toLocaleDateString("ja-JP")}
@@ -259,7 +285,7 @@ export default function MembersClient({
               disabled={inviteDisabled}
               className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <option value="member">メンバー</option>
+              <option value="member">閲覧者</option>
               <option value="admin">管理者</option>
             </select>
             <button

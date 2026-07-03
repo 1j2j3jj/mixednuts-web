@@ -42,7 +42,7 @@ import { CLIENT_SLUGS } from "@/config/client-slugs";
 const REALM = 'Basic realm="mixednuts-web"';
 
 type Auth =
-  | { kind: "admin" }
+  | { kind: "admin"; email?: string }
   | { kind: "client"; clientId: string; slug: string; email?: string }
   | { kind: "client-multi"; currentSlug: string; availableSlugs: string[]; email?: string }
   | { kind: "deny" };
@@ -51,7 +51,7 @@ async function resolveSessionCookie(request: NextRequest): Promise<Auth> {
   const token = request.cookies.get(COOKIE_NAME)?.value;
   const sess = await verifySession(token);
   if (!sess) return { kind: "deny" };
-  if (sess.kind === "admin") return { kind: "admin" };
+  if (sess.kind === "admin") return { kind: "admin", email: sess.email };
   if (sess.kind === "client-multi") {
     return {
       kind: "client-multi",
@@ -107,6 +107,7 @@ async function passThrough(request: NextRequest, auth: Auth): Promise<NextRespon
   }
   if (auth.kind === "admin") {
     requestHeaders.set("x-viewer-kind", "admin");
+    if (auth.email) requestHeaders.set("x-viewer-email", auth.email);
   } else if (auth.kind === "client") {
     requestHeaders.set("x-viewer-kind", "client");
     requestHeaders.set("x-viewer-client-id", auth.clientId);
