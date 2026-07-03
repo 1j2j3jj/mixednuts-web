@@ -53,8 +53,7 @@ export interface ClientConfig {
   label: string;
   subtitle: string;
   active: boolean;
-  allowedUserIds: string[];
-  allowedEmailDomains: string[];
+  // アクセスの正本は 招待+org-role+Basic Auth。ドメイン許可リストは廃止(未使用dead config)
   dataSource: DataSource | null;
   /** GA4 property id (numeric string). Leave null to fall back to mock. */
   ga4PropertyId?: string | null;
@@ -92,8 +91,6 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     label: "販促スタイル",
     subtitle: "株式会社トランス",
     active: true,
-    allowedUserIds: [],
-    allowedEmailDomains: ["mixednuts-inc.com"],
     dataSource: {
       kind: "google_sheets",
       // 2026-04 switch — dedicated Google Ads ADG-grained export
@@ -134,8 +131,6 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     label: "Chakin",
     subtitle: "住友生命保険相互会社",
     active: true,
-    allowedUserIds: [],
-    allowedEmailDomains: ["mixednuts-inc.com"],
     dataSource: {
       kind: "google_sheets",
       // Header-only sheet — dashboard renders "no data" / "pending" state
@@ -160,8 +155,6 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     label: "dōzo",
     subtitle: "株式会社大和",
     active: true,
-    allowedUserIds: [],
-    allowedEmailDomains: ["mixednuts-inc.com"],
     dataSource: {
       kind: "google_sheets",
       // Produced by scripts/integrations/google_ads/export_dozo_adgroup_daily.py
@@ -185,8 +178,6 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     label: "MSEC",
     subtitle: "株式会社トレードワークス",
     active: true,
-    allowedUserIds: [],
-    allowedEmailDomains: ["mixednuts-inc.com"],
     dataSource: {
       kind: "google_sheets",
       // MSEC Google Ads ADG-grained export produced by
@@ -226,8 +217,6 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     label: "OGC",
     subtitle: "株式会社トランス",
     active: true,
-    allowedUserIds: [],
-    allowedEmailDomains: ["mixednuts-inc.com"],
     dataSource: {
       kind: "google_sheets",
       // Produced by scripts/integrations/google_ads/export_ogc_adgroup_daily.py
@@ -254,8 +243,6 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     label: "OGP",
     subtitle: "株式会社トランス",
     active: true,
-    allowedUserIds: [],
-    allowedEmailDomains: ["mixednuts-inc.com"],
     dataSource: {
       kind: "google_sheets",
       // Produced by scripts/integrations/google_ads/export_ogp_adgroup_daily.py
