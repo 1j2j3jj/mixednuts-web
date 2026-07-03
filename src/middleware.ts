@@ -191,7 +191,8 @@ function isExemptPath(pathname: string): boolean {
     pathname.startsWith("/careers") ||
     pathname.startsWith("/team") ||
     pathname === "/contact" ||
-    pathname === "/beta" || // クローズドβ紹介LP（未リンク・Batch5）
+    // /beta はCEO判断(2026-07-04)でClosed=公開リストから除外(認証壁の内側)。
+    // デザイン再考後に再公開する場合はここに `pathname === "/beta" ||` を戻す。
     pathname === "/privacy" ||
     pathname === "/legal" ||
     pathname === "/llms.txt" ||

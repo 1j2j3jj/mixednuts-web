@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   description:
     "広告（Google/Yahoo/Meta 等）× GA4 × 売上を突合した週次・月次レポートを、クライアント専用ダッシュボードで提供します。現在は招待制のクローズドβです。",
   alternates: { canonical: "/beta" },
+  // CEO判断(2026-07-04): デザイン再考までClosed。middleware公開リストからも除外済み
+  //（未認証は到達不可）。noindex は再公開時の取り違え防止の二重ガード。
+  robots: { index: false, follow: false },
 };
 
 /**
