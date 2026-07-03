@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { isRptSupported } from "@/lib/sources/bq-rpt";
 import DashboardTabs from "@/components/dashboard/Tabs";
-import { getViewerOrgRole, canManageMembers } from "@/lib/org-role";
+import { getViewerOrgRole, canInviteMembers } from "@/lib/org-role";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 
 /**
@@ -47,7 +47,7 @@ export default async function ClientLayout({
         </h2>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 pb-1">
-        <DashboardTabs slug={slug} showReport={isRptSupported(client.id)} showMembers={canManageMembers(orgRole)} />
+        <DashboardTabs slug={slug} showReport={isRptSupported(client.id)} showMembers={canInviteMembers(orgRole)} />
         <DateRangePicker />
       </div>
       {children}

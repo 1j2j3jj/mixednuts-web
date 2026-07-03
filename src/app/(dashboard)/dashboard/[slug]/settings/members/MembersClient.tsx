@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createTenantInvite, revokeTenantInvite, updateTenantMemberRole } from "./actions";
+import { createTenantInvite, revokeTenantInvite } from "./actions";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -19,19 +19,19 @@ interface Props {
   pendingInvites: PendingInvite[];
   maxMembers: number | null;
   maxAdmins: number | null;
-  /** Whether the current viewer is admin (can revoke & see all controls) */
-  isAdmin: boolean;
+  /** 編集者以上か（招待フォーム + 招待取消の表示可否）。 */
+  canInvite: boolean;
 }
 
 function roleLabel(role: string): string {
   if (role === "owner") return "オーナー";
-  if (role === "admin") return "管理者";
+  if (role === "admin" || role === "editor") return "編集者";
   return "閲覧者";
 }
 
 function roleBadgeVariant(role: string): "success" | "outline" | "secondary" {
   if (role === "owner") return "success";
-  if (role === "admin") return "outline";
+  if (role === "admin" || role === "editor") return "outline";
   return "secondary";
 }
 
@@ -41,10 +41,10 @@ export default function MembersClient({
   pendingInvites,
   maxMembers,
   maxAdmins,
-  isAdmin,
+  canInvite,
 }: Props) {
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
+  const [inviteRole, setInviteRole] = useState<"editor" | "member">("member");
   const [inviteResult, setInviteResult] = useState<{
     ok: boolean;
     link?: string;
@@ -55,14 +55,14 @@ export default function MembersClient({
   const [revokeError, setRevokeError] = useState<string | null>(null);
 
   const totalMembers = members.length;
-  const totalAdmins = members.filter(
-    (m) => m.role === "admin" || m.role === "owner"
+  const totalEditors = members.filter(
+    (m) => m.role === "editor" || m.role === "admin" || m.role === "owner"
   ).length;
 
   const memberQuotaReached = maxMembers !== null && totalMembers >= maxMembers;
-  const adminQuotaReached =
-    inviteRole === "admin" && maxAdmins !== null && totalAdmins >= maxAdmins;
-  const inviteDisabled = memberQuotaReached || adminQuotaReached || !isAdmin;
+  const editorQuotaReached =
+    inviteRole === "editor" && maxAdmins !== null && totalEditors >= maxAdmins;
+  const inviteDisabled = memberQuotaReached || editorQuotaReached || !canInvite;
 
   function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -80,16 +80,6 @@ export default function MembersClient({
     startTransition(async () => {
       const res = await revokeTenantInvite(slug, invitationId);
       if (!res.ok) setRevokeError(res.error ?? "取消に失敗しました");
-      else window.location.reload();
-    });
-  }
-
-  const [roleError, setRoleError] = useState<string | null>(null);
-  function handleRoleChange(memberId: string, newRole: "admin" | "member") {
-    setRoleError(null);
-    startTransition(async () => {
-      const res = await updateTenantMemberRole(slug, memberId, newRole);
-      if (!res.ok) setRoleError(res.error ?? "ロール変更に失敗しました");
       else window.location.reload();
     });
   }
@@ -118,8 +108,8 @@ export default function MembersClient({
           )}
         </span>
         <span className="text-neutral-600">
-          管理者:{" "}
-          <span className="font-semibold">{totalAdmins}</span>
+          編集者:{" "}
+          <span className="font-semibold">{totalEditors}</span>
           {maxAdmins !== null && (
             <span className="text-neutral-400"> / {maxAdmins}</span>
           )}
@@ -136,7 +126,6 @@ export default function MembersClient({
         <h2 className="mb-2 text-sm font-semibold text-neutral-900">
           メンバー一覧
         </h2>
-        {roleError && <p className="mb-2 text-sm text-rose-600">{roleError}</p>}
         <div className="rounded-lg border border-neutral-200 bg-white">
           <Table>
             <TableHeader>
@@ -163,24 +152,9 @@ export default function MembersClient({
                     <TableCell className="font-medium">{m.name || "—"}</TableCell>
                     <TableCell className="text-sm text-neutral-600">{m.email}</TableCell>
                     <TableCell>
-                      {isAdmin && m.role !== "owner" ? (
-                        <select
-                          value={m.role === "admin" ? "admin" : "member"}
-                          onChange={(e) =>
-                            handleRoleChange(m.id, e.target.value as "admin" | "member")
-                          }
-                          disabled={isPending}
-                          className="h-7 rounded-md border border-neutral-300 bg-white px-2 text-xs disabled:opacity-40"
-                          aria-label={`${m.name || m.email} のロール`}
-                        >
-                          <option value="member">閲覧者</option>
-                          <option value="admin">管理者</option>
-                        </select>
-                      ) : (
-                        <Badge variant={roleBadgeVariant(m.role)}>
-                          {roleLabel(m.role)}
-                        </Badge>
-                      )}
+                      <Badge variant={roleBadgeVariant(m.role)}>
+                        {roleLabel(m.role)}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-neutral-500">
                       {new Date(m.joinedAt).toLocaleDateString("ja-JP")}
@@ -210,7 +184,7 @@ export default function MembersClient({
                   <TableHead>ロール</TableHead>
                   <TableHead>有効期限</TableHead>
                   <TableHead>招待リンク</TableHead>
-                  {isAdmin && <TableHead></TableHead>}
+                  {canInvite && <TableHead></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -234,7 +208,7 @@ export default function MembersClient({
                         {copiedLink === inv.link ? "コピーしました！" : "リンクをコピー"}
                       </button>
                     </TableCell>
-                    {isAdmin && (
+                    {canInvite && (
                       <TableCell>
                         <button
                           type="button"
@@ -255,7 +229,7 @@ export default function MembersClient({
       )}
 
       {/* Invite form */}
-      {isAdmin && (
+      {canInvite && (
         <div>
           <h2 className="mb-2 text-sm font-semibold text-neutral-900">
             新規招待
@@ -280,13 +254,13 @@ export default function MembersClient({
             <select
               value={inviteRole}
               onChange={(e) =>
-                setInviteRole(e.target.value as "admin" | "member")
+                setInviteRole(e.target.value as "editor" | "member")
               }
               disabled={inviteDisabled}
               className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="member">閲覧者</option>
-              <option value="admin">管理者</option>
+              <option value="editor">編集者</option>
             </select>
             <button
               type="submit"
@@ -294,8 +268,8 @@ export default function MembersClient({
               title={
                 memberQuotaReached
                   ? "上限に達しています。運営にお問い合わせください。"
-                  : adminQuotaReached
-                  ? "管理者上限に達しています。"
+                  : editorQuotaReached
+                  ? "編集者上限に達しています。"
                   : undefined
               }
               className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"

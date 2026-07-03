@@ -28,7 +28,7 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
     () => new Set(clients[0]?.id ? [clients[0].id] : [])
   );
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"admin" | "member">("member");
+  const [role, setRole] = useState<"editor" | "member">("member");
   const [status, setStatus] = useState<InviteResult>(null);
 
   const labelOf = (id: ClientId) =>
@@ -160,12 +160,12 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
           />
           <select
             value={role}
-            onChange={(e) => setRole(e.target.value as "admin" | "member")}
+            onChange={(e) => setRole(e.target.value as "editor" | "member")}
             className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
             disabled={pending}
           >
             <option value="member">閲覧者</option>
-            <option value="admin">管理者</option>
+            <option value="editor">編集者</option>
           </select>
           <button
             type="submit"

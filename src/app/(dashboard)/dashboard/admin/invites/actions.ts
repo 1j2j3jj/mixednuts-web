@@ -281,10 +281,10 @@ export async function removeMember(memberId: string): Promise<{ ok: boolean; err
  */
 export async function updateMemberRole(
   memberId: string,
-  newRole: "admin" | "member"
+  newRole: "editor" | "member"
 ): Promise<{ ok: boolean; error?: string }> {
   await assertAdmin();
-  if (newRole !== "admin" && newRole !== "member") {
+  if (newRole !== "editor" && newRole !== "member") {
     return { ok: false, error: "無効なロールです" };
   }
 
@@ -299,16 +299,17 @@ export async function updateMemberRole(
   }
   if (target.role === newRole) return { ok: true };
 
-  if (newRole === "admin") {
+  if (newRole === "editor") {
     // 原子的条件付きUPDATE（TOCTOU回避、2026-07-03 Codex監査 #1）。
+    // 編集者上限 = maxAdmins。編集者数は editor/admin(legacy)/owner を数える。
     const upd = await db
       .update(member)
-      .set({ role: "admin" })
+      .set({ role: "editor" })
       .where(
         and(
           eq(member.id, memberId),
           sql`${member.role} <> 'owner'`,
-          sql`(SELECT count(*) FROM "member" m2 WHERE m2."organization_id" = ${target.orgId} AND m2."role" IN ('admin','owner')) < COALESCE((SELECT "max_admins" FROM "organization" o WHERE o."id" = ${target.orgId}), 2147483647)`
+          sql`(SELECT count(*) FROM "member" m2 WHERE m2."organization_id" = ${target.orgId} AND m2."role" IN ('editor','admin','owner')) < COALESCE((SELECT "max_admins" FROM "organization" o WHERE o."id" = ${target.orgId}), 2147483647)`
         )
       );
     if ((upd.rowCount ?? 0) === 0) {
@@ -318,7 +319,7 @@ export async function updateMemberRole(
       const maxAdmins = orgRows[0]?.maxAdmins ?? null;
       return {
         ok: false,
-        error: maxAdmins !== null ? `管理者上限（${maxAdmins}名）に達しています。` : "ロールを変更できませんでした",
+        error: maxAdmins !== null ? `編集者上限（${maxAdmins}名）に達しています。` : "ロールを変更できませんでした",
       };
     }
   } else {
@@ -352,7 +353,7 @@ export async function updateMemberRole(
 export interface CreateInviteInput {
   clientId: ClientId;
   email: string;
-  role?: "admin" | "member";
+  role?: "editor" | "member";
 }
 
 export interface CreateInviteResult {
@@ -438,7 +439,7 @@ export async function createInvite(input: CreateInviteInput): Promise<CreateInvi
 export interface CreateInvitesInput {
   clientIds: ClientId[];
   email: string;
-  role?: "admin" | "member";
+  role?: "editor" | "member";
 }
 
 export interface PerInviteOutcome {

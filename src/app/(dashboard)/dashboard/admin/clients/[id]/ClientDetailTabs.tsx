@@ -140,7 +140,7 @@ function AccessTab({
   const [removePending, startRemoveTransition] = useTransition();
 
   const [invEmail, setInvEmail] = useState("");
-  const [invRole, setInvRole] = useState<"admin" | "member">("member");
+  const [invRole, setInvRole] = useState<"editor" | "member">("member");
   const [invResult, setInvResult] = useState<
     { kind: "ok"; link: string } | { kind: "err"; msg: string } | null
   >(null);
@@ -184,12 +184,12 @@ function AccessTab({
           />
           <select
             value={invRole}
-            onChange={(e) => setInvRole(e.target.value as "admin" | "member")}
+            onChange={(e) => setInvRole(e.target.value as "editor" | "member")}
             disabled={invPending}
             className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
           >
             <option value="member">閲覧者</option>
-            <option value="admin">管理者</option>
+            <option value="editor">編集者</option>
           </select>
           <button
             type="submit"
@@ -233,7 +233,7 @@ function AccessTab({
               <div key={inv.id} className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm">
                 <span className="flex-1 font-medium">{inv.email}</span>
                 <span className="text-xs text-muted-foreground">
-                  {inv.role === "admin" ? "管理者" : "閲覧者"}
+                  {inv.role === "member" ? "閲覧者" : "編集者"}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {inv.expiresAt.toLocaleDateString("ja-JP")} まで
@@ -289,13 +289,13 @@ function AccessTab({
                   </span>
                 ) : (
                   <select
-                    value={m.role === "admin" ? "admin" : "member"}
+                    value={m.role === "member" ? "member" : "editor"}
                     disabled={removePending}
                     onChange={(e) =>
                       startRemoveTransition(async () => {
                         const res = await updateMemberRole(
                           m.id,
-                          e.target.value as "admin" | "member"
+                          e.target.value as "editor" | "member"
                         );
                         if (!res.ok) alert(res.error ?? "ロール変更に失敗しました");
                         router.refresh();
@@ -305,7 +305,7 @@ function AccessTab({
                     aria-label={`${m.email} のロール`}
                   >
                     <option value="member">閲覧者</option>
-                    <option value="admin">管理者</option>
+                    <option value="editor">編集者</option>
                   </select>
                 )}
                 <span className="text-xs text-muted-foreground">
@@ -837,7 +837,7 @@ function QuotaTab({
 
         <div className="space-y-1">
           <label className="block text-xs font-medium uppercase tracking-wider text-neutral-600">
-            最大管理者数
+            最大編集者数
           </label>
           <div className="flex items-center gap-2">
             <input
@@ -854,7 +854,7 @@ function QuotaTab({
             </span>
           </div>
           <p className="text-xs text-neutral-500">
-            Admin ロールの上限（Owner は対象外）。
+            編集者ロールの上限（Owner は対象外）。
           </p>
         </div>
 

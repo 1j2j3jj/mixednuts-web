@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
-import { getViewerOrgRole, canManageMembers } from "@/lib/org-role";
+import { getViewerOrgRole, canInviteMembers } from "@/lib/org-role";
 import { listTenantMembers } from "./actions";
 import MembersClient from "./MembersClient";
 
@@ -9,9 +9,10 @@ import MembersClient from "./MembersClient";
  * /{org-slug}/settings/members  (served as /dashboard/{slug}/settings/members)
  *
  * Tenant-side member management page.
- * - mixednuts admin / org Owner・Admin: full access (invite, revoke)
- * - org Member: このページ自体に入れない（タブ非表示 + 直URLはリダイレクト。
- *   2026-07-03 CEO決定。サーバ側の操作拒否は actions.ts が強制）
+ * モデルB（2026-07-03 CEO確定）:
+ * - 運営 / 編集者: このページに入れる。編集者は招待+招待取消のみ（削除/役割変更は不可）。
+ * - 閲覧者(member): タブ非表示 + 直URLはリダイレクト。サーバ側拒否は actions.ts が強制。
+ * - メンバー削除・役割変更は運営(admin パネル)専用。
  */
 export const dynamic = "force-dynamic";
 
@@ -25,10 +26,10 @@ export default async function TenantMembersPage({ params }: PageProps) {
   // assertUserCanAccessClientBySlug returns notFound() if no access.
   const client = await assertUserCanAccessClientBySlug(slug);
 
-  // org内ロールで入場制御（member はダッシュボードへ戻す）。
+  // org内ロールで入場制御。編集者以上のみ入場（閲覧者はダッシュボードへ戻す）。
   const orgRole = await getViewerOrgRole(slug);
-  if (!canManageMembers(orgRole)) redirect(`/dashboard/${slug}`);
-  const isAdmin = true; // ここに到達できるのは管理側ロールのみ
+  if (!canInviteMembers(orgRole)) redirect(`/dashboard/${slug}`);
+  const canInvite = true; // ここに到達できるのは編集者以上のみ
 
   let data;
   try {
@@ -67,7 +68,7 @@ export default async function TenantMembersPage({ params }: PageProps) {
         pendingInvites={data.pendingInvites}
         maxMembers={data.maxMembers}
         maxAdmins={data.maxAdmins}
-        isAdmin={isAdmin}
+        canInvite={canInvite}
       />
     </div>
   );

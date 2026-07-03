@@ -11,12 +11,12 @@ import {
 import { eq, and, sql } from "drizzle-orm";
 import { getClientBySlug } from "@/config/clients";
 import { writeAuditLog } from "@/lib/audit";
-import { lookupOrgRoleByEmail } from "@/lib/org-role";
+import { lookupOrgRoleByEmail, canInviteMembers } from "@/lib/org-role";
 
 /**
  * Server actions for the tenant-side member management page.
- * Accessible by org Owner and Admin roles (not Member) — enforced via
- * lookupOrgRoleByEmail (x-viewer-email → member.role, 2026-07-03).
+ * モデルB(2026-07-03): assertCanInvite=招待/招待取消は編集者以上(canInviteMembers)。削除・役割変更は
+ * クライアント側に存在せず運営(admin パネル)専用。lookupOrgRoleByEmail で判定。
  *
  * Authorization:
  *   - viewer kind "admin" → full access (impersonating or direct)
@@ -34,7 +34,7 @@ const baseURL =
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ??
   "http://localhost:3000";
 
-async function assertCanManageOrg(slug: string): Promise<{ orgId: string; actorEmail: string }> {
+async function assertCanInvite(slug: string): Promise<{ orgId: string; actorEmail: string }> {
   const h = await headers();
   const viewerKind = h.get("x-viewer-kind");
 
@@ -57,7 +57,8 @@ async function assertCanManageOrg(slug: string): Promise<{ orgId: string; actorE
       viewerSlug === slug || availableSlugs.includes(slug);
     if (!allowed) throw new Error("forbidden");
     const orgRole = await lookupOrgRoleByEmail(slug, h.get("x-viewer-email"));
-    if (orgRole !== "owner" && orgRole !== "admin") throw new Error("forbidden");
+    // モデルB: 招待・招待取消は編集者以上。削除・役割変更は運営専用（本ファイルに無い）。
+    if (!canInviteMembers(orgRole)) throw new Error("forbidden");
   }
 
   const orgs = await db
@@ -108,7 +109,7 @@ export interface MembersData {
 
 /** List current members + pending invites for an org slug. */
 export async function listTenantMembers(slug: string): Promise<MembersData> {
-  const { orgId } = await assertCanManageOrg(slug);
+  const { orgId } = await assertCanInvite(slug);
 
   const [memberRows, orgRows, inviteRows] = await Promise.all([
     db
@@ -172,9 +173,9 @@ export interface InviteResult {
 export async function createTenantInvite(
   slug: string,
   email: string,
-  role: "admin" | "member"
+  role: "editor" | "member"
 ): Promise<InviteResult> {
-  const { orgId, actorEmail } = await assertCanManageOrg(slug);
+  const { orgId, actorEmail } = await assertCanInvite(slug);
 
   const normalizedEmail = email.trim().toLowerCase();
   if (!normalizedEmail || !normalizedEmail.includes("@")) {
@@ -199,8 +200,8 @@ export async function createTenantInvite(
   const maxMembers = orgRows[0]?.maxMembers ?? null;
   const maxAdmins = orgRows[0]?.maxAdmins ?? null;
   const currentTotal = memberRows.length;
-  const currentAdmins = memberRows.filter(
-    (m) => m.role === "admin" || m.role === "owner"
+  const currentEditors = memberRows.filter(
+    (m) => m.role === "editor" || m.role === "admin" || m.role === "owner"
   ).length;
 
   if (maxMembers !== null && currentTotal >= maxMembers) {
@@ -209,10 +210,10 @@ export async function createTenantInvite(
       error: `メンバー上限（${maxMembers}名）に達しています。運営にお問い合わせください。`,
     };
   }
-  if (role === "admin" && maxAdmins !== null && currentAdmins >= maxAdmins) {
+  if (role === "editor" && maxAdmins !== null && currentEditors >= maxAdmins) {
     return {
       ok: false,
-      error: `管理者上限（${maxAdmins}名）に達しています。運営にお問い合わせください。`,
+      error: `編集者上限（${maxAdmins}名）に達しています。運営にお問い合わせください。`,
     };
   }
 
@@ -269,7 +270,7 @@ export async function revokeTenantInvite(
   slug: string,
   invitationId: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const { orgId, actorEmail } = await assertCanManageOrg(slug);
+  const { orgId, actorEmail } = await assertCanInvite(slug);
 
   // Verify the invite belongs to this org.
   const inv = await db
@@ -294,81 +295,6 @@ export async function revokeTenantInvite(
     targetOrgSlug: slug,
     action: "invitation.revoked",
     metadata: { invitationId, email: inv[0].email },
-  });
-
-  return { ok: true };
-}
-
-/**
- * メンバーのロールを変更（owner/admin のみ実行可。member は不可）。
- * ガード: assertCanManageOrg（owner/admin 必須）/ owner のロールは変更不可 /
- * admin へ昇格時は maxAdmins クォータを尊重（2026-07-03）。
- */
-export async function updateTenantMemberRole(
-  slug: string,
-  memberId: string,
-  newRole: "admin" | "member"
-): Promise<{ ok: boolean; error?: string }> {
-  const { orgId, actorEmail } = await assertCanManageOrg(slug);
-  if (newRole !== "admin" && newRole !== "member") {
-    return { ok: false, error: "無効なロールです" };
-  }
-
-  const rows = await db
-    .select({ role: memberTable.role, organizationId: memberTable.organizationId })
-    .from(memberTable)
-    .where(eq(memberTable.id, memberId));
-  const target = rows[0];
-  if (!target || target.organizationId !== orgId) {
-    return { ok: false, error: "メンバーが見つかりません" };
-  }
-  if (target.role === "owner") {
-    return { ok: false, error: "オーナーのロールは変更できません" };
-  }
-  if (target.role === newRole) return { ok: true }; // no-op
-
-  if (newRole === "admin") {
-    // 原子的な条件付きUPDATE: 管理者数 < maxAdmins のときだけ昇格を適用する。
-    // count→update の別クエリだと並走で上限超過しうる（TOCTOU）ため、上限判定を
-    // UPDATE の WHERE 副問合せに畳み込む（2026-07-03 Codex監査指摘 #1）。
-    const upd = await db
-      .update(memberTable)
-      .set({ role: "admin" })
-      .where(
-        and(
-          eq(memberTable.id, memberId),
-          eq(memberTable.organizationId, orgId),
-          sql`${memberTable.role} <> 'owner'`,
-          sql`(SELECT count(*) FROM "member" m2 WHERE m2."organization_id" = ${orgId} AND m2."role" IN ('admin','owner')) < COALESCE((SELECT "max_admins" FROM "organization" o WHERE o."id" = ${orgId}), 2147483647)`
-        )
-      );
-    if ((upd.rowCount ?? 0) === 0) {
-      const orgRows = await db
-        .select({ maxAdmins: organizationTable.maxAdmins })
-        .from(organizationTable)
-        .where(eq(organizationTable.id, orgId));
-      const maxAdmins = orgRows[0]?.maxAdmins ?? null;
-      return {
-        ok: false,
-        error:
-          maxAdmins !== null
-            ? `管理者上限（${maxAdmins}名）に達しています。運営にお問い合わせください。`
-            : "ロールを変更できませんでした",
-      };
-    }
-  } else {
-    await db
-      .update(memberTable)
-      .set({ role: "member" })
-      .where(and(eq(memberTable.id, memberId), eq(memberTable.organizationId, orgId)));
-  }
-
-  await writeAuditLog({
-    actorEmail,
-    targetOrgId: orgId,
-    targetOrgSlug: slug,
-    action: "member.role_updated",
-    metadata: { memberId, from: target.role, to: newRole },
   });
 
   return { ok: true };

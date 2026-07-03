@@ -144,7 +144,7 @@ export default async function InvitesPage() {
                 {pending.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.email}</TableCell>
-                    <TableCell>{p.role === "admin" ? "管理者" : "閲覧者"}</TableCell>
+                    <TableCell>{p.role === "member" ? "閲覧者" : "編集者"}</TableCell>
                     <TableCell className="text-xs text-neutral-500">
                       {p.expiresAt.toLocaleDateString("ja-JP")}
                     </TableCell>
