@@ -30,16 +30,22 @@ export const GA4_TO_PLAN_CHANNEL: Record<ChannelGroup, string> = {
 export const UNMAPPED_PLAN_CHANNEL = "その他";
 
 /**
- * Monthly targets source. Resolution order (first hit wins):
+ * Monthly targets source. Resolution order (first hit wins), evaluated
+ * per-field so a partially-populated higher source doesn't blank out lower ones:
  *
- *   1. BigQuery `app_analytics.targets_monthly` — fed by the masters CSV
- *      uploader at /dashboard/admin/masters/targets. Highest priority, but
- *      only consulted when env `BQ_SOURCE_TARGETS=1` (defaults OFF, mirrors
- *      BQ_SOURCE_RAW). With the flag OFF the Sheet/static path below is used.
+ *   1. BigQuery `app_analytics.targets_monthly` — the canonical source, fed by
+ *      the client-facing masters CSV uploader at /dashboard/admin/masters/targets.
+ *      This is now the primary target of record: uploading a target in the 目標
+ *      tab and refreshing the dashboard changes the displayed numbers. Read
+ *      unconditionally (no longer gated behind BQ_SOURCE_TARGETS). Each column
+ *      that is present (non-NULL) wins; a NULL column falls through to the Sheet
+ *      / static value for that field only — so 0 (a deliberately-set zero
+ *      target) and NULL ("not set, use fallback") are treated differently.
  *   2. CEO's 計画 spreadsheet (HS / DOZO today — see the two layouts below).
+ *      Retained as a fallback while the Sheet-based plan is retired gradually.
  *   3. ClientConfig.monthlyTargets (hardcoded fallback in clients.ts).
  *
- * Each source falls through to the next when it has no row for the
+ * Each source falls through to the next when it has no row / no value for the
  * requested (clientId, yearMonth) — never breaks the dashboard.
  *
  * Two sheet layouts (tab `シート1`), auto-detected in pivot():
@@ -191,11 +197,29 @@ function matchesYearMonth(point: TargetPoint, yearMonth: string): boolean {
 }
 
 /**
- * Try BigQuery `app_analytics.targets_monthly` for the requested month.
- * Returns null when no row exists, letting callers fall through to Sheet/static.
+ * Preserve NULL as null (so it can fall through per-field) while coercing real
+ * values to a finite number. BQ NUMERIC columns arrive as Big.js instances
+ * (no plain number) — Number() coerces them via valueOf()/toString(). An empty
+ * string or non-finite value is treated as "not set" (null), same as NULL.
+ */
+function numOrNull(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Read BigQuery `app_analytics.targets_monthly` for the requested month.
+ * Returns a per-field-NULL-preserving partial: only columns that have a value
+ * are present as numbers; NULL columns are omitted so the caller falls through
+ * to the Sheet/static value for those fields only. Returns null when no row
+ * exists at all (or the query fails), letting callers use Sheet/static entirely.
+ *
+ * Crucially, a stored 0 is kept as 0 (a deliberate zero target) and is *not*
+ * confused with NULL ("not configured, use fallback").
  */
 const _bqTargetsCached = unstable_cache(
-  async (clientId: string, yearMonth: string): Promise<MonthlyTargets | null> => {
+  async (clientId: string, yearMonth: string): Promise<Partial<MonthlyTargets> | null> => {
     try {
       const bq = getBigQuery();
       const [job] = await bq.createQueryJob({
@@ -211,18 +235,20 @@ const _bqTargetsCached = unstable_cache(
       const [rows] = await job.getQueryResults();
       if (!rows || rows.length === 0) return null;
       const r = rows[0] as Record<string, unknown>;
-      const num = (v: unknown) => {
-        if (v == null) return 0;
-        const n = typeof v === "number" ? v : Number(v);
-        return Number.isFinite(n) ? n : 0;
-      };
-      return {
-        revenue: num(r.revenue_target),
-        conversions: num(r.cv_target),
-        adSpendBudget: num(r.ad_spend_budget),
-        roasPct: num(r.roas_target_pct),
-        cpa: num(r.cpa_target),
-      };
+      // Map BQ column → MonthlyTargets field, keeping only non-NULL values so
+      // each present field overrides the Sheet/static base (see getTargetsForMonth).
+      const out: Partial<MonthlyTargets> = {};
+      const revenue = numOrNull(r.revenue_target);
+      const conversions = numOrNull(r.cv_target);
+      const adSpendBudget = numOrNull(r.ad_spend_budget);
+      const roasPct = numOrNull(r.roas_target_pct);
+      const cpa = numOrNull(r.cpa_target);
+      if (revenue != null) out.revenue = revenue;
+      if (conversions != null) out.conversions = conversions;
+      if (adSpendBudget != null) out.adSpendBudget = adSpendBudget;
+      if (roasPct != null) out.roasPct = roasPct;
+      if (cpa != null) out.cpa = cpa;
+      return out;
     } catch (err) {
       console.error("[target] BQ fetch failed:", err);
       return null;
@@ -247,6 +273,13 @@ export interface ChannelTarget {
  * for the requested month (today: HS). Returns `[]` when the sheet is
  * absent, unreadable, mocked, or has no rows for the month — callers should
  * fall back to the aggregate Top-N-by-GA4-channel view in that case.
+ *
+ * NOTE: unlike getTargetsForMonth (org-level, now sourced primarily from
+ * targets_monthly), this stays Sheet-only for now. The client-upload path
+ * (targets_monthly) carries org-level targets with no per-channel breakdown,
+ * so there is nothing to read here yet. Channel-level targets are planned to
+ * move to targets_monthly via a future template extension (per-channel rows);
+ * until then the CEO 計画 Sheet remains the sole source for channel targets.
  */
 export async function getChannelTargetsForMonth(
   client: ClientConfig,
@@ -285,30 +318,18 @@ export async function getChannelTargetsForMonth(
   }
 }
 
-export async function getTargetsForMonth(
+/**
+ * Sheet-or-static base resolution (sources 2 & 3). Unchanged from the previous
+ * behaviour, factored out so BigQuery (source 1) can be layered on top per-field
+ * in getTargetsForMonth. Always returns a complete MonthlyTargets — the CEO 計画
+ * Sheet when it has a row for the month, else the client's static fallback.
+ */
+async function resolveSheetOrStatic(
   client: ClientConfig,
   yearMonth: string
 ): Promise<MonthlyTargets> {
   const fallback = client.monthlyTargets;
 
-  // 1. BigQuery (CSV-uploaded master) — highest priority, flag-gated.
-  //    Defaults OFF: set BQ_SOURCE_TARGETS=1 to read from
-  //    app_analytics.targets_monthly. Mirrors BQ_SOURCE_RAW in raw.ts. When OFF
-  //    the Sheet (HS only) → static fallback behaviour below is preserved.
-  if (process.env.BQ_SOURCE_TARGETS === "1") {
-    const bqRow = await _bqTargetsCached(client.id, yearMonth);
-    if (bqRow) {
-      return {
-        revenue: bqRow.revenue || fallback.revenue,
-        conversions: bqRow.conversions || fallback.conversions,
-        adSpendBudget: bqRow.adSpendBudget || fallback.adSpendBudget,
-        roasPct: bqRow.roasPct || fallback.roasPct,
-        cpa: bqRow.cpa || fallback.cpa,
-      };
-    }
-  }
-
-  // 2. Sheet (CEO 計画 matrix) — only HS today.
   const src = client.dataSource;
   if (!src || !src.targetsRange) return fallback;
   const sheetId = src.targetsSheetId ?? src.sheetId;
@@ -347,4 +368,30 @@ export async function getTargetsForMonth(
     console.error("[target] fetch failed, using fallback:", err);
     return fallback;
   }
+}
+
+export async function getTargetsForMonth(
+  client: ClientConfig,
+  yearMonth: string
+): Promise<MonthlyTargets> {
+  // Source 2 & 3 (Sheet → static) resolved first as the complete base, so any
+  // BQ column that is NULL/absent inherits the previous behaviour exactly.
+  const base = await resolveSheetOrStatic(client, yearMonth);
+
+  // Source 1 (BigQuery targets_monthly) — the canonical target of record.
+  // Read unconditionally (the old BQ_SOURCE_TARGETS gate is removed) so the
+  // client-uploaded 目標 flows straight to the dashboard. Overlay per field:
+  // a present (non-NULL) BQ column overrides base; a NULL column keeps base.
+  // When there's no BQ row at all, `base` is returned unchanged — i.e. exact
+  // parity with the prior Sheet → static behaviour (no regression).
+  const bqRow = await _bqTargetsCached(client.id, yearMonth);
+  if (!bqRow) return base;
+
+  return {
+    revenue: bqRow.revenue ?? base.revenue,
+    conversions: bqRow.conversions ?? base.conversions,
+    adSpendBudget: bqRow.adSpendBudget ?? base.adSpendBudget,
+    roasPct: bqRow.roasPct ?? base.roasPct,
+    cpa: bqRow.cpa ?? base.cpa,
+  };
 }
