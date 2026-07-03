@@ -152,7 +152,10 @@ export const RPT_SUPPORTED: Record<RptClientId, RptClientMeta> = {
 };
 
 export function isRptSupported(clientId: string): clientId is RptClientId {
-  return clientId in RPT_SUPPORTED;
+  // Object.hasOwn を使う（`in` は Object.prototype 継承キー __proto__/constructor/
+  // toString/hasOwnProperty 等を true にしてしまい、この allow-list をすり抜けて
+  // buildSql の `${clientId}_marts` に混入しうるため）。自社データセットのみ許可。
+  return Object.hasOwn(RPT_SUPPORTED, clientId);
 }
 
 /** Lowercase view value → display label (matches bq-raw.ts mediaLabel). */
