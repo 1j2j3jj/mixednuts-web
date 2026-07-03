@@ -3,7 +3,7 @@ import Link from "next/link";
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getViewerOrgRole, canInviteMembers } from "@/lib/org-role";
 import { fetchTargets } from "@/lib/masters";
-import { CLIENT_TARGETS_HEADER } from "./actions";
+import { CLIENT_TARGETS_HEADER } from "./targets-schema";
 import TargetsClient from "./TargetsClient";
 
 /**

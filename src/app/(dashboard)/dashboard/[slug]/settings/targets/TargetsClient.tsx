@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition, type ChangeEvent } from "react";
-import { uploadClientTargets, type TargetRowError } from "./actions";
+import { uploadClientTargets } from "./actions";
+import { type TargetRowError } from "./targets-schema";
 
 interface Props {
   slug: string;
