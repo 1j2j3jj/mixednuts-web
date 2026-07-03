@@ -76,7 +76,7 @@ import { getBigQuery, BQ_LOCATION } from "@/lib/bigquery";
 const CACHE_TTL_SECONDS = 300;
 export const BQ_RPT_CACHE_TAG = "bq-rpt";
 
-export type RptClientId = "dozo" | "hs";
+export type RptClientId = "dozo" | "hs" | "msec";
 
 /** One of the client-specific GA4 key-event columns (ga_cv_* in the marts). */
 export interface EventCvDef {
@@ -119,6 +119,16 @@ export const RPT_SUPPORTED: Record<RptClientId, RptClientMeta> = {
     secondaryEvents: [
       { key: "member", label: "会員登録CV" },
       { key: "contact", label: "問合せCV" },
+    ],
+  },
+  msec: {
+    // MSEC は自社EC/shopの売上ソースが無いため overall(全体)売上は持たない
+    // （overallCv は null 表示）。レポートの主眼は 媒体CV×GA_CV(購入) の突合。
+    overallCvLabel: "全体CV",
+    hasOverallValue: false,
+    mediaHasOverallCv: false,
+    secondaryEvents: [
+      { key: "signup", label: "会員登録CV" },
     ],
   },
 };
