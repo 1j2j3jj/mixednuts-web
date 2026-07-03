@@ -1,9 +1,11 @@
 import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getViewerOrgRole, canInviteMembers } from "@/lib/org-role";
 import { listTenantMembers } from "./actions";
 import MembersClient from "./MembersClient";
+import DeleteAccountSection from "./DeleteAccountSection";
 
 /**
  * /{org-slug}/settings/members  (served as /dashboard/{slug}/settings/members)
@@ -38,6 +40,14 @@ export default async function TenantMembersPage({ params }: PageProps) {
     notFound();
   }
 
+  // 退会（アカウント削除）はクライアントユーザー本人のみ。運営（admin /
+  // impersonation 中）には表示しない — API 側（/api/auth/delete-account）
+  // でも kind "admin" は 403 で二重に拒否される。
+  const h = await headers();
+  const viewerKind = h.get("x-viewer-kind");
+  const showDeleteAccount =
+    viewerKind === "client" || viewerKind === "client-multi";
+
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6">
       {/* Breadcrumb */}
@@ -70,6 +80,8 @@ export default async function TenantMembersPage({ params }: PageProps) {
         maxAdmins={data.maxAdmins}
         canInvite={canInvite}
       />
+
+      {showDeleteAccount && <DeleteAccountSection />}
     </div>
   );
 }
