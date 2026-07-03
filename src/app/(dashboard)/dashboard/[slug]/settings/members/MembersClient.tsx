@@ -439,6 +439,11 @@ export default function MembersClient({
                               >
                                 {copiedLink === item.link ? "コピー済" : "コピー"}
                               </button>
+                              {item.emailSent && (
+                                <span className="text-xs font-medium text-emerald-600">
+                                  ✉ 自動送信済み
+                                </span>
+                              )}
                             </>
                           ) : (
                             <span
@@ -454,7 +459,9 @@ export default function MembersClient({
                     </ul>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    発行したリンクを Slack / メールで送付してください（自動メール送信は近日対応予定）。
+                    招待メールは招待先へ自動送信されます（送信元:
+                    dashboard@mixednuts-inc.com）。上のリンクは Slack
+                    等での手動送付用にもコピーできます。
                   </p>
                 </>
               )}
