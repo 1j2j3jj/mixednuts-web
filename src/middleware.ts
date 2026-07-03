@@ -90,21 +90,33 @@ function denyResponse(): NextResponse {
   });
 }
 
+/** 🔴 内部が信頼するヘッダ。受信リクエストに含まれていたら必ず破棄する
+ *  （偽造 x-viewer-kind:admin 等で認可を突破されるのを防ぐ = 権限昇格封鎖）。 */
+const VIEWER_HEADERS = [
+  "x-viewer-kind",
+  "x-viewer-client-id",
+  "x-viewer-client-slug",
+  "x-viewer-available-slugs",
+  "x-viewer-email",
+  "x-impersonated-slug",
+] as const;
+
+/** 受信 x-viewer-* を全削除した Headers を作る。 */
+function strippedHeaders(request: NextRequest): Headers {
+  const h = new Headers(request.headers);
+  for (const name of VIEWER_HEADERS) h.delete(name);
+  return h;
+}
+
+/** exempt / no-cred など passThrough を通らない経路でも、偽造 x-viewer-* を
+ *  除去してから通す（2026-07-03 監査 P0: strip が passThrough 内のみで、
+ *  exempt path 経由の Server Action に偽造ヘッダが届く穴を封鎖）。 */
+function nextStripped(request: NextRequest): NextResponse {
+  return NextResponse.next({ request: { headers: strippedHeaders(request) } });
+}
+
 async function passThrough(request: NextRequest, auth: Auth): Promise<NextResponse> {
-  const requestHeaders = new Headers(request.headers);
-  // 🔴 受信ヘッダの x-viewer-* は必ず破棄してから設定する。コピーしたまま
-  // 条件付き設定だと、外部から x-viewer-email / x-viewer-available-slugs 等を
-  // 注入され権限昇格の経路になる（2026-07-03 権限強制実装時の自己監査で検出）。
-  for (const h of [
-    "x-viewer-kind",
-    "x-viewer-client-id",
-    "x-viewer-client-slug",
-    "x-viewer-available-slugs",
-    "x-viewer-email",
-    "x-impersonated-slug",
-  ]) {
-    requestHeaders.delete(h);
-  }
+  const requestHeaders = strippedHeaders(request);
   if (auth.kind === "admin") {
     requestHeaders.set("x-viewer-kind", "admin");
     if (auth.email) requestHeaders.set("x-viewer-email", auth.email);
@@ -197,11 +209,12 @@ async function checkAuth(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
   // 1. Exempt routes (login page, auth API, public site) — always open.
-  if (isExemptPath(pathname)) return NextResponse.next();
+  // exempt でも受信 x-viewer-* は破棄（偽造ヘッダ封鎖・監査P0）。
+  if (isExemptPath(pathname)) return nextStripped(request);
 
   // Safety fallback: if no credential env is set at all, let traffic
   // through. Avoids locking ourselves out on a fresh deploy.
-  if (!anyCredentialConfigured()) return NextResponse.next();
+  if (!anyCredentialConfigured()) return nextStripped(request);
 
   // 2. Session cookie takes precedence — lets /login users browse
   //    without the Basic Auth popup ever showing.

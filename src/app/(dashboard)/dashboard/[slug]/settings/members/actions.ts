@@ -177,6 +177,13 @@ export async function createTenantInvite(
 ): Promise<InviteResult> {
   const { orgId, actorEmail } = await assertCanInvite(slug);
 
+  // 🔴 role はランタイム検証必須。型は消えるため、editor が Server Action へ
+  // role='owner'/'admin' を直送すると権限昇格＋上限回避になる（監査P2）。
+  // クライアント側の招待は editor / member のみ許可。
+  if (role !== "editor" && role !== "member") {
+    return { ok: false, error: "無効なロールです" };
+  }
+
   const normalizedEmail = email.trim().toLowerCase();
   if (!normalizedEmail || !normalizedEmail.includes("@")) {
     return { ok: false, error: "有効なメールアドレスを入力してください" };
