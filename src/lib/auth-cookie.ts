@@ -17,9 +17,11 @@ export const TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 export type Session =
   | { kind: "admin" }
-  | { kind: "client"; clientId: string; slug: string }
+  /** email: 2026-07-03 追加（org内ロール解決用）。optional なので旧cookieも
+   *  検証は通る — email 不在のセッションは最小権限（メンバー扱い）に倒す。 */
+  | { kind: "client"; clientId: string; slug: string; email?: string }
   /** Agency / multi-client staff: one login, multiple accessible tenants. */
-  | { kind: "client-multi"; currentSlug: string; availableSlugs: string[] };
+  | { kind: "client-multi"; currentSlug: string; availableSlugs: string[]; email?: string };
 
 interface SignedPayload extends Record<string, unknown> {
   /** Unix seconds. */
@@ -91,7 +93,12 @@ export async function verifySession(token: string | undefined | null): Promise<S
     typeof payload.clientId === "string" &&
     typeof payload.slug === "string"
   ) {
-    return { kind: "client", clientId: payload.clientId, slug: payload.slug };
+    return {
+      kind: "client",
+      clientId: payload.clientId,
+      slug: payload.slug,
+      ...(typeof payload.email === "string" ? { email: payload.email } : {}),
+    };
   }
   if (
     payload.kind === "client-multi" &&
@@ -103,6 +110,7 @@ export async function verifySession(token: string | undefined | null): Promise<S
       kind: "client-multi",
       currentSlug: payload.currentSlug,
       availableSlugs: payload.availableSlugs as string[],
+      ...(typeof payload.email === "string" ? { email: payload.email } : {}),
     };
   }
   return null;

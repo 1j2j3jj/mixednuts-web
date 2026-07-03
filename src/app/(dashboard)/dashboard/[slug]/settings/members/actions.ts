@@ -11,14 +11,17 @@ import {
 import { eq, and } from "drizzle-orm";
 import { getClientBySlug } from "@/config/clients";
 import { writeAuditLog } from "@/lib/audit";
+import { lookupOrgRoleByEmail } from "@/lib/org-role";
 
 /**
  * Server actions for the tenant-side member management page.
- * Accessible by org Owner and Admin roles (not Member).
+ * Accessible by org Owner and Admin roles (not Member) — enforced via
+ * lookupOrgRoleByEmail (x-viewer-email → member.role, 2026-07-03).
  *
  * Authorization:
  *   - viewer kind "admin" → full access (impersonating or direct)
  *   - viewer kind "client" / "client-multi" → org Owner/Admin only
+ *     (email 不在の旧セッション / Basic auth は member 扱いで forbidden)
  *
  * Quota enforcement:
  *   - createTenantInvite checks organization.maxMembers and maxAdmins
@@ -43,7 +46,8 @@ async function assertCanManageOrg(slug: string): Promise<{ orgId: string; actorE
     throw new Error("forbidden");
   }
 
-  // For client viewers, confirm they're accessing their own org.
+  // For client viewers, confirm they're accessing their own org AND hold an
+  // org-admin role (owner/admin). member ロールは閲覧のみ（2026-07-03 強制）。
   if (viewerKind === "client" || viewerKind === "client-multi") {
     const viewerSlug = h.get("x-viewer-client-slug") ?? "";
     const availableSlugs = (h.get("x-viewer-available-slugs") ?? "")
@@ -52,6 +56,8 @@ async function assertCanManageOrg(slug: string): Promise<{ orgId: string; actorE
     const allowed =
       viewerSlug === slug || availableSlugs.includes(slug);
     if (!allowed) throw new Error("forbidden");
+    const orgRole = await lookupOrgRoleByEmail(slug, h.get("x-viewer-email"));
+    if (orgRole !== "owner" && orgRole !== "admin") throw new Error("forbidden");
   }
 
   const orgs = await db

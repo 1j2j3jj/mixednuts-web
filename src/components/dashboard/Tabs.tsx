@@ -9,9 +9,12 @@ interface Props {
   /** Show the レポート tab (BQ rpt_* views) — only clients with rpt_* marts
    *  (dozo / hs). Decided server-side in layout.tsx via isRptSupported. */
   showReport?: boolean;
+  /** Show the メンバー tab — org内ロールが owner/admin（+ mixednuts admin）の
+   *  場合のみ。layout.tsx が getViewerOrgRole で決定（2026-07-03）。 */
+  showMembers?: boolean;
 }
 
-export default function DashboardTabs({ slug, showReport = false }: Props) {
+export default function DashboardTabs({ slug, showReport = false, showMembers = true }: Props) {
   const pathname = usePathname() || "";
   const tabs: Array<{ href: string; label: string }> = [
     { href: `/dashboard/${slug}`, label: "サマリー" },
@@ -21,10 +24,11 @@ export default function DashboardTabs({ slug, showReport = false }: Props) {
       ? [{ href: `/dashboard/${slug}/report`, label: "レポート" }]
       : []),
     { href: `/dashboard/${slug}/insights`, label: "商品・検索" },
-    // メンバー = Org 内のユーザー招待・管理。
-    // クライアント Org Owner/Admin と mixednuts admin の両方がアクセス可。
-    // ページ側 (/settings/members) で role ベースの読み取り専用 vs 編集可を切替。
-    { href: `/dashboard/${slug}/settings/members`, label: "メンバー" },
+    // メンバー = Org 内のユーザー招待・管理。org内ロール member には非表示
+    //（直URLも members/page.tsx がリダイレクト、操作は actions.ts が拒否）。
+    ...(showMembers
+      ? [{ href: `/dashboard/${slug}/settings/members`, label: "メンバー" }]
+      : []),
   ];
   return (
     <nav className="flex gap-1 border-b">

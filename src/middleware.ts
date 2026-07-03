@@ -43,8 +43,8 @@ const REALM = 'Basic realm="mixednuts-web"';
 
 type Auth =
   | { kind: "admin" }
-  | { kind: "client"; clientId: string; slug: string }
-  | { kind: "client-multi"; currentSlug: string; availableSlugs: string[] }
+  | { kind: "client"; clientId: string; slug: string; email?: string }
+  | { kind: "client-multi"; currentSlug: string; availableSlugs: string[]; email?: string }
   | { kind: "deny" };
 
 async function resolveSessionCookie(request: NextRequest): Promise<Auth> {
@@ -57,9 +57,10 @@ async function resolveSessionCookie(request: NextRequest): Promise<Auth> {
       kind: "client-multi",
       currentSlug: sess.currentSlug,
       availableSlugs: sess.availableSlugs,
+      email: sess.email,
     };
   }
-  return { kind: "client", clientId: sess.clientId, slug: sess.slug };
+  return { kind: "client", clientId: sess.clientId, slug: sess.slug, email: sess.email };
 }
 
 async function resolveBasicAuth(request: NextRequest): Promise<Auth> {
@@ -91,18 +92,33 @@ function denyResponse(): NextResponse {
 
 async function passThrough(request: NextRequest, auth: Auth): Promise<NextResponse> {
   const requestHeaders = new Headers(request.headers);
+  // 🔴 受信ヘッダの x-viewer-* は必ず破棄してから設定する。コピーしたまま
+  // 条件付き設定だと、外部から x-viewer-email / x-viewer-available-slugs 等を
+  // 注入され権限昇格の経路になる（2026-07-03 権限強制実装時の自己監査で検出）。
+  for (const h of [
+    "x-viewer-kind",
+    "x-viewer-client-id",
+    "x-viewer-client-slug",
+    "x-viewer-available-slugs",
+    "x-viewer-email",
+    "x-impersonated-slug",
+  ]) {
+    requestHeaders.delete(h);
+  }
   if (auth.kind === "admin") {
     requestHeaders.set("x-viewer-kind", "admin");
   } else if (auth.kind === "client") {
     requestHeaders.set("x-viewer-kind", "client");
     requestHeaders.set("x-viewer-client-id", auth.clientId);
     requestHeaders.set("x-viewer-client-slug", auth.slug);
+    if (auth.email) requestHeaders.set("x-viewer-email", auth.email);
   } else if (auth.kind === "client-multi") {
     // Downstream pages see "client-multi" kind; current slug is forwarded so
     // layout chrome can display the active tenant and show the switch link.
     requestHeaders.set("x-viewer-kind", "client-multi");
     requestHeaders.set("x-viewer-client-slug", auth.currentSlug);
     requestHeaders.set("x-viewer-available-slugs", auth.availableSlugs.join(","));
+    if (auth.email) requestHeaders.set("x-viewer-email", auth.email);
   }
 
   // Impersonation overlay: admin has set mn_impersonate cookie.

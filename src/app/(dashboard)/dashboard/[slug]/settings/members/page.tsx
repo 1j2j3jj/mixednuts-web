@@ -1,7 +1,7 @@
-import { headers } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
+import { getViewerOrgRole, canManageMembers } from "@/lib/org-role";
 import { listTenantMembers } from "./actions";
 import MembersClient from "./MembersClient";
 
@@ -9,9 +9,9 @@ import MembersClient from "./MembersClient";
  * /{org-slug}/settings/members  (served as /dashboard/{slug}/settings/members)
  *
  * Tenant-side member management page.
- * - Admin viewers: full access (invite, revoke, see all controls)
- * - Client Owner/Admin viewers: same controls
- * - Client Member viewers: read-only list + quota display
+ * - mixednuts admin / org Owner・Admin: full access (invite, revoke)
+ * - org Member: このページ自体に入れない（タブ非表示 + 直URLはリダイレクト。
+ *   2026-07-03 CEO決定。サーバ側の操作拒否は actions.ts が強制）
  */
 export const dynamic = "force-dynamic";
 
@@ -25,13 +25,10 @@ export default async function TenantMembersPage({ params }: PageProps) {
   // assertUserCanAccessClientBySlug returns notFound() if no access.
   const client = await assertUserCanAccessClientBySlug(slug);
 
-  const h = await headers();
-  const viewerKind = h.get("x-viewer-kind");
-  // Admin viewers and client admin/owner can manage members.
-  // For simplicity in Phase 1: admin viewers always get full control.
-  // Client viewers get full control for their own org (Owner/Admin roles
-  // are not yet distinguished at cookie level, so we grant based on kind).
-  const isAdmin = viewerKind === "admin" || viewerKind === "client" || viewerKind === "client-multi";
+  // org内ロールで入場制御（member はダッシュボードへ戻す）。
+  const orgRole = await getViewerOrgRole(slug);
+  if (!canManageMembers(orgRole)) redirect(`/dashboard/${slug}`);
+  const isAdmin = true; // ここに到達できるのは管理側ロールのみ
 
   let data;
   try {

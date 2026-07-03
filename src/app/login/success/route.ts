@@ -50,7 +50,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   let userId: string | null = null;
   try {
     const session = await auth.api.getSession({ headers: req.headers });
-    email = session?.user?.email ?? null;
+    email = (session?.user?.email ?? null)?.toLowerCase() ?? null;
     userId = session?.user?.id ?? null;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -91,7 +91,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       token = await signSession({ kind: "admin" });
       target = "/dashboard";
     } else if (role.kind === "client") {
-      token = await signSession({ kind: "client", clientId: role.clientId, slug: role.slug });
+      token = await signSession({ kind: "client", clientId: role.clientId, slug: role.slug, email });
       target = `/dashboard/${role.slug}`;
     } else {
       // multi-client: first match becomes the initial currentSlug
@@ -100,6 +100,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         kind: "client-multi",
         currentSlug: availableSlugs[0],
         availableSlugs,
+        email,
       });
       target = "/dashboard/select";
     }

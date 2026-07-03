@@ -250,6 +250,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       kind: "client",
       clientId: acceptedClientIds[0],
       slug: acceptedSlugs[0],
+      email: invitationEmail,
     });
     target = `/dashboard/${acceptedSlugs[0]}`;
   } else {
@@ -258,6 +259,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       kind: "client-multi",
       currentSlug: acceptedSlugs[0],
       availableSlugs: acceptedSlugs,
+      email: invitationEmail,
     });
     target = "/dashboard/select";
   }

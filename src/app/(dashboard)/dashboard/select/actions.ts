@@ -29,6 +29,7 @@ export async function switchClient(targetSlug: string): Promise<never> {
     kind: "client-multi",
     currentSlug: targetSlug,
     availableSlugs: sess.availableSlugs,
+    email: sess.email,
   });
 
   jar.set(COOKIE_NAME, newToken, {
