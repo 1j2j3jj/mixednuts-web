@@ -38,6 +38,13 @@ import { classifyFetchError, tagWarning } from "@/lib/fetch-warnings";
  * ga_cv aggregate that already existed):
  *  - hs:   ga_cv_purchase / ga_cv_member / ga_cv_contact / ga_cv_add_to_cart
  *  - dozo: ga_cv_purchase / ga_cv_thanks / ga_cv_wedding_ev / ga_cv_add_to_cart
+ *  - msec: ga_cv_purchase / ga_cv_signup / ga_cv_add_to_cart
+ *  - ogc:  ga_cv_purchase / ga_cv_member — NO ga_cv_add_to_cart
+ *  - ogp:  ga_cv_purchase / ga_cv_member / ga_cv_contact — NO ga_cv_add_to_cart
+ *  - ogc/ogp marts physically do NOT expose ga_cv_add_to_cart (verified via
+ *    INFORMATION_SCHEMA 2026-07-07), so this module selects a 0 literal shim
+ *    for add_to_cart on those clients (RPT_SUPPORTED.hasAddToCart = false).
+ *    0 (not NULL) so weekly/monthly SUM() rollups stay numeric.
  *  - ga_cv_purchase is the PRIMARY conversion for GA_CVR/GA_CPA/GA_ROAS on
  *    the **ad-attributed** views (rpt_daily / rpt_weekly / rpt_media /
  *    rpt_cpn / rpt_adg) — there it is genuinely GA joined to the ad entity.
@@ -99,6 +106,11 @@ export interface RptClientMeta {
   hasOverallValue: boolean;
   /** Whether rpt_media carries a per-media overall CV column (dozo only). */
   mediaHasOverallCv: boolean;
+  /** Whether the {client}_marts rpt_* views physically expose
+   *  ga_cv_add_to_cart; when false the SQL selects a 0 literal instead
+   *  (schema verified via INFORMATION_SCHEMA 2026-07-07). REQUIRED so each
+   *  newly onboarded client makes an explicit schema decision. */
+  hasAddToCart: boolean;
   /**
    * Event-level CV columns beyond the primary conversion (purchase).
    * Rendered as additional 会員登録等 columns; excludes add_to_cart
@@ -113,6 +125,7 @@ export const RPT_SUPPORTED: Record<RptClientId, RptClientMeta> = {
     overallCvLabel: "Shopify CV",
     hasOverallValue: false,
     mediaHasOverallCv: true,
+    hasAddToCart: true,
     secondaryEvents: [
       { key: "thanks", label: "Thanks CV" },
       { key: "wedding_ev", label: "Wedding CV" },
@@ -122,6 +135,7 @@ export const RPT_SUPPORTED: Record<RptClientId, RptClientMeta> = {
     overallCvLabel: "EC-CUBE CV",
     hasOverallValue: true,
     mediaHasOverallCv: false,
+    hasAddToCart: true,
     secondaryEvents: [
       { key: "member", label: "会員登録CV" },
       { key: "contact", label: "問合せCV" },
@@ -133,6 +147,7 @@ export const RPT_SUPPORTED: Record<RptClientId, RptClientMeta> = {
     overallCvLabel: "全体CV",
     hasOverallValue: false,
     mediaHasOverallCv: false,
+    hasAddToCart: true,
     secondaryEvents: [
       { key: "signup", label: "会員登録CV" },
     ],
@@ -142,6 +157,7 @@ export const RPT_SUPPORTED: Record<RptClientId, RptClientMeta> = {
     overallCvLabel: "全体CV",
     hasOverallValue: false,
     mediaHasOverallCv: false,
+    hasAddToCart: false,
     secondaryEvents: [
       { key: "member", label: "会員登録CV" },
     ],
@@ -150,6 +166,7 @@ export const RPT_SUPPORTED: Record<RptClientId, RptClientMeta> = {
     overallCvLabel: "全体CV",
     hasOverallValue: false,
     mediaHasOverallCv: false,
+    hasAddToCart: false,
     secondaryEvents: [
       { key: "member", label: "会員登録CV" },
       { key: "contact", label: "問合せCV" },
@@ -343,8 +360,21 @@ type RptView = "daily" | "weekly" | "monthly" | "media" | "cpn" | "adg" | "all";
  *  add_to_cart, all selected as ga_cv_{key} AS event_{key}. */
 function eventCvColumns(clientId: RptClientId): { key: string; expr: string; alias: string }[] {
   const meta = RPT_SUPPORTED[clientId];
-  const keys = ["purchase", ...meta.secondaryEvents.map((e) => e.key), "add_to_cart"];
-  return keys.map((k) => ({ key: k, expr: `ga_cv_${k}`, alias: `event_${k}` }));
+  return [
+    { key: "purchase", expr: "ga_cv_purchase", alias: "event_purchase" },
+    ...meta.secondaryEvents.map((e) => ({
+      key: e.key,
+      expr: `ga_cv_${e.key}`,
+      alias: `event_${e.key}`,
+    })),
+    {
+      // ogc/ogp marts have no ga_cv_add_to_cart column — select a 0 literal
+      // so the row shape (and weekly/monthly SUM rollups) stay numeric.
+      key: "add_to_cart",
+      expr: meta.hasAddToCart ? "ga_cv_add_to_cart" : "0",
+      alias: "event_add_to_cart",
+    },
+  ];
 }
 
 function eventCvSelectList(clientId: RptClientId): string {
