@@ -262,10 +262,10 @@ export default async function DrillScreen({
   // calendar months (e.g. a week bucket starting 2026-06-29 spans into
   // July) — row.date is sliced to its first 7 chars ("YYYY-MM") as the
   // month key, which for week buckets means the bucket's *start* month.
-  // getTargetsForMonth always falls back to client.monthlyTargets (never
-  // returns null), and several clients' static fallback is all-zero — so a
-  // resolved target with roasPct<=0 or cpa<=0 is treated as "no configured
-  // target for this month" and gets no colour (see targetsForMonth below).
+  // getTargetsForMonth resolves from the upload SoT (targets_long →
+  // targets_monthly) only; unset fields are null. A resolved target with
+  // roasPct/cpa null or <=0 is treated as "no configured target for this
+  // month" and gets no colour (see targetsForRow in DrillTable).
   const rowMonths = Array.from(new Set(table.map((r) => r.date.slice(0, 7)).filter(Boolean)));
   if (rowMonths.length === 0) rowMonths.push(anchor.slice(0, 7));
   const targetsEntries = await Promise.all(

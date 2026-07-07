@@ -29,11 +29,10 @@ export async function refreshClientData(clientId: string): Promise<{ ok: boolean
   if (!client || !client.dataSource) {
     return { ok: false, message: "client not found or no data source" };
   }
-  const { sheetId, rawAdsRange, masterRange, targetsSheetId, targetsRange, eccubeSheetId, eccubeRange } =
+  const { sheetId, rawAdsRange, masterRange, eccubeSheetId, eccubeRange } =
     client.dataSource;
   revalidateTag(sheetCacheTag(sheetId, rawAdsRange), "default");
   if (masterRange) revalidateTag(sheetCacheTag(sheetId, masterRange), "default");
-  if (targetsRange) revalidateTag(sheetCacheTag(targetsSheetId ?? sheetId, targetsRange), "default");
   if (eccubeSheetId && eccubeRange) revalidateTag(sheetCacheTag(eccubeSheetId, eccubeRange), "default");
 
   // GA4 / GSC — purge only when the client actually has the source configured.

@@ -254,11 +254,9 @@ export default async function Overview({
   const topChannelsAll = Array.from(byChannel.values());
   const topChannels = topChannelsAll.slice().sort((a, b) => b.revenue - a.revenue).slice(0, 5);
 
-  // Budget pacing — only when the preset is "当月".
+  // Budget pacing — only when the preset is "当月". Computed after tgt is
+  // fetched below (pacing needs the uploaded budget; 未設定なら表示しない).
   const showPacing = rr.preset === "thisMonth";
-  const pacing = showPacing
-    ? analysePacing(costCur, client.monthlyTargets.adSpendBudget, new Date(`${anchor}T00:00:00Z`))
-    : null;
 
   const showGoals = rr.preset === "thisMonth" || rr.preset === "lastMonth";
   // Target month follows the *selected* period, not always the anchor's
@@ -272,19 +270,25 @@ export default async function Overview({
 
   // Extra context modules (parallel fetch for speed). Products & GSC queries
   // now live on the /insights tab — dropped from here to declutter Overview.
-  // Prefer the sheet-based monthly target for the selected month; static
-  // config is the fallback. Only one month is fetched — goals/channel-target
-  // table are only rendered for single-month presets anyway. Channel-level
-  // targets are only populated for clients whose 計画 sheet carries a
-  // per-channel breakdown for the selected month (today: HS) —
-  // getChannelTargetsForMonth returns [] otherwise and the Overview falls
-  // back to the plain Top-5-by-GA4-channel table.
+  // Targets come from the upload SoT (targets_long → targets_monthly) only;
+  // unset fields are null and render as「—」. Only one month is fetched —
+  // goals/channel-target table are only rendered for single-month presets
+  // anyway. Channel-level targets are only populated for clients whose
+  // upload carries a per-channel breakdown for the selected month (today:
+  // HS) — getChannelTargetsForMonth returns [] otherwise and the Overview
+  // falls back to the plain Top-5-by-GA4-channel table.
   const [devicesResult, tgt, channelTargets] = await Promise.all([
     getDeviceTotals(client, anchor),
     getTargetsForMonth(client, targetYm),
     getChannelTargetsForMonth(client, targetYm),
   ]);
   const devices = devicesResult.rows;
+
+  // Budget pacing — 予算(adSpendBudget)が未設定(null)なら計算せずバナーも出さない。
+  const pacing =
+    showPacing && tgt.adSpendBudget != null && tgt.adSpendBudget > 0
+      ? analysePacing(costCur, tgt.adSpendBudget, new Date(`${anchor}T00:00:00Z`))
+      : null;
 
   // Actuals (topChannelsAll, from gaCurRows) follow whatever period the user
   // picked, but channelTargets is always a single-month row (targetYm) — the
@@ -440,7 +444,7 @@ export default async function Overview({
         </div>
       )}
 
-      {pacing && (
+      {pacing && tgt.adSpendBudget != null && (
         <PacingAlert result={pacing} actualSpend={costCur} monthlyBudget={tgt.adSpendBudget} />
       )}
 
@@ -497,29 +501,40 @@ export default async function Overview({
         />
       </div>
 
-      {showGoals && (
-        <div className="grid gap-4 sm:grid-cols-3">
-          <GoalGauge
-            label="Revenue 達成"
-            actual={fmtJpy(effectiveRev)}
-            target={fmtJpy(tgt.revenue)}
-            ratio={effectiveRev / (tgt.revenue || 1)}
-          />
-          <GoalGauge
-            label="CV 達成"
-            actual={fmtInt(effectiveCv)}
-            target={fmtInt(tgt.conversions)}
-            ratio={effectiveCv / (tgt.conversions || 1)}
-          />
-          <GoalGauge
-            label="広告予算消化"
-            actual={fmtJpy(costCur)}
-            target={fmtJpy(tgt.adSpendBudget)}
-            ratio={costCur / (tgt.adSpendBudget || 1)}
-            hint={costCur > tgt.adSpendBudget ? "予算超過" : undefined}
-          />
-        </div>
-      )}
+      {showGoals &&
+        (tgt.revenue != null || tgt.conversions != null || tgt.adSpendBudget != null ? (
+          <div className="grid gap-4 sm:grid-cols-3">
+            {tgt.revenue != null && (
+              <GoalGauge
+                label="Revenue 達成"
+                actual={fmtJpy(effectiveRev)}
+                target={fmtJpy(tgt.revenue)}
+                ratio={effectiveRev / (tgt.revenue || 1)}
+              />
+            )}
+            {tgt.conversions != null && (
+              <GoalGauge
+                label="CV 達成"
+                actual={fmtInt(effectiveCv)}
+                target={fmtInt(tgt.conversions)}
+                ratio={effectiveCv / (tgt.conversions || 1)}
+              />
+            )}
+            {tgt.adSpendBudget != null && (
+              <GoalGauge
+                label="広告予算消化"
+                actual={fmtJpy(costCur)}
+                target={fmtJpy(tgt.adSpendBudget)}
+                ratio={costCur / (tgt.adSpendBudget || 1)}
+                hint={costCur > tgt.adSpendBudget ? "予算超過" : undefined}
+              />
+            )}
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
+            目標未設定（—）。設定画面の目標アップロードから当月の目標を登録すると達成率が表示されます。
+          </div>
+        ))}
 
       <Card>
         <CardHeader>

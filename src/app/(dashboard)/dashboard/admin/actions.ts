@@ -152,9 +152,8 @@ export async function runClientHealthCheck(clientId: ClientId): Promise<ClientHe
   await assertAdmin();
   const c = CLIENTS[clientId];
   const ds = c.dataSource;
-  const [adsResult, targetsResult, eccubeResult, ga4Result, gscResult] = await Promise.all([
+  const [adsResult, eccubeResult, ga4Result, gscResult] = await Promise.all([
     checkSheet(ds?.sheetId, ds?.rawAdsRange, "広告 raw Sheet"),
-    checkSheet(ds?.targetsSheetId, ds?.targetsRange, "目標 Sheet"),
     checkSheet(ds?.eccubeSheetId, ds?.eccubeRange, "外部CV Sheet"),
     checkGa4(c.ga4PropertyId),
     checkGsc(c.gscSiteUrl),
@@ -164,7 +163,7 @@ export async function runClientHealthCheck(clientId: ClientId): Promise<ClientHe
     label: c.label,
     slug: c.slug,
     active: c.active,
-    results: [adsResult, targetsResult, eccubeResult, ga4Result, gscResult],
+    results: [adsResult, eccubeResult, ga4Result, gscResult],
   };
 }
 
