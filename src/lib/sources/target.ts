@@ -1,14 +1,13 @@
 import "server-only";
-import { fetchSheetCached } from "@/lib/sheets";
 import { getBigQuery } from "@/lib/bigquery";
 import { unstable_cache } from "next/cache";
 import type { ClientConfig, MonthlyTargets } from "@/config/clients";
 import type { ChannelGroup } from "@/lib/sources/ga4";
 
 /**
- * Maps GA4's default channel grouping onto the 計画 sheet's channel labels
+ * Maps GA4's default channel grouping onto the 計画データの channel labels
  * (organic / direct / mail / referral / 広告). GA4 channels with no mapping
- * (e.g. an "Other" bucket the sheet doesn't budget for) fall into "その他" —
+ * (e.g. an "Other" bucket no target budgets for) fall into "その他" —
  * rendered with actuals only, no target/achievement.
  *
  * Input is the already-normalised `ChannelGroup` (see ga4.ts CHANNEL_NORMAL),
@@ -26,7 +25,7 @@ export const GA4_TO_PLAN_CHANNEL: Record<ChannelGroup, string> = {
   Other: "その他",
 };
 
-/** Channel label shown for GA4 channels with no counterpart in the 計画 sheet. */
+/** Channel label shown for GA4 channels with no counterpart in 計画データ. */
 export const UNMAPPED_PLAN_CHANNEL = "その他";
 
 /**
@@ -36,164 +35,17 @@ export const UNMAPPED_PLAN_CHANNEL = "その他";
  *   1. BigQuery `app_analytics.targets_long` — 正本（tidy 形式・2026-07-03 統一）。
  *      client-facing self-upload (settings/targets) の書き込み先。metric×channel×
  *      year_month の long 行を月内で SUM して MonthlyTargets に集計する（_bqTargetsCached）。
- *      該当月の行が 1 件でもあればその集計（0 でも）が per-field で下位を上書きし、
- *      行が皆無なフィールドだけ下位へフォールスルーする。
  *   2. BigQuery `app_analytics.targets_monthly` — wide fallback。admin 一括
- *      アップローダ (masters.ts) のテーブル。long に行が無い月のフォールバックへ降格。
- *   3. CEO's 計画 spreadsheet (HS / DOZO today — see the two layouts below).
- *      Retained as a fallback while the Sheet-based plan is retired gradually.
- *   4. ClientConfig.monthlyTargets (hardcoded fallback in clients.ts).
+ *      アップローダ (masters.ts) のテーブル。long に行が無い月のフォールバック。
+ *   3. なければ **null（未設定）** — UI は「—」を表示し、達成率・ペース計算を
+ *      スキップする。旧 CEO 計画 Sheet / ClientConfig.monthlyTargets の静的
+ *      フォールバックは 2026-07-08 に廃止（CEO 決定: アップロードが無ければ
+ *      目標は未設定として扱う。Sheet はタブ改名で 400 を出し続けており、
+ *      targets_long 正本化後は値としても使われていなかった）。
  *
- * Each source falls through to the next when it has no row / no value for the
- * requested (clientId, yearMonth) — never breaks the dashboard.
- *
- * Two sheet layouts (tab `シート1`), auto-detected in pivot():
- *
- *   JA matrix (HS):
- *     col A  : metric name        ("セッション" / "受注件数" / "受注金額" / "広告費用")
- *     col B  : channel             ("organic" / "direct" / "mail" / "referral" / "広告")
- *     col C  : "目標" / "実績"     (we read 目標 only for now)
- *     col D+ : month labels        ("2024年9月", "2024年10月", …)
- *
- *   EN annual template (DOZO):
- *     col A  : metric name (English) — "revenue" / "conversions" /
- *              "adSpendBudget" / "roasPct" / "cpa"
- *     col B  : channel — "all" (whole-account total) / "google" / "yahoo" /
- *              "meta" / "microsoft"
- *     col C+ : month labels — "Jan".."Dec" (no year; the template is
- *              recurring, so a row applies to that calendar month in any
- *              requested year)
- *
- * Derived per-month KPIs (matches the dashboard's definitions):
- *   revenue       = sum(受注金額 × all channels), or the "all" row directly
- *                   when present (EN template)
- *   conversions   = sum(受注件数 × all channels), or "all" directly
- *   adSpendBudget = 広告費用 × 広告, or "all" directly
- *   roasPct       = 受注金額(広告) / 広告費用(広告) × 100
- *   cpa           = 広告費用(広告) / 受注件数(広告)
- *
- * When the sheet is absent / empty / inaccessible, falls back to the static
- * ClientConfig.monthlyTargets so the dashboard keeps working.
+ * 0 と null の区別: アップロードされた 0 は「目標ゼロを設定した」として per-field
+ * で採用される。null は「未設定」でフォールスルー/「—」表示。
  */
-
-type Metric = "セッション" | "受注件数" | "受注金額" | "広告費用" | string;
-
-interface TargetPoint {
-  yearMonth: string; // YYYY-MM
-  metric: Metric;
-  channel: string;
-  value: number;
-}
-
-function toNumber(v: unknown): number {
-  if (v == null || v === "") return 0;
-  if (typeof v === "number") return v;
-  const s = String(v).replace(/[,¥]/g, "").trim();
-  const n = Number(s);
-  return Number.isFinite(n) ? n : 0;
-}
-
-/** "2024年9月" → "2024-09". Returns "" when the label isn't recognisable. */
-function parseJaYm(label: string): string {
-  const s = String(label ?? "").trim();
-  const m = s.match(/^(\d{4})年(\d{1,2})月/);
-  if (m) return `${m[1]}-${m[2].padStart(2, "0")}`;
-  const m2 = s.match(/^(\d{4})[-/](\d{1,2})/);
-  if (m2) return `${m2[1]}-${m2[2].padStart(2, "0")}`;
-  return "";
-}
-
-const EN_MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-/** "Jan"/"jan"/"January" → 1-12 month number. Returns 0 when unrecognised. */
-function parseEnMonth(label: string): number {
-  const s = String(label ?? "").trim().toLowerCase();
-  const idx = EN_MONTH_ABBR.findIndex((abbr) => s === abbr.toLowerCase() || s.startsWith(abbr.toLowerCase()));
-  return idx >= 0 ? idx + 1 : 0;
-}
-
-/** English metric names (some 計画 sheets, e.g. DOZO, use these directly
- *  instead of the Japanese 受注金額/受注件数/広告費用 vocabulary). Mapped to
- *  the same canonical metric strings the rest of this module reads. */
-const EN_METRIC_ALIAS: Record<string, Metric> = {
-  revenue: "受注金額",
-  conversions: "受注件数",
-  adspendbudget: "広告費用",
-};
-
-function normaliseMetric(raw: string): Metric {
-  const alias = EN_METRIC_ALIAS[raw.toLowerCase()];
-  return alias ?? raw;
-}
-
-/**
- * Pivot the matrix into a flat list of points. Supports two sheet layouts:
- *
- *   1. JA matrix (HS 計画): col C is "目標"/"実績", months start at col D
- *      (index 3), labelled "YYYY年M月".
- *   2. EN annual template (DOZO 計画): no kind column — months start at
- *      col C (index 2), labelled "Jan".."Dec" with no year (the sheet is a
- *      recurring yearly template). Metric names are English
- *      (revenue/conversions/adSpendBudget/roasPct/cpa) and a `channel='all'`
- *      row carries the whole-account target rather than a per-channel
- *      breakdown — see getChannelTargetsForMonth, which skips it.
- *
- * Layout is detected from the header: if header[2] parses as a bare month
- * name (no "kind" column present), months start at index 2 and every row
- * is expanded across all years the caller might ask for (the EN template
- * has no year, so "Jan" matches Jan of any requested yearMonth).
- */
-function pivot(values: string[][]): TargetPoint[] {
-  if (values.length < 2) return [];
-  const [header, ...rows] = values;
-  const isEnTemplate = parseEnMonth(String(header[2] ?? "")) > 0;
-  const out: TargetPoint[] = [];
-
-  if (isEnTemplate) {
-    const monthNums = header.slice(2).map((h) => parseEnMonth(String(h ?? "")));
-    for (const r of rows) {
-      const metric = normaliseMetric(String(r[0] ?? "").trim());
-      const channel = String(r[1] ?? "").trim();
-      if (!metric || !channel) continue;
-      for (let i = 0; i < monthNums.length; i++) {
-        const mo = monthNums[i];
-        if (!mo) continue;
-        const v = toNumber(r[2 + i]);
-        if (v === 0) continue;
-        // No year in the template — value applies to that calendar month in
-        // any year. Encode as a wildcard yearMonth ("*-MM") and let callers
-        // match it against the requested month.
-        out.push({ yearMonth: `*-${String(mo).padStart(2, "0")}`, metric, channel, value: v });
-      }
-    }
-    return out;
-  }
-
-  const monthKeys = header.slice(3).map((h) => parseJaYm(String(h ?? "")));
-  for (const r of rows) {
-    const metric = String(r[0] ?? "").trim();
-    const channel = String(r[1] ?? "").trim();
-    const kind = String(r[2] ?? "").trim(); // "目標" / "実績"
-    if (!metric || !channel) continue;
-    if (kind && kind !== "目標") continue; // ignore 実績 for now
-    for (let i = 0; i < monthKeys.length; i++) {
-      const ym = monthKeys[i];
-      if (!ym) continue;
-      const v = toNumber(r[3 + i]);
-      if (v === 0) continue;
-      out.push({ yearMonth: ym, metric, channel, value: v });
-    }
-  }
-  return out;
-}
-
-/** True when a point's yearMonth (possibly a "*-MM" wildcard from the EN
- *  annual template) matches the requested "YYYY-MM". */
-function matchesYearMonth(point: TargetPoint, yearMonth: string): boolean {
-  if (point.yearMonth === yearMonth) return true;
-  const wildcardMonth = point.yearMonth.match(/^\*-(\d{2})$/)?.[1];
-  return wildcardMonth != null && wildcardMonth === yearMonth.slice(5, 7);
-}
 
 /**
  * Preserve NULL as null (so it can fall through per-field) while coercing real
@@ -207,36 +59,29 @@ function numOrNull(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/**
- * Read BigQuery `app_analytics.targets_monthly` for the requested month.
- * Returns a per-field-NULL-preserving partial: only columns that have a value
- * are present as numbers; NULL columns are omitted so the caller falls through
- * to the Sheet/static value for those fields only. Returns null when no row
- * exists at all (or the query fails), letting callers use Sheet/static entirely.
- *
- * Crucially, a stored 0 is kept as 0 (a deliberate zero target) and is *not*
- * confused with NULL ("not configured, use fallback").
- */
+/** All-null targets — "目標未設定". Fresh object per call (callers may spread). */
+export function emptyTargets(): MonthlyTargets {
+  return { revenue: null, conversions: null, adSpendBudget: null, roasPct: null, cpa: null };
+}
+
 /**
  * Aggregate app_analytics.targets_long (tidy 形式・2026-07-03 統一) for one month
- * into the same MonthlyTargets shape, matching the dashboard's KPI definitions.
- * This is the primary target of record; when it has no rows for the month the
- * wide targets_monthly / Sheet / static fallback (resolveMonthlyBase) is used.
+ * into the MonthlyTargets shape, matching the dashboard's KPI definitions.
+ * This is the primary target of record.
  *
  *   revenue       = SUM(value WHERE metric='受注金額')         全チャネル合計
  *   conversions   = SUM(value WHERE metric='受注件数')         全チャネル合計
  *   adSpendBudget = SUM(value WHERE metric='広告費用')         全チャネル合計
- *   sessions      = SUM(value WHERE metric='セッション')       (集計のみ・KPI 未使用)
  *   roasPct       = 受注金額(広告) / 広告費用(広告) × 100
  *   cpa           = 広告費用(広告) / 受注件数(広告)
  *
  * 「全体」チャネル行を metric に持つデータ（全体集計のみで channel 別が無い）にも
  * 対応: 全チャネル SUM は '全体' 行だけでも合計として成立する。ただし roasPct/cpa は
- * 「広告」チャネルの内訳が要るため、'広告' 行が無いときは base(fallback) に委ねる。
+ * 「広告」チャネルの内訳が要るため、'広告' 行が無いときは下位ソースに委ねる。
  *
  * kind='目標' のみを読む（将来 '実績' が同居しても目標だけを対象にする）。
  * 各フィールドは 0 と「行なし(NULL)」を区別する: 該当 metric の行が 1 件でもあれば
- * その SUM（0 でも）を採用、行が皆無なら null にして base へフォールスルー。
+ * その SUM（0 でも）を採用、行が皆無なら null にしてフォールスルー。
  */
 const _bqTargetsCached = unstable_cache(
   async (clientId: string, yearMonth: string): Promise<Partial<MonthlyTargets> | null> => {
@@ -265,8 +110,8 @@ const _bqTargetsCached = unstable_cache(
       const r = rows[0] as Record<string, unknown>;
 
       // SUM over zero matched rows is NULL in BQ → numOrNull → null → fall
-      // through to base for that field. A matched metric (even summing to 0)
-      // yields a finite number and overrides base.
+      // through for that field. A matched metric (even summing to 0)
+      // yields a finite number and wins.
       const revenue = numOrNull(r.revenue);
       const conversions = numOrNull(r.conversions);
       const adSpendBudget = numOrNull(r.ad_spend_budget);
@@ -274,7 +119,7 @@ const _bqTargetsCached = unstable_cache(
       const adCv = numOrNull(r.ad_cv);
       const adSpend = numOrNull(r.ad_spend);
 
-      // No target rows at all for this (client, month) → let base take over.
+      // No target rows at all for this (client, month).
       if (
         revenue == null &&
         conversions == null &&
@@ -290,7 +135,7 @@ const _bqTargetsCached = unstable_cache(
       if (revenue != null) out.revenue = revenue;
       if (conversions != null) out.conversions = conversions;
       if (adSpendBudget != null) out.adSpendBudget = adSpendBudget;
-      // roasPct / cpa は「広告」チャネル内訳から導出。内訳が無ければ base へ委ねる。
+      // roasPct / cpa は「広告」チャネル内訳から導出。内訳が無ければ下位へ委ねる。
       if (adSpend != null && adSpend > 0 && adRevenue != null) {
         out.roasPct = Math.round((adRevenue / adSpend) * 100);
       }
@@ -356,130 +201,38 @@ const _bqChannelTargetsLongCached = unstable_cache(
 
 /** Per-channel target row, resolved for a single month. */
 export interface ChannelTarget {
-  /** Sheet's own channel label — "organic" / "direct" / "mail" / "referral" / "広告". */
+  /** 計画データの channel label — "organic" / "direct" / "mail" / "referral" / "広告". */
   channel: string;
   revenue: number;
   conversions: number;
 }
 
 /**
- * Per-channel monthly targets from the CEO's 計画 spreadsheet (matrix
- * layout — see file header). Only meaningful for clients whose targetsRange
- * uses the metric×channel×month matrix with populated 受注金額/受注件数 rows
- * for the requested month (today: HS). Returns `[]` when the sheet is
- * absent, unreadable, mocked, or has no rows for the month — callers should
- * fall back to the aggregate Top-N-by-GA4-channel view in that case.
+ * Per-channel monthly targets from targets_long（self-upload 正本）. Returns
+ * the channel-level 受注金額/受注件数 rows ('全体' excluded) for the requested
+ * month, or `[]` when none are uploaded — callers fall back to the aggregate
+ * Top-N-by-GA4-channel view in that case.
  *
- * 2026-07-03: targets_long (per-channel long 形式) を第一ソースに切替。当該
- * client・月に channel 別（'全体' を除く）の 受注金額/受注件数 行があればそれを
- * 返す。無ければ従来どおり CEO 計画 Sheet を fallback として読む（Sheet も無ければ []）。
+ * 2026-07-08: 旧 CEO 計画 Sheet fallback を廃止（targets_long のみ）。
  */
 export async function getChannelTargetsForMonth(
   client: ClientConfig,
   yearMonth: string
 ): Promise<ChannelTarget[]> {
-  // 1) targets_long の channel 別（'全体' 除外）を最優先。
   const longRows = await _bqChannelTargetsLongCached(client.id, yearMonth);
-  if (longRows.length > 0) {
-    return longRows.map((r) => ({
-      channel: r.channel,
-      revenue: r.revenue,
-      conversions: r.conversions,
-    }));
-  }
-
-  // 2) fallback: CEO 計画 Sheet（行が無いときのみ）。
-  const src = client.dataSource;
-  if (!src || !src.targetsRange) return [];
-  const sheetId = src.targetsSheetId ?? src.sheetId;
-
-  try {
-    const res = await fetchSheetCached(sheetId, src.targetsRange);
-    if (!res.values || res.values.length < 2 || res.isMock) return [];
-    const points = pivot(res.values);
-    // "all" is the whole-account target row on the EN annual template
-    // (DOZO) — it's a total, not a channel breakdown, so exclude it here
-    // and let getTargetsForMonth's aggregate summation pick it up instead.
-    const monthPoints = points.filter((p) => matchesYearMonth(p, yearMonth) && p.channel !== "all");
-    if (monthPoints.length === 0) return [];
-
-    const channels = Array.from(new Set(monthPoints.map((p) => p.channel)));
-    const out: ChannelTarget[] = [];
-    for (const channel of channels) {
-      const revenue = monthPoints
-        .filter((p) => p.metric === "受注金額" && p.channel === channel)
-        .reduce((s, p) => s + p.value, 0);
-      const conversions = monthPoints
-        .filter((p) => p.metric === "受注件数" && p.channel === channel)
-        .reduce((s, p) => s + p.value, 0);
-      if (revenue === 0 && conversions === 0) continue;
-      out.push({ channel, revenue, conversions });
-    }
-    return out;
-  } catch (err) {
-    console.error("[target] channel fetch failed:", err);
-    return [];
-  }
+  return longRows.map((r) => ({
+    channel: r.channel,
+    revenue: r.revenue,
+    conversions: r.conversions,
+  }));
 }
 
 /**
- * Sheet-or-static base resolution (sources 2 & 3). Unchanged from the previous
- * behaviour, factored out so BigQuery (source 1) can be layered on top per-field
- * in getTargetsForMonth. Always returns a complete MonthlyTargets — the CEO 計画
- * Sheet when it has a row for the month, else the client's static fallback.
- */
-async function resolveSheetOrStatic(
-  client: ClientConfig,
-  yearMonth: string
-): Promise<MonthlyTargets> {
-  const fallback = client.monthlyTargets;
-
-  const src = client.dataSource;
-  if (!src || !src.targetsRange) return fallback;
-  const sheetId = src.targetsSheetId ?? src.sheetId;
-
-  try {
-    const res = await fetchSheetCached(sheetId, src.targetsRange);
-    if (!res.values || res.values.length < 2 || res.isMock) return fallback;
-    const points = pivot(res.values);
-    const monthPoints = points.filter((p) => matchesYearMonth(p, yearMonth));
-    if (monthPoints.length === 0) return fallback;
-
-    // "all" is the whole-account total on the EN annual template (DOZO) —
-    // prefer it when present so per-channel rows (google/yahoo/meta/...)
-    // aren't double-counted on top of it. Falls through to summing the
-    // requested `channels` set (the JA matrix format's convention, e.g.
-    // 広告費用 × ["広告"] for HS) when there's no "all" row for the metric.
-    const sumBy = (metric: Metric, channels?: string[]) => {
-      const metricPoints = monthPoints.filter((p) => p.metric === metric);
-      const allPoints = metricPoints.filter((p) => p.channel === "all");
-      if (allPoints.length > 0) return allPoints.reduce((s, p) => s + p.value, 0);
-      return metricPoints
-        .filter((p) => !channels || channels.includes(p.channel))
-        .reduce((s, p) => s + p.value, 0);
-    };
-
-    const revenue = sumBy("受注金額") || fallback.revenue;
-    const conversions = sumBy("受注件数") || fallback.conversions;
-    const adSpendBudget = sumBy("広告費用", ["広告"]) || fallback.adSpendBudget;
-    const adRevenue = sumBy("受注金額", ["広告"]);
-    const adCv = sumBy("受注件数", ["広告"]);
-    const roasPct = adSpendBudget > 0 ? Math.round((adRevenue / adSpendBudget) * 100) : fallback.roasPct;
-    const cpa = adCv > 0 ? Math.round(adSpendBudget / adCv) : fallback.cpa;
-
-    return { revenue, conversions, adSpendBudget, roasPct, cpa };
-  } catch (err) {
-    console.error("[target] fetch failed, using fallback:", err);
-    return fallback;
-  }
-}
-
-/**
- * Wide `targets_monthly` — demoted to a fallback layer (2026-07-03) below
- * targets_long. Read per-field, keeping only non-NULL columns so a present
- * value overrides the Sheet/static below it and a NULL column falls through.
- * Returns null when there is no row at all. This is the admin cross-client
- * uploader's table (masters.ts) — kept as fallback while long adoption spreads.
+ * Wide `targets_monthly` — fallback layer below targets_long (2026-07-03 降格).
+ * Read per-field, keeping only non-NULL columns so a present value overrides
+ * "未設定" and a NULL column stays null. Returns null when there is no row at
+ * all. This is the admin cross-client uploader's table (masters.ts) — kept as
+ * fallback while long adoption spreads.
  */
 const _bqMonthlyWideCached = unstable_cache(
   async (clientId: string, yearMonth: string): Promise<Partial<MonthlyTargets> | null> => {
@@ -521,43 +274,28 @@ const _bqMonthlyWideCached = unstable_cache(
 );
 
 /**
- * Resolution order (first non-NULL per field wins), 2026-07-03 統一:
- *   1. targets_long   — 正本（tidy 形式・self-upload の書き込み先）
- *   2. targets_monthly — wide fallback（admin 一括アップロード。行が無い時のみ）
- *   3. CEO 計画 Sheet  — fallback
- *   4. ClientConfig.monthlyTargets — static fallback
+ * Resolution order (first non-NULL per field wins):
+ *   1. targets_long    — 正本（tidy 形式・self-upload の書き込み先）
+ *   2. targets_monthly — wide fallback（admin 一括アップロード）
+ *   3. null（未設定）  — UI は「—」表示・達成率/ペース計算をスキップ
  *
- * base(2→3→4) を先に完全解決し、その上に targets_long(1) を per-field で重ねる。
- * long にその月の行が全く無ければ base がそのまま返り、退行しない。
+ * 2026-07-08: CEO 計画 Sheet / ClientConfig 静的フォールバックを廃止。
+ * アップロードが無いフィールドは null のまま返る（0 と混同しない）。
  */
 export async function getTargetsForMonth(
   client: ClientConfig,
   yearMonth: string
 ): Promise<MonthlyTargets> {
-  // base = Sheet → static（3 & 4）。
-  const sheetStatic = await resolveSheetOrStatic(client, yearMonth);
-
-  // 2) wide targets_monthly を base に per-field 重ね（fallback 昇格）。
-  const wide = await _bqMonthlyWideCached(client.id, yearMonth);
-  const base: MonthlyTargets = wide
-    ? {
-        revenue: wide.revenue ?? sheetStatic.revenue,
-        conversions: wide.conversions ?? sheetStatic.conversions,
-        adSpendBudget: wide.adSpendBudget ?? sheetStatic.adSpendBudget,
-        roasPct: wide.roasPct ?? sheetStatic.roasPct,
-        cpa: wide.cpa ?? sheetStatic.cpa,
-      }
-    : sheetStatic;
-
-  // 1) targets_long（正本）を最上位で per-field 重ね。行なしなら base をそのまま。
-  const longRow = await _bqTargetsCached(client.id, yearMonth);
-  if (!longRow) return base;
+  const [longRow, wide] = await Promise.all([
+    _bqTargetsCached(client.id, yearMonth),
+    _bqMonthlyWideCached(client.id, yearMonth),
+  ]);
 
   return {
-    revenue: longRow.revenue ?? base.revenue,
-    conversions: longRow.conversions ?? base.conversions,
-    adSpendBudget: longRow.adSpendBudget ?? base.adSpendBudget,
-    roasPct: longRow.roasPct ?? base.roasPct,
-    cpa: longRow.cpa ?? base.cpa,
+    revenue: longRow?.revenue ?? wide?.revenue ?? null,
+    conversions: longRow?.conversions ?? wide?.conversions ?? null,
+    adSpendBudget: longRow?.adSpendBudget ?? wide?.adSpendBudget ?? null,
+    roasPct: longRow?.roasPct ?? wide?.roasPct ?? null,
+    cpa: longRow?.cpa ?? wide?.cpa ?? null,
   };
 }

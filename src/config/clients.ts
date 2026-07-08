@@ -19,12 +19,6 @@ export interface DataSource {
   sheetId: string;
   rawAdsRange: string;
   masterRange?: string;
-  /** Optional: separate sheet id for targets. When omitted, falls back to
-   *  `sheetId`. Useful when the CEO maintains a dedicated 計画 spreadsheet. */
-  targetsSheetId?: string;
-  /** Range for the monthly targets / budget tab (matrix format — see
-   *  src/lib/sources/target.ts). Optional; falls back to static config. */
-  targetsRange?: string;
   /** ECCUBE daily aggregate sheet (shop-DB truth). Columns: 期間, 購入件数,
    *  性別内訳…, 購入合計, 購入平均. Used by src/lib/sources/eccube.ts.
    *  Omit for clients without an ECCUBE shop. */
@@ -32,17 +26,23 @@ export interface DataSource {
   eccubeRange?: string;
 }
 
+/**
+ * Monthly targets. Every field is nullable: null = 未設定（アップロードなし）で
+ * UI は「—」を表示し達成率・ペース計算をスキップする。0 は「目標ゼロを設定した」
+ * であり null と区別される。正本は BQ targets_long（self-upload）→ targets_monthly
+ * （admin upload）。旧 計画 Sheet / 静的 config フォールバックは 2026-07-08 廃止。
+ */
 export interface MonthlyTargets {
   /** Revenue target in JPY for the current month. */
-  revenue: number;
+  revenue: number | null;
   /** Conversion count target. */
-  conversions: number;
+  conversions: number | null;
   /** Ad spend budget (cap). */
-  adSpendBudget: number;
+  adSpendBudget: number | null;
   /** Target blended ROAS as percentage (e.g. 300 = 300%). */
-  roasPct: number;
+  roasPct: number | null;
   /** Target blended CPA in JPY (cost / CV incl. organic). */
-  cpa: number;
+  cpa: number | null;
 }
 
 export interface ClientConfig {
@@ -60,7 +60,6 @@ export interface ClientConfig {
   /** GSC site URL (including trailing slash for URL-prefix properties). */
   gscSiteUrl?: string | null;
   currency: "JPY";
-  monthlyTargets: MonthlyTargets;
 }
 
 export const INTERNAL_ADMIN_USER_IDS: string[] = [
@@ -104,11 +103,6 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
       // Microsoft and meta. Yahoo rows land here once Yahoo JP connector is
       // stable. The old `Raw` tab is archived as `Raw_archive_20260423`.
       rawAdsRange: "Google_AdGroup_Raw!A:L",
-      // Targets live in a separate "HS_計画" spreadsheet maintained by the
-      // CEO. Matrix layout (metric × channel × month) — parsed and pivoted
-      // by src/lib/sources/target.ts.
-      targetsSheetId: "11lOnn4vRPL3QA7GK9hbh-xtCtL6eXI4Cv4RetwIARic",
-      targetsRange: "シート1!A:AA",
       // ECCUBE daily aggregate (shop DB). Data currently starts 2026-04-01.
       // Columns: 期間 / 購入件数 / 男/女/不明 / 会員×性別… / 購入合計 / 購入平均
       eccubeSheetId: "13zRWRzw8AEmrGi_0ubpp6Dqc8D_MnZJrJ3CHfI5lMXU",
@@ -117,15 +111,6 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     ga4PropertyId: "302745512",
     gscSiteUrl: "https://www.hansoku-style.jp/",
     currency: "JPY",
-    // 2026-07 計画値。目標の正本は targets_long(BQ) → 計画シート → この static
-    // の per-field フォールバック（src/lib/sources/target.ts）。ここは最終安全網。
-    monthlyTargets: {
-      revenue: 205_189_380,
-      conversions: 2_169,
-      adSpendBudget: 11_760_000,
-      roasPct: 1_300,
-      cpa: 15_000,
-    },
   },
   chakin: {
     id: "chakin",
@@ -140,8 +125,6 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
       // provide the Google Ads customer ID; FUSION/ラクスル operate the ads).
       sheetId: "1-BAW0ZfucnifZlZY7D12lqajQuUfxk31JPZrASESoN0",
       rawAdsRange: "Google_AdGroup_Raw!A:L",
-      targetsSheetId: "1HqiMv8TE39DYdrnroGMIfHMzLD9cLKXXqRRfwkqAGlE",
-      targetsRange: "シート1!A:AA",
       // NOTE: Chakin is lead-gen (申込), not e-commerce.
       // CV definition = "lead", not "purchase".
       // No GSC (gscSiteUrl: null). No ECCUBE — uses Graphene CRM (Phase 2).
@@ -149,7 +132,6 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     ga4PropertyId: "263217673",
     gscSiteUrl: null, // GSC not provided by client
     currency: "JPY",
-    monthlyTargets: { revenue: 0, conversions: 0, adSpendBudget: 0, roasPct: 0, cpa: 0 },
   },
   dozo: {
     id: "dozo",
@@ -164,15 +146,11 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
       // Yahoo / Meta / Microsoft to be layered in later via Windsor.ai.
       sheetId: "1P__iGeogJ14z9mP8PV7bs9I3YOWlITpW965iZMRNjJQ",
       rawAdsRange: "Google_AdGroup_Raw!A:L",
-      // Targets matrix (metric × channel × month) — structure only, CEO imports values later.
-      targetsSheetId: "1vcGAG20YTq1jm9DsNEYusmzqddVLK0hWGt7_2CfXm7k",
-      targetsRange: "シート1!A:AA",
       // No ECCUBE integration — Shopify-based sales source (Phase 2.5).
     },
     ga4PropertyId: "311951480",
     gscSiteUrl: "https://dozo-gift.com/",
     currency: "JPY",
-    monthlyTargets: { revenue: 0, conversions: 0, adSpendBudget: 0, roasPct: 0, cpa: 0 },
   },
   msec: {
     id: "msec",
@@ -187,12 +165,6 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
       // (2025-08-06 first spend date → rolling to today).
       sheetId: "1BiKvl6UwzdFEVSGuhYHtpP4Pn2TFQylTWInVPptL63E",
       rawAdsRange: "Google_AdGroup_Raw!A:L",
-      // Targets matrix (metric × channel × month) — same format as HS_計画,
-      // pivoted by src/lib/sources/target.ts. Initial values seeded from
-      // projects/msec/context.md KGI (月 ¥47.5M revenue / ¥1M ad spend)
-      // and are CEO-adjustable directly in the Sheet.
-      targetsSheetId: "1VR3ZtV5tJT9ouPCR2e1lTlDItvjc3BhJaGrN8bovaQg",
-      targetsRange: "シート1!A:AA",
       // No ECCUBE integration for MSEC Phase 1 — tracked for Phase 2.
     },
     ga4PropertyId: "283300882",
@@ -203,15 +175,6 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     // fall back to mock data (see src/lib/sources/gsc.ts error handler).
     gscSiteUrl: "sc-domain:markless.jp",
     currency: "JPY",
-    // KGI from projects/msec/context.md — online direct sales target
-    // 5.7億 per year (+1.1億 YoY) → ¥47.5M/month assumption.
-    monthlyTargets: {
-      revenue: 47_500_000,
-      conversions: 60,
-      adSpendBudget: 1_000_000,
-      roasPct: 4_750, // ¥47.5M attributed revenue / ¥1M spend
-      cpa: 16_667,    // ¥1M / 60 conv
-    },
   },
   ogc: {
     id: "ogc",
@@ -226,18 +189,12 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
       // Yahoo / Microsoft / Meta to be layered in later via Windsor.ai.
       sheetId: "1M7kBdmfZjwWdBuhwEpjtazKk5sH-5Gx9dmNvwWHhg7k",
       rawAdsRange: "Google_AdGroup_Raw!A:L",
-      // Targets matrix (metric × channel × month) — structure only, CEO imports values later.
-      targetsSheetId: "1wFQFpYZKNgx79QJfiTOT739vUVjlpqSPklhnSj1q8f4",
-      targetsRange: "シート1!A:AA",
       // ECCUBE integration: Phase 2.5 — eccubeSheetId TBD
     },
     ga4PropertyId: "355191254",
     // URL-prefix property (trailing slash present) — SA has access.
     gscSiteUrl: "https://original-goods.com/",
     currency: "JPY",
-    // CEO to import targets via the Google Sheet; static fallback is zero
-    // so achievement gauges render at 0% until the matrix is populated.
-    monthlyTargets: { revenue: 0, conversions: 0, adSpendBudget: 0, roasPct: 0, cpa: 0 },
   },
   ogp: {
     id: "ogp",
@@ -252,13 +209,10 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
       // Yahoo / Microsoft / Meta to be layered in later via Windsor.ai.
       sheetId: "14UGdtURCkmL1FY-5zY7rcpIry4zpcPRyVEYQQHFmrZA",
       rawAdsRange: "Google_AdGroup_Raw!A:L",
-      targetsSheetId: "13mastxx3QNv1FJ4KbbKgzi_e-IEgaaoPAkiqjVW5X7U",
-      targetsRange: "シート1!A:AA",
     },
     ga4PropertyId: "302724388",
     gscSiteUrl: "https://originalgoods.press/",
     currency: "JPY",
-    monthlyTargets: { revenue: 0, conversions: 0, adSpendBudget: 0, roasPct: 0, cpa: 0 },
   },
 };
 

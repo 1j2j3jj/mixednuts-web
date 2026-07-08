@@ -27,34 +27,33 @@ export interface DrillRow {
 interface Props {
   rows: DrillRow[];
   /** Fallback target ROAS percentage (anchor month) — used only when
-   *  targetsByMonth has no entry for a row's month. */
-  targetRoasPct: number;
+   *  targetsByMonth has no entry for a row's month. null = 未設定（色分けなし）. */
+  targetRoasPct: number | null;
   /** Fallback target CPA (anchor month) — same fallback rule as above. */
-  targetCpa: number;
+  targetCpa: number | null;
   /** Current drill level — decides whether the "ラベル" column is rendered. */
   level?: "media" | "campaign" | "adgroup" | "bucket";
   /** "ga4" | "media" — which side drives CV / 売上 / CPA / ROAS cells. */
   source?: MetricSource;
   /** Per-row-month targets ("YYYY-MM" → MonthlyTargets), keyed by each row's
    *  own bucket month rather than a single anchor month. A month with no
-   *  configured target (roasPct<=0 or cpa<=0 — several clients' static
-   *  fallback is all-zero) gets no colour on that metric. */
-  targetsByMonth?: Map<string, { roasPct: number; cpa: number }>;
+   *  configured target (null / <=0) gets no colour on that metric. */
+  targetsByMonth?: Map<string, { roasPct: number | null; cpa: number | null }>;
 }
 
-function roasClass(actualPct: number | null, targetPct: number): string {
+function roasClass(actualPct: number | null, targetPct: number | null): string {
   if (actualPct == null || !Number.isFinite(actualPct)) return "";
-  // targetPct<=0 means no configured target for this row's month (P2-1) —
-  // don't colour-code against a meaningless zero target.
-  if (targetPct <= 0) return "";
+  // null / <=0 means no configured target for this row's month — don't
+  // colour-code against a missing or meaningless zero target.
+  if (targetPct == null || targetPct <= 0) return "";
   if (actualPct >= targetPct) return "text-emerald-700";
   if (actualPct >= targetPct * 0.8) return "text-amber-700";
   return "text-rose-700 font-medium";
 }
 
-function cpaClass(actual: number | null, target: number): string {
+function cpaClass(actual: number | null, target: number | null): string {
   if (actual == null || !Number.isFinite(actual)) return "";
-  if (target <= 0) return "";
+  if (target == null || target <= 0) return "";
   if (actual <= target) return "text-emerald-700";
   if (actual <= target * 1.2) return "text-amber-700";
   return "text-rose-700 font-medium";
@@ -73,7 +72,7 @@ export default function DrillTable({
   // targetCpa props when targetsByMonth has no entry for that month (e.g.
   // level="bucket" rows, whose date is the raw bucket key, not necessarily
   // "YYYY-MM"-prefixed in a way targetsByMonth was populated for).
-  function targetsForRow(row: DrillRow): { roasPct: number; cpa: number } {
+  function targetsForRow(row: DrillRow): { roasPct: number | null; cpa: number | null } {
     const ym = row.date.slice(0, 7);
     return targetsByMonth?.get(ym) ?? { roasPct: targetRoasPct, cpa: targetCpa };
   }

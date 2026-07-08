@@ -78,17 +78,11 @@ function OverviewTab({ client }: { client: ClientConfig }) {
       </div>
 
       <div>
-        <h3 className="text-sm font-medium text-neutral-900">月次目標（フォールバック値）</h3>
+        <h3 className="text-sm font-medium text-neutral-900">月次目標</h3>
         <p className="mb-2 text-xs text-muted-foreground">
-          通常は目標 Sheet が優先されます。Sheet 未設定時のフォールバック。
+          目標はアップロード正本（targets_long / targets_monthly）のみ参照。未アップロード月は
+          「—（未設定）」表示（旧 計画 Sheet・静的フォールバックは 2026-07-08 廃止）。
         </p>
-        <div className="grid gap-2 text-sm">
-          <Row label="Revenue" value={`¥${client.monthlyTargets.revenue.toLocaleString()}`} />
-          <Row label="Conversions" value={`${client.monthlyTargets.conversions}`} />
-          <Row label="Ad Spend Budget" value={`¥${client.monthlyTargets.adSpendBudget.toLocaleString()}`} />
-          <Row label="Target ROAS" value={`${client.monthlyTargets.roasPct}%`} />
-          <Row label="Target CPA" value={`¥${client.monthlyTargets.cpa.toLocaleString()}`} />
-        </div>
       </div>
 
       {ds && (
@@ -96,7 +90,6 @@ function OverviewTab({ client }: { client: ClientConfig }) {
           <h3 className="text-sm font-medium text-neutral-900">Data Source 設定</h3>
           <div className="mt-2 grid gap-2 text-sm">
             <Row label="Sheet ID (Raw Ads)" value={ds.sheetId} mono />
-            {ds.targetsSheetId && <Row label="Sheet ID (Targets)" value={ds.targetsSheetId} mono />}
             {ds.eccubeSheetId && <Row label="Sheet ID (外部CV)" value={ds.eccubeSheetId} mono />}
             {client.ga4PropertyId && <Row label="GA4 Property ID" value={client.ga4PropertyId} mono />}
             {client.gscSiteUrl && <Row label="GSC Site URL" value={client.gscSiteUrl} mono />}
@@ -461,14 +454,6 @@ function DataSourcesTab({ client }: { client: ClientConfig }) {
         ? `https://docs.google.com/spreadsheets/d/${ds.sheetId}/edit`
         : undefined,
       hint: ds?.sheetId ? ds.sheetId : "未設定",
-    },
-    {
-      name: "目標 Sheet (Targets)",
-      configured: Boolean(ds?.targetsSheetId),
-      link: ds?.targetsSheetId
-        ? `https://docs.google.com/spreadsheets/d/${ds.targetsSheetId}/edit`
-        : undefined,
-      hint: ds?.targetsSheetId ?? "未設定",
     },
     {
       name: "外部CV Sheet",
@@ -996,20 +981,14 @@ export default function ClientDetailTabs({
           <div className="space-y-10">
             <DataSourcesTab client={client} />
 
-            {/* 月次目標フォールバック値 (旧 概要タブから移設) */}
+            {/* 月次目標: アップロード正本のみ（静的フォールバック廃止 2026-07-08） */}
             <section className="border-t border-neutral-200 pt-6">
-              <h2 className="text-base font-semibold text-neutral-900">月次目標（フォールバック値）</h2>
+              <h2 className="text-base font-semibold text-neutral-900">月次目標</h2>
               <p className="mt-0.5 text-xs text-neutral-500">
-                通常は目標 Sheet の値が優先されます。Sheet 未設定 / 取得失敗時に使うフォールバック。
-                編集は <code className="font-mono">src/config/clients.ts</code> + git commit が必要（Phase 3 で DB 化予定）。
+                目標はアップロード正本（targets_long / targets_monthly）のみ参照。未アップロード月は
+                ダッシュボードに「—（未設定）」と表示されます。設定はクライアント設定画面の
+                目標アップロード、または管理マスタの一括アップロードから。
               </p>
-              <div className="mt-3 grid gap-2 text-sm">
-                <Row label="Revenue" value={`¥${client.monthlyTargets.revenue.toLocaleString()}`} />
-                <Row label="Conversions" value={`${client.monthlyTargets.conversions}`} />
-                <Row label="Ad Spend Budget" value={`¥${client.monthlyTargets.adSpendBudget.toLocaleString()}`} />
-                <Row label="Target ROAS" value={`${client.monthlyTargets.roasPct}%`} />
-                <Row label="Target CPA" value={`¥${client.monthlyTargets.cpa.toLocaleString()}`} />
-              </div>
             </section>
           </div>
         )}

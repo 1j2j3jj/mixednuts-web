@@ -35,8 +35,8 @@ export interface MediaCampaignRow {
 
 interface Props {
   rows: MediaCampaignRow[];
-  /** Target ROAS (percentage) used to color ROAS cells. */
-  targetRoasPct: number;
+  /** Target ROAS (percentage) used to color ROAS cells. null = 未設定（色分けなし）. */
+  targetRoasPct: number | null;
   /** Inherited from parent. "ga4" (default) = GA4 CV/売上/ROAS; "media" = ad-platform. */
   source: MetricSource;
 }
@@ -53,8 +53,9 @@ function mediaBadge(m: string): string {
   return MEDIA_BADGE[m] ?? "bg-muted text-muted-foreground";
 }
 
-function roasClass(actualPct: number | null, targetPct: number): string {
+function roasClass(actualPct: number | null, targetPct: number | null): string {
   if (actualPct == null || !Number.isFinite(actualPct)) return "";
+  if (targetPct == null || targetPct <= 0) return "";
   if (actualPct >= targetPct) return "text-emerald-700 font-semibold";
   if (actualPct >= targetPct * 0.8) return "text-amber-700";
   return "text-rose-700";

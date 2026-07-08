@@ -19,8 +19,8 @@ export interface MediaRow {
 
 interface Props {
   rows: MediaRow[];
-  /** Target ROAS as percentage (e.g. 1300 = 1300%). */
-  targetRoasPct: number;
+  /** Target ROAS as percentage (e.g. 1300 = 1300%). null = 未設定（色分けなし）. */
+  targetRoasPct: number | null;
   /** "ga4" (default) → show GA4-based CV/売上/CPA/ROAS; "media" → ad-platform values. */
   source: MetricSource;
 }
@@ -37,8 +37,9 @@ function mediaBadge(m: string): string {
   return MEDIA_BADGE[m] ?? "bg-muted text-muted-foreground";
 }
 
-function roasClass(actualPct: number | null, targetPct: number): string {
+function roasClass(actualPct: number | null, targetPct: number | null): string {
   if (actualPct == null || !Number.isFinite(actualPct)) return "";
+  if (targetPct == null || targetPct <= 0) return "";
   if (actualPct >= targetPct) return "text-emerald-700 font-semibold";
   if (actualPct >= targetPct * 0.8) return "text-amber-700";
   return "text-rose-700";

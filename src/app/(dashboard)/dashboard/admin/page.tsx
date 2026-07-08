@@ -100,9 +100,9 @@ export default async function AdminIndexPage() {
           // Count sources
           const ds = c.dataSource;
           const sourceCount = ds
-            ? [ds.sheetId, ds.targetsSheetId, ds.eccubeSheetId, c.ga4PropertyId, c.gscSiteUrl].filter(Boolean).length
+            ? [ds.sheetId, ds.eccubeSheetId, c.ga4PropertyId, c.gscSiteUrl].filter(Boolean).length
             : [c.ga4PropertyId, c.gscSiteUrl].filter(Boolean).length;
-          const maxSources = 5;
+          const maxSources = 4;
 
           // Member count: BA org members + credential entries
           const memberCount = access?.entries.length ?? 0;
