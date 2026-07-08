@@ -48,7 +48,11 @@ export default async function ClientLayout({
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 pb-1">
         <DashboardTabs slug={slug} showReport={isRptSupported(client.id)} showMembers={canInviteMembers(orgRole)} />
-        <DateRangePicker />
+        {/* ml-auto: カスタム期間で日付入力が増えて 2 行目に折り返しても右端に
+            アンカーし続ける（折り返し時に左へジャンプして見えるのを防ぐ）。 */}
+        <div className="ml-auto">
+          <DateRangePicker />
+        </div>
       </div>
       {children}
       {/* サポート導線（Batch5）: 行き止まりを作らない。バグ報告も同じ窓口。 */}
