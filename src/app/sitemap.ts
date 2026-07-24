@@ -52,12 +52,30 @@ export default function sitemap(): MetadataRoute.Sitemap {
     }));
 
   // Works 公開ケース（CASES_COMING_SOON=true の間は空配列）
-  const workRoutes = (CASES_COMING_SOON ? [] : works.filter((w) => !w.hidden)).map((w) => ({
+  const workRoutes = (
+    CASES_COMING_SOON ? [] : works.filter((w) => !w.hidden)
+  ).map((w) => ({
     url: `${base}/works/${w.slug}`,
     lastModified: new Date(),
     changeFrequency: "monthly" as const,
     priority: 0.6,
   }));
 
-  return [...staticRoutes, ...insightRoutes, ...workRoutes];
+  // Insights タグページ: 公開記事2件以上のタグのみ掲載
+  // (1記事のみのタグページは noindex 運用のため sitemap に含めない —
+  //  tag/[tag]/page.tsx generateMetadata の robots 設定と対応)
+  const tagCounts = new Map<string, number>();
+  for (const p of posts.filter((p) => !p.hidden)) {
+    for (const t of p.tags) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
+  }
+  const tagRoutes = Array.from(tagCounts.entries())
+    .filter(([, count]) => count >= 2)
+    .map(([tag]) => ({
+      url: `${base}/insights/tag/${encodeURIComponent(tag)}`,
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.4,
+    }));
+
+  return [...staticRoutes, ...insightRoutes, ...workRoutes, ...tagRoutes];
 }
