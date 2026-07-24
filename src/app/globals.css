@@ -96,14 +96,24 @@
   /* Brand cyan accent thread (design/dashboard-restyle-mock, v4 essence
      translation) — the raw marketing brand cyan #00D9FF fails contrast on
      white (1.7:1), so these are darkened, validated steps:
-       --brand      mark-safe (>=3:1 vs white)  — ring, tab underline,
-                    sparkline stroke, goal-gauge accents, chart slot 1
-       --brand-ink  text-safe (>=4.5:1 vs white) — filled pill labels,
-                    kicker text, anything rendering actual characters
-     Verified with the dataviz skill's validate_palette.js (see commit
-     message for the full run). */
+       --brand       mark-safe (>=3:1 vs white)  — ring, tab underline,
+                     sparkline stroke, goal-gauge accents, chart slot 1
+       --brand-ink   text-safe (>=4.5:1 vs white) — filled pill labels,
+                     kicker text, anything rendering actual characters on
+                     a plain white surface; also used at 1.5px for the
+                     selected-toggle border (>=3:1 vs the tint, WCAG
+                     1.4.11 non-text contrast)
+       --brand-deep  text-safe on the light-cyan TOGGLE TINT specifically
+                     (--brand-ink itself drops to ~4:1 once blended into
+                     the tint over --muted, short of the 4.5:1 target) —
+                     4.75:1 measured against the actual 14%-tint-over-
+                     --muted chip background used by the segmented
+                     controls (SourceToggle / metric / granularity)
+     Verified with the dataviz skill's validate_palette.js + a standalone
+     WCAG contrast script (see commit message for the full run). */
   --brand: #0091b8;
   --brand-ink: #007a99;
+  --brand-deep: #006b87;
   --ring: var(--brand);
   --card-shadow:
     0 1px 2px 0 rgb(15 23 42 / 0.04), 0 4px 12px -4px rgb(15 23 42 / 0.08);
@@ -148,6 +158,7 @@
   --color-ring: var(--ring);
   --color-brand: var(--brand);
   --color-brand-ink: var(--brand-ink);
+  --color-brand-deep: var(--brand-deep);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);

@@ -130,32 +130,34 @@ export default function ChannelTrendChart({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex overflow-hidden rounded-md border">
+        <div className="inline-flex items-center gap-0.5 rounded-md border bg-muted p-0.5">
           {METRICS.map((m) => (
             <button
               key={m.key}
               type="button"
               onClick={() => setMetric(m.key)}
-              className={`h-7 px-3 text-xs font-medium transition-colors ${
+              aria-pressed={metric === m.key}
+              className={`h-6 rounded border-[1.5px] px-3 text-xs font-medium transition-colors ${
                 metric === m.key
-                  ? "bg-brand-ink text-white"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  ? "border-brand-ink bg-brand/14 text-brand-deep"
+                  : "border-transparent text-muted-foreground hover:bg-background hover:text-foreground"
               }`}
             >
               {m.label}
             </button>
           ))}
         </div>
-        <div className="inline-flex overflow-hidden rounded-md border">
+        <div className="inline-flex items-center gap-0.5 rounded-md border bg-muted p-0.5">
           {GRAN.map((g) => (
             <button
               key={g.key}
               type="button"
               onClick={() => setGranularity(g.key)}
-              className={`h-7 px-3 text-xs font-medium transition-colors ${
+              aria-pressed={granularity === g.key}
+              className={`h-6 rounded border-[1.5px] px-3 text-xs font-medium transition-colors ${
                 granularity === g.key
-                  ? "bg-brand-ink text-white"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  ? "border-brand-ink bg-brand/14 text-brand-deep"
+                  : "border-transparent text-muted-foreground hover:bg-background hover:text-foreground"
               }`}
             >
               {g.label}

@@ -47,16 +47,17 @@ export default function SourceToggle({ sources = ["ga4", "media"] }: Props) {
       data-print-hide="true"
     >
       <span className="text-muted-foreground">表示値</span>
-      <div className="inline-flex overflow-hidden rounded-md border">
+      <div className="inline-flex items-center gap-0.5 rounded-md border bg-muted p-0.5">
         {sources.map((v) => (
           <button
             key={v}
             type="button"
             onClick={() => set(v)}
-            className={`h-7 px-3 text-xs font-medium transition-colors ${
+            aria-pressed={src === v}
+            className={`h-6 rounded border-[1.5px] px-3 text-xs font-medium transition-colors ${
               src === v
-                ? "bg-brand-ink text-white"
-                : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                ? "border-brand-ink bg-brand/14 text-brand-deep"
+                : "border-transparent text-muted-foreground hover:bg-background hover:text-foreground"
             }`}
           >
             {labelFor[v]}
