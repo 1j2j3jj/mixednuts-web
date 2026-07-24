@@ -12,8 +12,9 @@ import { switchClient } from "./actions";
  * admin viewers are redirected immediately — they never need this page
  * (admin has the full Admin Index; single-client is already gated to one slug).
  *
- * The "Open" button calls the switchClient server action, which re-signs
- * the cookie with the chosen currentSlug and redirects to that dashboard.
+ * The "Open" button calls the switchClient server action, which validates
+ * access and redirects to the chosen /dashboard/{slug}. Tenant selection is
+ * URL-scoped; we do not rewrite shared cookie state here.
  */
 export const dynamic = "force-dynamic";
 
