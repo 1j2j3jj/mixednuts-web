@@ -4,7 +4,11 @@ import type { ReactElement } from "react";
  * 共通 JSON-LD レンダラー。
  * layout.tsx や個別ページで呼び出して <head> 内に <script type="application/ld+json"> を出力する。
  */
-export function JsonLd({ data }: { data: Record<string, unknown> | Record<string, unknown>[] }): ReactElement {
+export function JsonLd({
+  data,
+}: {
+  data: Record<string, unknown> | Record<string, unknown>[];
+}): ReactElement {
   return (
     <script
       type="application/ld+json"
@@ -28,7 +32,15 @@ export const organizationSchema = {
   alternateName: "mixednuts Inc.",
   legalName: "ミックスナッツ株式会社",
   url: `${SITE_URL}/`,
-  logo: `${SITE_URL}/og-default.jpg`,
+  // logo は実ロゴ (1500x281 ワードマーク、両辺 112px 以上の Google 要件充足) を指す。
+  // 従来は OGP バナー (og-default.jpg 1200x630) を指しておりナレッジパネル用ロゴとして不適切だった
+  logo: {
+    "@type": "ImageObject",
+    url: `${SITE_URL}/logo.png`,
+    width: 1500,
+    height: 281,
+  },
+  image: `${SITE_URL}/og-default.jpg`,
   description:
     "戦略コンサルティング、AIエージェント導入、グロースマーケティングを統合提供する AI-first コンサルティングファーム。",
   foundingDate: "2021",
@@ -64,9 +76,7 @@ export const organizationSchema = {
   // 理由: 空配列はナレッジパネル化・AIO 引用の Authoritativeness 強化を阻害する
   // GitHub は 1j2j3jj/mixednuts-web リポの所有者として確認済
   // LinkedIn / Twitter は CEO 確認待ち — 確定後に追加すること
-  sameAs: [
-    "https://github.com/1j2j3jj",
-  ] as string[],
+  sameAs: ["https://github.com/1j2j3jj"] as string[],
 };
 
 export const webSiteSchema = {
@@ -86,7 +96,7 @@ export const webSiteSchema = {
 // ============================================================
 
 export function buildBreadcrumbSchema(
-  items: { name: string; path: string }[]
+  items: { name: string; path: string }[],
 ): Record<string, unknown> {
   return {
     "@context": "https://schema.org",
@@ -95,7 +105,9 @@ export function buildBreadcrumbSchema(
       "@type": "ListItem",
       position: index + 1,
       name: item.name,
-      item: item.path.startsWith("http") ? item.path : `${SITE_URL}${item.path}`,
+      item: item.path.startsWith("http")
+        ? item.path
+        : `${SITE_URL}${item.path}`,
     })),
   };
 }

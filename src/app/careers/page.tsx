@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { positions, CASUAL_INTERVIEW_SLUG } from "@/data/careers";
 import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { buildPageOg } from "@/lib/site-metadata";
 
 const faqItems = [
   {
@@ -10,7 +11,7 @@ const faqItems = [
   },
   {
     q: "リモートは可能ですか?",
-    a: "業務委託は完全リモート、正社員は \"週1オフィス (南青山) + リモート\" が基本です。地方在住メンバーもいます。",
+    a: '業務委託は完全リモート、正社員は "週1オフィス (南青山) + リモート" が基本です。地方在住メンバーもいます。',
   },
   {
     q: "未経験でも応募可能ですか?",
@@ -45,11 +46,20 @@ const breadcrumb = buildBreadcrumbSchema([
   { name: "Careers", path: "/careers" },
 ]);
 
+// "| mixednuts inc." を除去 — layout の title template と重複し二重表示になっていた
+const pageTitle = "Careers — AI と共に働くプロフェッショナル募集";
+const pageDescription =
+  "戦略・AI・マーケのプロフェッショナルを募集。フルタイム、業務委託、プロジェクト単位のパートナーまで、多様な働き方を設計可能。";
+
 export const metadata: Metadata = {
-  title: "Careers — AI と共に働くプロフェッショナル募集 | mixednuts inc.",
-  description:
-    "戦略・AI・マーケのプロフェッショナルを募集。フルタイム、業務委託、プロジェクト単位のパートナーまで、多様な働き方を設計可能。",
+  title: pageTitle,
+  description: pageDescription,
   alternates: { canonical: "/careers" },
+  ...buildPageOg({
+    title: pageTitle,
+    description: pageDescription,
+    path: "/careers",
+  }),
 };
 
 export default function CareersPage() {
@@ -152,13 +162,16 @@ export default function CareersPage() {
           </div>
           <div className="page-hero-badge">Join Us</div>
           <h1>
-            AI と&quot;<span className="accent">共に働く</span>&quot;<br />
-            プロフェッショナルを<br />
+            AI と&quot;<span className="accent">共に働く</span>&quot;
+            <br />
+            プロフェッショナルを
+            <br />
             募集しています。
           </h1>
           <p className="lead">
             フルタイム社員、業務委託、プロジェクト単位のパートナーまで。多様な働き方を組み合わせ、
-            &quot;ミックス&quot;の文化を育てていく仲間を探しています。戦略 / AI / マーケ / デザイン / クリエイティブ、
+            &quot;ミックス&quot;の文化を育てていく仲間を探しています。戦略 / AI
+            / マーケ / デザイン / クリエイティブ、
             あらゆる領域で出会いを歓迎します。
           </p>
         </div>
@@ -172,15 +185,18 @@ export default function CareersPage() {
             ミックスナッツで働く3つの魅力
           </h2>
           <p className="section-lead" style={{ marginBottom: 0 }}>
-            AI-first ファームで、&quot;自分の専門性&quot; × &quot;AIの拡張力&quot; を試せる場所。
+            AI-first ファームで、&quot;自分の専門性&quot; ×
+            &quot;AIの拡張力&quot; を試せる場所。
           </p>
           <div className="why-grid">
             <div className="why-card">
               <div className="why-num">01</div>
               <h3>AI が同僚になる</h3>
               <p>
-                120体超の AI エージェントがあなたの仕事を助けます。単純作業は AI に任せ、人間は戦略判断と
-                クリエイティビティに集中。&quot;自分の時間単価&quot; が2倍以上になる感覚を得られます。
+                120体超の AI エージェントがあなたの仕事を助けます。単純作業は AI
+                に任せ、人間は戦略判断と
+                クリエイティビティに集中。&quot;自分の時間単価&quot;
+                が2倍以上になる感覚を得られます。
               </p>
             </div>
             <div className="why-card">
@@ -196,7 +212,8 @@ export default function CareersPage() {
               <h3>決定権と責任</h3>
               <p>
                 年次・肩書ではなく、成果と信頼で意思決定の範囲が広がる設計。
-                &quot;AIを使って、自分で判断する&quot; を当たり前にする組織です。
+                &quot;AIを使って、自分で判断する&quot;
+                を当たり前にする組織です。
               </p>
             </div>
           </div>
@@ -217,35 +234,57 @@ export default function CareersPage() {
             <div className="style-card">
               <div className="style-type">FULL-TIME</div>
               <h3>正社員</h3>
-              <p>フルコミットで事業成長をドライブする中核メンバー。経営幹部候補としての採用を含みます。</p>
+              <p>
+                フルコミットで事業成長をドライブする中核メンバー。経営幹部候補としての採用を含みます。
+              </p>
               <ul>
                 <li>リモート + 週1オフィス (南青山)</li>
                 <li>ストックオプション検討</li>
                 <li>フレックス制</li>
                 <li>書籍・学習支援あり</li>
               </ul>
-              <a href="#open" style={{ fontSize: 13, fontWeight: 700, color: "var(--navy)", textDecoration: "underline" }}>
+              <a
+                href="#open"
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "var(--navy)",
+                  textDecoration: "underline",
+                }}
+              >
                 Open positions ↓
               </a>
             </div>
             <div className="style-card featured">
               <div className="style-type">CONTRACT</div>
               <h3>業務委託</h3>
-              <p>週2-4日のコミットで、特定案件に深く関わる形。副業可。大手企業在籍中の方も歓迎。</p>
+              <p>
+                週2-4日のコミットで、特定案件に深く関わる形。副業可。大手企業在籍中の方も歓迎。
+              </p>
               <ul>
                 <li>完全リモート</li>
                 <li>週2日〜 柔軟に設計</li>
                 <li>プロジェクト開始は最短翌週</li>
                 <li>契約更新は3ヶ月ごと</li>
               </ul>
-              <a href="#open" style={{ fontSize: 13, fontWeight: 700, color: "var(--cyan)", textDecoration: "underline" }}>
+              <a
+                href="#open"
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "var(--cyan)",
+                  textDecoration: "underline",
+                }}
+              >
                 Open positions ↓
               </a>
             </div>
             <div className="style-card">
               <div className="style-type">PARTNER</div>
               <h3>プロジェクト パートナー</h3>
-              <p>スポット案件や専門領域の助言で参画。1プロジェクト単位・1回コンサルから可能。</p>
+              <p>
+                スポット案件や専門領域の助言で参画。1プロジェクト単位・1回コンサルから可能。
+              </p>
               <ul>
                 <li>完全リモート</li>
                 <li>成果報酬 / プロジェクト単位</li>
@@ -253,7 +292,15 @@ export default function CareersPage() {
                 <li>継続的な関係性も歓迎</li>
                 <li>顧問・Advisory も相談可</li>
               </ul>
-              <a href="#open" style={{ fontSize: 13, fontWeight: 700, color: "var(--navy)", textDecoration: "underline" }}>
+              <a
+                href="#open"
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "var(--navy)",
+                  textDecoration: "underline",
+                }}
+              >
                 Open positions ↓
               </a>
             </div>
@@ -273,12 +320,18 @@ export default function CareersPage() {
           </p>
           <div className="position-list">
             {positions.map((pos) => (
-              <Link key={pos.slug} href={`/careers/apply?position=${pos.slug}`} className="position-item">
+              <Link
+                key={pos.slug}
+                href={`/careers/apply?position=${pos.slug}`}
+                className="position-item"
+              >
                 <div className="position-main">
                   <h3>{pos.title}</h3>
                   <div className="position-tags">
                     {pos.tags.map((t) => (
-                      <span key={t} className="position-tag">{t}</span>
+                      <span key={t} className="position-tag">
+                        {t}
+                      </span>
                     ))}
                   </div>
                 </div>
@@ -302,11 +355,36 @@ export default function CareersPage() {
           </p>
           <div className="hiring-steps">
             {[
-              { num: "1", day: "Day 1", title: "カジュアル面談", desc: "30分のカジュアル面談で、お互いの興味と相性を確認。" },
-              { num: "2", day: "Week 1", title: "書類選考", desc: "職務経歴書 + ポートフォリオを2営業日以内に確認。" },
-              { num: "3", day: "Week 2", title: "実技・ケース", desc: "実際の業務に即したケース (持ち帰り2-3h程度) を提出。" },
-              { num: "4", day: "Week 3", title: "CEO 面談", desc: "CEO (石井 希実) と60分の最終面談。" },
-              { num: "5", day: "Week 4", title: "オファー", desc: "条件提示 → 合意 → 契約締結。最短翌週から着任可。" },
+              {
+                num: "1",
+                day: "Day 1",
+                title: "カジュアル面談",
+                desc: "30分のカジュアル面談で、お互いの興味と相性を確認。",
+              },
+              {
+                num: "2",
+                day: "Week 1",
+                title: "書類選考",
+                desc: "職務経歴書 + ポートフォリオを2営業日以内に確認。",
+              },
+              {
+                num: "3",
+                day: "Week 2",
+                title: "実技・ケース",
+                desc: "実際の業務に即したケース (持ち帰り2-3h程度) を提出。",
+              },
+              {
+                num: "4",
+                day: "Week 3",
+                title: "CEO 面談",
+                desc: "CEO (石井 希実) と60分の最終面談。",
+              },
+              {
+                num: "5",
+                day: "Week 4",
+                title: "オファー",
+                desc: "条件提示 → 合意 → 契約締結。最短翌週から着任可。",
+              },
             ].map((step) => (
               <div key={step.num} className="hiring-step">
                 <div className="hiring-step-num">{step.num}</div>
@@ -339,8 +417,13 @@ export default function CareersPage() {
       <section className="cta">
         <div className="cta-inner">
           <h2>まずは、話しましょう。</h2>
-          <p>カジュアル面談 (30分) から始められます。応募前の質問も歓迎します。</p>
-          <Link href={`/careers/apply?position=${CASUAL_INTERVIEW_SLUG}`} className="btn-primary">
+          <p>
+            カジュアル面談 (30分) から始められます。応募前の質問も歓迎します。
+          </p>
+          <Link
+            href={`/careers/apply?position=${CASUAL_INTERVIEW_SLUG}`}
+            className="btn-primary"
+          >
             カジュアル面談を申し込む →
           </Link>
         </div>

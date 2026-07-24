@@ -2,14 +2,57 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { works, CASES_COMING_SOON } from "@/data/works";
 import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { buildPageOg } from "@/lib/site-metadata";
+
+const pageTitle = "AI Implementation — AIと「共に働く組織」をつくる";
+const pageDescription =
+  "AIエージェント設計、LLM業務実装、データ基盤構築。自社で120体超のAIエージェント組織を運営するAI-firstファーム。";
 
 export const metadata: Metadata = {
-  title: "AI Implementation — AIと「共に働く組織」をつくる",
-  description: "AIエージェント設計、LLM業務実装、データ基盤構築。自社で120体超のAIエージェント組織を運営するAI-firstファーム。",
+  title: pageTitle,
+  description: pageDescription,
   alternates: { canonical: "/services/ai" },
+  ...buildPageOg({
+    title: pageTitle,
+    description: pageDescription,
+    path: "/services/ai",
+  }),
 };
 
-const aiWorks = CASES_COMING_SOON ? [] : works.filter((w) => !w.hidden && w.services.includes("ai")).slice(0, 3);
+// ページ内 FAQ セクションと同一内容 (可視コンテンツと schema の同期が必須 — 乖離は GSC 手動対応リスク)
+const faqItems = [
+  {
+    q: "AIの知識がない社員でも使えますか？",
+    a: "はい、前提知識は不要です。業務フローに自然に組み込まれる設計を採用しており、ユーザーは「AIを使っている」ことを意識せずに業務を進められます。必要に応じて研修プログラムも提供します。",
+  },
+  {
+    q: "社内の機密情報はどう扱いますか？",
+    a: "エンタープライズ契約（学習データに利用されないプラン）を使用し、機密情報の取り扱いルールを事前に策定します。NDA締結後、お客様のセキュリティポリシーに準拠した設計を行います。",
+  },
+  {
+    q: "既存のシステムやツールと連携できますか？",
+    a: "はい。Google Workspace、Slack、各種CRM、会計ソフト、ERP等との連携実績があります。MCPプロトコルや既存APIを活用した統合設計を行います。",
+  },
+  {
+    q: "どのくらいの期間・費用がかかりますか？",
+    a: "スコープによりますが、PoC（概念検証）は1-2ヶ月、本番実装は3-6ヶ月が目安です。費用はプロジェクト規模によりますが、月額リテーナー¥50万〜からご相談いただけます。まずは初回無料相談でスコープを明確化しましょう。",
+  },
+];
+
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "@id": "https://mixednuts-inc.com/services/ai#faq",
+  mainEntity: faqItems.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: { "@type": "Answer", text: item.a },
+  })),
+};
+
+const aiWorks = CASES_COMING_SOON
+  ? []
+  : works.filter((w) => !w.hidden && w.services.includes("ai")).slice(0, 3);
 
 const serviceSchema = {
   "@context": "https://schema.org",
@@ -35,6 +78,7 @@ export default function ServiceAIPage() {
   return (
     <>
       <JsonLd data={serviceSchema} />
+      <JsonLd data={faqSchema} />
       <JsonLd data={breadcrumb} />
       <style>{`
         .page-hero-ai { background: var(--off-white); }
@@ -87,9 +131,18 @@ export default function ServiceAIPage() {
 
       <section className="page-hero page-hero-ai">
         <div className="page-hero-inner">
-          <div className="breadcrumb"><Link href="/">Home</Link> / <Link href="/services">Services</Link> / AI Implementation</div>
-          <div className="page-hero-badge">AI Implementation · Most Requested</div>
-          <h1>AIを"使う"のではなく、<br />AIと"<span className="accent">共に働く組織</span>"をつくる。</h1>
+          <div className="breadcrumb">
+            <Link href="/">Home</Link> / <Link href="/services">Services</Link>{" "}
+            / AI Implementation
+          </div>
+          <div className="page-hero-badge">
+            AI Implementation · Most Requested
+          </div>
+          <h1>
+            AIを"使う"のではなく、
+            <br />
+            AIと"<span className="accent">共に働く組織</span>"をつくる。
+          </h1>
           <p className="lead">
             AIエージェント設計、LLM業務実装、データ基盤構築まで。私たち自身、120体超のAIエージェントで組織を運営しています。自社で磨き上げたアーキテクチャを、お客様の事業に展開します。
           </p>
@@ -99,10 +152,22 @@ export default function ServiceAIPage() {
       {/* Proof bar */}
       <section className="proof-bar">
         <div className="proof-bar-inner">
-          <div className="proof-stat"><div className="num">120+</div><div className="label">社内AIエージェント稼働中</div></div>
-          <div className="proof-stat"><div className="num">70+</div><div className="label">業務スキル定義済み</div></div>
-          <div className="proof-stat"><div className="num">40+</div><div className="label">業務プロセス自動化</div></div>
-          <div className="proof-stat"><div className="num">-70%</div><div className="label">時間削減の実例</div></div>
+          <div className="proof-stat">
+            <div className="num">120+</div>
+            <div className="label">社内AIエージェント稼働中</div>
+          </div>
+          <div className="proof-stat">
+            <div className="num">70+</div>
+            <div className="label">業務スキル定義済み</div>
+          </div>
+          <div className="proof-stat">
+            <div className="num">40+</div>
+            <div className="label">業務プロセス自動化</div>
+          </div>
+          <div className="proof-stat">
+            <div className="num">-70%</div>
+            <div className="label">時間削減の実例</div>
+          </div>
         </div>
       </section>
 
@@ -111,21 +176,87 @@ export default function ServiceAIPage() {
         <div className="section-inner">
           <span className="section-label">What We Offer</span>
           <h2 className="section-title">6つの AI 実装ソリューション。</h2>
-          <p className="section-lead">ツール導入で終わらせず、業務フローに溶け込むAIを実装します。PoCで止まらず、本番運用まで伴走するのが私たちの特徴です。</p>
+          <p className="section-lead">
+            ツール導入で終わらせず、業務フローに溶け込むAIを実装します。PoCで止まらず、本番運用まで伴走するのが私たちの特徴です。
+          </p>
           <div className="solutions-grid">
             {[
-              { icon: "01", title: "AI エージェント設計", desc: "業務フロー全体を分析し、どこにAIを配置すべきかの設計から実装まで。専門領域ごとの役割分担、エージェント間連携、ガバナンスまで一気通貫で支援します。", features: ["マルチエージェント設計", "専門性別ロール分担", "エージェント間連携", "ガバナンス設計"] },
-              { icon: "02", title: "プロンプトエンジニアリング", desc: "再現性のある出力を実現するプロンプト設計と評価。A/Bテスト、評価ハーネス構築、継続的な改善プロセスまで。単発ではなく運用を前提に設計します。", features: ["プロンプト設計", "評価フレームワーク", "A/Bテスト", "継続改善運用"] },
-              { icon: "03", title: "LLM 業務実装", desc: "月次決算、FP&A分析、顧客対応、コンテンツ生成など、業務領域ごとにAIを組み込む。既存の業務フローを破壊せず、段階的に置き換えます。", features: ["FP&A × AI", "マーケ × AI", "CS × AI", "戦略分析 × AI"] },
-              { icon: "04", title: "データ基盤 / MCP 統合", desc: "MCPサーバー構築、データソース統合、ツール連携まで。Google Workspace、Slack、CRM、会計ソフト等の既存ツールとAIを繋ぎ込みます。", features: ["MCP サーバー構築", "API 連携", "データパイプライン", "既存ツール統合"] },
-              { icon: "05", title: "AI ガバナンス", desc: "機密情報の取り扱い、権限管理、監査ログ、ハルシネーション対策まで。エンタープライズ要件に応えるAI運用体制を構築します。", features: ["アクセス制御", "監査ログ", "NDA / 機密管理", "ハルシネーション対策"] },
-              { icon: "06", title: "社内 AI 活用研修", desc: "経営層・現場リーダー向けの研修プログラム。「AIで何ができるか」ではなく「自社にどう実装するか」を、ハンズオンで学ぶカリキュラムです。", features: ["経営層向けワークショップ", "現場リーダー研修", "ハンズオン実装", "継続的な運用伴走"] },
+              {
+                icon: "01",
+                title: "AI エージェント設計",
+                desc: "業務フロー全体を分析し、どこにAIを配置すべきかの設計から実装まで。専門領域ごとの役割分担、エージェント間連携、ガバナンスまで一気通貫で支援します。",
+                features: [
+                  "マルチエージェント設計",
+                  "専門性別ロール分担",
+                  "エージェント間連携",
+                  "ガバナンス設計",
+                ],
+              },
+              {
+                icon: "02",
+                title: "プロンプトエンジニアリング",
+                desc: "再現性のある出力を実現するプロンプト設計と評価。A/Bテスト、評価ハーネス構築、継続的な改善プロセスまで。単発ではなく運用を前提に設計します。",
+                features: [
+                  "プロンプト設計",
+                  "評価フレームワーク",
+                  "A/Bテスト",
+                  "継続改善運用",
+                ],
+              },
+              {
+                icon: "03",
+                title: "LLM 業務実装",
+                desc: "月次決算、FP&A分析、顧客対応、コンテンツ生成など、業務領域ごとにAIを組み込む。既存の業務フローを破壊せず、段階的に置き換えます。",
+                features: [
+                  "FP&A × AI",
+                  "マーケ × AI",
+                  "CS × AI",
+                  "戦略分析 × AI",
+                ],
+              },
+              {
+                icon: "04",
+                title: "データ基盤 / MCP 統合",
+                desc: "MCPサーバー構築、データソース統合、ツール連携まで。Google Workspace、Slack、CRM、会計ソフト等の既存ツールとAIを繋ぎ込みます。",
+                features: [
+                  "MCP サーバー構築",
+                  "API 連携",
+                  "データパイプライン",
+                  "既存ツール統合",
+                ],
+              },
+              {
+                icon: "05",
+                title: "AI ガバナンス",
+                desc: "機密情報の取り扱い、権限管理、監査ログ、ハルシネーション対策まで。エンタープライズ要件に応えるAI運用体制を構築します。",
+                features: [
+                  "アクセス制御",
+                  "監査ログ",
+                  "NDA / 機密管理",
+                  "ハルシネーション対策",
+                ],
+              },
+              {
+                icon: "06",
+                title: "社内 AI 活用研修",
+                desc: "経営層・現場リーダー向けの研修プログラム。「AIで何ができるか」ではなく「自社にどう実装するか」を、ハンズオンで学ぶカリキュラムです。",
+                features: [
+                  "経営層向けワークショップ",
+                  "現場リーダー研修",
+                  "ハンズオン実装",
+                  "継続的な運用伴走",
+                ],
+              },
             ].map((s) => (
               <div key={s.title} className="solution-card">
                 <div className="s-icon">{s.icon}</div>
                 <h3>{s.title}</h3>
                 <p>{s.desc}</p>
-                <ul className="features">{s.features.map((f) => <li key={f}>{f}</li>)}</ul>
+                <ul className="features">
+                  {s.features.map((f) => (
+                    <li key={f}>{f}</li>
+                  ))}
+                </ul>
               </div>
             ))}
           </div>
@@ -134,10 +265,20 @@ export default function ServiceAIPage() {
 
       {/* Tech Stack */}
       <section className="section stack-section">
-        <div className="section-inner" style={{position: 'relative', zIndex: 2}}>
+        <div
+          className="section-inner"
+          style={{ position: "relative", zIndex: 2 }}
+        >
           <span className="section-label">Tech Stack</span>
-          <h2 className="section-title" style={{color: '#fff'}}>使用している技術。</h2>
-          <p className="section-lead" style={{color: 'rgba(255,255,255,0.75)'}}>エンタープライズで実運用できる技術スタック。お客様の既存システムに合わせて柔軟に選定します。</p>
+          <h2 className="section-title" style={{ color: "#fff" }}>
+            使用している技術。
+          </h2>
+          <p
+            className="section-lead"
+            style={{ color: "rgba(255,255,255,0.75)" }}
+          >
+            エンタープライズで実運用できる技術スタック。お客様の既存システムに合わせて柔軟に選定します。
+          </p>
           <div className="stack-grid">
             <div className="stack-category">
               <h3>LLM</h3>
@@ -180,17 +321,39 @@ export default function ServiceAIPage() {
       </section>
 
       {/* Process */}
-      <section className="section" style={{background: '#F9FAFB'}}>
+      <section className="section" style={{ background: "#F9FAFB" }}>
         <div className="section-inner">
           <span className="section-label">Our Process</span>
           <h2 className="section-title">AI実装の進め方。</h2>
-          <p className="section-lead">PoC → 本番稼働 → 継続改善の流れを、4つのフェーズで確実に進めます。</p>
+          <p className="section-lead">
+            PoC → 本番稼働 → 継続改善の流れを、4つのフェーズで確実に進めます。
+          </p>
           <div className="process-steps">
             {[
-              { num: "1", phase: "Week 1-4", title: "現状診断・設計", desc: "業務フロー全体をマッピング。自動化すべき工程と人間が担うべき工程を分離。AI実装ロードマップを策定。" },
-              { num: "2", phase: "Month 2-3", title: "PoC・プロトタイプ", desc: "最優先の業務領域でプロトタイプを構築。実際の業務データで検証し、精度・速度・ユーザー受容性を評価。" },
-              { num: "3", phase: "Month 4-6", title: "本番実装・統合", desc: "既存システムとの統合、セキュリティ設計、権限管理を含む本番稼働。ユーザー研修と並行して段階展開。" },
-              { num: "4", phase: "Month 7+", title: "継続改善・拡張", desc: "KPI計測、プロンプト改善、新たな業務への展開。AI組織として自走できる体制づくりを支援。" },
+              {
+                num: "1",
+                phase: "Week 1-4",
+                title: "現状診断・設計",
+                desc: "業務フロー全体をマッピング。自動化すべき工程と人間が担うべき工程を分離。AI実装ロードマップを策定。",
+              },
+              {
+                num: "2",
+                phase: "Month 2-3",
+                title: "PoC・プロトタイプ",
+                desc: "最優先の業務領域でプロトタイプを構築。実際の業務データで検証し、精度・速度・ユーザー受容性を評価。",
+              },
+              {
+                num: "3",
+                phase: "Month 4-6",
+                title: "本番実装・統合",
+                desc: "既存システムとの統合、セキュリティ設計、権限管理を含む本番稼働。ユーザー研修と並行して段階展開。",
+              },
+              {
+                num: "4",
+                phase: "Month 7+",
+                title: "継続改善・拡張",
+                desc: "KPI計測、プロンプト改善、新たな業務への展開。AI組織として自走できる体制づくりを支援。",
+              },
             ].map((s) => (
               <div key={s.num} className="process-step">
                 <div className="process-num">{s.num}</div>
@@ -209,10 +372,16 @@ export default function ServiceAIPage() {
           <div className="section-inner">
             <span className="section-label">AI Case Studies</span>
             <h2 className="section-title">AI実装の成果。</h2>
-            <p className="section-lead">実際のプロジェクトから。すべて匿名ですが、業種・数字で具体性を担保しています。</p>
+            <p className="section-lead">
+              実際のプロジェクトから。すべて匿名ですが、業種・数字で具体性を担保しています。
+            </p>
             <div className="cases-grid">
               {aiWorks.map((w) => (
-                <Link key={w.slug} href={`/works/${w.slug}`} style={{textDecoration: 'none', color: 'inherit'}}>
+                <Link
+                  key={w.slug}
+                  href={`/works/${w.slug}`}
+                  style={{ textDecoration: "none", color: "inherit" }}
+                >
                   <div className="case-card">
                     <div className="case-header">
                       <span className="case-sector">{w.industry}</span>
@@ -222,11 +391,23 @@ export default function ServiceAIPage() {
                       {w.metric.slice(0, 2).map((m) => (
                         <div key={m.label}>
                           <div className="case-metric-label">{m.label}</div>
-                          <div className={`case-metric-value ${m.value.startsWith('+') ? 'gain' : ''}`}>{m.value}</div>
+                          <div
+                            className={`case-metric-value ${m.value.startsWith("+") ? "gain" : ""}`}
+                          >
+                            {m.value}
+                          </div>
                         </div>
                       ))}
                     </div>
-                    <p style={{fontSize: 12, color: '#4B5563', lineHeight: 1.7}}>{w.summary}</p>
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "#4B5563",
+                        lineHeight: 1.7,
+                      }}
+                    >
+                      {w.summary}
+                    </p>
                   </div>
                 </Link>
               ))}
@@ -236,17 +417,13 @@ export default function ServiceAIPage() {
       )}
 
       {/* FAQ */}
-      <section className="section" style={{background: '#F9FAFB'}}>
+      <section className="section" style={{ background: "#F9FAFB" }}>
         <div className="section-inner">
           <span className="section-label">FAQ</span>
           <h2 className="section-title">よくある質問。</h2>
           <div className="faq-list">
-            {[
-              { q: "AIの知識がない社員でも使えますか？", a: "はい、前提知識は不要です。業務フローに自然に組み込まれる設計を採用しており、ユーザーは「AIを使っている」ことを意識せずに業務を進められます。必要に応じて研修プログラムも提供します。" },
-              { q: "社内の機密情報はどう扱いますか？", a: "エンタープライズ契約（学習データに利用されないプラン）を使用し、機密情報の取り扱いルールを事前に策定します。NDA締結後、お客様のセキュリティポリシーに準拠した設計を行います。" },
-              { q: "既存のシステムやツールと連携できますか？", a: "はい。Google Workspace、Slack、各種CRM、会計ソフト、ERP等との連携実績があります。MCPプロトコルや既存APIを活用した統合設計を行います。" },
-              { q: "どのくらいの期間・費用がかかりますか？", a: "スコープによりますが、PoC（概念検証）は1-2ヶ月、本番実装は3-6ヶ月が目安です。費用はプロジェクト規模によりますが、月額リテーナー¥50万〜からご相談いただけます。まずは初回無料相談でスコープを明確化しましょう。" },
-            ].map((faq) => (
+            {/* faqItems (ファイル冒頭) が FAQPage schema と共有の単一ソース — 可視内容と schema の乖離防止 */}
+            {faqItems.map((faq) => (
               <div key={faq.q} className="faq-item">
                 <div className="faq-q">{faq.q}</div>
                 <div className="faq-a">{faq.a}</div>
@@ -258,9 +435,17 @@ export default function ServiceAIPage() {
 
       <section className="cta">
         <div className="cta-inner">
-          <h2>AI実装を、<br />今すぐ始めましょう。</h2>
-          <p>まずは貴社の業務フローを聞かせてください。どこからAIを入れるべきか、60分で見えてきます。</p>
-          <Link href="/contact" className="btn-primary">無料相談を申し込む →</Link>
+          <h2>
+            AI実装を、
+            <br />
+            今すぐ始めましょう。
+          </h2>
+          <p>
+            まずは貴社の業務フローを聞かせてください。どこからAIを入れるべきか、60分で見えてきます。
+          </p>
+          <Link href="/contact" className="btn-primary">
+            無料相談を申し込む →
+          </Link>
         </div>
       </section>
     </>

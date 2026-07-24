@@ -3,6 +3,7 @@ import Link from "next/link";
 import { works, type Work, CASES_COMING_SOON } from "@/data/works";
 import { notFound } from "next/navigation";
 import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { buildPageOg } from "@/lib/site-metadata";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -15,18 +16,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const work = works.find((w) => w.slug === slug);
   if (!work || work.hidden || CASES_COMING_SOON) return {};
+  const title = `Case: ${work.title}`;
   return {
-    title: `Case: ${work.title}`,
+    title,
     description: work.summary,
     alternates: { canonical: `/works/${slug}` },
+    ...buildPageOg({
+      title,
+      description: work.summary,
+      path: `/works/${slug}`,
+      images: work.image ? [{ url: work.image }] : undefined,
+    }),
   };
 }
 
-const serviceLabels: Record<string, string> = { ai: "AI", strategy: "Strategy", marketing: "Marketing" };
+const serviceLabels: Record<string, string> = {
+  ai: "AI",
+  strategy: "Strategy",
+  marketing: "Marketing",
+};
 const bgMap: Record<string, string> = {
   ai: "linear-gradient(135deg, rgba(245,241,232,0.75) 0%, rgba(245,241,232,0.92) 100%)",
-  strategy: "linear-gradient(135deg, rgba(245,241,232,0.75) 0%, rgba(245,241,232,0.92) 100%)",
-  marketing: "linear-gradient(135deg, rgba(245,241,232,0.75) 0%, rgba(245,241,232,0.92) 100%)",
+  strategy:
+    "linear-gradient(135deg, rgba(245,241,232,0.75) 0%, rgba(245,241,232,0.92) 100%)",
+  marketing:
+    "linear-gradient(135deg, rgba(245,241,232,0.75) 0%, rgba(245,241,232,0.92) 100%)",
 };
 
 export default async function WorkDetailPage({ params }: Props) {
@@ -38,7 +52,12 @@ export default async function WorkDetailPage({ params }: Props) {
   const primaryService = work.services[0];
   const heroBg = bgMap[primaryService] || bgMap.strategy;
   const relatedWorks = works
-    .filter((w) => !w.hidden && w.slug !== slug && w.services.some((s) => work.services.includes(s)))
+    .filter(
+      (w) =>
+        !w.hidden &&
+        w.slug !== slug &&
+        w.services.some((s) => work.services.includes(s)),
+    )
     .slice(0, 3);
 
   const creativeWorkSchema = {
@@ -125,11 +144,14 @@ export default async function WorkDetailPage({ params }: Props) {
       <section className="case-hero">
         <div className="case-hero-inner">
           <div className="breadcrumb">
-            <Link href="/">Home</Link> / <Link href="/works">Works</Link> / {work.industry}
+            <Link href="/">Home</Link> / <Link href="/works">Works</Link> /{" "}
+            {work.industry}
           </div>
           <div className="case-tags-row">
             {work.services.map((s) => (
-              <span key={s} className="case-tag-pill">{serviceLabels[s]}</span>
+              <span key={s} className="case-tag-pill">
+                {serviceLabels[s]}
+              </span>
             ))}
             <span className="case-tag-pill">{work.industry}</span>
           </div>
@@ -141,10 +163,26 @@ export default async function WorkDetailPage({ params }: Props) {
       {/* Quick Facts */}
       <section className="facts">
         <div className="facts-inner">
-          <div><div className="fact-label">Industry</div><div className="fact-value">{work.industry}</div></div>
-          <div><div className="fact-label">Client</div><div className="fact-value">{work.client}</div></div>
-          <div><div className="fact-label">Services</div><div className="fact-value">{work.services.map((s) => serviceLabels[s]).join(" × ")}</div></div>
-          <div><div className="fact-label">Key Result</div><div className="fact-value">{work.metric[0].label}: {work.metric[0].value}</div></div>
+          <div>
+            <div className="fact-label">Industry</div>
+            <div className="fact-value">{work.industry}</div>
+          </div>
+          <div>
+            <div className="fact-label">Client</div>
+            <div className="fact-value">{work.client}</div>
+          </div>
+          <div>
+            <div className="fact-label">Services</div>
+            <div className="fact-value">
+              {work.services.map((s) => serviceLabels[s]).join(" × ")}
+            </div>
+          </div>
+          <div>
+            <div className="fact-label">Key Result</div>
+            <div className="fact-value">
+              {work.metric[0].label}: {work.metric[0].value}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -285,17 +323,31 @@ export default async function WorkDetailPage({ params }: Props) {
 
       {/* Related */}
       {relatedWorks.length > 0 && (
-        <section className="content-section alt" style={{padding: '120px 32px'}}>
-          <div style={{maxWidth: 1280, margin: '0 auto'}}>
+        <section
+          className="content-section alt"
+          style={{ padding: "120px 32px" }}
+        >
+          <div style={{ maxWidth: 1280, margin: "0 auto" }}>
             <span className="section-label">Related Cases</span>
             <h2 className="section-title">関連する事例。</h2>
             <div className="related-grid">
               {relatedWorks.map((rw) => (
-                <Link key={rw.slug} href={`/works/${rw.slug}`} className="related-card">
-                  <div className="related-visual" style={{background: `linear-gradient(135deg, rgba(11,22,52,0.7), rgba(19,34,78,0.9)), url('${rw.image}') center/cover no-repeat`}} />
+                <Link
+                  key={rw.slug}
+                  href={`/works/${rw.slug}`}
+                  className="related-card"
+                >
+                  <div
+                    className="related-visual"
+                    style={{
+                      background: `linear-gradient(135deg, rgba(11,22,52,0.7), rgba(19,34,78,0.9)), url('${rw.image}') center/cover no-repeat`,
+                    }}
+                  />
                   <div className="related-body">
                     <div className="related-title">{rw.title}</div>
-                    <div className="related-metric">{rw.metric[0].label}: {rw.metric[0].value}</div>
+                    <div className="related-metric">
+                      {rw.metric[0].label}: {rw.metric[0].value}
+                    </div>
                   </div>
                 </Link>
               ))}
@@ -306,9 +358,17 @@ export default async function WorkDetailPage({ params }: Props) {
 
       <section className="cta">
         <div className="cta-inner">
-          <h2>同様の成果を、<br />あなたの事業でも。</h2>
-          <p>事例についての詳細や、貴社での適用可能性について、まずはお気軽にご相談ください。</p>
-          <Link href="/contact" className="btn-primary">無料相談を申し込む →</Link>
+          <h2>
+            同様の成果を、
+            <br />
+            あなたの事業でも。
+          </h2>
+          <p>
+            事例についての詳細や、貴社での適用可能性について、まずはお気軽にご相談ください。
+          </p>
+          <Link href="/contact" className="btn-primary">
+            無料相談を申し込む →
+          </Link>
         </div>
       </section>
     </>

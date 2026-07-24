@@ -2,14 +2,28 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { works, CASES_COMING_SOON } from "@/data/works";
 import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { buildPageOg } from "@/lib/site-metadata";
+
+const pageTitle = "Strategy — 事業計画・投資評価・中期戦略";
+const pageDescription =
+  "戦略ファーム出身者と事業会社経営企画経験者が、経営判断の中枢で意思決定を支援。FP&A、M&A、新規事業、組織設計まで一気通貫。";
 
 export const metadata: Metadata = {
-  title: "Strategy — 事業計画・投資評価・中期戦略",
-  description: "戦略ファーム出身者と事業会社経営企画経験者が、経営判断の中枢で意思決定を支援。FP&A、M&A、新規事業、組織設計まで一気通貫。",
+  title: pageTitle,
+  description: pageDescription,
   alternates: { canonical: "/services/strategy" },
+  ...buildPageOg({
+    title: pageTitle,
+    description: pageDescription,
+    path: "/services/strategy",
+  }),
 };
 
-const strategyWorks = CASES_COMING_SOON ? [] : works.filter((w) => !w.hidden && w.services.includes("strategy")).slice(0, 3);
+const strategyWorks = CASES_COMING_SOON
+  ? []
+  : works
+      .filter((w) => !w.hidden && w.services.includes("strategy"))
+      .slice(0, 3);
 
 const serviceSchema = {
   "@context": "https://schema.org",
@@ -73,9 +87,16 @@ export default function ServiceStrategyPage() {
 
       <section className="page-hero page-hero-strategy">
         <div className="page-hero-inner">
-          <div className="breadcrumb"><Link href="/">Home</Link> / <Link href="/services">Services</Link> / Strategy</div>
+          <div className="breadcrumb">
+            <Link href="/">Home</Link> / <Link href="/services">Services</Link>{" "}
+            / Strategy
+          </div>
           <div className="page-hero-badge">Strategy Consulting</div>
-          <h1>意思決定の質を、<br /><span className="accent">数倍に引き上げる</span>。</h1>
+          <h1>
+            意思決定の質を、
+            <br />
+            <span className="accent">数倍に引き上げる</span>。
+          </h1>
           <p className="lead">
             事業戦略、新規事業、M&A、経営管理まで。"分厚い報告書"ではなく、明日からの行動に変換するロードマップ。戦略ファーム出身者と事業会社経営企画経験者が、経営判断の中枢に入り込みます。
           </p>
@@ -85,10 +106,22 @@ export default function ServiceStrategyPage() {
       {/* Proof bar */}
       <section className="proof-bar">
         <div className="proof-bar-inner">
-          <div className="proof-stat"><div className="num">15+</div><div className="label">戦略支援実績</div></div>
-          <div className="proof-stat"><div className="num">5+</div><div className="label">M&A案件サポート</div></div>
-          <div className="proof-stat"><div className="num">10+</div><div className="label">新規事業立ち上げ</div></div>
-          <div className="proof-stat"><div className="num">MBA</div><div className="label">早稲田 / 外資系ファーム出身</div></div>
+          <div className="proof-stat">
+            <div className="num">15+</div>
+            <div className="label">戦略支援実績</div>
+          </div>
+          <div className="proof-stat">
+            <div className="num">5+</div>
+            <div className="label">M&A案件サポート</div>
+          </div>
+          <div className="proof-stat">
+            <div className="num">10+</div>
+            <div className="label">新規事業立ち上げ</div>
+          </div>
+          <div className="proof-stat">
+            <div className="num">MBA</div>
+            <div className="label">早稲田 / 外資系ファーム出身</div>
+          </div>
         </div>
       </section>
 
@@ -97,15 +130,41 @@ export default function ServiceStrategyPage() {
         <div className="section-inner">
           <span className="section-label">What We Offer</span>
           <h2 className="section-title">戦略コンサルティングの6領域。</h2>
-          <p className="section-lead">経営判断の全段階で、データとAIを使った意思決定支援を提供します。</p>
+          <p className="section-lead">
+            経営判断の全段階で、データとAIを使った意思決定支援を提供します。
+          </p>
           <div className="service-menu">
             {[
-              { num: "01", title: "中期経営計画・事業戦略", desc: "3-5年の中期経営計画策定から単年度事業計画まで。市場分析、競合マッピング、ポジショニング設計、成長ドライバーの特定まで、数字に落としたロードマップを作ります。" },
-              { num: "02", title: "FP&A / 予実管理設計", desc: "財務計画・予実分析の仕組みを設計・構築します。月次締め、取締役会付議、KPI設計、AIを使った自動化まで。CFO機能を外部から提供します。" },
-              { num: "03", title: "M&A 戦略・デューデリジェンス", desc: "買収候補の発掘から財務DD、法務DD連携、バリュエーション（DCF・マルチプル）、意思決定支援まで。PEファンド・投資銀行出身メンバーが主導します。" },
-              { num: "04", title: "投資評価・バリュエーション", desc: "DCF、コンパラブル分析、フットボールチャート、シナリオ感応度分析。投資判断の根拠を多角的に構築します。上場・未上場の双方に対応。" },
-              { num: "05", title: "新規事業立ち上げ支援", desc: "ICP定義、仮説検証設計、MVP策定、Gate Review、ピボット判断まで。PMF達成後の本格投入準備まで伴走します。AI活用でリサーチ工程を大幅短縮。" },
-              { num: "06", title: "組織設計・PMO", desc: "事業の成長フェーズに合わせた組織設計、KPI体系の再構築、プロジェクト管理体制の整備。複数部門の横串調整も担います。" },
+              {
+                num: "01",
+                title: "中期経営計画・事業戦略",
+                desc: "3-5年の中期経営計画策定から単年度事業計画まで。市場分析、競合マッピング、ポジショニング設計、成長ドライバーの特定まで、数字に落としたロードマップを作ります。",
+              },
+              {
+                num: "02",
+                title: "FP&A / 予実管理設計",
+                desc: "財務計画・予実分析の仕組みを設計・構築します。月次締め、取締役会付議、KPI設計、AIを使った自動化まで。CFO機能を外部から提供します。",
+              },
+              {
+                num: "03",
+                title: "M&A 戦略・デューデリジェンス",
+                desc: "買収候補の発掘から財務DD、法務DD連携、バリュエーション（DCF・マルチプル）、意思決定支援まで。PEファンド・投資銀行出身メンバーが主導します。",
+              },
+              {
+                num: "04",
+                title: "投資評価・バリュエーション",
+                desc: "DCF、コンパラブル分析、フットボールチャート、シナリオ感応度分析。投資判断の根拠を多角的に構築します。上場・未上場の双方に対応。",
+              },
+              {
+                num: "05",
+                title: "新規事業立ち上げ支援",
+                desc: "ICP定義、仮説検証設計、MVP策定、Gate Review、ピボット判断まで。PMF達成後の本格投入準備まで伴走します。AI活用でリサーチ工程を大幅短縮。",
+              },
+              {
+                num: "06",
+                title: "組織設計・PMO",
+                desc: "事業の成長フェーズに合わせた組織設計、KPI体系の再構築、プロジェクト管理体制の整備。複数部門の横串調整も担います。",
+              },
             ].map((s) => (
               <div key={s.num} className="service-menu-card">
                 <div className="s-num">{s.num}</div>
@@ -119,27 +178,44 @@ export default function ServiceStrategyPage() {
 
       {/* Team — hidden until profiles are finalized */}
       {false && (
-      <section className="section team-section">
-        <div className="section-inner">
-          <span className="section-label">Strategy Team</span>
-          <h2 className="section-title">戦略チームを紹介。</h2>
-          <p className="section-lead">外資系戦略ファーム・投資銀行・事業会社経営企画出身のプロフェッショナルが揃っています。</p>
-          <div className="team-profiles">
-            {[
-              { initial: "N.I.", role: "Founder & CEO", bg: "戦略コンサルティング → 大手IT企業 経営企画・FP&A → 投資", bio: "国内大手IT企業の経営企画責任者として取締役会付議・中期戦略を統括。mixednuts創業後は戦略×AI×マーケの統合提供を牽引。早稲田大学院MBA。" },
-              { initial: "K.T.", role: "Head of Strategy", bg: "外資系戦略コンサルファーム出身", bio: "外資系戦略ファームで通信・メディア・ヘルスケア業界の中期戦略立案をリード。M&A PMI、新規事業立ち上げ、組織変革の経験多数。" },
-              { initial: "Y.M.", role: "Principal, M&A / Investment", bg: "BIG4 会計事務所出身", bio: "BIG4 会計事務所の FAS / M&A アドバイザリー部門で財務DD・バリュエーション・PMI を多数経験。DCF・フットボールチャート・感応度分析を実務水準で運用。" },
-            ].map((m) => (
-              <div key={m.initial} className="team-profile">
-                <div className="team-profile-initial">{m.initial}</div>
-                <h3>{m.initial}</h3>
-                <div className="role">{m.role}</div>
-                <p>{m.bio}</p>
-              </div>
-            ))}
+        <section className="section team-section">
+          <div className="section-inner">
+            <span className="section-label">Strategy Team</span>
+            <h2 className="section-title">戦略チームを紹介。</h2>
+            <p className="section-lead">
+              外資系戦略ファーム・投資銀行・事業会社経営企画出身のプロフェッショナルが揃っています。
+            </p>
+            <div className="team-profiles">
+              {[
+                {
+                  initial: "N.I.",
+                  role: "Founder & CEO",
+                  bg: "戦略コンサルティング → 大手IT企業 経営企画・FP&A → 投資",
+                  bio: "国内大手IT企業の経営企画責任者として取締役会付議・中期戦略を統括。mixednuts創業後は戦略×AI×マーケの統合提供を牽引。早稲田大学院MBA。",
+                },
+                {
+                  initial: "K.T.",
+                  role: "Head of Strategy",
+                  bg: "外資系戦略コンサルファーム出身",
+                  bio: "外資系戦略ファームで通信・メディア・ヘルスケア業界の中期戦略立案をリード。M&A PMI、新規事業立ち上げ、組織変革の経験多数。",
+                },
+                {
+                  initial: "Y.M.",
+                  role: "Principal, M&A / Investment",
+                  bg: "BIG4 会計事務所出身",
+                  bio: "BIG4 会計事務所の FAS / M&A アドバイザリー部門で財務DD・バリュエーション・PMI を多数経験。DCF・フットボールチャート・感応度分析を実務水準で運用。",
+                },
+              ].map((m) => (
+                <div key={m.initial} className="team-profile">
+                  <div className="team-profile-initial">{m.initial}</div>
+                  <h3>{m.initial}</h3>
+                  <div className="role">{m.role}</div>
+                  <p>{m.bio}</p>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
       )}
 
       {/* Cases */}
@@ -150,7 +226,11 @@ export default function ServiceStrategyPage() {
             <h2 className="section-title">戦略支援の実績。</h2>
             <div className="cases-grid">
               {strategyWorks.map((w) => (
-                <Link key={w.slug} href={`/works/${w.slug}`} className="case-card">
+                <Link
+                  key={w.slug}
+                  href={`/works/${w.slug}`}
+                  className="case-card"
+                >
                   <div className="case-header">
                     <span className="case-sector">{w.industry}</span>
                   </div>
@@ -163,7 +243,11 @@ export default function ServiceStrategyPage() {
                       </div>
                     ))}
                   </div>
-                  <p style={{fontSize: 12, color: '#4B5563', lineHeight: 1.7}}>{w.summary}</p>
+                  <p
+                    style={{ fontSize: 12, color: "#4B5563", lineHeight: 1.7 }}
+                  >
+                    {w.summary}
+                  </p>
                 </Link>
               ))}
             </div>
@@ -173,9 +257,17 @@ export default function ServiceStrategyPage() {
 
       <section className="cta">
         <div className="cta-inner">
-          <h2>経営判断を、<br />もっと確信を持って行いたい。</h2>
-          <p>初回無料相談（60分）で、貴社の経営課題をヒアリングします。まずは話すことから始めましょう。</p>
-          <Link href="/contact" className="btn-primary">無料相談を申し込む →</Link>
+          <h2>
+            経営判断を、
+            <br />
+            もっと確信を持って行いたい。
+          </h2>
+          <p>
+            初回無料相談（60分）で、貴社の経営課題をヒアリングします。まずは話すことから始めましょう。
+          </p>
+          <Link href="/contact" className="btn-primary">
+            無料相談を申し込む →
+          </Link>
         </div>
       </section>
     </>

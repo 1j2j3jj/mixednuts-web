@@ -1,12 +1,30 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { members, divisionLabels } from "@/data/members";
+import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { buildPageOg } from "@/lib/site-metadata";
+
+const pageTitle = "Team — 多様な才能の「ミックス」";
+const pageDescription =
+  "広告代理店、事業会社マーケ、戦略コンサル、ビッグテック、クリエイター——多様なバックグラウンドのプロフェッショナルが集結。";
 
 export const metadata: Metadata = {
-  title: "Team — 多様な才能の「ミックス」",
-  description: "広告代理店、事業会社マーケ、戦略コンサル、ビッグテック、クリエイター——多様なバックグラウンドのプロフェッショナルが集結。",
+  title: pageTitle,
+  description: pageDescription,
   alternates: { canonical: "/team" },
+  ...buildPageOg({
+    title: pageTitle,
+    description: pageDescription,
+    path: "/team",
+  }),
 };
+
+// メンバーは匿名イニシャル運用 (NDA/副業規定対応) のため Person schema は CEO のみ
+// (/team/ceo)。本ページは Breadcrumb のみ — 属性の薄いジェネリック schema は追加しない
+const breadcrumb = buildBreadcrumbSchema([
+  { name: "Home", path: "/" },
+  { name: "Team", path: "/team" },
+]);
 
 const divisionColors: Record<string, string> = {
   leadership: "#0A0A0A",
@@ -21,6 +39,7 @@ export default function TeamPage() {
 
   return (
     <>
+      <JsonLd data={breadcrumb} />
       <style>{`
         .philosophy { background: #fff; padding: 120px 32px; }
         .philosophy-inner { max-width: 1280px; margin: 0 auto; }
@@ -99,9 +118,14 @@ export default function TeamPage() {
 
       <section className="page-hero">
         <div className="page-hero-inner">
-          <div className="breadcrumb"><Link href="/">Home</Link> / Team</div>
+          <div className="breadcrumb">
+            <Link href="/">Home</Link> / Team
+          </div>
           <div className="page-hero-badge">Our People</div>
-          <h1>多様な才能が<br />"<span className="accent">ミックス</span>"する場所。</h1>
+          <h1>
+            多様な才能が
+            <br />"<span className="accent">ミックス</span>"する場所。
+          </h1>
           <p className="lead">
             単一のバックグラウンドに依存しない。広告代理店、事業会社マーケ責任者、戦略コンサル、ビッグテック、SNSクリエイター——異なる専門性を持つプロフェッショナルが、一つのプロジェクトで視座を重ねます。
           </p>
@@ -114,20 +138,46 @@ export default function TeamPage() {
           <div className="philosophy-grid">
             <div className="philosophy-text">
               <span className="section-label">Our Philosophy</span>
-              <h2>それぞれのプロが、<br />本来の強さを発揮できる場所。</h2>
-              <p>ミックスナッツは、スペシャリストの集合体です。全員が「自分の得意」だけに集中できるよう、チームとAIエージェントが補完し合う設計になっています。</p>
-              <p>マネジメントの負荷はAIが吸収し、人間は高付加価値な思考と実行に専念する。それが私たちの「AI-first, Human-led」の実践形です。</p>
+              <h2>
+                それぞれのプロが、
+                <br />
+                本来の強さを発揮できる場所。
+              </h2>
+              <p>
+                ミックスナッツは、スペシャリストの集合体です。全員が「自分の得意」だけに集中できるよう、チームとAIエージェントが補完し合う設計になっています。
+              </p>
+              <p>
+                マネジメントの負荷はAIが吸収し、人間は高付加価値な思考と実行に専念する。それが私たちの「AI-first,
+                Human-led」の実践形です。
+              </p>
             </div>
             <div className="backgrounds-grid">
               {[
-                { label: "Strategy", value: "外資系戦略ファーム\n事業会社経営企画・FP&A" },
-                { label: "AI", value: "グローバルIT企業 ML\nスタートアップ CTO" },
-                { label: "Marketing", value: "国内大手広告代理店\n事業会社マーケ責任者" },
-                { label: "Creative", value: "SNSクリエイター\n編集者・コンテンツ制作" },
+                {
+                  label: "Strategy",
+                  value: "外資系戦略ファーム\n事業会社経営企画・FP&A",
+                },
+                {
+                  label: "AI",
+                  value: "グローバルIT企業 ML\nスタートアップ CTO",
+                },
+                {
+                  label: "Marketing",
+                  value: "国内大手広告代理店\n事業会社マーケ責任者",
+                },
+                {
+                  label: "Creative",
+                  value: "SNSクリエイター\n編集者・コンテンツ制作",
+                },
               ].map((bg) => (
                 <div key={bg.label} className="bg-card">
                   <div className="bg-card-label">{bg.label}</div>
-                  <div className="bg-card-value" style={{whiteSpace: 'pre-line'}}>{bg.value}</div>
+                  <div
+                    className="bg-card-value"
+                    style={{ whiteSpace: "pre-line" }}
+                  >
+                    {bg.value}
+                  </div>
                 </div>
               ))}
             </div>
@@ -140,20 +190,38 @@ export default function TeamPage() {
         <section className="leaders">
           <div className="leaders-inner">
             <span className="section-label">Leadership</span>
-            <h2 className="section-title" style={{marginBottom: 48}}>Founder & CEO</h2>
+            <h2 className="section-title" style={{ marginBottom: 48 }}>
+              Founder & CEO
+            </h2>
             <div className="leader-hero">
               <div className="leader-avatar">
-                <span className="leader-avatar-initials">N<span className="dot">.</span>I<span className="dot">.</span></span>
+                <span className="leader-avatar-initials">
+                  N<span className="dot">.</span>I<span className="dot">.</span>
+                </span>
               </div>
               <div>
                 <div className="leader-name">石井 希実</div>
                 <div className="leader-role">{ceo.role}</div>
                 <p className="leader-bio">{ceo.bio}</p>
-                <p className="leader-bio" style={{color: '#9CA3AF', fontSize: 13}}>{ceo.background}</p>
+                <p
+                  className="leader-bio"
+                  style={{ color: "#9CA3AF", fontSize: 13 }}
+                >
+                  {ceo.background}
+                </p>
                 <div className="leader-meta">
                   <span>早稲田大学大学院 MBA</span>
                   <span>·</span>
-                  <Link href="/team/ceo" style={{color: 'var(--navy)', textDecoration: 'none', fontWeight: 600}}>詳細プロフィール →</Link>
+                  <Link
+                    href="/team/ceo"
+                    style={{
+                      color: "var(--navy)",
+                      textDecoration: "none",
+                      fontWeight: 600,
+                    }}
+                  >
+                    詳細プロフィール →
+                  </Link>
                 </div>
               </div>
             </div>
@@ -163,64 +231,89 @@ export default function TeamPage() {
 
       {/* Members Grid — hidden until profiles are finalized */}
       {false && (
-      <section className="members-section">
-        <div className="members-inner">
-          <span className="section-label">Team Members</span>
-          <h2 className="section-title">専門家が揃う、3つの部門。</h2>
-          <p className="section-lead">Strategy, AI, Marketingの各領域に、確かな実績を持つプロフェッショナルが在籍しています。</p>
-          <div className="members-grid">
-            {restMembers.map((member) => (
-              <div key={member.initial} className="member-card">
-                <div
-                  className="member-avatar"
-                  style={{background: `linear-gradient(135deg, ${divisionColors[member.division] || '#0A0A0A'} 0%, #1A1A1A 100%)`, borderBottom: '2px solid var(--cyan)'}}
-                >
-                  <span className="initials">{member.initial}</span>
-                </div>
-                <div className="member-body">
-                  <div className="member-meta">
-                    <span className="member-dept">{divisionLabels[member.division]}</span>
+        <section className="members-section">
+          <div className="members-inner">
+            <span className="section-label">Team Members</span>
+            <h2 className="section-title">専門家が揃う、3つの部門。</h2>
+            <p className="section-lead">
+              Strategy, AI,
+              Marketingの各領域に、確かな実績を持つプロフェッショナルが在籍しています。
+            </p>
+            <div className="members-grid">
+              {restMembers.map((member) => (
+                <div key={member.initial} className="member-card">
+                  <div
+                    className="member-avatar"
+                    style={{
+                      background: `linear-gradient(135deg, ${divisionColors[member.division] || "#0A0A0A"} 0%, #1A1A1A 100%)`,
+                      borderBottom: "2px solid var(--cyan)",
+                    }}
+                  >
+                    <span className="initials">{member.initial}</span>
                   </div>
-                  <div className="member-name">{member.initial}</div>
-                  <div className="member-title">{member.role}</div>
-                  <div className="member-bg">{member.background}</div>
+                  <div className="member-body">
+                    <div className="member-meta">
+                      <span className="member-dept">
+                        {divisionLabels[member.division]}
+                      </span>
+                    </div>
+                    <div className="member-name">{member.initial}</div>
+                    <div className="member-title">{member.role}</div>
+                    <div className="member-bg">{member.background}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
       )}
 
       {/* Departments */}
       <section className="departments">
         <div className="departments-inner">
-          <span className="section-label" style={{color: 'var(--cyan)'}}>Departments</span>
-          <h2 className="section-title" style={{color: '#fff'}}>3つの専門部門が連携する。</h2>
-          <p className="section-lead" style={{color: 'rgba(255,255,255,0.75)'}}>各部門が独立した専門性を持ちながら、プロジェクトに応じてクロスファンクショナルに動く設計です。</p>
+          <span className="section-label" style={{ color: "var(--cyan)" }}>
+            Departments
+          </span>
+          <h2 className="section-title" style={{ color: "#fff" }}>
+            3つの専門部門が連携する。
+          </h2>
+          <p
+            className="section-lead"
+            style={{ color: "rgba(255,255,255,0.75)" }}
+          >
+            各部門が独立した専門性を持ちながら、プロジェクトに応じてクロスファンクショナルに動く設計です。
+          </p>
           <div className="dept-grid">
             <div className="dept-card">
               <div className="dept-icon">01</div>
               <div className="dept-name">Strategy</div>
-              <div className="dept-desc">中期戦略、M&A、FP&A、新規事業。経営判断の中枢に入り込み、意思決定を支援する。</div>
+              <div className="dept-desc">
+                中期戦略、M&A、FP&A、新規事業。経営判断の中枢に入り込み、意思決定を支援する。
+              </div>
               <div className="dept-count">経営企画 · M&A · FP&A</div>
             </div>
             <div className="dept-card">
               <div className="dept-icon">02</div>
               <div className="dept-name">AI Implementation</div>
-              <div className="dept-desc">エージェント設計、LLM実装、RAG構築。自社で120体超を運用してきた実装ノウハウが強み。</div>
+              <div className="dept-desc">
+                エージェント設計、LLM実装、RAG構築。自社で120体超を運用してきた実装ノウハウが強み。
+              </div>
               <div className="dept-count">Agent · LLM · RAG</div>
             </div>
             <div className="dept-card">
               <div className="dept-icon">03</div>
               <div className="dept-name">Marketing & Growth</div>
-              <div className="dept-desc">広告運用、SEO/AIO、CVR改善、コンテンツ。代理店出身と事業会社出身が組んで実行する。</div>
+              <div className="dept-desc">
+                広告運用、SEO/AIO、CVR改善、コンテンツ。代理店出身と事業会社出身が組んで実行する。
+              </div>
               <div className="dept-count">広告 · SEO/AIO · CVR</div>
             </div>
             <div className="dept-card">
               <div className="dept-icon">04</div>
               <div className="dept-name">AI Agents</div>
-              <div className="dept-desc">120体超のAIエージェントが24時間稼働。人間チームをサポートし、組織全体の処理能力を拡張する。</div>
+              <div className="dept-desc">
+                120体超のAIエージェントが24時間稼働。人間チームをサポートし、組織全体の処理能力を拡張する。
+              </div>
               <div className="dept-count">120+ AGENTS</div>
             </div>
           </div>
@@ -230,9 +323,18 @@ export default function TeamPage() {
       {/* CTA */}
       <section className="cta">
         <div className="cta-inner">
-          <h2>才能を"ミックス"して、<br />次の事業の章を書こう。</h2>
-          <p>私たちのチームに興味がある方、また採用・協業については Careers ページをご覧ください。</p>
-          <Link href="/careers" className="btn-primary">採用情報を見る →</Link>
+          <h2>
+            才能を"ミックス"して、
+            <br />
+            次の事業の章を書こう。
+          </h2>
+          <p>
+            私たちのチームに興味がある方、また採用・協業については Careers
+            ページをご覧ください。
+          </p>
+          <Link href="/careers" className="btn-primary">
+            採用情報を見る →
+          </Link>
         </div>
       </section>
     </>
