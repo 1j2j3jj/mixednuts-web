@@ -3,14 +3,28 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { posts } from "#site/content";
 import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { buildPageOg } from "@/lib/site-metadata";
 
 type Params = { tag: string };
 
-/** Build static params for every unique tag across all posts. */
+/**
+ * Build static params for every unique tag across all *visible* posts.
+ *
+ * 修正 (2026-07-24 SEO監査):
+ * 1. encodeURIComponent を除去 — Next.js は generateStaticParams の値を「未エンコードの生値」
+ *    として期待し、ルート生成時に自身でエンコードする。事前エンコードすると二重エンコードになり、
+ *    日本語・スペース入りタグ (約30ページ) が本番で 404 として静的生成されていた
+ *    (実測: /insights/tag/構造化データ → 404, /insights/tag/AI%20Agent → 404)。
+ * 2. hidden 記事のタグを除外 — 非公開記事のみが持つタグ (例: a16z) のタグページが生成され、
+ *    非公開記事のタイトル・抜粋と 404 へのリンクが露出していた。
+ */
 export function generateStaticParams() {
   const tags = new Set<string>();
-  for (const p of posts) for (const t of p.tags) tags.add(t);
-  return Array.from(tags).map((tag) => ({ tag: encodeURIComponent(tag) }));
+  for (const p of posts) {
+    if (p.hidden) continue;
+    for (const t of p.tags) tags.add(t);
+  }
+  return Array.from(tags).map((tag) => ({ tag }));
 }
 
 function decodeTag(raw: string): string {
@@ -28,11 +42,25 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { tag } = await params;
   const name = decodeTag(tag);
+  const title = `#${name} — Insights`;
+  const description = `タグ「${name}」の記事一覧。mixednuts Inc. の Insights。`;
+  // canonical はデコード済みタグ名を一度だけエンコードした決定的な形に統一
+  const path = `/insights/tag/${encodeURIComponent(name)}`;
+  // 薄いタグページ対策: 公開記事1件のみのタグは noindex,follow
+  // (16記事に対しタグページが約45生成される。1記事タグの量産は
+  //  Dec 2025 Core Update で下落した「薄いロングテール量産」パターンに合致するため)
+  const visibleCount = posts.filter(
+    (p) => !p.hidden && p.tags.includes(name),
+  ).length;
   return {
-    title: `#${name} — Insights | mixednuts`,
-    description: `タグ「${name}」の記事一覧。mixednuts Inc. の Insights。`,
-    alternates: { canonical: `/insights/tag/${tag}` },
-    robots: { index: true, follow: true },
+    title,
+    description,
+    alternates: { canonical: path },
+    robots:
+      visibleCount >= 2
+        ? { index: true, follow: true }
+        : { index: false, follow: true },
+    ...buildPageOg({ title, description, path }),
   };
 }
 
@@ -50,8 +78,9 @@ export default async function TagPage({ params }: { params: Promise<Params> }) {
   const { tag: raw } = await params;
   const tag = decodeTag(raw);
 
+  // hidden 記事は一覧・sitemap 同様タグページからも除外 (非公開記事のタイトル露出 + 404 リンク防止)
   const matched = posts
-    .filter((p) => p.tags.includes(tag))
+    .filter((p) => !p.hidden && p.tags.includes(tag))
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 
   if (matched.length === 0) return notFound();
@@ -115,7 +144,8 @@ export default async function TagPage({ params }: { params: Promise<Params> }) {
       <section className="tag-hero">
         <div className="tag-hero-inner">
           <div className="breadcrumb">
-            <Link href="/">Home</Link> / <Link href="/insights">Insights</Link> / Tag
+            <Link href="/">Home</Link> / <Link href="/insights">Insights</Link>{" "}
+            / Tag
           </div>
           <h1>
             <span className="accent">#{tag}</span>
