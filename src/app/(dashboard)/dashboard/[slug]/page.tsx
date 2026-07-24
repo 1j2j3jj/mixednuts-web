@@ -18,7 +18,7 @@ import {
 import { resolveFromSearchParams, type DateRange } from "@/lib/range";
 import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
 import { analysePacing, lastN } from "@/lib/analysis";
-import { readSource } from "@/lib/source";
+import { readSource, type MetricSource } from "@/lib/source";
 import SourceToggle from "@/components/dashboard/SourceToggle";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
 import ChannelStackedBar from "@/components/dashboard/ChannelStackedBar";
@@ -153,6 +153,35 @@ function pct(a: number, b: number): number | null {
   if (b === 0) return null;
   return (a - b) / b;
 }
+
+/** KPI card vocabulary — matches the weekly/monthly client-report vocabulary
+ *  (COST / SESSION / GA_CV / GA売上 / GA_ROAS / 媒体CV / EC-CUBE_CV /
+ *  EC-CUBE売上 / EC-CUBE_ROAS), switching with the 表示値 source toggle
+ *  (2026-07-24 CEO review). "Blended CPA/ROAS" is retired — it read as
+ *  unclear; the CPA/ROAS cards keep their 全媒体COST合算 nuance visible via
+ *  KPI_COST_NOTE instead of folding it into the label. */
+const KPI_LABELS: Record<
+  MetricSource,
+  { revenue: string; cv: string; cpa: string; roas: string }
+> = {
+  ga4: { revenue: "GA売上", cv: "GA_CV", cpa: "GA_CPA", roas: "GA_ROAS" },
+  media: {
+    revenue: "媒体売上",
+    cv: "媒体CV",
+    cpa: "媒体CPA",
+    roas: "媒体ROAS",
+  },
+  eccube: {
+    revenue: "EC-CUBE売上",
+    cv: "EC-CUBE_CV",
+    cpa: "EC-CUBE_CPA",
+    roas: "EC-CUBE_ROAS",
+  },
+};
+/** CPA/ROAS's cost side is always 全媒体COST合算 regardless of which
+ *  revenue/CV source is toggled — this is the definition "Blended" used to
+ *  signal; surfaced explicitly now so it isn't lost. */
+const KPI_COST_NOTE = "COST=全媒体合算";
 
 export default async function Overview({
   params,
@@ -570,13 +599,7 @@ export default async function Overview({
       {/* 5 big KPI with sparklines */}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
         <BigKpiCard
-          label={
-            source === "ga4"
-              ? "Revenue (GA4)"
-              : source === "media"
-                ? "Revenue (媒体)"
-                : "Revenue (ECCUBE)"
-          }
+          label={KPI_LABELS[source].revenue}
           value={fmtJpy(effectiveRev)}
           comparisons={
             rr.previous
@@ -593,13 +616,7 @@ export default async function Overview({
           sparkFormat="jpy"
         />
         <BigKpiCard
-          label={
-            source === "ga4"
-              ? "CV (GA4)"
-              : source === "media"
-                ? "CV (媒体)"
-                : "CV (ECCUBE)"
-          }
+          label={KPI_LABELS[source].cv}
           value={fmtInt(effectiveCv)}
           comparisons={
             rr.previous
@@ -616,7 +633,7 @@ export default async function Overview({
           sparkFormat="int"
         />
         <BigKpiCard
-          label="Sessions"
+          label="SESSION (GA4)"
           value={fmtInt(gaCur.sessions)}
           comparisons={
             rr.previous
@@ -633,8 +650,9 @@ export default async function Overview({
           sparkFormat="int"
         />
         <BigKpiCard
-          label="Blended CPA"
+          label={KPI_LABELS[source].cpa}
           value={blendedCpa != null ? fmtJpy(blendedCpa) : "—"}
+          note={KPI_COST_NOTE}
           lowerIsBetter
           comparisons={
             rr.previous && blendedCpa != null && blendedCpaPrev != null
@@ -651,8 +669,9 @@ export default async function Overview({
           sparkFormat="jpy"
         />
         <BigKpiCard
-          label="Blended ROAS"
+          label={KPI_LABELS[source].roas}
           value={blendedRoas != null ? fmtRatioPct(blendedRoas * 100, 0) : "—"}
+          note={KPI_COST_NOTE}
           comparisons={
             rr.previous && blendedRoas != null && blendedRoasPrev != null
               ? [

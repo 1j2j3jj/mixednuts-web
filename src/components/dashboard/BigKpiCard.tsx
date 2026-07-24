@@ -11,6 +11,12 @@ interface Comparison {
 interface Props {
   label: string;
   value: string;
+  /** One-line muted definition clarifier under the label (e.g.
+   *  "COST=全媒体合算" on the CPA/ROAS cards) — keeps a metric's scope
+   *  visible instead of folding it into the label name (2026-07-24 CEO
+   *  review: dropped "Blended" from CPA/ROAS labels, kept the nuance it
+   *  used to carry as this explicit note). */
+  note?: string;
   /** Up to three comparison lines — displayed stacked under the value. */
   comparisons?: Comparison[];
   lowerIsBetter?: boolean;
@@ -43,6 +49,7 @@ function Arrow({
 export default function BigKpiCard({
   label,
   value,
+  note,
   comparisons = [],
   lowerIsBetter,
   sparkline,
@@ -56,6 +63,11 @@ export default function BigKpiCard({
         <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {label}
         </CardTitle>
+        {note && (
+          <div className="text-[10px] leading-tight text-muted-foreground/80">
+            {note}
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <div className="font-display text-2xl font-extrabold leading-none tracking-tight tabular-nums md:text-[1.75rem]">
