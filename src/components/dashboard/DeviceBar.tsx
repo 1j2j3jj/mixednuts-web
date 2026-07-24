@@ -28,14 +28,18 @@ export default function DeviceBar({ rows }: Props) {
           <div key={r.device}>
             <div className="flex items-baseline justify-between text-xs">
               <span className="font-medium">{LABEL[r.device] ?? r.device}</span>
-              <span className="text-muted-foreground">
-                {fmtInt(r.sessions)} sessions · CVR {fmtPct(cvr, 2)} · {fmtJpy(r.revenue)}
+              <span className="text-muted-foreground tabular-nums">
+                {fmtInt(r.sessions)} sessions · CVR {fmtPct(cvr, 2)} ·{" "}
+                {fmtJpy(r.revenue)}
               </span>
             </div>
             <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full rounded-full"
-                style={{ width: `${Math.round(share * 100)}%`, background: COLOUR[r.device] ?? "var(--chart-1)" }}
+                style={{
+                  width: `${Math.round(share * 100)}%`,
+                  background: COLOUR[r.device] ?? "var(--chart-1)",
+                }}
               />
             </div>
           </div>

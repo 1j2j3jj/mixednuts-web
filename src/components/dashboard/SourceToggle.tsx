@@ -42,7 +42,10 @@ export default function SourceToggle({ sources = ["ga4", "media"] }: Props) {
   }
 
   return (
-    <div className="inline-flex items-center gap-1 text-xs" data-print-hide="true">
+    <div
+      className="inline-flex items-center gap-1 text-xs"
+      data-print-hide="true"
+    >
       <span className="text-muted-foreground">表示値</span>
       <div className="inline-flex overflow-hidden rounded-md border">
         {sources.map((v) => (
@@ -50,8 +53,10 @@ export default function SourceToggle({ sources = ["ga4", "media"] }: Props) {
             key={v}
             type="button"
             onClick={() => set(v)}
-            className={`h-7 px-3 text-xs transition-colors ${
-              src === v ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+            className={`h-7 px-3 text-xs font-medium transition-colors ${
+              src === v
+                ? "bg-brand-ink text-white"
+                : "text-muted-foreground hover:bg-accent hover:text-foreground"
             }`}
           >
             {labelFor[v]}
@@ -62,4 +67,3 @@ export default function SourceToggle({ sources = ["ga4", "media"] }: Props) {
     </div>
   );
 }
-

@@ -28,13 +28,20 @@ export default function Sparkline({
 }: Props) {
   const data = values.map((v, i) => ({ i, v, date: dates?.[i] ?? "" }));
   const stroke =
-    tone === "positive" ? "#059669" : tone === "negative" ? "#dc2626" : "var(--chart-1)";
+    tone === "positive"
+      ? "#059669"
+      : tone === "negative"
+        ? "#dc2626"
+        : "var(--chart-1)";
   const showTooltip = dates && dates.length === values.length;
 
   return (
     <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 2, right: 0, left: 0, bottom: 2 }}>
+        <LineChart
+          data={data}
+          margin={{ top: 2, right: 0, left: 0, bottom: 2 }}
+        >
           <YAxis hide domain={["dataMin", "dataMax"]} />
           {showTooltip && (
             <Tooltip
@@ -42,13 +49,16 @@ export default function Sparkline({
               contentStyle={{
                 background: "var(--card)",
                 border: "1px solid var(--border)",
-                borderRadius: "4px",
+                borderRadius: "6px",
                 fontSize: "11px",
                 padding: "4px 8px",
               }}
+              itemStyle={{ color: "var(--foreground)" }}
               labelFormatter={() => ""}
               formatter={(v, _n, entry) => {
-                const d = (entry as unknown as { payload?: { date?: string } })?.payload?.date ?? "";
+                const d =
+                  (entry as unknown as { payload?: { date?: string } })?.payload
+                    ?.date ?? "";
                 return [fmt(Number(v), format), d];
               }}
             />
@@ -57,7 +67,9 @@ export default function Sparkline({
             type="monotone"
             dataKey="v"
             stroke={stroke}
-            strokeWidth={1.5}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
             dot={false}
             isAnimationActive={false}
           />
