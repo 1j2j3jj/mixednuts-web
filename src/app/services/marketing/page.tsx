@@ -2,14 +2,28 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { works, CASES_COMING_SOON } from "@/data/works";
 import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { buildPageOg } from "@/lib/site-metadata";
+
+const pageTitle = "Marketing — グロースマーケティングと統合広告運用";
+const pageDescription =
+  "広告代理店シニアディレクターと事業会社マーケ責任者が、広告運用とグロース戦略を統合提供。LTV/CAC最適化、SEO/AIO、クリエイティブ戦略まで。";
 
 export const metadata: Metadata = {
-  title: "Marketing — グロースマーケティングと統合広告運用",
-  description: "広告代理店シニアディレクターと事業会社マーケ責任者が、広告運用とグロース戦略を統合提供。LTV/CAC最適化、SEO/AIO、クリエイティブ戦略まで。",
+  title: pageTitle,
+  description: pageDescription,
   alternates: { canonical: "/services/marketing" },
+  ...buildPageOg({
+    title: pageTitle,
+    description: pageDescription,
+    path: "/services/marketing",
+  }),
 };
 
-const marketingWorks = CASES_COMING_SOON ? [] : works.filter((w) => !w.hidden && w.services.includes("marketing")).slice(0, 3);
+const marketingWorks = CASES_COMING_SOON
+  ? []
+  : works
+      .filter((w) => !w.hidden && w.services.includes("marketing"))
+      .slice(0, 3);
 
 const serviceSchema = {
   "@context": "https://schema.org",
@@ -73,9 +87,16 @@ export default function ServiceMarketingPage() {
 
       <section className="page-hero page-hero-marketing">
         <div className="page-hero-inner">
-          <div className="breadcrumb"><Link href="/">Home</Link> / <Link href="/services">Services</Link> / Marketing</div>
+          <div className="breadcrumb">
+            <Link href="/">Home</Link> / <Link href="/services">Services</Link>{" "}
+            / Marketing
+          </div>
           <div className="page-hero-badge">Marketing & Growth</div>
-          <h1>評論家ではなく、<br /><span className="accent">現場で実行する</span>チーム。</h1>
+          <h1>
+            評論家ではなく、
+            <br />
+            <span className="accent">現場で実行する</span>チーム。
+          </h1>
           <p className="lead">
             広告代理店シニアディレクターと事業会社マーケ責任者が、広告運用とグロース戦略を統合提供。AIクリエイティブ生成、自動入札、検索意図分析を組み込んだ、再現性のある成長設計です。
           </p>
@@ -85,10 +106,22 @@ export default function ServiceMarketingPage() {
       {/* Proof bar */}
       <section className="proof-bar">
         <div className="proof-bar-inner">
-          <div className="proof-stat"><div className="num">+170%</div><div className="label">ROAS 改善の実例</div></div>
-          <div className="proof-stat"><div className="num">-60%</div><div className="label">CPA 削減の実例</div></div>
-          <div className="proof-stat"><div className="num">+340%</div><div className="label">AI Overviews 引用率</div></div>
-          <div className="proof-stat"><div className="num">3媒体</div><div className="label">Google / Meta / TikTok 対応</div></div>
+          <div className="proof-stat">
+            <div className="num">+170%</div>
+            <div className="label">ROAS 改善の実例</div>
+          </div>
+          <div className="proof-stat">
+            <div className="num">-60%</div>
+            <div className="label">CPA 削減の実例</div>
+          </div>
+          <div className="proof-stat">
+            <div className="num">+340%</div>
+            <div className="label">AI Overviews 引用率</div>
+          </div>
+          <div className="proof-stat">
+            <div className="num">3媒体</div>
+            <div className="label">Google / Meta / TikTok 対応</div>
+          </div>
         </div>
       </section>
 
@@ -97,15 +130,41 @@ export default function ServiceMarketingPage() {
         <div className="section-inner">
           <span className="section-label">What We Offer</span>
           <h2 className="section-title">グロースマーケティングの6領域。</h2>
-          <p className="section-lead">「やってみます」ではなく、「これをやります、なぜなら〜」。数字を起点に、実行します。</p>
+          <p className="section-lead">
+            「やってみます」ではなく、「これをやります、なぜなら〜」。数字を起点に、実行します。
+          </p>
           <div className="service-menu">
             {[
-              { num: "01", title: "広告運用（Google / Meta / TikTok）", desc: "キャンペーン構造の設計から入札戦略、クリエイティブ最適化まで。AIを活用した自動入札設定と、人間の目によるCV品質管理を組み合わせ、ROASとCPAの両立を実現します。" },
-              { num: "02", title: "SEO / AIO 戦略", desc: "Google AI Overviews 対応の構造化データ実装、E-E-A-T強化、LLMO対策を包括的に実行。検索意図分析からコンテンツ設計、内部リンク最適化まで一気通貫で支援します。" },
-              { num: "03", title: "グロースマーケティング設計", desc: "ICP再定義、ファネル設計、CAC/LTV計算、コホート分析、グロースモデル構築。マーケ投資の最適な配分と、再現性ある成長のエンジンを設計します。" },
-              { num: "04", title: "LTV / CAC 最適化", desc: "顧客ライフタイムバリューと獲得コストのバランスを最適化。サブスク型ビジネス、D2C、SaaSに対応したユニットエコノミクス分析と施策立案。" },
-              { num: "05", title: "コンテンツマーケティング", desc: "SNSコンテンツ戦略、ブログ・メディア設計、動画広告クリエイティブ制作。AIで量を確保し、人間が品質をコントロールする2段階プロセスで効率と効果を両立。" },
-              { num: "06", title: "計測・分析基盤", desc: "GA4設定、GTM最適化、拡張コンバージョン実装、アトリビューション設計。「データが信頼できる」状態を作ることで、意思決定の精度を上げます。" },
+              {
+                num: "01",
+                title: "広告運用（Google / Meta / TikTok）",
+                desc: "キャンペーン構造の設計から入札戦略、クリエイティブ最適化まで。AIを活用した自動入札設定と、人間の目によるCV品質管理を組み合わせ、ROASとCPAの両立を実現します。",
+              },
+              {
+                num: "02",
+                title: "SEO / AIO 戦略",
+                desc: "Google AI Overviews 対応の構造化データ実装、E-E-A-T強化、LLMO対策を包括的に実行。検索意図分析からコンテンツ設計、内部リンク最適化まで一気通貫で支援します。",
+              },
+              {
+                num: "03",
+                title: "グロースマーケティング設計",
+                desc: "ICP再定義、ファネル設計、CAC/LTV計算、コホート分析、グロースモデル構築。マーケ投資の最適な配分と、再現性ある成長のエンジンを設計します。",
+              },
+              {
+                num: "04",
+                title: "LTV / CAC 最適化",
+                desc: "顧客ライフタイムバリューと獲得コストのバランスを最適化。サブスク型ビジネス、D2C、SaaSに対応したユニットエコノミクス分析と施策立案。",
+              },
+              {
+                num: "05",
+                title: "コンテンツマーケティング",
+                desc: "SNSコンテンツ戦略、ブログ・メディア設計、動画広告クリエイティブ制作。AIで量を確保し、人間が品質をコントロールする2段階プロセスで効率と効果を両立。",
+              },
+              {
+                num: "06",
+                title: "計測・分析基盤",
+                desc: "GA4設定、GTM最適化、拡張コンバージョン実装、アトリビューション設計。「データが信頼できる」状態を作ることで、意思決定の精度を上げます。",
+              },
             ].map((s) => (
               <div key={s.num} className="service-menu-card">
                 <div className="s-num">{s.num}</div>
@@ -122,22 +181,31 @@ export default function ServiceMarketingPage() {
         <div className="section-inner">
           <span className="section-label">AI × Marketing</span>
           <h2 className="section-title">AIで、マーケの生産性を3倍に。</h2>
-          <p className="section-lead">クリエイティブ制作、データ分析、レポーティング——AIで自動化できる工程を徹底的に効率化し、人間はより高度な判断に集中します。</p>
+          <p className="section-lead">
+            クリエイティブ制作、データ分析、レポーティング——AIで自動化できる工程を徹底的に効率化し、人間はより高度な判断に集中します。
+          </p>
           <div className="ai-features">
             <div className="ai-feature">
               <div className="icon">02</div>
               <h3>AI クリエイティブ生成</h3>
-              <p>画像・動画・テキストのクリエイティブ生成をAIで自動化。週20本以上の広告クリエイティブを低コストで量産し、勝ちパターンを素早く特定。</p>
+              <p>
+                画像・動画・テキストのクリエイティブ生成をAIで自動化。週20本以上の広告クリエイティブを低コストで量産し、勝ちパターンを素早く特定。
+              </p>
             </div>
             <div className="ai-feature">
               <div className="icon">01</div>
               <h3>自動分析・レポーティング</h3>
-              <p>Google Ads、Meta Ads、GA4のデータを自動収集・分析し、週次レポートを自動生成。分析にかかる時間を90%削減。</p>
+              <p>
+                Google Ads、Meta
+                Ads、GA4のデータを自動収集・分析し、週次レポートを自動生成。分析にかかる時間を90%削減。
+              </p>
             </div>
             <div className="ai-feature">
               <div className="icon">03</div>
               <h3>検索意図・SEO 分析</h3>
-              <p>膨大なキーワードの検索意図分類、競合コンテンツ分析、構造化データ最適化をAIで自動化。人間は戦略判断に集中。</p>
+              <p>
+                膨大なキーワードの検索意図分類、競合コンテンツ分析、構造化データ最適化をAIで自動化。人間は戦略判断に集中。
+              </p>
             </div>
           </div>
         </div>
@@ -151,7 +219,11 @@ export default function ServiceMarketingPage() {
             <h2 className="section-title">マーケティング支援の実績。</h2>
             <div className="cases-grid">
               {marketingWorks.map((w) => (
-                <Link key={w.slug} href={`/works/${w.slug}`} className="case-card">
+                <Link
+                  key={w.slug}
+                  href={`/works/${w.slug}`}
+                  className="case-card"
+                >
                   <div className="case-header">
                     <span className="case-sector">{w.industry}</span>
                   </div>
@@ -160,11 +232,19 @@ export default function ServiceMarketingPage() {
                     {w.metric.slice(0, 2).map((m) => (
                       <div key={m.label}>
                         <div className="case-metric-label">{m.label}</div>
-                        <div className={`case-metric-value ${m.value.startsWith('+') ? 'gain' : ''}`}>{m.value}</div>
+                        <div
+                          className={`case-metric-value ${m.value.startsWith("+") ? "gain" : ""}`}
+                        >
+                          {m.value}
+                        </div>
                       </div>
                     ))}
                   </div>
-                  <p style={{fontSize: 12, color: '#4B5563', lineHeight: 1.7}}>{w.summary}</p>
+                  <p
+                    style={{ fontSize: 12, color: "#4B5563", lineHeight: 1.7 }}
+                  >
+                    {w.summary}
+                  </p>
                 </Link>
               ))}
             </div>
@@ -174,9 +254,17 @@ export default function ServiceMarketingPage() {
 
       <section className="cta">
         <div className="cta-inner">
-          <h2>成長の再現性を、<br />一緒に設計しましょう。</h2>
-          <p>広告費の無駄をなくし、LTVを高め、オーガニックを育てる。60分の無料相談から始めましょう。</p>
-          <Link href="/contact" className="btn-primary">無料相談を申し込む →</Link>
+          <h2>
+            成長の再現性を、
+            <br />
+            一緒に設計しましょう。
+          </h2>
+          <p>
+            広告費の無駄をなくし、LTVを高め、オーガニックを育てる。60分の無料相談から始めましょう。
+          </p>
+          <Link href="/contact" className="btn-primary">
+            無料相談を申し込む →
+          </Link>
         </div>
       </section>
     </>

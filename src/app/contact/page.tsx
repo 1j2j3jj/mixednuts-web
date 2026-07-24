@@ -1,16 +1,46 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import ContactForm from "./ContactForm";
+import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { buildPageOg } from "@/lib/site-metadata";
+
+const pageTitle = "Contact — まずは、話しましょう";
+const pageDescription =
+  "初回無料相談（60分）で、貴社の課題をヒアリングし最適なアプローチをご提案します。24時間以内にご返信します。";
 
 export const metadata: Metadata = {
-  title: "Contact — まずは、話しましょう",
-  description: "初回無料相談（60分）で、貴社の課題をヒアリングし最適なアプローチをご提案します。24時間以内にご返信します。",
+  title: pageTitle,
+  description: pageDescription,
   alternates: { canonical: "/contact" },
+  ...buildPageOg({
+    title: pageTitle,
+    description: pageDescription,
+    path: "/contact",
+  }),
 };
+
+const contactPageSchema = {
+  "@context": "https://schema.org",
+  "@type": "ContactPage",
+  "@id": "https://mixednuts-inc.com/contact#webpage",
+  url: "https://mixednuts-inc.com/contact",
+  name: pageTitle,
+  description: pageDescription,
+  inLanguage: "ja-JP",
+  isPartOf: { "@id": "https://mixednuts-inc.com/#website" },
+  mainEntity: { "@id": "https://mixednuts-inc.com/#organization" },
+};
+
+const breadcrumb = buildBreadcrumbSchema([
+  { name: "Home", path: "/" },
+  { name: "Contact", path: "/contact" },
+]);
 
 export default function ContactPage() {
   return (
     <>
+      <JsonLd data={contactPageSchema} />
+      <JsonLd data={breadcrumb} />
       <style>{`
         .contact-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; }
         .contact-form { background: #fff; border: 1px solid #E5E7EB; border-radius: 20px; padding: 48px; }
@@ -55,19 +85,22 @@ export default function ContactPage() {
 
       <section className="page-hero">
         <div className="page-hero-inner">
-          <div className="breadcrumb"><Link href="/">Home</Link> / Contact</div>
+          <div className="breadcrumb">
+            <Link href="/">Home</Link> / Contact
+          </div>
           <div className="page-hero-badge">Let&apos;s Talk</div>
-          <h1>まずは、<span className="accent">話しましょう</span>。</h1>
+          <h1>
+            まずは、<span className="accent">話しましょう</span>。
+          </h1>
           <p className="lead">
             初回無料相談（60分）で、貴社の課題をヒアリングし、最適なアプローチをご提案します。24時間以内にご返信します。売り込みではなく、対話からはじめましょう。
           </p>
         </div>
       </section>
 
-      <section className="section" style={{background: '#F9FAFB'}}>
+      <section className="section" style={{ background: "#F9FAFB" }}>
         <div className="section-inner">
           <div className="contact-wrap">
-
             <div className="contact-form">
               <h3>お問い合わせフォーム</h3>
               <ContactForm />
@@ -79,7 +112,10 @@ export default function ContactPage() {
               <div className="info-block">
                 <div className="info-block-label">Email</div>
                 <div className="info-block-value">
-                  <a href="mailto:hello@mixednuts-inc.com">hello@mixednuts-inc.com</a><br />
+                  <a href="mailto:hello@mixednuts-inc.com">
+                    hello@mixednuts-inc.com
+                  </a>
+                  <br />
                   通常24時間以内に返信いたします（土日祝は翌営業日）。
                 </div>
               </div>
@@ -87,19 +123,28 @@ export default function ContactPage() {
               <div className="info-block">
                 <div className="info-block-label">所在地</div>
                 <div className="info-block-value">
-                  〒107-0062<br />
-                  東京都港区南青山3-8-40<br />
-                  ※ 訪問は事前予約制です
+                  〒107-0062
+                  <br />
+                  東京都港区南青山3-8-40
+                  <br />※ 訪問は事前予約制です
                 </div>
               </div>
 
               <div className="info-block">
                 <div className="info-block-label">お役立ちリンク</div>
                 <div className="quick-links">
-                  <Link href="/services" className="quick-link">サービス一覧</Link>
-                  <Link href="/works" className="quick-link">実績・事例</Link>
-                  <Link href="/team" className="quick-link">メンバー紹介</Link>
-                  <Link href="/insights" className="quick-link">Insights</Link>
+                  <Link href="/services" className="quick-link">
+                    サービス一覧
+                  </Link>
+                  <Link href="/works" className="quick-link">
+                    実績・事例
+                  </Link>
+                  <Link href="/team" className="quick-link">
+                    メンバー紹介
+                  </Link>
+                  <Link href="/insights" className="quick-link">
+                    Insights
+                  </Link>
                 </div>
               </div>
 

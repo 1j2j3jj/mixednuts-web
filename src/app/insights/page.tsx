@@ -1,12 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { posts } from "#site/content";
+import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { buildPageOg } from "@/lib/site-metadata";
+
+// "| mixednuts inc." を除去 — layout の title template "%s | mixednuts" と重複し
+// "... | mixednuts inc. | mixednuts" と二重表示になっていた (built HTML 実測)
+const pageTitle = "Insights — Strategy × AI × Marketing の最新知見";
+const pageDescription =
+  "戦略・AI・マーケティング・ファイナンスの実践ノウハウを発信。AI-firstコンサルティングファームの知見を公開しています。";
 
 export const metadata: Metadata = {
-  title: "Insights — Strategy × AI × Marketing の最新知見 | mixednuts inc.",
-  description:
-    "戦略・AI・マーケティング・ファイナンスの実践ノウハウを発信。AI-firstコンサルティングファームの知見を公開しています。",
+  title: pageTitle,
+  description: pageDescription,
   alternates: { canonical: "/insights" },
+  ...buildPageOg({
+    title: pageTitle,
+    description: pageDescription,
+    path: "/insights",
+  }),
 };
 
 const categoryColorMap: Record<string, string> = {
@@ -78,7 +90,8 @@ const upcomingArticles: ListItem[] = [
     colorClass: "art-marketing",
     date: "2026.02.14",
     readTime: "9分",
-    title: "Google Ads × AI: 自動入札とAIクリエイティブで CPA を30%改善した方法",
+    title:
+      "Google Ads × AI: 自動入札とAIクリエイティブで CPA を30%改善した方法",
     excerpt:
       "スマート入札の誤解と正しい使い方。AIクリエイティブ生成ツールの選定基準、A/Bテスト設計まで、実績ベースで解説。",
     author: "石井 希実",
@@ -90,7 +103,7 @@ const upcomingArticles: ListItem[] = [
     colorClass: "art-finance",
     date: "2026.02.12",
     readTime: "6分",
-    title: "多様性を成果に変える: 6つのバックグラウンドを\"ミックス\"する運営術",
+    title: '多様性を成果に変える: 6つのバックグラウンドを"ミックス"する運営術',
     excerpt:
       "広告代理店・戦略ファーム・ビッグテック・クリエイター — 異なる専門性をどうまとめるか。チーム設計の実践から学んだ知見。",
     author: "石井 希実",
@@ -119,12 +132,41 @@ const publishedArticles: ListItem[] = [...posts]
 const articles: ListItem[] = [...publishedArticles];
 void upcomingArticles; // 将来の予告枠として温存
 
+// CollectionPage → mainEntity ItemList → ListItem.item = 記事 canonical URL の3層。
+// ItemList の URL は必ず記事詳細の canonical (フィルタ URL / 画像 URL 禁止)
+const collectionPageSchema = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "@id": "https://mixednuts-inc.com/insights#webpage",
+  url: "https://mixednuts-inc.com/insights",
+  name: pageTitle,
+  description: pageDescription,
+  inLanguage: "ja-JP",
+  isPartOf: { "@id": "https://mixednuts-inc.com/#website" },
+  mainEntity: {
+    "@type": "ItemList",
+    itemListElement: publishedArticles.map((a, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      url: `https://mixednuts-inc.com${a.href}`,
+      name: a.title,
+    })),
+  },
+};
+
+const breadcrumb = buildBreadcrumbSchema([
+  { name: "Home", path: "/" },
+  { name: "Insights", path: "/insights" },
+]);
+
 export default function InsightsPage() {
   const featured = articles[0];
   const rest = articles.slice(1);
 
   return (
     <>
+      <JsonLd data={collectionPageSchema} />
+      <JsonLd data={breadcrumb} />
       <style>{`
         .filters {
           background: var(--off-white);
@@ -271,7 +313,8 @@ export default function InsightsPage() {
           </div>
           <div className="page-hero-badge">Knowledge</div>
           <h1>
-            実践から生まれる<br />
+            実践から生まれる
+            <br />
             <span className="accent">知見</span>を届ける。
           </h1>
           <p className="lead">
@@ -301,7 +344,10 @@ export default function InsightsPage() {
               <FeaturedInner item={featured} />
             </Link>
           ) : (
-            <div className="featured-card" style={{ cursor: "default", opacity: 0.78 }}>
+            <div
+              className="featured-card"
+              style={{ cursor: "default", opacity: 0.78 }}
+            >
               <FeaturedInner item={featured} />
             </div>
           )}
@@ -328,12 +374,32 @@ export default function InsightsPage() {
                   <span className="article-tag-pos">{article.category}</span>
                   {article.thumbNumber && (
                     <div className="thumb-overlay">
-                      <span className="thumb-number">{article.thumbNumber}</span>
-                      {article.thumbLabel && <span className="thumb-label">{article.thumbLabel}</span>}
+                      <span className="thumb-number">
+                        {article.thumbNumber}
+                      </span>
+                      {article.thumbLabel && (
+                        <span className="thumb-label">
+                          {article.thumbLabel}
+                        </span>
+                      )}
                     </div>
                   )}
                   {!article.href && (
-                    <span style={{ position: "absolute", top: 16, right: 16, padding: "4px 10px", background: "var(--off-white)", color: "var(--charcoal)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", borderRadius: 999, textTransform: "uppercase" }}>
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 16,
+                        right: 16,
+                        padding: "4px 10px",
+                        background: "var(--off-white)",
+                        color: "var(--charcoal)",
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: "0.1em",
+                        borderRadius: 999,
+                        textTransform: "uppercase",
+                      }}
+                    >
                       近日公開
                     </span>
                   )}
@@ -352,13 +418,21 @@ export default function InsightsPage() {
             );
             if (article.href) {
               return (
-                <Link key={article.slug} href={article.href} className="article-card">
+                <Link
+                  key={article.slug}
+                  href={article.href}
+                  className="article-card"
+                >
                   {inner}
                 </Link>
               );
             }
             return (
-              <div key={article.slug} className="article-card" style={{ cursor: "default", opacity: 0.78 }}>
+              <div
+                key={article.slug}
+                className="article-card"
+                style={{ cursor: "default", opacity: 0.78 }}
+              >
                 {inner}
               </div>
             );
@@ -374,17 +448,22 @@ export default function InsightsPage() {
             広告・スパムは一切なし。いつでも解除できます。
           </p>
           <div className="newsletter-form">
-            <Link href="/contact" style={{
-              padding: "14px 28px",
-              background: "var(--off-white)",
-              color: "var(--charcoal)",
-              borderRadius: 999,
-              fontWeight: 700,
-              fontSize: 14,
-              letterSpacing: "0.04em",
-              textDecoration: "none",
-              display: "inline-block",
-            }}>配信開始をお知らせする →</Link>
+            <Link
+              href="/contact"
+              style={{
+                padding: "14px 28px",
+                background: "var(--off-white)",
+                color: "var(--charcoal)",
+                borderRadius: 999,
+                fontWeight: 700,
+                fontSize: 14,
+                letterSpacing: "0.04em",
+                textDecoration: "none",
+                display: "inline-block",
+              }}
+            >
+              配信開始をお知らせする →
+            </Link>
           </div>
           <p className="newsletter-disclaimer">
             配信開始のお知らせを希望する方は、Contact からどうぞ。
@@ -414,11 +493,27 @@ function FeaturedInner({ item }: { item: ListItem }) {
         {item.thumbNumber && (
           <div className="featured-overlay">
             <span className="featured-overlay-num">{item.thumbNumber}</span>
-            {item.thumbLabel && <span className="featured-overlay-label">{item.thumbLabel}</span>}
+            {item.thumbLabel && (
+              <span className="featured-overlay-label">{item.thumbLabel}</span>
+            )}
           </div>
         )}
         {!item.href && (
-          <span style={{ position: "absolute", top: 20, right: 20, padding: "4px 10px", background: "var(--off-white)", color: "var(--charcoal)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", borderRadius: 999, textTransform: "uppercase" }}>
+          <span
+            style={{
+              position: "absolute",
+              top: 20,
+              right: 20,
+              padding: "4px 10px",
+              background: "var(--off-white)",
+              color: "var(--charcoal)",
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              borderRadius: 999,
+              textTransform: "uppercase",
+            }}
+          >
             近日公開
           </span>
         )}

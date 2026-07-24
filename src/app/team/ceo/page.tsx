@@ -2,11 +2,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { members } from "@/data/members";
 import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { buildPageOg } from "@/lib/site-metadata";
+
+const pageTitle = "CEO Profile — 石井 希実 (Nozomi Ishii)";
+const pageDescription =
+  "mixednuts 代表取締役 石井 希実 の詳細プロフィール。国内大手IT企業経営企画、グローバル大手IT企業を経て2021年に創業。";
 
 export const metadata: Metadata = {
-  title: "CEO Profile — 石井 希実 (Nozomi Ishii)",
-  description: "mixednuts 代表取締役 石井 希実 の詳細プロフィール。国内大手IT企業経営企画、グローバル大手IT企業を経て2021年に創業。",
+  title: pageTitle,
+  description: pageDescription,
   alternates: { canonical: "/team/ceo" },
+  ...buildPageOg({
+    title: pageTitle,
+    description: pageDescription,
+    path: "/team/ceo",
+  }),
 };
 
 const personSchema = {
@@ -34,6 +44,18 @@ const personSchema = {
   url: "https://mixednuts-inc.com/team/ceo",
 };
 
+// Google 公式の profile page 構造化データパターン (ProfilePage → mainEntity Person)。
+// Insights 記事の author @id もこの Person を参照し E-E-A-T のエンティティを一点に集約する
+const profilePageSchema = {
+  "@context": "https://schema.org",
+  "@type": "ProfilePage",
+  "@id": "https://mixednuts-inc.com/team/ceo#webpage",
+  url: "https://mixednuts-inc.com/team/ceo",
+  inLanguage: "ja-JP",
+  isPartOf: { "@id": "https://mixednuts-inc.com/#website" },
+  mainEntity: { "@id": "https://mixednuts-inc.com/team/ceo#person" },
+};
+
 const breadcrumb = buildBreadcrumbSchema([
   { name: "Home", path: "/" },
   { name: "Team", path: "/team" },
@@ -46,6 +68,7 @@ export default function CeoPage() {
   return (
     <>
       <JsonLd data={personSchema} />
+      <JsonLd data={profilePageSchema} />
       <JsonLd data={breadcrumb} />
       <style>{`
         .ceo-wrap { display: grid; grid-template-columns: 1fr 2fr; gap: 80px; align-items: start; }
@@ -97,7 +120,9 @@ export default function CeoPage() {
             <Link href="/">Home</Link> / <Link href="/team">Team</Link> / CEO
           </div>
           <div className="page-hero-badge">Founder & CEO</div>
-          <h1><span className="accent">石井 希実</span></h1>
+          <h1>
+            <span className="accent">石井 希実</span>
+          </h1>
           <p className="lead">{ceo.role} — mixednuts Inc. Founder</p>
         </div>
       </section>
@@ -107,16 +132,26 @@ export default function CeoPage() {
           <div className="ceo-wrap">
             <div className="ceo-sidebar">
               <div className="ceo-portrait">
-                <span className="ceo-portrait-initials">N<span className="dot">.</span>I<span className="dot">.</span></span>
+                <span className="ceo-portrait-initials">
+                  N<span className="dot">.</span>I<span className="dot">.</span>
+                </span>
               </div>
               <div className="ceo-sidebar-meta">
                 <div className="ceo-meta-item">
                   <div className="ceo-meta-label">Role</div>
-                  <div className="ceo-meta-value">Founder & CEO<br />mixednuts Inc.</div>
+                  <div className="ceo-meta-value">
+                    Founder & CEO
+                    <br />
+                    mixednuts Inc.
+                  </div>
                 </div>
                 <div className="ceo-meta-item">
                   <div className="ceo-meta-label">Education</div>
-                  <div className="ceo-meta-value">早稲田大学大学院<br />経営管理研究科（MBA）</div>
+                  <div className="ceo-meta-value">
+                    早稲田大学大学院
+                    <br />
+                    経営管理研究科（MBA）
+                  </div>
                 </div>
                 <div className="ceo-meta-item">
                   <div className="ceo-meta-label">Base</div>
@@ -124,7 +159,11 @@ export default function CeoPage() {
                 </div>
                 <div className="ceo-meta-item">
                   <div className="ceo-meta-label">Languages</div>
-                  <div className="ceo-meta-value">日本語（ネイティブ）<br />英語（ビジネス）</div>
+                  <div className="ceo-meta-value">
+                    日本語（ネイティブ）
+                    <br />
+                    英語（ビジネス）
+                  </div>
                 </div>
               </div>
             </div>
@@ -138,7 +177,8 @@ export default function CeoPage() {
                 その後、国内大手IT企業の経営企画本部へ。300億円規模のエンタメ領域の事業管理を統括し、事業計画策定・投資評価・取締役会付議・中期戦略立案まで、経営判断の中枢に関わる。FP&AとM&Aアドバイザリーの実践経験を持つ。
               </p>
               <p>
-                2021年4月、ミックスナッツ株式会社を創業。「戦略 × AI × マーケティング」の統合提供をコンセプトに、多様なバックグラウンドのプロフェッショナルを束ねるAI-firstコンサルティングファームを構築。自社内で120体超のAIエージェント組織を設計・運用し、そのノウハウをクライアントに移植している。
+                2021年4月、ミックスナッツ株式会社を創業。「戦略 × AI ×
+                マーケティング」の統合提供をコンセプトに、多様なバックグラウンドのプロフェッショナルを束ねるAI-firstコンサルティングファームを構築。自社内で120体超のAIエージェント組織を設計・運用し、そのノウハウをクライアントに移植している。
               </p>
 
               <div className="quote-block">
@@ -188,8 +228,23 @@ export default function CeoPage() {
 
               <h2>Expertise</h2>
               <div className="skill-tags">
-                {["FP&A", "M&A / Valuation", "AI Agent Design", "LLM Implementation", "Google Ads", "Meta Ads", "Growth Marketing", "SEO / AIO", "Corporate Finance", "Business Strategy", "OKR / KPI Design", "Board Deck"].map((skill) => (
-                  <span key={skill} className="skill-tag">{skill}</span>
+                {[
+                  "FP&A",
+                  "M&A / Valuation",
+                  "AI Agent Design",
+                  "LLM Implementation",
+                  "Google Ads",
+                  "Meta Ads",
+                  "Growth Marketing",
+                  "SEO / AIO",
+                  "Corporate Finance",
+                  "Business Strategy",
+                  "OKR / KPI Design",
+                  "Board Deck",
+                ].map((skill) => (
+                  <span key={skill} className="skill-tag">
+                    {skill}
+                  </span>
                 ))}
               </div>
             </div>
@@ -200,8 +255,12 @@ export default function CeoPage() {
       <section className="cta">
         <div className="cta-inner">
           <h2>石井 希実 と直接、話しましょう。</h2>
-          <p>初回相談は無料です。60分で、貴社の課題に最適なアプローチを一緒に設計します。</p>
-          <Link href="/contact" className="btn-primary">無料相談を申し込む →</Link>
+          <p>
+            初回相談は無料です。60分で、貴社の課題に最適なアプローチを一緒に設計します。
+          </p>
+          <Link href="/contact" className="btn-primary">
+            無料相談を申し込む →
+          </Link>
         </div>
       </section>
     </>

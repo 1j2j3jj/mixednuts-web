@@ -1,22 +1,74 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { services } from "@/data/services";
+import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { buildPageOg } from "@/lib/site-metadata";
+
+const pageTitle = "Services — Strategy × AI × Marketing";
+const pageDescription =
+  "戦略コンサルティング・AI実装支援・マーケティング成長支援の3軸を一気通貫で提供。";
 
 export const metadata: Metadata = {
-  title: "Services — Strategy × AI × Marketing",
-  description: "戦略コンサルティング・AI実装支援・マーケティング成長支援の3軸を一気通貫で提供。",
+  title: pageTitle,
+  description: pageDescription,
   alternates: { canonical: "/services" },
+  ...buildPageOg({
+    title: pageTitle,
+    description: pageDescription,
+    path: "/services",
+  }),
 };
 
+// ハブページ → 各サービス詳細 (Service schema は詳細ページ側に @id 付きで定義済み)
+const collectionPageSchema = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "@id": "https://mixednuts-inc.com/services#webpage",
+  url: "https://mixednuts-inc.com/services",
+  name: pageTitle,
+  description: pageDescription,
+  inLanguage: "ja-JP",
+  isPartOf: { "@id": "https://mixednuts-inc.com/#website" },
+  mainEntity: {
+    "@type": "ItemList",
+    itemListElement: [
+      { name: "Strategy Consulting", path: "/services/strategy" },
+      { name: "AI Implementation", path: "/services/ai" },
+      { name: "Marketing & Growth", path: "/services/marketing" },
+    ].map((s, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      url: `https://mixednuts-inc.com${s.path}`,
+      name: s.name,
+    })),
+  },
+};
+
+const breadcrumb = buildBreadcrumbSchema([
+  { name: "Home", path: "/" },
+  { name: "Services", path: "/services" },
+]);
+
 const visualConfigs = {
-  strategy: { bg: "linear-gradient(135deg, var(--charcoal) 0%, var(--charcoal-soft) 100%)", label: "STRATEGY" },
-  ai: { bg: "linear-gradient(135deg, var(--charcoal-soft) 0%, var(--charcoal) 100%)", label: "AI" },
-  marketing: { bg: "linear-gradient(135deg, var(--charcoal) 0%, #141414 100%)", label: "GROWTH" },
+  strategy: {
+    bg: "linear-gradient(135deg, var(--charcoal) 0%, var(--charcoal-soft) 100%)",
+    label: "STRATEGY",
+  },
+  ai: {
+    bg: "linear-gradient(135deg, var(--charcoal-soft) 0%, var(--charcoal) 100%)",
+    label: "AI",
+  },
+  marketing: {
+    bg: "linear-gradient(135deg, var(--charcoal) 0%, #141414 100%)",
+    label: "GROWTH",
+  },
 };
 
 export default function ServicesPage() {
   return (
     <>
+      <JsonLd data={collectionPageSchema} />
+      <JsonLd data={breadcrumb} />
       <style>{`
         .service-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; margin-bottom: 96px; }
         .service-detail:last-child { margin-bottom: 0; }
@@ -48,11 +100,18 @@ export default function ServicesPage() {
 
       <section className="page-hero">
         <div className="page-hero-inner">
-          <div className="breadcrumb"><Link href="/">Home</Link> / Services</div>
+          <div className="breadcrumb">
+            <Link href="/">Home</Link> / Services
+          </div>
           <div className="page-hero-badge">Our Services</div>
-          <h1>3つの専門性を、<br /><span className="accent">1つのチームで</span>。</h1>
+          <h1>
+            3つの専門性を、
+            <br />
+            <span className="accent">1つのチームで</span>。
+          </h1>
           <p className="lead">
-            戦略コンサルティング、AI実装支援、グロースマーケティング。多くのファームが「どれか一つ」しか提供できない領域を、私たちは統合して届けます。断絶させず、有機的に繋ぐのが mixednuts の強みです。
+            戦略コンサルティング、AI実装支援、グロースマーケティング。多くのファームが「どれか一つ」しか提供できない領域を、私たちは統合して届けます。断絶させず、有機的に繋ぐのが
+            mixednuts の強みです。
           </p>
         </div>
       </section>
@@ -65,15 +124,20 @@ export default function ServicesPage() {
             const num = String(i + 1).padStart(2, "0");
             return (
               <div key={service.slug} className="service-detail">
-                <div className="service-visual" style={{background: vc.bg, order: isEven ? 1 : 0}}>
+                <div
+                  className="service-visual"
+                  style={{ background: vc.bg, order: isEven ? 1 : 0 }}
+                >
                   <div className="service-visual-inner">
                     <div className="service-visual-icon">{num}</div>
                     <div className="service-visual-label">{vc.label}</div>
                     <div className="service-visual-sub">{service.tagline}</div>
                   </div>
                 </div>
-                <div className="service-text" style={{order: isEven ? 2 : 0}}>
-                  <span className="tag">{num} / {service.label}</span>
+                <div className="service-text" style={{ order: isEven ? 2 : 0 }}>
+                  <span className="tag">
+                    {num} / {service.label}
+                  </span>
                   <h2>{service.tagline}</h2>
                   <p>{service.description}</p>
                   <ul className="service-capabilities">
@@ -94,24 +158,40 @@ export default function ServicesPage() {
       {/* Integration Section */}
       <section className="integration-section">
         <div className="integration-inner">
-          <span className="section-label" style={{color: 'var(--cyan)'}}>Why Integration Matters</span>
-          <h2 className="section-title" style={{color: '#fff'}}>なぜ「統合」が重要なのか。</h2>
-          <p className="section-lead" style={{color: 'rgba(255,255,255,0.75)'}}>3つを別々に依頼しても、断絶が生まれます。mixednuts は、3つが常に連動する設計で動きます。</p>
+          <span className="section-label" style={{ color: "var(--cyan)" }}>
+            Why Integration Matters
+          </span>
+          <h2 className="section-title" style={{ color: "#fff" }}>
+            なぜ「統合」が重要なのか。
+          </h2>
+          <p
+            className="section-lead"
+            style={{ color: "rgba(255,255,255,0.75)" }}
+          >
+            3つを別々に依頼しても、断絶が生まれます。mixednuts
+            は、3つが常に連動する設計で動きます。
+          </p>
           <div className="integration-grid">
             <div className="integration-card">
               <div className="arrow">→</div>
               <h3>戦略が AI を加速する</h3>
-              <p>「どのプロセスを自動化すべきか」の判断は戦略思考が必要です。戦略家とAIエンジニアが同じチームにいるから、正しいAI投資ができます。</p>
+              <p>
+                「どのプロセスを自動化すべきか」の判断は戦略思考が必要です。戦略家とAIエンジニアが同じチームにいるから、正しいAI投資ができます。
+              </p>
             </div>
             <div className="integration-card">
               <div className="arrow">→</div>
               <h3>AI がマーケを進化させる</h3>
-              <p>クリエイティブ生成、入札最適化、データ分析。AIなしのマーケティングは2024年以前の話。AI前提でマーケを設計します。</p>
+              <p>
+                クリエイティブ生成、入札最適化、データ分析。AIなしのマーケティングは2024年以前の話。AI前提でマーケを設計します。
+              </p>
             </div>
             <div className="integration-card">
               <div className="arrow">→</div>
               <h3>マーケが戦略を検証する</h3>
-              <p>顧客の反応は最良の戦略検証です。マーケの実行データを戦略のループに取り込み、仮説検証を高速で回します。</p>
+              <p>
+                顧客の反応は最良の戦略検証です。マーケの実行データを戦略のループに取り込み、仮説検証を高速で回します。
+              </p>
             </div>
           </div>
         </div>
@@ -119,9 +199,17 @@ export default function ServicesPage() {
 
       <section className="cta">
         <div className="cta-inner">
-          <h2>どのサービスが<br />最適か、一緒に考えましょう。</h2>
-          <p>まずは課題をお聞かせください。60分の無料相談で、最適なアプローチをご提案します。</p>
-          <Link href="/contact" className="btn-primary">無料相談を申し込む →</Link>
+          <h2>
+            どのサービスが
+            <br />
+            最適か、一緒に考えましょう。
+          </h2>
+          <p>
+            まずは課題をお聞かせください。60分の無料相談で、最適なアプローチをご提案します。
+          </p>
+          <Link href="/contact" className="btn-primary">
+            無料相談を申し込む →
+          </Link>
         </div>
       </section>
     </>

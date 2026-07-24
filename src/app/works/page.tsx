@@ -2,19 +2,61 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { works, CASES_COMING_SOON } from "@/data/works";
 import WorksList from "./WorksList";
+import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { buildPageOg } from "@/lib/site-metadata";
 
 const visibleWorks = CASES_COMING_SOON ? [] : works.filter((w) => !w.hidden);
 
+const pageTitle = "Works — 数字で語る、実績ケース";
+const pageDescription =
+  "上場企業の経営管理から D2C のグロースまで、戦略・AI・マーケティングを横断したクライアントワーク。実績ケースは現在準備中で、匿名化のうえ順次公開していきます。";
+
 export const metadata: Metadata = {
-  title: "Works — 数字で語る、実績ケース",
-  description:
-    "上場企業の経営管理から D2C のグロースまで、戦略・AI・マーケティングを横断したクライアントワーク。実績ケースは現在準備中で、匿名化のうえ順次公開していきます。",
+  title: pageTitle,
+  description: pageDescription,
   alternates: { canonical: "/works" },
+  ...buildPageOg({
+    title: pageTitle,
+    description: pageDescription,
+    path: "/works",
+  }),
 };
+
+// CASES_COMING_SOON 解除で visibleWorks が入ると ItemList も自動で有効化される
+const collectionPageSchema = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "@id": "https://mixednuts-inc.com/works#webpage",
+  url: "https://mixednuts-inc.com/works",
+  name: pageTitle,
+  description: pageDescription,
+  inLanguage: "ja-JP",
+  isPartOf: { "@id": "https://mixednuts-inc.com/#website" },
+  ...(visibleWorks.length > 0
+    ? {
+        mainEntity: {
+          "@type": "ItemList",
+          itemListElement: visibleWorks.map((w, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            url: `https://mixednuts-inc.com/works/${w.slug}`,
+            name: w.title,
+          })),
+        },
+      }
+    : {}),
+};
+
+const breadcrumb = buildBreadcrumbSchema([
+  { name: "Home", path: "/" },
+  { name: "Works", path: "/works" },
+]);
 
 export default function WorksPage() {
   return (
     <>
+      <JsonLd data={collectionPageSchema} />
+      <JsonLd data={breadcrumb} />
       <style>{`
         .works-filters {
           background: var(--off-white); padding: 32px 32px 0;
@@ -71,37 +113,63 @@ export default function WorksPage() {
 
       <section className="page-hero">
         <div className="page-hero-inner">
-          <div className="breadcrumb"><Link href="/">Home</Link> / Works</div>
+          <div className="breadcrumb">
+            <Link href="/">Home</Link> / Works
+          </div>
           <div className="page-hero-badge">Case Studies</div>
           <h1>
             <span style={{ display: "block" }}>数字で語る、</span>
-            <span style={{ display: "block" }}><span className="accent">実績ケース</span>。</span>
+            <span style={{ display: "block" }}>
+              <span className="accent">実績ケース</span>。
+            </span>
           </h1>
           <p className="lead">
-            上場企業の経営管理から D2C のグロースまで、戦略・AI・マーケティングを横断して関与してきました。実績ケースの一覧は現在準備中で、匿名化のうえ順次公開していきます。領域・規模・関与の深さは下記のとおりです。
+            上場企業の経営管理から D2C
+            のグロースまで、戦略・AI・マーケティングを横断して関与してきました。実績ケースの一覧は現在準備中で、匿名化のうえ順次公開していきます。領域・規模・関与の深さは下記のとおりです。
           </p>
         </div>
       </section>
 
       {CASES_COMING_SOON ? (
-        <section style={{ padding: "80px 32px 120px", background: "var(--off-white)" }}>
+        <section
+          style={{ padding: "80px 32px 120px", background: "var(--off-white)" }}
+        >
           <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-            <div style={{
-              fontFamily: "var(--font-sans-en)", fontSize: 11, letterSpacing: "0.2em",
-              color: "var(--gray-400)", fontWeight: 700, marginBottom: 16, textAlign: "center"
-            }}>
+            <div
+              style={{
+                fontFamily: "var(--font-sans-en)",
+                fontSize: 11,
+                letterSpacing: "0.2em",
+                color: "var(--gray-400)",
+                fontWeight: 700,
+                marginBottom: 16,
+                textAlign: "center",
+              }}
+            >
               ENGAGEMENT AREAS · 主な関与領域
             </div>
-            <h2 style={{
-              fontFamily: "var(--font-sans-jp)", fontSize: "clamp(26px, 3.5vw, 36px)",
-              fontWeight: 900, color: "var(--charcoal)", lineHeight: 1.4,
-              marginBottom: 56, wordBreak: "keep-all", textAlign: "center"
-            }}>
+            <h2
+              style={{
+                fontFamily: "var(--font-sans-jp)",
+                fontSize: "clamp(26px, 3.5vw, 36px)",
+                fontWeight: 900,
+                color: "var(--charcoal)",
+                lineHeight: 1.4,
+                marginBottom: 56,
+                wordBreak: "keep-all",
+                textAlign: "center",
+              }}
+            >
               何をやってきたか、を先に。
             </h2>
-            <div style={{
-              display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 28, marginBottom: 56
-            }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: 28,
+                marginBottom: 56,
+              }}
+            >
               {[
                 {
                   label: "Strategy & FP&A",
@@ -137,52 +205,105 @@ export default function WorksPage() {
                   scale: "月予算 数百万〜数千万円",
                 },
               ].map((col) => (
-                <div key={col.label} style={{
-                  background: "#FFFFFF", border: "1px solid rgba(10,10,10,0.08)",
-                  borderRadius: 16, padding: 28
-                }}>
-                  <div style={{
-                    fontFamily: "var(--font-sans-en)", fontSize: 11, letterSpacing: "0.15em",
-                    fontWeight: 700, color: "var(--gray-400)", marginBottom: 6
-                  }}>{col.label}</div>
-                  <div style={{
-                    fontFamily: "var(--font-sans-jp)", fontSize: 18, fontWeight: 900,
-                    color: "var(--charcoal)", marginBottom: 20, lineHeight: 1.4
-                  }}>{col.jp}</div>
-                  <ul style={{
-                    listStyle: "none", padding: 0, margin: 0, marginBottom: 20,
-                    fontSize: 13, lineHeight: 1.9, color: "#4B5563"
-                  }}>
+                <div
+                  key={col.label}
+                  style={{
+                    background: "#FFFFFF",
+                    border: "1px solid rgba(10,10,10,0.08)",
+                    borderRadius: 16,
+                    padding: 28,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontFamily: "var(--font-sans-en)",
+                      fontSize: 11,
+                      letterSpacing: "0.15em",
+                      fontWeight: 700,
+                      color: "var(--gray-400)",
+                      marginBottom: 6,
+                    }}
+                  >
+                    {col.label}
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-sans-jp)",
+                      fontSize: 18,
+                      fontWeight: 900,
+                      color: "var(--charcoal)",
+                      marginBottom: 20,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {col.jp}
+                  </div>
+                  <ul
+                    style={{
+                      listStyle: "none",
+                      padding: 0,
+                      margin: 0,
+                      marginBottom: 20,
+                      fontSize: 13,
+                      lineHeight: 1.9,
+                      color: "#4B5563",
+                    }}
+                  >
                     {col.items.map((it) => (
-                      <li key={it} style={{
-                        position: "relative", paddingLeft: 16, wordBreak: "keep-all"
-                      }}>
-                        <span style={{
-                          position: "absolute", left: 0, top: "0.7em", width: 6, height: 1,
-                          background: "var(--charcoal)"
-                        }} />
+                      <li
+                        key={it}
+                        style={{
+                          position: "relative",
+                          paddingLeft: 16,
+                          wordBreak: "keep-all",
+                        }}
+                      >
+                        <span
+                          style={{
+                            position: "absolute",
+                            left: 0,
+                            top: "0.7em",
+                            width: 6,
+                            height: 1,
+                            background: "var(--charcoal)",
+                          }}
+                        />
                         {it}
                       </li>
                     ))}
                   </ul>
-                  <div style={{
-                    fontSize: 11, color: "var(--gray-400)", letterSpacing: "0.05em",
-                    paddingTop: 14, borderTop: "1px solid rgba(10,10,10,0.06)"
-                  }}>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "var(--gray-400)",
+                      letterSpacing: "0.05em",
+                      paddingTop: 14,
+                      borderTop: "1px solid rgba(10,10,10,0.06)",
+                    }}
+                  >
                     対象規模：{col.scale}
                   </div>
                 </div>
               ))}
             </div>
             <div style={{ textAlign: "center" }}>
-              <p style={{
-                color: "#4B5563", fontSize: 14, lineHeight: 1.9, maxWidth: 680,
-                margin: "0 auto 28px", wordBreak: "keep-all"
-              }}>
-                個別ケースは現在準備中で、匿名化のうえ順次公開していきます。<br />
+              <p
+                style={{
+                  color: "#4B5563",
+                  fontSize: 14,
+                  lineHeight: 1.9,
+                  maxWidth: 680,
+                  margin: "0 auto 28px",
+                  wordBreak: "keep-all",
+                }}
+              >
+                個別ケースは現在準備中で、匿名化のうえ順次公開していきます。
+                <br />
                 類似案件の関与内容・成果はお気軽にご相談ください。
               </p>
-              <Link href="/contact" className="btn-primary">課題を相談する →</Link>
+              <Link href="/contact" className="btn-primary">
+                課題を相談する →
+              </Link>
             </div>
           </div>
         </section>
@@ -196,8 +317,12 @@ export default function WorksPage() {
             <span style={{ display: "block" }}>次の成功事例を、</span>
             <span style={{ display: "block" }}>あなたと一緒につくりたい。</span>
           </h2>
-          <p>まずは課題をお聞かせください。60分の無料相談で、最適なアプローチをご提案します。</p>
-          <Link href="/contact" className="btn-primary">無料相談を申し込む →</Link>
+          <p>
+            まずは課題をお聞かせください。60分の無料相談で、最適なアプローチをご提案します。
+          </p>
+          <Link href="/contact" className="btn-primary">
+            無料相談を申し込む →
+          </Link>
         </div>
       </section>
     </>

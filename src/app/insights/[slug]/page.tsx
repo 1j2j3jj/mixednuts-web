@@ -7,6 +7,7 @@ import path from "node:path";
 import { posts } from "#site/content";
 import { mdxComponents } from "@/components/mdx-components";
 import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { buildPageOg } from "@/lib/site-metadata";
 import { ReadingProgressBar } from "@/components/ReadingProgressBar";
 import { StickyToc } from "@/components/StickyToc";
 
@@ -16,7 +17,12 @@ import { StickyToc } from "@/components/StickyToc";
  * Returns array of {question, answer}.
  */
 function extractFaqPairs(slug: string): { question: string; answer: string }[] {
-  const mdxPath = path.join(process.cwd(), "content", "insights", `${slug}.mdx`);
+  const mdxPath = path.join(
+    process.cwd(),
+    "content",
+    "insights",
+    `${slug}.mdx`,
+  );
   let raw = "";
   try {
     raw = fs.readFileSync(mdxPath, "utf-8");
@@ -42,10 +48,16 @@ function extractFaqPairs(slug: string): { question: string; answer: string }[] {
 type Params = { slug: string };
 
 export function generateStaticParams() {
-  return posts.filter((post) => !post.hidden).map((post) => ({ slug: post.slug }));
+  return posts
+    .filter((post) => !post.hidden)
+    .map((post) => ({ slug: post.slug }));
 }
 
-export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<Params>;
+}): Promise<Metadata> {
   const { slug } = await params;
   const post = posts.find((p) => p.slug === slug);
   if (!post) return {};
@@ -53,14 +65,15 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
     title: `${post.title} | Insights`,
     description: post.excerpt,
     alternates: { canonical: `/insights/${slug}` },
-    openGraph: {
+    // buildPageOg で og:url / og:site_name / og:locale / twitter:* を補完
+    // (従来は部分定義のため親とマージされず欠落し、twitter:title がルートの "mixednuts" のままだった)
+    ...buildPageOg({
       title: post.title,
       description: post.excerpt,
-      type: "article",
-      publishedTime: post.date,
-      authors: [post.author],
+      path: post.permalink,
       images: post.hero ? [{ url: post.hero }] : undefined,
-    },
+      article: { publishedTime: post.date, authors: [post.author] },
+    }),
   };
 }
 
@@ -70,12 +83,18 @@ function MDXContent({ code }: { code: string }) {
   return <Component components={mdxComponents} />;
 }
 
-export default async function InsightsArticlePage({ params }: { params: Promise<Params> }) {
+export default async function InsightsArticlePage({
+  params,
+}: {
+  params: Promise<Params>;
+}) {
   const { slug } = await params;
   const post = posts.find((p) => p.slug === slug);
   if (!post || post.hidden) return notFound();
 
-  const related = posts.filter((p) => p.slug !== post.slug && !p.hidden).slice(0, 3);
+  const related = posts
+    .filter((p) => p.slug !== post.slug && !p.hidden)
+    .slice(0, 3);
   const formattedDate = post.date.slice(0, 10).replace(/-/g, ".");
   const heroBg = post.hero
     ? `linear-gradient(135deg, rgba(0, 217, 255, 0.08), rgba(10, 10, 10, 0.85)), url('${post.hero}') center/cover no-repeat`
@@ -92,6 +111,14 @@ export default async function InsightsArticlePage({ params }: { params: Promise<
     inLanguage: "ja-JP",
     author: {
       "@type": "Person",
+      // 既定著者 (CEO) は /team/ceo の Person エンティティに @id で接続し
+      // E-E-A-T の著者シグナルを1エンティティに集約する (他著者はインライン Person のまま)
+      ...(post.author === "石井 希実"
+        ? {
+            "@id": "https://mixednuts-inc.com/team/ceo#person",
+            url: "https://mixednuts-inc.com/team/ceo",
+          }
+        : {}),
       name: post.author,
       jobTitle: post.authorRole,
       worksFor: { "@id": "https://mixednuts-inc.com/#organization" },
@@ -368,13 +395,16 @@ export default async function InsightsArticlePage({ params }: { params: Promise<
       <section className="article-hero">
         <div className="article-hero-inner">
           <div className="breadcrumb" style={{ marginBottom: 20 }}>
-            <Link href="/">Home</Link> / <Link href="/insights">Insights</Link> / {post.category}
+            <Link href="/">Home</Link> / <Link href="/insights">Insights</Link>{" "}
+            / {post.category}
           </div>
           <span className="category-tag">{post.category}</span>
           <h1>{post.title}</h1>
           {post.subtitle && <p className="article-subtitle">{post.subtitle}</p>}
           <div className="article-meta-row">
-            <div className="article-author-img" aria-hidden="true">N.I.</div>
+            <div className="article-author-img" aria-hidden="true">
+              N.I.
+            </div>
             <div>
               <div className="article-author-name">{post.author}</div>
               <div className="article-author-role">{post.authorRole}</div>
@@ -400,23 +430,27 @@ export default async function InsightsArticlePage({ params }: { params: Promise<
           <div className="article-body-inner">
             <MDXContent code={post.body} />
 
-          <div className="article-tags">
-            {post.tags.map((tag) => (
-              <Link
-                key={tag}
-                href={`/insights/tag/${encodeURIComponent(tag)}`}
-                className="article-tag-link"
-              >
-                #{tag}
-              </Link>
-            ))}
-          </div>
+            <div className="article-tags">
+              {post.tags.map((tag) => (
+                <Link
+                  key={tag}
+                  href={`/insights/tag/${encodeURIComponent(tag)}`}
+                  className="article-tag-link"
+                >
+                  #{tag}
+                </Link>
+              ))}
+            </div>
 
-          <div className="article-cta">
-            <h3>AI-first 組織の構築にご関心ありませんか?</h3>
-            <p>私たちの知見をあなたの事業に実装します。60分の無料相談をご予約ください。</p>
-            <Link href="/contact" className="btn-cta">無料相談を申し込む →</Link>
-          </div>
+            <div className="article-cta">
+              <h3>AI-first 組織の構築にご関心ありませんか?</h3>
+              <p>
+                私たちの知見をあなたの事業に実装します。60分の無料相談をご予約ください。
+              </p>
+              <Link href="/contact" className="btn-cta">
+                無料相談を申し込む →
+              </Link>
+            </div>
           </div>
         </div>
       </article>
@@ -425,10 +459,16 @@ export default async function InsightsArticlePage({ params }: { params: Promise<
         <section className="related">
           <div className="related-inner">
             <span className="section-label">Related Articles</span>
-            <h2 className="section-title" style={{ marginBottom: 32 }}>関連記事</h2>
+            <h2 className="section-title" style={{ marginBottom: 32 }}>
+              関連記事
+            </h2>
             <div className="related-grid">
               {related.map((item) => (
-                <Link key={item.slug} href={item.permalink} className="related-card">
+                <Link
+                  key={item.slug}
+                  href={item.permalink}
+                  className="related-card"
+                >
                   <div
                     className="related-visual"
                     style={{
@@ -440,7 +480,9 @@ export default async function InsightsArticlePage({ params }: { params: Promise<
                     <span className="related-tag-pos">{item.category}</span>
                   </div>
                   <div className="related-body">
-                    <div className="related-date">{item.date.slice(0, 10).replace(/-/g, ".")}</div>
+                    <div className="related-date">
+                      {item.date.slice(0, 10).replace(/-/g, ".")}
+                    </div>
                     <div className="related-title">{item.title}</div>
                   </div>
                 </Link>
