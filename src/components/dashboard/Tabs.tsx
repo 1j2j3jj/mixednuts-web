@@ -16,7 +16,11 @@ interface Props {
   showMembers?: boolean;
 }
 
-export default function DashboardTabs({ slug, showReport = false, showMembers = true }: Props) {
+export default function DashboardTabs({
+  slug,
+  showReport = false,
+  showMembers = true,
+}: Props) {
   const pathname = usePathname() || "";
   // Carry the active date-range selection (?preset/?cmp/?start/?end, managed by
   // DateRangePicker) onto every tab link so the period survives tab navigation —
@@ -61,12 +65,12 @@ export default function DashboardTabs({ slug, showReport = false, showMembers = 
               "relative rounded-sm px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               isActive
                 ? "text-foreground"
-                : "text-muted-foreground hover:text-foreground"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             {t.label}
             {isActive && (
-              <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary" />
+              <span className="absolute inset-x-0 -bottom-px h-[3px] rounded-full bg-brand" />
             )}
           </Link>
         );

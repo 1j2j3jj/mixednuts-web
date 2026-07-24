@@ -30,7 +30,14 @@ export default function RefreshButton({ clientId }: Props) {
 
   return (
     <div className="flex items-center gap-2">
-      <Button size="sm" variant="outline" onClick={onClick} disabled={isPending} aria-label="Refresh">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={onClick}
+        disabled={isPending}
+        aria-label="Refresh"
+        className="transition-colors hover:border-brand hover:text-brand-ink"
+      >
         <RefreshCw className={isPending ? "animate-spin" : ""} />
         <span>{isPending ? "更新中…" : "更新"}</span>
       </Button>

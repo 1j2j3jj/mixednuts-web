@@ -24,8 +24,15 @@ interface Props {
   sparkTone?: "default" | "positive" | "negative";
 }
 
-function Arrow({ delta, lowerIsBetter }: { delta: number | null; lowerIsBetter?: boolean }) {
-  if (delta == null || !Number.isFinite(delta)) return <Minus className="h-3 w-3" />;
+function Arrow({
+  delta,
+  lowerIsBetter,
+}: {
+  delta: number | null;
+  lowerIsBetter?: boolean;
+}) {
+  if (delta == null || !Number.isFinite(delta))
+    return <Minus className="h-3 w-3" />;
   const positive = lowerIsBetter ? delta < 0 : delta > 0;
   const negative = lowerIsBetter ? delta > 0 : delta < 0;
   if (positive) return <ArrowUpRight className="h-3 w-3 text-emerald-600" />;
@@ -44,14 +51,14 @@ export default function BigKpiCard({
   sparkTone,
 }: Props) {
   return (
-    <Card>
+    <Card className="shadow-card">
       <CardHeader className="pb-2">
         <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {label}
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="text-xl font-semibold tracking-tight tabular-nums md:text-2xl">
+        <div className="font-display text-2xl font-extrabold leading-none tracking-tight tabular-nums md:text-[1.75rem]">
           {value}
         </div>
         {sparkline && sparkline.length > 1 && (
@@ -75,10 +82,10 @@ export default function BigKpiCard({
                   c.delta == null
                     ? "text-muted-foreground"
                     : (lowerIsBetter ? c.delta < 0 : c.delta > 0)
-                    ? "text-emerald-700"
-                    : (lowerIsBetter ? c.delta > 0 : c.delta < 0)
-                    ? "text-rose-700"
-                    : "text-muted-foreground"
+                      ? "text-emerald-700"
+                      : (lowerIsBetter ? c.delta > 0 : c.delta < 0)
+                        ? "text-rose-700"
+                        : "text-muted-foreground",
                 )}
               >
                 <span className="text-muted-foreground">{c.label}</span>

@@ -35,7 +35,7 @@ export default async function ClientLayout({
     viewerKind === "admin" || viewerKind === null ? client.subtitle : null;
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-4">
+    <div className="mx-auto w-full max-w-7xl space-y-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-lg font-semibold tracking-tight">
           {client.label}
@@ -47,7 +47,11 @@ export default async function ClientLayout({
         </h2>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 pb-1">
-        <DashboardTabs slug={slug} showReport={isRptSupported(client.id)} showMembers={canInviteMembers(orgRole)} />
+        <DashboardTabs
+          slug={slug}
+          showReport={isRptSupported(client.id)}
+          showMembers={canInviteMembers(orgRole)}
+        />
         {/* ml-auto: カスタム期間で日付入力が増えて 2 行目に折り返しても右端に
             アンカーし続ける（折り返し時に左へジャンプして見えるのを防ぐ）。 */}
         <div className="ml-auto">
@@ -56,11 +60,11 @@ export default async function ClientLayout({
       </div>
       {children}
       {/* サポート導線（Batch5）: 行き止まりを作らない。バグ報告も同じ窓口。 */}
-      <footer className="border-t border-neutral-200 pt-3 pb-2 text-center text-xs text-muted-foreground">
+      <footer className="border-t border-border pt-3 pb-2 text-center text-xs text-muted-foreground">
         お困りですか？{" "}
         <a
           href="mailto:info@mixednuts-inc.com?subject=ダッシュボードについて"
-          className="underline hover:text-foreground"
+          className="underline hover:text-brand-ink"
         >
           info@mixednuts-inc.com
         </a>

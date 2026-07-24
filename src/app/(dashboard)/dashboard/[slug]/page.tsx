@@ -9,7 +9,12 @@ import {
   type ChannelDay,
 } from "@/lib/sources/ga4";
 import { getEccubeDaily, sumEccubeRange } from "@/lib/sources/eccube";
-import { getTargetsForMonth, getChannelTargetsForMonth, GA4_TO_PLAN_CHANNEL, UNMAPPED_PLAN_CHANNEL } from "@/lib/sources/target";
+import {
+  getTargetsForMonth,
+  getChannelTargetsForMonth,
+  GA4_TO_PLAN_CHANNEL,
+  UNMAPPED_PLAN_CHANNEL,
+} from "@/lib/sources/target";
 import { resolveFromSearchParams, type DateRange } from "@/lib/range";
 import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
 import { analysePacing, lastN } from "@/lib/analysis";
@@ -18,7 +23,9 @@ import SourceToggle from "@/components/dashboard/SourceToggle";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
 import ChannelStackedBar from "@/components/dashboard/ChannelStackedBar";
 import ChannelTrendChart from "@/components/dashboard/ChannelTrendChart";
-import ChannelTargetTable, { type ChannelTargetRow } from "@/components/dashboard/ChannelTargetTable";
+import ChannelTargetTable, {
+  type ChannelTargetRow,
+} from "@/components/dashboard/ChannelTargetTable";
 import NewVsRepeatChart from "@/components/dashboard/NewVsRepeatChart";
 import GoalGauge from "@/components/dashboard/GoalGauge";
 import PacingAlert from "@/components/dashboard/PacingAlert";
@@ -28,8 +35,16 @@ import PrintButton from "@/components/dashboard/PrintButton";
 import MockBanner from "@/components/dashboard/MockBanner";
 import StaleDataBanner from "@/components/dashboard/StaleDataBanner";
 import FirstRunGuide from "@/components/dashboard/FirstRunGuide";
+import DataUpdatedFooter from "@/components/dashboard/DataUpdatedFooter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -51,7 +66,10 @@ function withinGa4DailyWindow(r: DateRange): boolean {
   return r.start >= cutoffIso && r.end <= today;
 }
 
-function filterChannelDaysByRange(rows: ChannelDay[], r: DateRange): ChannelDay[] {
+function filterChannelDaysByRange(
+  rows: ChannelDay[],
+  r: DateRange,
+): ChannelDay[] {
   return rows.filter((x) => x.date >= r.start && x.date <= r.end);
 }
 
@@ -63,7 +81,10 @@ function filterChannelDaysByRange(rows: ChannelDay[], r: DateRange): ChannelDay[
  *  where any preset crossing a month boundary picked up whole extra months
  *  of GA4 sessions (up to ~4x over-count, confirmed on HS last7: real daily
  *  sum 60,745 sessions vs. old month-rounded 237,327). */
-function filterGa4MonthlyByRange<T extends { yearMonth: string }>(rows: T[], r: DateRange): T[] {
+function filterGa4MonthlyByRange<T extends { yearMonth: string }>(
+  rows: T[],
+  r: DateRange,
+): T[] {
   return rows.filter((x) => {
     const monthStart = `${x.yearMonth}-01`;
     const [y, m] = x.yearMonth.split("-").map(Number);
@@ -79,7 +100,9 @@ interface Ga4SumRow {
 }
 
 function sumGa4(rows: Ga4SumRow[]) {
-  let sessions = 0, conversions = 0, revenue = 0;
+  let sessions = 0,
+    conversions = 0,
+    revenue = 0;
   for (const r of rows) {
     sessions += r.sessions;
     conversions += r.conversions;
@@ -96,9 +119,20 @@ function sumGa4(rows: Ga4SumRow[]) {
  *  which path was taken. */
 function resolveGa4ChannelRows(
   ga4Daily: ChannelDay[],
-  ga4Monthly: Array<{ yearMonth: string; channel: ChannelGroup; sessions: number; conversions: number; revenue: number }>,
-  r: DateRange
-): Array<{ channel: ChannelGroup; sessions: number; conversions: number; revenue: number }> {
+  ga4Monthly: Array<{
+    yearMonth: string;
+    channel: ChannelGroup;
+    sessions: number;
+    conversions: number;
+    revenue: number;
+  }>,
+  r: DateRange,
+): Array<{
+  channel: ChannelGroup;
+  sessions: number;
+  conversions: number;
+  revenue: number;
+}> {
   if (withinGa4DailyWindow(r)) {
     return filterChannelDaysByRange(ga4Daily, r).map((d) => ({
       channel: d.channel,
@@ -142,25 +176,40 @@ export default async function Overview({
   const ga4Daily = ga4DailyResult.rows;
   const hasEccube = eccube.rows.length > 0;
 
-  const adDates = adRows.map((r) => r.date).filter(Boolean).sort();
+  const adDates = adRows
+    .map((r) => r.date)
+    .filter(Boolean)
+    .sort();
   const anchor =
     adDates[adDates.length - 1] ??
     `${ga4[ga4.length - 1]?.yearMonth ?? new Date().toISOString().slice(0, 7)}-01`;
 
-  const rr = resolveFromSearchParams(sp, { preset: "thisMonth", compare: "prev" }, anchor);
+  const rr = resolveFromSearchParams(
+    sp,
+    { preset: "thisMonth", compare: "prev" },
+    anchor,
+  );
 
   const adCur = filterByRange(adRows, rr.current.start, rr.current.end);
   const gaCurRows = resolveGa4ChannelRows(ga4Daily, ga4, rr.current);
   const gaCur = sumGa4(gaCurRows);
   const costCur = adCur.reduce((s, r) => s + r.cost, 0);
 
-  const adPrev = rr.previous ? filterByRange(adRows, rr.previous.start, rr.previous.end) : [];
-  const gaPrevRows = rr.previous ? resolveGa4ChannelRows(ga4Daily, ga4, rr.previous) : [];
+  const adPrev = rr.previous
+    ? filterByRange(adRows, rr.previous.start, rr.previous.end)
+    : [];
+  const gaPrevRows = rr.previous
+    ? resolveGa4ChannelRows(ga4Daily, ga4, rr.previous)
+    : [];
   const gaPrev = sumGa4(gaPrevRows);
   const costPrev = adPrev.reduce((s, r) => s + r.cost, 0);
 
   // ECCUBE aggregates within the current/previous window.
-  const eccubeCur = sumEccubeRange(eccube.rows, rr.current.start, rr.current.end);
+  const eccubeCur = sumEccubeRange(
+    eccube.rows,
+    rr.current.start,
+    rr.current.end,
+  );
   const eccubePrev = rr.previous
     ? sumEccubeRange(eccube.rows, rr.previous.start, rr.previous.end)
     : { conversions: 0, revenue: 0, avgOrderValue: null };
@@ -177,26 +226,26 @@ export default async function Overview({
     src === "ga4"
       ? gaCur.conversions
       : src === "media"
-      ? adTotals.conversions
-      : eccubeCur.conversions;
+        ? adTotals.conversions
+        : eccubeCur.conversions;
   const pickRev = (src: "ga4" | "media" | "eccube"): number =>
     src === "ga4"
       ? gaCur.revenue
       : src === "media"
-      ? adTotals.conversionValue
-      : eccubeCur.revenue;
+        ? adTotals.conversionValue
+        : eccubeCur.revenue;
   const pickCvPrev = (src: "ga4" | "media" | "eccube"): number =>
     src === "ga4"
       ? gaPrev.conversions
       : src === "media"
-      ? adTotalsPrev.conversions
-      : eccubePrev.conversions;
+        ? adTotalsPrev.conversions
+        : eccubePrev.conversions;
   const pickRevPrev = (src: "ga4" | "media" | "eccube"): number =>
     src === "ga4"
       ? gaPrev.revenue
       : src === "media"
-      ? adTotalsPrev.conversionValue
-      : eccubePrev.revenue;
+        ? adTotalsPrev.conversionValue
+        : eccubePrev.revenue;
 
   const effectiveCv = pickCv(source);
   const effectiveRev = pickRev(source);
@@ -243,16 +292,32 @@ export default async function Overview({
 
   // Channels (current-month GA4 rows) — full set feeds the channel-target
   // table's actuals; top 5 by revenue feeds the fallback Top-5 table.
-  const byChannel = new Map<string, { channel: ChannelGroup; sessions: number; conversions: number; revenue: number }>();
+  const byChannel = new Map<
+    string,
+    {
+      channel: ChannelGroup;
+      sessions: number;
+      conversions: number;
+      revenue: number;
+    }
+  >();
   for (const r of gaCurRows) {
-    const cur = byChannel.get(r.channel) ?? { channel: r.channel, sessions: 0, conversions: 0, revenue: 0 };
+    const cur = byChannel.get(r.channel) ?? {
+      channel: r.channel,
+      sessions: 0,
+      conversions: 0,
+      revenue: 0,
+    };
     cur.sessions += r.sessions;
     cur.conversions += r.conversions;
     cur.revenue += r.revenue;
     byChannel.set(r.channel, cur);
   }
   const topChannelsAll = Array.from(byChannel.values());
-  const topChannels = topChannelsAll.slice().sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+  const topChannels = topChannelsAll
+    .slice()
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5);
 
   // Budget pacing — only when the preset is "当月". Computed after tgt is
   // fetched below (pacing needs the uploaded budget; 未設定なら表示しない).
@@ -287,7 +352,11 @@ export default async function Overview({
   // Budget pacing — 予算(adSpendBudget)が未設定(null)なら計算せずバナーも出さない。
   const pacing =
     showPacing && tgt.adSpendBudget != null && tgt.adSpendBudget > 0
-      ? analysePacing(costCur, tgt.adSpendBudget, new Date(`${anchor}T00:00:00Z`))
+      ? analysePacing(
+          costCur,
+          tgt.adSpendBudget,
+          new Date(`${anchor}T00:00:00Z`),
+        )
       : null;
 
   // Actuals (topChannelsAll, from gaCurRows) follow whatever period the user
@@ -301,10 +370,17 @@ export default async function Overview({
   const channelTargetRows: ChannelTargetRow[] = (() => {
     if (!showGoals) return [];
     if (channelTargets.length === 0) return [];
-    const byPlanChannel = new Map<string, { revenue: number; conversions: number }>();
+    const byPlanChannel = new Map<
+      string,
+      { revenue: number; conversions: number }
+    >();
     for (const c of topChannelsAll) {
-      const planChannel = GA4_TO_PLAN_CHANNEL[c.channel] ?? UNMAPPED_PLAN_CHANNEL;
-      const acc = byPlanChannel.get(planChannel) ?? { revenue: 0, conversions: 0 };
+      const planChannel =
+        GA4_TO_PLAN_CHANNEL[c.channel] ?? UNMAPPED_PLAN_CHANNEL;
+      const acc = byPlanChannel.get(planChannel) ?? {
+        revenue: 0,
+        conversions: 0,
+      };
       acc.revenue += c.revenue;
       acc.conversions += c.conversions;
       byPlanChannel.set(planChannel, acc);
@@ -316,7 +392,10 @@ export default async function Overview({
       if (!order.includes(k)) order.push(k);
     }
     return order.map((channel) => {
-      const actual = byPlanChannel.get(channel) ?? { revenue: 0, conversions: 0 };
+      const actual = byPlanChannel.get(channel) ?? {
+        revenue: 0,
+        conversions: 0,
+      };
       const target = targetByChannel.get(channel);
       return {
         channel,
@@ -333,7 +412,9 @@ export default async function Overview({
     if (rr.preset === "lastMonth") return `${rr.presetLabel}（確定月）`;
     const d = new Date(`${anchor}T00:00:00Z`);
     const dayOfMonth = d.getUTCDate();
-    const daysInMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+    const daysInMonth = new Date(
+      Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0),
+    ).getUTCDate();
     const pct = Math.round((dayOfMonth / daysInMonth) * 100);
     return `当月進捗: 経過${dayOfMonth}日/${daysInMonth}日（${pct}%）`;
   })();
@@ -342,41 +423,62 @@ export default async function Overview({
   // headline source. Previously sessions/ROAS sparks were faked (monthly
   // total / days → always flat, and ad-side conversionValue / cost instead
   // of GA4 revenue / cost → number mismatch with the KPI above it).
-  const ga4DailyMap = new Map<string, { sessions: number; conversions: number; revenue: number }>();
+  const ga4DailyMap = new Map<
+    string,
+    { sessions: number; conversions: number; revenue: number }
+  >();
   for (const r of ga4Daily) {
-    const cur = ga4DailyMap.get(r.date) ?? { sessions: 0, conversions: 0, revenue: 0 };
+    const cur = ga4DailyMap.get(r.date) ?? {
+      sessions: 0,
+      conversions: 0,
+      revenue: 0,
+    };
     cur.sessions += r.sessions;
     cur.conversions += r.conversions;
     cur.revenue += r.revenue;
     ga4DailyMap.set(r.date, cur);
   }
   // Media + ECCUBE daily maps for source-aware sparklines.
-  const mediaDailyMap = new Map<string, { conversions: number; revenue: number }>();
+  const mediaDailyMap = new Map<
+    string,
+    { conversions: number; revenue: number }
+  >();
   for (const d of daily) {
-    mediaDailyMap.set(d.date, { conversions: d.conversions, revenue: d.conversionValue });
+    mediaDailyMap.set(d.date, {
+      conversions: d.conversions,
+      revenue: d.conversionValue,
+    });
   }
-  const eccubeDailyMap = new Map<string, { conversions: number; revenue: number }>();
+  const eccubeDailyMap = new Map<
+    string,
+    { conversions: number; revenue: number }
+  >();
   for (const r of eccube.rows) {
-    eccubeDailyMap.set(r.date, { conversions: r.conversions, revenue: r.revenue });
+    eccubeDailyMap.set(r.date, {
+      conversions: r.conversions,
+      revenue: r.revenue,
+    });
   }
   function cvAt(date: string, src: "ga4" | "media" | "eccube"): number {
     return src === "ga4"
-      ? ga4DailyMap.get(date)?.conversions ?? 0
+      ? (ga4DailyMap.get(date)?.conversions ?? 0)
       : src === "media"
-      ? mediaDailyMap.get(date)?.conversions ?? 0
-      : eccubeDailyMap.get(date)?.conversions ?? 0;
+        ? (mediaDailyMap.get(date)?.conversions ?? 0)
+        : (eccubeDailyMap.get(date)?.conversions ?? 0);
   }
   function revAt(date: string, src: "ga4" | "media" | "eccube"): number {
     return src === "ga4"
-      ? ga4DailyMap.get(date)?.revenue ?? 0
+      ? (ga4DailyMap.get(date)?.revenue ?? 0)
       : src === "media"
-      ? mediaDailyMap.get(date)?.revenue ?? 0
-      : eccubeDailyMap.get(date)?.revenue ?? 0;
+        ? (mediaDailyMap.get(date)?.revenue ?? 0)
+        : (eccubeDailyMap.get(date)?.revenue ?? 0);
   }
 
   // Sessions is always GA4 — no per-source equivalent (media has clicks but
   // that's not sessions; ECCUBE has no traffic dim).
-  const sessionsSpark = daily14.map((d) => ga4DailyMap.get(d.date)?.sessions ?? 0);
+  const sessionsSpark = daily14.map(
+    (d) => ga4DailyMap.get(d.date)?.sessions ?? 0,
+  );
   const cvSpark = daily14.map((d) => cvAt(d.date, source));
   const revSpark = daily14.map((d) => revAt(d.date, source));
   const roasSpark = daily14.map((d) => {
@@ -399,13 +501,17 @@ export default async function Overview({
   // working ad sheet but a missing/failing GA4 property (or ECCUBE sheet)
   // silently showed mock GA4/ECCUBE numbers with no disclosure.
   const anyMock =
-    isMock || ga4Result.isMock || ga4DailyResult.isMock || devicesResult.isMock || eccube.isMock;
+    isMock ||
+    ga4Result.isMock ||
+    ga4DailyResult.isMock ||
+    devicesResult.isMock ||
+    eccube.isMock;
 
   // Data-freshness banner (Batch2 監査P0): the ad rows' MAX(date) is already
   // in hand (adDates, sorted asc — also feeds `anchor` above), so no extra
   // query. Suppressed on mock data (MockBanner already covers that mode —
   // mock dates would make the freshness judgment meaningless anyway).
-  const adMaxDate = anyMock ? null : adDates[adDates.length - 1] ?? null;
+  const adMaxDate = anyMock ? null : (adDates[adDates.length - 1] ?? null);
 
   return (
     <div className="space-y-6">
@@ -414,8 +520,12 @@ export default async function Overview({
       <FirstRunGuide />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">Overview</div>
-          <h1 className="text-2xl font-semibold tracking-tight">{rr.presetLabel}</h1>
+          <div className="text-xs uppercase tracking-wider text-brand-ink">
+            Overview
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {rr.presetLabel}
+          </h1>
           <div className="mt-1 text-sm text-muted-foreground">
             {rr.current.start} 〜 {rr.current.end}
             {rr.previous && (
@@ -426,8 +536,12 @@ export default async function Overview({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <SourceToggle sources={hasEccube ? ["ga4", "media", "eccube"] : ["ga4", "media"]} />
-          <div className="text-xs text-muted-foreground">最終取得 {fetchedAtLabel}</div>
+          <SourceToggle
+            sources={hasEccube ? ["ga4", "media", "eccube"] : ["ga4", "media"]}
+          />
+          <div className="text-xs text-muted-foreground">
+            最終取得 {fetchedAtLabel}
+          </div>
           <PrintButton />
           <RefreshButton clientId={client.id} />
         </div>
@@ -438,30 +552,65 @@ export default async function Overview({
           <span className="ml-1 font-mono">{eccube.rows[0].date}</span>
           {rr.current.start < eccube.rows[0].date && (
             <span className="ml-2">
-              · この期間の一部は ECCUBE データ未取得のため売上・CV が過小表示されている可能性あり。
+              · この期間の一部は ECCUBE データ未取得のため売上・CV
+              が過小表示されている可能性あり。
             </span>
           )}
         </div>
       )}
 
       {pacing && tgt.adSpendBudget != null && (
-        <PacingAlert result={pacing} actualSpend={costCur} monthlyBudget={tgt.adSpendBudget} />
+        <PacingAlert
+          result={pacing}
+          actualSpend={costCur}
+          monthlyBudget={tgt.adSpendBudget}
+        />
       )}
 
       {/* 5 big KPI with sparklines */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
         <BigKpiCard
-          label={source === "ga4" ? "Revenue (GA4)" : source === "media" ? "Revenue (媒体)" : "Revenue (ECCUBE)"}
+          label={
+            source === "ga4"
+              ? "Revenue (GA4)"
+              : source === "media"
+                ? "Revenue (媒体)"
+                : "Revenue (ECCUBE)"
+          }
           value={fmtJpy(effectiveRev)}
-          comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(effectiveRev, effectiveRevPrev) }] : []}
+          comparisons={
+            rr.previous
+              ? [
+                  {
+                    label: rr.compareLabel,
+                    delta: pct(effectiveRev, effectiveRevPrev),
+                  },
+                ]
+              : []
+          }
           sparkline={revSpark}
           sparkDates={sparkDates}
           sparkFormat="jpy"
         />
         <BigKpiCard
-          label={source === "ga4" ? "CV (GA4)" : source === "media" ? "CV (媒体)" : "CV (ECCUBE)"}
+          label={
+            source === "ga4"
+              ? "CV (GA4)"
+              : source === "media"
+                ? "CV (媒体)"
+                : "CV (ECCUBE)"
+          }
           value={fmtInt(effectiveCv)}
-          comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(effectiveCv, effectiveCvPrev) }] : []}
+          comparisons={
+            rr.previous
+              ? [
+                  {
+                    label: rr.compareLabel,
+                    delta: pct(effectiveCv, effectiveCvPrev),
+                  },
+                ]
+              : []
+          }
           sparkline={cvSpark}
           sparkDates={sparkDates}
           sparkFormat="int"
@@ -469,7 +618,16 @@ export default async function Overview({
         <BigKpiCard
           label="Sessions"
           value={fmtInt(gaCur.sessions)}
-          comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(gaCur.sessions, gaPrev.sessions) }] : []}
+          comparisons={
+            rr.previous
+              ? [
+                  {
+                    label: rr.compareLabel,
+                    delta: pct(gaCur.sessions, gaPrev.sessions),
+                  },
+                ]
+              : []
+          }
           sparkline={sessionsSpark}
           sparkDates={sparkDates}
           sparkFormat="int"
@@ -480,7 +638,12 @@ export default async function Overview({
           lowerIsBetter
           comparisons={
             rr.previous && blendedCpa != null && blendedCpaPrev != null
-              ? [{ label: rr.compareLabel, delta: pct(blendedCpa, blendedCpaPrev) }]
+              ? [
+                  {
+                    label: rr.compareLabel,
+                    delta: pct(blendedCpa, blendedCpaPrev),
+                  },
+                ]
               : []
           }
           sparkline={cpaSpark}
@@ -492,7 +655,12 @@ export default async function Overview({
           value={blendedRoas != null ? fmtRatioPct(blendedRoas * 100, 0) : "—"}
           comparisons={
             rr.previous && blendedRoas != null && blendedRoasPrev != null
-              ? [{ label: rr.compareLabel, delta: pct(blendedRoas, blendedRoasPrev) }]
+              ? [
+                  {
+                    label: rr.compareLabel,
+                    delta: pct(blendedRoas, blendedRoasPrev),
+                  },
+                ]
               : []
           }
           sparkline={roasSpark}
@@ -502,8 +670,10 @@ export default async function Overview({
       </div>
 
       {showGoals &&
-        (tgt.revenue != null || tgt.conversions != null || tgt.adSpendBudget != null ? (
-          <div className="grid gap-4 sm:grid-cols-3">
+        (tgt.revenue != null ||
+        tgt.conversions != null ||
+        tgt.adSpendBudget != null ? (
+          <div className="grid gap-5 sm:grid-cols-3">
             {tgt.revenue != null && (
               <GoalGauge
                 label="Revenue 達成"
@@ -536,22 +706,30 @@ export default async function Overview({
           </div>
         ))}
 
-      <Card>
+      <Card className="shadow-card">
         <CardHeader>
-          <CardTitle className="text-sm">月次チャネル別（GA4 · 過去12ヶ月・参考）</CardTitle>
+          <CardTitle className="text-base">
+            月次チャネル別（GA4 · 過去12ヶ月・参考）
+          </CardTitle>
           <div className="mt-1 text-xs text-muted-foreground">
             チャネル別内訳は GA4 のみ。売上・CV は GA4 `purchaseRevenue` /
             `ecommercePurchases`（上の表示値トグルには非連動）
           </div>
         </CardHeader>
         <CardContent>
-          <ChannelStackedBar data={ga4Last12Months} defaultMetric="sessions" secondaryDefs={ga4SecondaryEventDefs(client)} />
+          <ChannelStackedBar
+            data={ga4Last12Months}
+            defaultMetric="sessions"
+            secondaryDefs={ga4SecondaryEventDefs(client)}
+          />
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="shadow-card">
         <CardHeader>
-          <CardTitle className="text-sm">日別/週別チャネル別（GA4 · 過去90日）</CardTitle>
+          <CardTitle className="text-base">
+            日別/週別チャネル別（GA4 · 過去90日）
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <ChannelTrendChart
@@ -563,37 +741,45 @@ export default async function Overview({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="shadow-card">
         <CardHeader>
-          <CardTitle className="text-sm">新規 vs リピート Users（GA4 · 過去6ヶ月・参考）</CardTitle>
+          <CardTitle className="text-base">
+            新規 vs リピート Users（GA4 · 過去6ヶ月・参考）
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <NewVsRepeatChart data={newVsRepeat} />
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-5 lg:grid-cols-2">
         {/* 意図的にデータ駆動: チャネル別目標(matrix形式シート)が取れるクライアントは自動で
             目標対比カードへ切替。HS固定ゲートにしない（他クライアントのシートが matrix 化されたら
             自動有効化する設計、2026-07-02 Codex監査で協議の上維持）。非対応クライアントは Top5 表示。 */}
         {channelTargetRows.length > 0 ? (
-          <Card>
+          <Card className="shadow-card">
             <CardHeader>
               {/* 期間ラベルを動的化 — 固定「（当月）」だと 先月 選択時に実績と表示が矛盾する
                   （channelTargetRows は showGoals=thisMonth/lastMonth の時のみ populate、上参照）。 */}
-              <CardTitle className="text-sm">チャネル別 目標vs実績（{rr.presetLabel}）</CardTitle>
+              <CardTitle className="text-base">
+                チャネル別 目標vs実績（{rr.presetLabel}）
+              </CardTitle>
               <div className="mt-1 text-xs text-muted-foreground">
-                実績は GA4 チャネル別（{rr.presetLabel}）を計画シートのチャネル区分（organic/direct/mail/referral/広告）へ集約。目標欄が「—」の行は計画シートに対応する区分がないチャネル（実績のみ表示）
+                実績は GA4 チャネル別（{rr.presetLabel}
+                ）を計画シートのチャネル区分（organic/direct/mail/referral/広告）へ集約。目標欄が「—」の行は計画シートに対応する区分がないチャネル（実績のみ表示）
               </div>
             </CardHeader>
             <CardContent>
-              <ChannelTargetTable rows={channelTargetRows} progressNote={monthProgressNote} />
+              <ChannelTargetTable
+                rows={channelTargetRows}
+                progressNote={monthProgressNote}
+              />
             </CardContent>
           </Card>
         ) : (
-          <Card>
+          <Card className="shadow-card">
             <CardHeader>
-              <CardTitle className="text-sm">Top 5 チャネル（GA4）</CardTitle>
+              <CardTitle className="text-base">Top 5 チャネル（GA4）</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
@@ -611,11 +797,21 @@ export default async function Overview({
                     const cvr = safeDiv(c.conversions, c.sessions);
                     return (
                       <TableRow key={c.channel}>
-                        <TableCell className="font-medium">{c.channel}</TableCell>
-                        <TableCell className="text-right tabular-nums">{fmtInt(c.sessions)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{fmtInt(c.conversions)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{fmtPct(cvr, 2)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{fmtJpy(c.revenue)}</TableCell>
+                        <TableCell className="font-medium">
+                          {c.channel}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {fmtInt(c.sessions)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {fmtInt(c.conversions)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {fmtPct(cvr, 2)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {fmtJpy(c.revenue)}
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -625,9 +821,9 @@ export default async function Overview({
           </Card>
         )}
 
-        <Card>
+        <Card className="shadow-card">
           <CardHeader>
-            <CardTitle className="text-sm">デバイス別</CardTitle>
+            <CardTitle className="text-base">デバイス別</CardTitle>
           </CardHeader>
           <CardContent>
             <DeviceBar rows={devices} />
@@ -635,6 +831,7 @@ export default async function Overview({
         </Card>
       </div>
 
+      <DataUpdatedFooter timestamp={fetchedAtLabel} />
     </div>
   );
 }
