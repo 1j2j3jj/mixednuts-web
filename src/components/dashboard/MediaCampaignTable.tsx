@@ -1,7 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import SegmentedControl from "@/components/dashboard/SegmentedControl";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { cn, fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 import type { MetricSource } from "@/lib/source";
 
@@ -63,7 +71,11 @@ function roasClass(actualPct: number | null, targetPct: number | null): string {
 
 const ALL = "__all__";
 
-export default function MediaCampaignTable({ rows, targetRoasPct, source }: Props) {
+export default function MediaCampaignTable({
+  rows,
+  targetRoasPct,
+  source,
+}: Props) {
   // Distinct media present in the data — drives the filter pill set.
   const mediaList = useMemo(() => {
     const s = new Set<string>();
@@ -85,7 +97,8 @@ export default function MediaCampaignTable({ rows, targetRoasPct, source }: Prop
   const [selected, setSelected] = useState<string>(ALL);
 
   const filtered = useMemo(() => {
-    const list = selected === ALL ? rows : rows.filter((r) => r.media === selected);
+    const list =
+      selected === ALL ? rows : rows.filter((r) => r.media === selected);
     return [...list].sort((a, b) => b.spend - a.spend);
   }, [rows, selected]);
 
@@ -114,7 +127,7 @@ export default function MediaCampaignTable({ rows, targetRoasPct, source }: Prop
         ga4Cv: 0,
         conversionValue: 0,
         ga4Revenue: 0,
-      }
+      },
     );
   }, [filtered, selected]);
 
@@ -131,29 +144,57 @@ export default function MediaCampaignTable({ rows, targetRoasPct, source }: Prop
     const cvr = safeDiv(cv, r.clicks);
     const cpa = safeDiv(r.spend, cv);
     const roasPct = r.spend > 0 ? (rev / r.spend) * 100 : null;
-    const rowKey = isTotal ? "__total__" : `${r.media}|${r.campaignId}|${r.campaignName}`;
+    const rowKey = isTotal
+      ? "__total__"
+      : `${r.media}|${r.campaignId}|${r.campaignName}`;
     return (
-      <TableRow key={rowKey} className={cn(isTotal && "border-t-2 bg-muted/40 font-medium")}>
+      <TableRow
+        key={rowKey}
+        className={cn(isTotal && "border-t-2 bg-muted/40 font-medium")}
+      >
         <TableCell className="whitespace-nowrap">
           {isTotal ? (
             <span>{r.media}</span>
           ) : (
-            <span className={`inline-flex rounded px-2 py-0.5 text-xs ${mediaBadge(r.media)}`}>{r.media}</span>
+            <span
+              className={`inline-flex rounded px-2 py-0.5 text-xs ${mediaBadge(r.media)}`}
+            >
+              {r.media}
+            </span>
           )}
         </TableCell>
         <TableCell className="max-w-[320px] truncate" title={r.campaignName}>
-          {isTotal ? "" : r.campaignName || <span className="text-muted-foreground">(no name)</span>}
+          {isTotal
+            ? ""
+            : r.campaignName || (
+                <span className="text-muted-foreground">(no name)</span>
+              )}
         </TableCell>
-        <TableCell className="text-right tabular-nums">{fmtJpy(r.spend)}</TableCell>
-        <TableCell className="text-right tabular-nums">{fmtInt(r.impressions)}</TableCell>
-        <TableCell className="text-right tabular-nums">{fmtInt(r.clicks)}</TableCell>
-        <TableCell className="text-right tabular-nums">{fmtPct(ctr, 2)}</TableCell>
+        <TableCell className="text-right tabular-nums">
+          {fmtJpy(r.spend)}
+        </TableCell>
+        <TableCell className="text-right tabular-nums">
+          {fmtInt(r.impressions)}
+        </TableCell>
+        <TableCell className="text-right tabular-nums">
+          {fmtInt(r.clicks)}
+        </TableCell>
+        <TableCell className="text-right tabular-nums">
+          {fmtPct(ctr, 2)}
+        </TableCell>
         <TableCell className="text-right tabular-nums">{fmtJpy(cpc)}</TableCell>
         <TableCell className="text-right tabular-nums">{fmtInt(cv)}</TableCell>
-        <TableCell className="text-right tabular-nums">{fmtPct(cvr, 2)}</TableCell>
+        <TableCell className="text-right tabular-nums">
+          {fmtPct(cvr, 2)}
+        </TableCell>
         <TableCell className="text-right tabular-nums">{fmtJpy(cpa)}</TableCell>
         <TableCell className="text-right tabular-nums">{fmtJpy(rev)}</TableCell>
-        <TableCell className={cn("text-right tabular-nums", !isTotal && roasClass(roasPct, targetRoasPct))}>
+        <TableCell
+          className={cn(
+            "text-right tabular-nums",
+            !isTotal && roasClass(roasPct, targetRoasPct),
+          )}
+        >
           {fmtRatioPct(roasPct, 0)}
         </TableCell>
       </TableRow>
@@ -164,20 +205,25 @@ export default function MediaCampaignTable({ rows, targetRoasPct, source }: Prop
     <div className="space-y-3">
       {/* Media filter pills */}
       <div className="flex flex-wrap items-center gap-2">
-        <PillButton
-          active={selected === ALL}
-          onClick={() => setSelected(ALL)}
-          label="全媒体"
+        <SegmentedControl
+          value={selected}
+          options={[
+            { value: ALL, label: "全媒体" },
+            // Media pills stay text-only when unselected: their old badge
+            // fills (bg-blue-100 等) sat *darker* than the selected state's
+            // bg-brand/14, inverting which pill reads as active. The media's
+            // identity colour still lives on the badge inside each table row.
+            ...mediaList.map((media) => ({
+              value: media,
+              label: media,
+            })),
+          ]}
+          onValueChange={setSelected}
+          ariaLabel="媒体フィルター"
+          size="md"
+          shape="pill"
+          className="flex flex-wrap"
         />
-        {mediaList.map((m) => (
-          <PillButton
-            key={m}
-            active={selected === m}
-            onClick={() => setSelected(m)}
-            label={m}
-            badgeClass={mediaBadge(m)}
-          />
-        ))}
         <span className="ml-2 text-xs text-muted-foreground">
           {filtered.length} キャンペーン
         </span>
@@ -204,7 +250,10 @@ export default function MediaCampaignTable({ rows, targetRoasPct, source }: Prop
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={12} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell
+                  colSpan={12}
+                  className="text-center text-sm text-muted-foreground py-8"
+                >
                   該当キャンペーンなし
                 </TableCell>
               </TableRow>
@@ -218,33 +267,5 @@ export default function MediaCampaignTable({ rows, targetRoasPct, source }: Prop
         </Table>
       </div>
     </div>
-  );
-}
-
-function PillButton({
-  active,
-  onClick,
-  label,
-  badgeClass,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  badgeClass?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "rounded-full border px-3 py-1 text-xs transition-colors",
-        active
-          ? "border-foreground bg-foreground text-background"
-          : "border-border bg-background text-foreground hover:bg-muted",
-        badgeClass && !active && badgeClass
-      )}
-    >
-      {label}
-    </button>
   );
 }

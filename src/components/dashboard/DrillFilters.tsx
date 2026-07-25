@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
+import SegmentedControl from "@/components/dashboard/SegmentedControl";
 
 interface Props {
   slug: string;
@@ -94,20 +95,17 @@ export default function DrillFilters({ slug, medias, campaigns, adgroups }: Prop
       </div>
       <div>
         <label className="mb-1 block text-xs text-muted-foreground">集計単位</label>
-        <div className="inline-flex rounded-md border">
-          {(["day", "week", "month"] as const).map((g) => (
-            <button
-              key={g}
-              type="button"
-              onClick={() => update("g", g)}
-              className={`h-8 px-3 text-xs transition-colors ${
-                granularity === g ? "bg-primary text-primary-foreground" : "hover:bg-accent"
-              }`}
-            >
-              {g === "day" ? "日" : g === "week" ? "週" : "月"}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          value={granularity}
+          options={[
+            { value: "day", label: "日" },
+            { value: "week", label: "週" },
+            { value: "month", label: "月" },
+          ]}
+          onValueChange={(value) => update("g", value)}
+          ariaLabel="集計単位"
+          size="md"
+        />
       </div>
       {isPending && <span className="text-xs text-muted-foreground">更新中…</span>}
     </div>

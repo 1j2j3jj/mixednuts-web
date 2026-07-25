@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTransition } from "react";
+import SegmentedControl from "@/components/dashboard/SegmentedControl";
 import type { MetricSource } from "@/lib/source";
 
 interface Props {
@@ -31,6 +32,10 @@ export default function SourceToggle({ sources = ["ga4", "media"] }: Props) {
     media: "媒体",
     eccube: "ECCUBE",
   };
+  const options = sources.map((value) => ({
+    value,
+    label: labelFor[value],
+  }));
 
   function set(v: MetricSource) {
     const params = new URLSearchParams(sp.toString());
@@ -47,23 +52,12 @@ export default function SourceToggle({ sources = ["ga4", "media"] }: Props) {
       data-print-hide="true"
     >
       <span className="text-muted-foreground">表示値</span>
-      <div className="inline-flex items-center gap-0.5 rounded-md border bg-muted p-0.5">
-        {sources.map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => set(v)}
-            aria-pressed={src === v}
-            className={`h-6 rounded border-[1.5px] px-3 text-xs font-medium transition-colors ${
-              src === v
-                ? "border-brand-ink bg-brand/14 text-brand-deep"
-                : "border-transparent text-muted-foreground hover:bg-background hover:text-foreground"
-            }`}
-          >
-            {labelFor[v]}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        value={src}
+        options={options}
+        onValueChange={set}
+        ariaLabel="表示値"
+      />
       {pending && <span className="text-muted-foreground">…</span>}
     </div>
   );
