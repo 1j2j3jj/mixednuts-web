@@ -1,13 +1,17 @@
+import { ArrowDown, ArrowUp } from "lucide-react";
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import TierGlyph from "@/components/dashboard/TierGlyph";
 import { detectAnomalies } from "@/lib/analysis";
 import type { MetricSource } from "@/lib/source";
+import { higherIsBetterTier, lowerIsBetterTier } from "@/lib/tier";
 import { cn, fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 
 export interface DrillRow {
@@ -48,22 +52,27 @@ interface Props {
   targetsByMonth?: Map<string, { roasPct: number | null; cpa: number | null }>;
 }
 
+/** Class strings per tier (thresholds now shared via @/lib/tier — see
+ *  MediaTable.tsx's identical ROAS_TIER_CLASS for the split rationale). */
+const ROAS_TIER_CLASS: Record<string, string> = {
+  good: "text-emerald-700",
+  warning: "text-amber-700",
+  bad: "text-rose-700 font-medium",
+};
+const CPA_TIER_CLASS: Record<string, string> = {
+  good: "text-emerald-700",
+  warning: "text-amber-700",
+  bad: "text-rose-700 font-medium",
+};
+
 function roasClass(actualPct: number | null, targetPct: number | null): string {
-  if (actualPct == null || !Number.isFinite(actualPct)) return "";
-  // null / <=0 means no configured target for this row's month — don't
-  // colour-code against a missing or meaningless zero target.
-  if (targetPct == null || targetPct <= 0) return "";
-  if (actualPct >= targetPct) return "text-emerald-700";
-  if (actualPct >= targetPct * 0.8) return "text-amber-700";
-  return "text-rose-700 font-medium";
+  const tier = higherIsBetterTier(actualPct, targetPct);
+  return tier ? ROAS_TIER_CLASS[tier] : "";
 }
 
 function cpaClass(actual: number | null, target: number | null): string {
-  if (actual == null || !Number.isFinite(actual)) return "";
-  if (target == null || target <= 0) return "";
-  if (actual <= target) return "text-emerald-700";
-  if (actual <= target * 1.2) return "text-amber-700";
-  return "text-rose-700 font-medium";
+  const tier = lowerIsBetterTier(actual, target);
+  return tier ? CPA_TIER_CLASS[tier] : "";
 }
 
 export default function DrillTable({
@@ -119,6 +128,10 @@ export default function DrillTable({
   return (
     <div className="rounded-md border">
       <Table>
+        <TableCaption className="sr-only">
+          ドリルダウン集計テーブル（
+          {level === "bucket" ? "期間別" : labelHeader}）
+        </TableCaption>
         <TableHeader>
           <TableRow>
             <TableHead>期間</TableHead>
@@ -158,14 +171,25 @@ export default function DrillTable({
             const spendFlag = spendFlags[i];
             const cvFlag = cvFlags[i];
             const hasAnomaly = spendFlag !== "normal" || cvFlag !== "normal";
+            // E-3 fix: the badge previously said WHICH metric was anomalous
+            // ("COST"/"CV"/"COST+CV") but never HIGH or LOW — that direction
+            // was colour-only (amber/sky on spend, emerald/rose on CV), with
+            // no text carrier anywhere. ↑/↓ suffixes close that gap; the
+            // per-cell TierGlyph-style arrows below close it a second way,
+            // right where the coloured number itself is.
+            const spendDir =
+              spendFlag === "high" ? "↑" : spendFlag === "low" ? "↓" : "";
+            const cvDir = cvFlag === "high" ? "↑" : cvFlag === "low" ? "↓" : "";
             const anomalyLabel =
               spendFlag !== "normal" && cvFlag !== "normal"
-                ? "COST+CV"
+                ? `COST${spendDir}+CV${cvDir}`
                 : spendFlag !== "normal"
-                  ? "COST"
+                  ? `COST${spendDir}`
                   : cvFlag !== "normal"
-                    ? "CV"
+                    ? `CV${cvDir}`
                     : "";
+            const roasTier = higherIsBetterTier(roasPct, rowTargets.roasPct);
+            const cpaTier = lowerIsBetterTier(cpa, rowTargets.cpa);
             return (
               <TableRow
                 key={`${r.date}:${r.key}:${i}`}
@@ -194,7 +218,26 @@ export default function DrillTable({
                     spendFlag === "low" && "text-sky-700",
                   )}
                 >
-                  {fmtJpy(r.spend)}
+                  {/* E-3: spend's high/low anomaly direction was colour-only
+                      at the cell level (distinct from the 異常 badge column,
+                      which only ever says WHICH metric, never which
+                      direction — verified). Arrow glyph adds the direction
+                      right where the coloured number is. */}
+                  <span className="inline-flex items-center justify-end gap-1">
+                    {spendFlag === "high" && (
+                      <ArrowUp
+                        aria-hidden="true"
+                        className="inline-block h-2.5 w-2.5 shrink-0"
+                      />
+                    )}
+                    {spendFlag === "low" && (
+                      <ArrowDown
+                        aria-hidden="true"
+                        className="inline-block h-2.5 w-2.5 shrink-0"
+                      />
+                    )}
+                    {fmtJpy(r.spend)}
+                  </span>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {fmtInt(r.impressions)}
@@ -212,7 +255,21 @@ export default function DrillTable({
                     cvFlag === "low" && "text-rose-700",
                   )}
                 >
-                  {fmtInt(cv)}
+                  <span className="inline-flex items-center justify-end gap-1">
+                    {cvFlag === "high" && (
+                      <ArrowUp
+                        aria-hidden="true"
+                        className="inline-block h-2.5 w-2.5 shrink-0"
+                      />
+                    )}
+                    {cvFlag === "low" && (
+                      <ArrowDown
+                        aria-hidden="true"
+                        className="inline-block h-2.5 w-2.5 shrink-0"
+                      />
+                    )}
+                    {fmtInt(cv)}
+                  </span>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {fmtJpy(rev)}
@@ -223,7 +280,10 @@ export default function DrillTable({
                     cpaClass(cpa, rowTargets.cpa),
                   )}
                 >
-                  {fmtJpy(cpa)}
+                  <span className="inline-flex items-center justify-end gap-1">
+                    {cpaTier && <TierGlyph tier={cpaTier} />}
+                    {fmtJpy(cpa)}
+                  </span>
                 </TableCell>
                 <TableCell
                   className={cn(
@@ -231,7 +291,10 @@ export default function DrillTable({
                     roasClass(roasPct, rowTargets.roasPct),
                   )}
                 >
-                  {fmtRatioPct(roasPct, 0)}
+                  <span className="inline-flex items-center justify-end gap-1">
+                    {roasTier && <TierGlyph tier={roasTier} />}
+                    {fmtRatioPct(roasPct, 0)}
+                  </span>
                 </TableCell>
                 <TableCell className="text-right">
                   {hasAnomaly && (

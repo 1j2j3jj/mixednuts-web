@@ -15,7 +15,10 @@ import { listClientAccess } from "./actions";
 export const dynamic = "force-dynamic";
 
 /** Traffic light status for a client card. */
-function trafficLight(active: boolean, hasDataSource: boolean): {
+function trafficLight(
+  active: boolean,
+  hasDataSource: boolean,
+): {
   color: "green" | "yellow" | "gray";
   label: string;
 } {
@@ -24,14 +27,29 @@ function trafficLight(active: boolean, hasDataSource: boolean): {
   return { color: "gray", label: "Inactive" };
 }
 
+/**
+ * E-1 contrast fix (2026-07-25): all three fills failed the 3:1 non-text-UI
+ * floor against the page background — measured: emerald-500 2.47:1,
+ * amber-400 1.72:1, neutral-400 2.58:1. Bumped one step darker each
+ * (emerald-600 3.65:1 / amber-600 3.20:1 / neutral-600 7.81:1), all now
+ * clearing 3:1. Not itself an E-3 fix — this dot already sits next to a
+ * `<Badge>` stating "Live"/"Partial"/"Inactive" in text (see the card header
+ * below), so colour was reinforcement even before this change, not the sole
+ * carrier.
+ */
 function TrafficDot({ color }: { color: "green" | "yellow" | "gray" }) {
   const cls =
     color === "green"
-      ? "bg-emerald-500"
+      ? "bg-emerald-600"
       : color === "yellow"
-      ? "bg-amber-400"
-      : "bg-neutral-400";
-  return <span className={`inline-block h-2 w-2 rounded-full ${cls}`} />;
+        ? "bg-amber-600"
+        : "bg-neutral-600";
+  return (
+    <span
+      aria-hidden="true"
+      className={`inline-block h-2 w-2 rounded-full ${cls}`}
+    />
+  );
 }
 
 export default async function AdminIndexPage() {
@@ -49,10 +67,13 @@ export default async function AdminIndexPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">Admin</div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">
+            Admin
+          </div>
           <h1 className="text-2xl font-semibold tracking-tight">管理パネル</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {CLIENT_IDS.length} clients · {activeCount} active · {pendingCount} pending
+            {CLIENT_IDS.length} clients · {activeCount} active · {pendingCount}{" "}
+            pending
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -100,7 +121,12 @@ export default async function AdminIndexPage() {
           // Count sources
           const ds = c.dataSource;
           const sourceCount = ds
-            ? [ds.sheetId, ds.eccubeSheetId, c.ga4PropertyId, c.gscSiteUrl].filter(Boolean).length
+            ? [
+                ds.sheetId,
+                ds.eccubeSheetId,
+                c.ga4PropertyId,
+                c.gscSiteUrl,
+              ].filter(Boolean).length
             : [c.ga4PropertyId, c.gscSiteUrl].filter(Boolean).length;
           const maxSources = 4;
 
@@ -116,11 +142,21 @@ export default async function AdminIndexPage() {
               <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
                 <div className="flex items-center gap-2">
                   <TrafficDot color={color} />
-                  <span className="font-medium text-neutral-900">{c.label}</span>
-                  <span className="text-xs text-muted-foreground">{c.subtitle}</span>
+                  <span className="font-medium text-neutral-900">
+                    {c.label}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {c.subtitle}
+                  </span>
                 </div>
                 <Badge
-                  variant={color === "green" ? "success" : color === "yellow" ? "outline" : "secondary"}
+                  variant={
+                    color === "green"
+                      ? "success"
+                      : color === "yellow"
+                        ? "outline"
+                        : "secondary"
+                  }
                 >
                   {label}
                 </Badge>
@@ -134,7 +170,11 @@ export default async function AdminIndexPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Data sources</span>
-                  <span className={sourceCount > 0 ? "text-emerald-700" : "text-neutral-400"}>
+                  <span
+                    className={
+                      sourceCount > 0 ? "text-emerald-700" : "text-neutral-400"
+                    }
+                  >
                     {sourceCount}/{maxSources} configured
                   </span>
                 </div>
@@ -173,13 +213,22 @@ export default async function AdminIndexPage() {
       {/* Quick links / nav footer */}
       <div className="rounded-md border border-neutral-200 bg-neutral-50 px-4 py-3 text-xs text-muted-foreground">
         <div className="flex flex-wrap gap-4">
-          <Link href="/dashboard/admin/invites" className="underline hover:text-foreground">
+          <Link
+            href="/dashboard/admin/invites"
+            className="underline hover:text-foreground"
+          >
             招待管理 (Better Auth)
           </Link>
-          <Link href="/dashboard/admin/access" className="underline hover:text-foreground">
+          <Link
+            href="/dashboard/admin/access"
+            className="underline hover:text-foreground"
+          >
             アクセスMatrix (全クライアント × メール)
           </Link>
-          <Link href="/dashboard/admin/health" className="underline hover:text-foreground">
+          <Link
+            href="/dashboard/admin/health"
+            className="underline hover:text-foreground"
+          >
             ヘルスチェック (データソース接続)
           </Link>
           <a

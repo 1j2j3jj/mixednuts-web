@@ -72,12 +72,25 @@ TableRow.displayName = "TableRow";
  *  (see the survey note on ReportTable's own group-header row, which already
  *  hand-rolled this look one level up — its explicit className wins over
  *  this default via cn()'s last-write-wins merge, so it does not double up). */
+/** `scope="col"` default (E-4, 2026-07-25): every one of the 126 `<TableHead>`
+ *  call sites across the dashboard was rendering a bare `<th>` with no
+ *  `scope`, so a screen reader's cell-navigation commands never announced
+ *  which column a value belonged to (verified: only MembersClient.tsx passed
+ *  `scope="col"` explicitly before this fix, and it happened to already
+ *  match this default — see design-guards-style "fix the base, not every
+ *  call site" precedent). Defaulted here so it applies dashboard-wide in one
+ *  place; a caller with a genuinely different header shape (ReportTable's
+ *  2-row grouped header — the top row's cells each span several columns and
+ *  are more correctly `scope="colgroup"`) passes its own `scope` prop, which
+ *  wins over this default because it lands in `...props` after the
+ *  destructure below, not before it. */
 const TableHead = React.forwardRef<
   HTMLTableCellElement,
   React.ThHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
+>(({ className, scope = "col", ...props }, ref) => (
   <th
     ref={ref}
+    scope={scope}
     className={cn(
       "h-10 px-2 text-left align-middle text-xs font-semibold uppercase tracking-wide text-muted-foreground [&:has([role=checkbox])]:pr-0",
       className,

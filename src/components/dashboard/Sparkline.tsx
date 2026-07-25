@@ -10,6 +10,13 @@ interface Props {
   height?: number;
   /** How to format the tooltip value. */
   format?: "int" | "jpy" | "pct";
+  /** Accessible name for the chart (SVG <title>, invisible). Recharts
+   *  renders this as the first child of the <svg role="application"> it
+   *  already emits by default (accessibilityLayer defaults to true in
+   *  recharts 3.x) — a screen reader focusing the chart announces this
+   *  instead of nothing. Not shown visually; reuses whatever visible label
+   *  text the caller already renders (E-4/E-2 fix, no new visible copy). */
+  title?: string;
 }
 
 function fmt(v: number, kind: "int" | "jpy" | "pct"): string {
@@ -25,6 +32,7 @@ export default function Sparkline({
   tone = "default",
   height = 28,
   format = "int",
+  title,
 }: Props) {
   const data = values.map((v, i) => ({ i, v, date: dates?.[i] ?? "" }));
   const stroke =
@@ -33,6 +41,17 @@ export default function Sparkline({
       : tone === "negative"
         ? "var(--negative)"
         : "var(--chart-1)";
+  // E-3 guard-rail: today's only caller passes a STATIC tone (COST cards
+  // are always styled "negative" regardless of whether spend actually rose
+  // or fell — a branding choice, not data-derived), so this has zero live
+  // colour-only impact yet. But the component itself offered no non-colour
+  // carrier at all, so a future caller passing a genuinely data-derived
+  // tone (e.g. `sparkTone={trendUp ? "positive" : "negative"}`) would become
+  // a silent violation with no warning. Dash pattern closes that gap now,
+  // matching the in-repo precedent DailyTrendChart already sets for its own
+  // "CPA" line (solid vs. `strokeDasharray="4 3"`) — never removes the
+  // colour, only adds a second channel.
+  const strokeDasharray = tone === "negative" ? "4 3" : undefined;
   const showTooltip = dates && dates.length === values.length;
 
   return (
@@ -40,6 +59,7 @@ export default function Sparkline({
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={data}
+          title={title}
           margin={{ top: 2, right: 0, left: 0, bottom: 2 }}
         >
           <YAxis hide domain={["dataMin", "dataMax"]} />
@@ -68,6 +88,7 @@ export default function Sparkline({
             dataKey="v"
             stroke={stroke}
             strokeWidth={2}
+            strokeDasharray={strokeDasharray}
             strokeLinecap="round"
             strokeLinejoin="round"
             dot={false}

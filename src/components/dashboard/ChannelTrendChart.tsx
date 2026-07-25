@@ -20,6 +20,7 @@ import type {
   SecondaryEventDef,
 } from "@/lib/sources/ga4";
 import type { AbsenceReason, NoDataPeriodDetail } from "@/lib/absence";
+import { usePrefersReducedMotion } from "@/lib/use-reduced-motion";
 
 interface Props {
   data: ChannelDay[];
@@ -38,6 +39,10 @@ interface Props {
    *  generic "no data" copy. */
   absenceReason?: AbsenceReason;
   absenceDetail?: NoDataPeriodDetail;
+  /** Accessible name for the chart (E-2/E-4) — defaults to the visible
+   *  CardTitle text already rendered at the one real call site, not new
+   *  copy. */
+  title?: string;
 }
 
 type BaseMetric = "sessions" | "conversions" | "revenue";
@@ -103,6 +108,7 @@ export default function ChannelTrendChart({
   secondaryDefs = [],
   absenceReason,
   absenceDetail,
+  title = "日別/週別チャネル別",
 }: Props) {
   const METRICS = [
     ...BASE_METRICS,
@@ -111,6 +117,7 @@ export default function ChannelTrendChart({
   const [metric, setMetric] = useState<Metric>(defaultMetric);
   const [granularity, setGranularity] =
     useState<Granularity>(defaultGranularity);
+  const reducedMotion = usePrefersReducedMotion();
 
   // Phase D sweep (item 2): same treatment as ChannelStackedBar's A-21 fix —
   // title/toggles stay visible (what the client was looking at), only the
@@ -191,6 +198,8 @@ export default function ChannelTrendChart({
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={wide}
+            title={title}
+            desc={`${granularity === "week" ? "週別" : "日別"}のチャネル別${METRICS.find((m) => m.key === metric)?.label ?? metric}を積み上げ棒グラフで表示`}
             margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
           >
             <CartesianGrid vertical={false} stroke="var(--border)" />
@@ -236,6 +245,7 @@ export default function ChannelTrendChart({
                   CHANNEL_COLOURS[ch as ChannelGroup] ??
                   "var(--muted-foreground)"
                 }
+                isAnimationActive={!reducedMotion}
               />
             ))}
           </BarChart>

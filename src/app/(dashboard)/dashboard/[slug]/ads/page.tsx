@@ -660,6 +660,7 @@ export default async function AdsScreen({
             absenceDetail={{
               periodLabel: `${rr.current.start} 〜 ${rr.current.end}`,
             }}
+            title="日次推移（COST / 媒体CV / 媒体CPA）"
           />
         </CardContent>
       </Card>

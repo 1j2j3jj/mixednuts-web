@@ -1,6 +1,7 @@
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -8,9 +9,11 @@ import {
   TOTAL_ROW_CLASS,
 } from "@/components/ui/table";
 import ShareBar from "@/components/dashboard/ShareBar";
+import TierGlyph from "@/components/dashboard/TierGlyph";
 import { cn, fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 import { computeShare } from "@/lib/share";
 import type { MetricSource } from "@/lib/source";
+import { higherIsBetterTier } from "@/lib/tier";
 import {
   MATCH_STATUS_LABEL,
   MATCH_STATUS_DESC,
@@ -58,15 +61,26 @@ const MEDIA_BADGE: Record<string, string> = {
 };
 
 function mediaBadge(m: string): string {
-  return MEDIA_BADGE[m] ?? "bg-muted text-muted-foreground";
+  // 未突合媒体のフォールバック。text-muted-foreground を opaque な bg-muted に
+  // 乗せると 4.35:1 で AA(4.5:1)未達になるため、SegmentedControl と同じ
+  // control-idle-foreground（bg-muted 上で 5.04:1）を使う。
+  return MEDIA_BADGE[m] ?? "bg-muted text-control-idle-foreground";
 }
 
+/** Tailwind class per tier — kept alongside `higherIsBetterTier` (@/lib/tier,
+ *  E-3 shared threshold module) rather than folded into it, since the exact
+ *  class strings (font-semibold on "good" here, not in DrillTable's version)
+ *  are a per-table style choice, while the THRESHOLD itself (>=target /
+ *  >=80% of target) is now the one shared, non-duplicated source of truth. */
+const ROAS_TIER_CLASS: Record<string, string> = {
+  good: "text-emerald-700 font-semibold",
+  warning: "text-amber-700",
+  bad: "text-rose-700",
+};
+
 function roasClass(actualPct: number | null, targetPct: number | null): string {
-  if (actualPct == null || !Number.isFinite(actualPct)) return "";
-  if (targetPct == null || targetPct <= 0) return "";
-  if (actualPct >= targetPct) return "text-emerald-700 font-semibold";
-  if (actualPct >= targetPct * 0.8) return "text-amber-700";
-  return "text-rose-700";
+  const tier = higherIsBetterTier(actualPct, targetPct);
+  return tier ? ROAS_TIER_CLASS[tier] : "";
 }
 
 export default function MediaTable({ rows, targetRoasPct, source }: Props) {
@@ -108,9 +122,12 @@ export default function MediaTable({ rows, targetRoasPct, source }: Props) {
     const aov = safeDiv(rev, cv);
     const cpa = safeDiv(r.spend, cv);
     const roasPct = r.spend > 0 ? (rev / r.spend) * 100 : null;
+    const roasTier = isTotal
+      ? null
+      : higherIsBetterTier(roasPct, targetRoasPct);
     return (
       <TableRow key={r.media} className={cn(isTotal && TOTAL_ROW_CLASS)}>
-        <TableCell>
+        <TableCell scope={isTotal ? "row" : undefined}>
           {isTotal ? (
             <span>{r.media}</span>
           ) : (
@@ -177,7 +194,14 @@ export default function MediaTable({ rows, targetRoasPct, source }: Props) {
             !isTotal && roasClass(roasPct, targetRoasPct),
           )}
         >
-          {fmtRatioPct(roasPct, 0)}
+          {/* E-3: roasClass's colour was previously the ONLY signal for
+              hit/near-miss/missed target — TierGlyph (@/lib/tier +
+              TierGlyph.tsx) adds a shape (check/triangle/X), not just another
+              colour, so the judgement survives without colour perception. */}
+          <span className="inline-flex items-center justify-end gap-1">
+            {roasTier && <TierGlyph tier={roasTier} />}
+            {fmtRatioPct(roasPct, 0)}
+          </span>
         </TableCell>
       </TableRow>
     );
@@ -186,6 +210,7 @@ export default function MediaTable({ rows, targetRoasPct, source }: Props) {
   return (
     <div className="rounded-md border">
       <Table>
+        <TableCaption className="sr-only">媒体別サマリテーブル</TableCaption>
         <TableHeader>
           <TableRow>
             <TableHead>媒体</TableHead>

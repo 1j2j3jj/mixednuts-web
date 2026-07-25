@@ -140,7 +140,14 @@ export default function TargetsClient({
       {/* 貼り付けで一括入力（マトリクス）— 主経路。CEO の実データはこの形。 */}
       <div className="space-y-3 rounded-md border bg-card p-4">
         <div>
-          <label className="block text-sm font-medium">
+          {/* Same E-4 association as the CSV file input below. This textarea
+              did not exist when Phase E ran (the paste route came from the D5
+              branch), so it inherited the identical defect: no htmlFor/id, so
+              a screen reader reached an unlabelled multi-line text box. */}
+          <label
+            htmlFor="targets-paste-matrix"
+            className="block text-sm font-medium"
+          >
             貼り付けで一括入力（マトリクス）
           </label>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -158,6 +165,7 @@ export default function TargetsClient({
           </p>
         </div>
         <textarea
+          id="targets-paste-matrix"
           value={pasteText}
           onChange={onPasteChange}
           disabled={pending}
@@ -203,11 +211,19 @@ export default function TargetsClient({
         </div>
 
         <div className="border-t pt-3">
-          <label className="block text-sm font-medium">
+          {/* E-4 fix: label and input were separate siblings with no
+              id/htmlFor association — a screen reader focusing the file input
+              got only the browser's generic "Choose File" name, not this
+              label's text. */}
+          <label
+            htmlFor="targets-csv-file"
+            className="block text-sm font-medium"
+          >
             ⬆ CSV
             をアップロード（指定したキーだけ更新・値を空欄にすると明示削除）
           </label>
           <input
+            id="targets-csv-file"
             type="file"
             accept=".csv,text/csv"
             onChange={onFile}
@@ -241,8 +257,16 @@ export default function TargetsClient({
               {interpretation}
             </p>
           )}
+          {/* E-4: preview/success are non-urgent confirmations -> role="status"
+              (polite); error/rowErrors interrupt the flow -> role="alert"
+              (assertive). Previously silent to screen readers — visible text
+              unchanged. */}
           {previewMsg && !error && (
-            <p className="mt-2 rounded-md bg-emerald-50 p-2 text-sm text-emerald-900">
+            <p
+              role="status"
+              aria-live="polite"
+              className="mt-2 rounded-md bg-emerald-50 p-2 text-sm text-emerald-900"
+            >
               ✓ {previewMsg}
               {" — 「確定」を押すと、この差分だけを保存します"}
             </p>
@@ -252,18 +276,28 @@ export default function TargetsClient({
               type="button"
               onClick={doCommit}
               disabled={commitDisabled}
-              className="mt-2 rounded-md border border-emerald-600 bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-40"
+              // E-1 contrast fix: white text on bg-emerald-600 measured
+              // 3.65:1 (below the 4.5:1 normal-text floor at this 12px size).
+              // Bumped to emerald-700 (5.36:1, verified) — same shade the
+              // roasClass/achievementColour cells elsewhere already use.
+              className="mt-2 rounded-md border border-emerald-700 bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-800 disabled:opacity-40"
             >
               {commitLabel}
             </button>
           )}
           {error && (
-            <p className="rounded-md bg-rose-50 p-2 text-sm text-rose-900">
+            <p
+              role="alert"
+              className="rounded-md bg-rose-50 p-2 text-sm text-rose-900"
+            >
               ✗ {error}
             </p>
           )}
           {rowErrors && rowErrors.length > 0 && (
-            <div className="mt-2 max-h-64 overflow-auto rounded-md border border-rose-200 bg-rose-50 p-2 text-xs text-rose-900">
+            <div
+              role="alert"
+              className="mt-2 max-h-64 overflow-auto rounded-md border border-rose-200 bg-rose-50 p-2 text-xs text-rose-900"
+            >
               <ul className="space-y-1">
                 {rowErrors.map((re, i) => (
                   <li key={`${re.row}-${i}`}>
@@ -277,7 +311,11 @@ export default function TargetsClient({
             </div>
           )}
           {success && (
-            <p className="rounded-md bg-emerald-100 p-2 text-sm text-emerald-900">
+            <p
+              role="status"
+              aria-live="polite"
+              className="rounded-md bg-emerald-100 p-2 text-sm text-emerald-900"
+            >
               ✅ {success}
             </p>
           )}

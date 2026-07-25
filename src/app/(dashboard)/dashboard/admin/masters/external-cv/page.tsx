@@ -1,7 +1,11 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { fetchExternalCv, EXTERNAL_CV_COLUMNS, CLIENTS_WITH_EXTERNAL_CV } from "@/lib/masters";
+import {
+  fetchExternalCv,
+  EXTERNAL_CV_COLUMNS,
+  CLIENTS_WITH_EXTERNAL_CV,
+} from "@/lib/masters";
 import { rowsToCsv } from "@/lib/master-csv";
 import { CsvUploader } from "../CsvUploader";
 import { CLIENTS, type ClientId } from "@/config/clients";
@@ -23,9 +27,11 @@ export default async function ExternalCvPage({ searchParams }: PageProps) {
   if (h.get("x-viewer-kind") !== "admin") notFound();
 
   const sp = await searchParams;
-  const clientId = (sp.client && CLIENTS_WITH_EXTERNAL_CV.includes(sp.client as ClientId)
-    ? sp.client
-    : "hs") as ClientId;
+  const clientId = (
+    sp.client && CLIENTS_WITH_EXTERNAL_CV.includes(sp.client as ClientId)
+      ? sp.client
+      : "hs"
+  ) as ClientId;
 
   const rows = await fetchExternalCv(clientId);
   const currentCsv = rowsToCsv(EXTERNAL_CV_COLUMNS, rows);
@@ -34,9 +40,19 @@ export default async function ExternalCvPage({ searchParams }: PageProps) {
     <div className="mx-auto w-full max-w-5xl space-y-6">
       <div>
         <div className="flex items-center gap-2 text-xs text-neutral-500">
-          <Link href="/dashboard/admin" className="underline hover:text-neutral-800">管理</Link>
+          <Link
+            href="/dashboard/admin"
+            className="underline hover:text-neutral-800"
+          >
+            管理
+          </Link>
           <span>/</span>
-          <Link href="/dashboard/admin/masters" className="underline hover:text-neutral-800">マスタ管理</Link>
+          <Link
+            href="/dashboard/admin/masters"
+            className="underline hover:text-neutral-800"
+          >
+            マスタ管理
+          </Link>
           <span>/</span>
           <span>外部CV</span>
         </div>
@@ -50,9 +66,12 @@ export default async function ExternalCvPage({ searchParams }: PageProps) {
             <Link
               key={cid}
               href={`/dashboard/admin/masters/external-cv?client=${cid}`}
+              // E-1 contrast fix: white text on bg-emerald-600 measured
+              // 3.65:1, below the 4.5:1 floor — see TargetsClient.tsx's
+              // identical fix for the full measurement.
               className={`rounded-md px-3 py-1.5 text-xs font-medium ${
                 isActive
-                  ? "bg-emerald-600 text-white"
+                  ? "bg-emerald-700 text-white"
                   : "border border-neutral-300 bg-white hover:bg-neutral-50"
               }`}
             >
@@ -90,19 +109,33 @@ export default async function ExternalCvPage({ searchParams }: PageProps) {
           </thead>
           <tbody>
             {rows.length === 0 && (
-              <tr><td colSpan={7} className="p-4 text-center text-neutral-400">データなし</td></tr>
+              <tr>
+                <td colSpan={7} className="p-4 text-center text-neutral-400">
+                  データなし
+                </td>
+              </tr>
             )}
             {rows.map((r, i) => (
               <tr key={i} className="border-t border-neutral-200">
                 <td className="p-2 font-mono text-xs">{r.date}</td>
                 <td className="p-2">{r.cv_source}</td>
-                <td className="p-2 text-xs text-neutral-600">{r.media ?? "—"}</td>
-                <td className="p-2 font-mono text-xs">{r.campaign_id ?? "—"}</td>
-                <td className="p-2 text-right">{r.conversions.toLocaleString()}</td>
-                <td className="p-2 text-right">
-                  {r.conversions_value != null ? "¥" + Math.round(r.conversions_value).toLocaleString() : "—"}
+                <td className="p-2 text-xs text-neutral-600">
+                  {r.media ?? "—"}
                 </td>
-                <td className="p-2 text-xs text-neutral-600">{r.notes ?? "—"}</td>
+                <td className="p-2 font-mono text-xs">
+                  {r.campaign_id ?? "—"}
+                </td>
+                <td className="p-2 text-right">
+                  {r.conversions.toLocaleString()}
+                </td>
+                <td className="p-2 text-right">
+                  {r.conversions_value != null
+                    ? "¥" + Math.round(r.conversions_value).toLocaleString()
+                    : "—"}
+                </td>
+                <td className="p-2 text-xs text-neutral-600">
+                  {r.notes ?? "—"}
+                </td>
               </tr>
             ))}
           </tbody>

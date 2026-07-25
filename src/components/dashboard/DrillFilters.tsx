@@ -144,9 +144,15 @@ export default function DrillFilters({
           size="md"
         />
       </div>
-      {isPending && (
-        <span className="text-xs text-muted-foreground">更新中…</span>
-      )}
+      {/* E-4: was conditionally MOUNTED (only present in the DOM while
+          pending), which some screen readers miss entirely — an aria-live
+          region only reliably announces changes to content already present
+          when the change happens. Always rendered now, matching
+          DateRangePicker's identical pattern; empty text when not pending is
+          visually and behaviourally unchanged from the old absent element. */}
+      <span aria-live="polite" className="text-xs text-muted-foreground">
+        {isPending ? "更新中…" : ""}
+      </span>
     </div>
   );
 }

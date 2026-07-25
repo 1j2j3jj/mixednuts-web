@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -259,38 +260,101 @@ export default function ReportTable({
   function sortIndicator(key: SortKey) {
     if (sortKey !== key) return null;
     return (
-      <span className="ml-0.5 inline-block">
+      <span className="ml-0.5 inline-block" aria-hidden="true">
         {sortDir === "desc" ? "▼" : "▲"}
       </span>
     );
   }
 
-  function sortableHeadProps(key: SortKey, extraClassName?: string) {
-    return {
-      onClick: () => toggleSort(key),
-      className: cn(
-        "cursor-pointer select-none hover:bg-accent/50",
-        sortKey === key && "bg-accent/30",
-        extraClassName,
-      ),
-    };
+  /**
+   * E-2 fix (fleet audit finding, confirmed): these headers used to be a
+   * bare `<th onClick>` — no role, no tabIndex, no aria-sort — so a keyboard
+   * user could not sort at all, on any client, on any report granularity
+   * tab. Now a real `<button>` (native Enter/Space + Tab semantics, no
+   * onKeyDown needed) inside a `<th scope="col" aria-sort=…>`. `aria-sort`
+   * reflects the CURRENT state ("ascending"/"descending"/"none") per column,
+   * which also gives sighted keyboard users the same ▲/▼ indicator the mouse
+   * path always had — sort behaviour and visible text are unchanged, only
+   * the interaction target changed shape.
+   */
+  function SortableHead({
+    sortKeyName,
+    className,
+    title,
+    children,
+  }: {
+    sortKeyName: SortKey;
+    className?: string;
+    title?: string;
+    children: ReactNode;
+  }) {
+    const isActive = sortKey === sortKeyName;
+    const ariaSort: "ascending" | "descending" | "none" = !isActive
+      ? "none"
+      : sortDir === "asc"
+        ? "ascending"
+        : "descending";
+    // The old `<th onClick>` used `text-right`/`text-left` (a text-align
+    // property) passed in via extraClassName to align numeric vs. label
+    // columns. The interactive element is now a flex `<button>` filling the
+    // cell (so the whole cell stays clickable/hoverable, not just the text),
+    // and flex layout does not honour text-align for positioning — mapped to
+    // `justify-end` on the button so the same visual alignment survives.
+    const alignEnd = className?.includes("text-right") ?? false;
+    return (
+      <TableHead
+        scope="col"
+        aria-sort={ariaSort}
+        title={title}
+        className={cn("p-0", isActive && "bg-accent/30", className)}
+      >
+        <button
+          type="button"
+          onClick={() => toggleSort(sortKeyName)}
+          className={cn(
+            "flex h-10 w-full cursor-pointer select-none items-center gap-0.5 whitespace-nowrap px-2 hover:bg-accent/50 focus-visible:outline-none",
+            alignEnd ? "justify-end text-right" : "text-left",
+          )}
+        >
+          {children}
+          {sortIndicator(sortKeyName)}
+        </button>
+      </TableHead>
+    );
   }
 
   return (
     <div className="rounded-md border">
       <Table>
+        {/* E-4: accessible name for the table (no visible change — sr-only).
+            Screen reader users landing on this table via table-navigation
+            commands otherwise get no name at all announcing what it is. */}
+        <TableCaption className="sr-only">
+          {labelHeader}別のレポート集計表（COST・広告媒体・{gaGroupLabel}
+          の各指標）
+        </TableCaption>
         <TableHeader>
-          {/* Group header — visually separates the three CV layers. */}
+          {/* Group header — visually separates the three CV layers. Each
+              cell spans several of the real column headers in the row
+              below, so `scope="colgroup"` (not the base's default "col") is
+              the semantically correct value here — it groups, it doesn't
+              itself label one column. */}
           <TableRow className="bg-muted/30">
-            <TableHead colSpan={headCols} />
+            {/* Unlabeled spacer above 期間(+媒体) — scope="colgroup" (not
+                the base's default "col") for the same reason as its three
+                siblings on this row: it spans columns rather than labelling
+                a single one, even though it has no visible text of its own. */}
+            <TableHead colSpan={headCols} scope="colgroup" />
             <TableHead
               colSpan={mediaCols}
+              scope="colgroup"
               className="border-l text-center text-[11px] font-semibold uppercase tracking-wider"
             >
               広告媒体
             </TableHead>
             <TableHead
               colSpan={gaCols}
+              scope="colgroup"
               className="border-l text-center text-[11px] font-semibold uppercase tracking-wider"
             >
               {gaGroupLabel}
@@ -298,6 +362,7 @@ export default function ReportTable({
             {showOverall && (
               <TableHead
                 colSpan={overallCols}
+                scope="colgroup"
                 className="border-l text-center text-[11px] font-semibold uppercase tracking-wider"
               >
                 全体
@@ -305,130 +370,98 @@ export default function ReportTable({
             )}
           </TableRow>
           <TableRow>
-            <TableHead {...sortableHeadProps("label", "whitespace-nowrap")}>
+            <SortableHead sortKeyName="label" className="whitespace-nowrap">
               {labelHeader}
-              {sortIndicator("label")}
-            </TableHead>
-            {showMedia && (
-              <TableHead {...sortableHeadProps("media")}>
-                媒体
-                {sortIndicator("media")}
-              </TableHead>
-            )}
-            <TableHead {...sortableHeadProps("cost", "border-l text-right")}>
+            </SortableHead>
+            {showMedia && <SortableHead sortKeyName="media">媒体</SortableHead>}
+            <SortableHead sortKeyName="cost" className="border-l text-right">
               COST
-              {sortIndicator("cost")}
-            </TableHead>
-            <TableHead {...sortableHeadProps("impressions", "text-right")}>
+            </SortableHead>
+            <SortableHead sortKeyName="impressions" className="text-right">
               Imp
-              {sortIndicator("impressions")}
-            </TableHead>
-            <TableHead {...sortableHeadProps("clicks", "text-right")}>
+            </SortableHead>
+            <SortableHead sortKeyName="clicks" className="text-right">
               Click
-              {sortIndicator("clicks")}
-            </TableHead>
-            <TableHead {...sortableHeadProps("ctr", "text-right")}>
+            </SortableHead>
+            <SortableHead sortKeyName="ctr" className="text-right">
               CTR
-              {sortIndicator("ctr")}
-            </TableHead>
-            <TableHead {...sortableHeadProps("cpc", "text-right")}>
+            </SortableHead>
+            <SortableHead sortKeyName="cpc" className="text-right">
               CPC
-              {sortIndicator("cpc")}
-            </TableHead>
-            <TableHead {...sortableHeadProps("mediaCv", "text-right")}>
+            </SortableHead>
+            <SortableHead sortKeyName="mediaCv" className="text-right">
               媒体CV
-              {sortIndicator("mediaCv")}
-            </TableHead>
-            <TableHead {...sortableHeadProps("mediaCvr", "text-right")}>
+            </SortableHead>
+            <SortableHead sortKeyName="mediaCvr" className="text-right">
               CVR
-              {sortIndicator("mediaCvr")}
-            </TableHead>
-            <TableHead {...sortableHeadProps("mediaCpa", "text-right")}>
+            </SortableHead>
+            <SortableHead sortKeyName="mediaCpa" className="text-right">
               CPA
-              {sortIndicator("mediaCpa")}
-            </TableHead>
-            <TableHead {...sortableHeadProps("mediaRoasPct", "text-right")}>
+            </SortableHead>
+            <SortableHead sortKeyName="mediaRoasPct" className="text-right">
               ROAS
-              {sortIndicator("mediaRoasPct")}
-            </TableHead>
-            <TableHead {...sortableHeadProps("mediaValue", "text-right")}>
+            </SortableHead>
+            <SortableHead sortKeyName="mediaValue" className="text-right">
               媒体売上
-              {sortIndicator("mediaValue")}
-            </TableHead>
-            <TableHead
-              {...sortableHeadProps("sessions", "border-l text-right")}
+            </SortableHead>
+            <SortableHead
+              sortKeyName="sessions"
+              className="border-l text-right"
             >
               SESSION
-              {sortIndicator("sessions")}
-            </TableHead>
-            <TableHead
-              {...sortableHeadProps("gaCvPurchase", "text-right")}
+            </SortableHead>
+            <SortableHead
+              sortKeyName="gaCvPurchase"
+              className="text-right"
               title="GA4の購入イベント基準"
             >
               {gaCvLabel}
-              {sortIndicator("gaCvPurchase")}
-            </TableHead>
-            <TableHead {...sortableHeadProps("gaCvr", "text-right")}>
+            </SortableHead>
+            <SortableHead sortKeyName="gaCvr" className="text-right">
               GA_CVR
-              {sortIndicator("gaCvr")}
-            </TableHead>
-            <TableHead {...sortableHeadProps("gaCpa", "text-right")}>
+            </SortableHead>
+            <SortableHead sortKeyName="gaCpa" className="text-right">
               GA_CPA
-              {sortIndicator("gaCpa")}
-            </TableHead>
-            <TableHead {...sortableHeadProps("gaValue", "text-right")}>
+            </SortableHead>
+            <SortableHead sortKeyName="gaValue" className="text-right">
               GA売上
-              {sortIndicator("gaValue")}
-            </TableHead>
-            <TableHead {...sortableHeadProps("gaRoasPct", "text-right")}>
+            </SortableHead>
+            <SortableHead sortKeyName="gaRoasPct" className="text-right">
               GA_ROAS
-              {sortIndicator("gaRoasPct")}
-            </TableHead>
+            </SortableHead>
             {eventDefs.map((ev) => (
-              <TableHead
+              <SortableHead
                 key={ev.key}
-                {...sortableHeadProps(
-                  `event:${ev.key}`,
-                  "text-right whitespace-nowrap",
-                )}
+                sortKeyName={`event:${ev.key}`}
+                className="text-right whitespace-nowrap"
               >
                 {ev.label}
-                {sortIndicator(`event:${ev.key}`)}
-              </TableHead>
+              </SortableHead>
             ))}
             {showAdCvPurchase && (
-              <TableHead
-                {...sortableHeadProps(
-                  "adCvPurchase",
-                  "text-right whitespace-nowrap",
-                )}
+              <SortableHead
+                sortKeyName="adCvPurchase"
+                className="text-right whitespace-nowrap"
                 title="広告エンティティに帰属したGA計測分。参考列 — サイト全体のGA_CV(購入)とは別の数字"
               >
                 GA_CV(広告帰属)
-                {sortIndicator("adCvPurchase")}
-              </TableHead>
+              </SortableHead>
             )}
             {showOverall && (
-              <TableHead
-                {...sortableHeadProps(
-                  "overallCv",
-                  "border-l text-right whitespace-nowrap",
-                )}
+              <SortableHead
+                sortKeyName="overallCv"
+                className="border-l text-right whitespace-nowrap"
               >
                 {overallLabel}
-                {sortIndicator("overallCv")}
-              </TableHead>
+              </SortableHead>
             )}
             {showOverall && showOverallValue && (
-              <TableHead
-                {...sortableHeadProps(
-                  "overallValue",
-                  "text-right whitespace-nowrap",
-                )}
+              <SortableHead
+                sortKeyName="overallValue"
+                className="text-right whitespace-nowrap"
               >
                 全体売上
-                {sortIndicator("overallValue")}
-              </TableHead>
+              </SortableHead>
             )}
           </TableRow>
         </TableHeader>
@@ -460,6 +493,7 @@ export default function ReportTable({
                 className={cn(r.isTotal && TOTAL_ROW_CLASS)}
               >
                 <TableCell
+                  scope={r.isTotal ? "row" : undefined}
                   className={cn(
                     "whitespace-nowrap",
                     monoLabel && !r.isTotal && "font-mono text-xs",
