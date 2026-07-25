@@ -18,7 +18,10 @@ function loadServiceAccount(): Record<string, unknown> | null {
   try {
     return JSON.parse(json);
   } catch (err) {
-    console.error("[sheets] GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON:", err);
+    console.error(
+      "[sheets] GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON:",
+      err,
+    );
     return null;
   }
 }
@@ -61,7 +64,16 @@ export function sheetCacheTag(sheetId: string, range: string): string {
   return `sheet:${sheetId}:${range}`;
 }
 
-async function fetchSheetRaw(sheetId: string, range: string): Promise<SheetFetchResult> {
+/**
+ * Uncached live read. Exported so raw.ts (A-27 fix) can fetch-then-project
+ * before deciding what (if anything) to hand to unstable_cache — the
+ * generic `fetchSheetCached` below always caches its full return value,
+ * which is unsafe for the multi-year ads raw sheet (see raw.ts).
+ */
+export async function fetchSheetRaw(
+  sheetId: string,
+  range: string,
+): Promise<SheetFetchResult> {
   const client = sheetsClient();
   if (!client) {
     // Fallback mock for local dev without SA configured. Shape matches the
@@ -86,13 +98,15 @@ async function fetchSheetRaw(sheetId: string, range: string): Promise<SheetFetch
  * Cached sheet read. The closure is re-keyed per (sheetId, range) so distinct
  * ranges don't collide in the cache.
  */
-export function fetchSheetCached(sheetId: string, range: string): Promise<SheetFetchResult> {
+export function fetchSheetCached(
+  sheetId: string,
+  range: string,
+): Promise<SheetFetchResult> {
   const tag = sheetCacheTag(sheetId, range);
-  return unstable_cache(
-    async () => fetchSheetRaw(sheetId, range),
-    [tag],
-    { revalidate: CACHE_TTL_SECONDS, tags: [tag] }
-  )();
+  return unstable_cache(async () => fetchSheetRaw(sheetId, range), [tag], {
+    revalidate: CACHE_TTL_SECONDS,
+    tags: [tag],
+  })();
 }
 
 /* ------------------------------------------------------------------ */
@@ -117,17 +131,116 @@ function mockHsRawAds(): string[][] {
     "コンバージョン",
     "コンバージョン値",
   ];
-  type Row = [string, string, string, string, string, number, number, number, number, number];
+  type Row = [
+    string,
+    string,
+    string,
+    string,
+    string,
+    number,
+    number,
+    number,
+    number,
+    number,
+  ];
   // [media, campaignId, campaignName, adgroupId, adgroupName, cost, impr, clicks, cv, cvValue]
   const templates: Row[] = [
-    ["Google", "CPN-G-1001", "01_Google検索_指名_単体", "ADG-G-1001-A", "01_Google検索_指名_単体_販促スタイル", 12000, 18000, 900, 40, 1_800_000],
-    ["Google", "CPN-G-1002", "03_Google検索_一般_ノベルティ", "ADG-G-1002-A", "03_Google検索_一般_ノベルティのみ", 85000, 210000, 5400, 55, 4_500_000],
-    ["Google", "CPN-G-1003", "16_Google_Pmax_バッグ_EC", "ADG-G-1003-A", "16_Google_Pmax_バッグ_EC_AG", 220000, 880000, 9800, 120, 12_100_000],
-    ["Microsoft", "CPN-M-2001", "01_Microsoft検索_指名", "ADG-M-2001-A", "指名検索専用広告", 3000, 7200, 210, 12, 900_000],
-    ["Microsoft", "CPN-M-2002", "16_Microsoft_Pmax_EC", "ADG-M-2002-A", "Pmax_EC_AG", 58000, 165000, 3400, 42, 5_800_000],
-    ["Yahoo", "CPN-Y-3001", "01_Yahoo検索_指名", "ADG-Y-3001-A", "Yahoo検索_指名_AG", 4500, 10200, 380, 18, 1_400_000],
-    ["Yahoo", "CPN-Y-3002", "01_Yahoo検索_指名_かけ合わせ", "ADG-Y-3002-A", "Yahoo検索_指名_かけ合わせ_AG", 2100, 4600, 150, 7, 520_000],
-    ["meta", "CPN-X-4001", "01_meta広告_Advantage+_Shopping", "ADG-X-4001-A", "meta広告_Advantage+_Shopping_AG", 95000, 520000, 8200, 38, 4_100_000],
+    [
+      "Google",
+      "CPN-G-1001",
+      "01_Google検索_指名_単体",
+      "ADG-G-1001-A",
+      "01_Google検索_指名_単体_販促スタイル",
+      12000,
+      18000,
+      900,
+      40,
+      1_800_000,
+    ],
+    [
+      "Google",
+      "CPN-G-1002",
+      "03_Google検索_一般_ノベルティ",
+      "ADG-G-1002-A",
+      "03_Google検索_一般_ノベルティのみ",
+      85000,
+      210000,
+      5400,
+      55,
+      4_500_000,
+    ],
+    [
+      "Google",
+      "CPN-G-1003",
+      "16_Google_Pmax_バッグ_EC",
+      "ADG-G-1003-A",
+      "16_Google_Pmax_バッグ_EC_AG",
+      220000,
+      880000,
+      9800,
+      120,
+      12_100_000,
+    ],
+    [
+      "Microsoft",
+      "CPN-M-2001",
+      "01_Microsoft検索_指名",
+      "ADG-M-2001-A",
+      "指名検索専用広告",
+      3000,
+      7200,
+      210,
+      12,
+      900_000,
+    ],
+    [
+      "Microsoft",
+      "CPN-M-2002",
+      "16_Microsoft_Pmax_EC",
+      "ADG-M-2002-A",
+      "Pmax_EC_AG",
+      58000,
+      165000,
+      3400,
+      42,
+      5_800_000,
+    ],
+    [
+      "Yahoo",
+      "CPN-Y-3001",
+      "01_Yahoo検索_指名",
+      "ADG-Y-3001-A",
+      "Yahoo検索_指名_AG",
+      4500,
+      10200,
+      380,
+      18,
+      1_400_000,
+    ],
+    [
+      "Yahoo",
+      "CPN-Y-3002",
+      "01_Yahoo検索_指名_かけ合わせ",
+      "ADG-Y-3002-A",
+      "Yahoo検索_指名_かけ合わせ_AG",
+      2100,
+      4600,
+      150,
+      7,
+      520_000,
+    ],
+    [
+      "meta",
+      "CPN-X-4001",
+      "01_meta広告_Advantage+_Shopping",
+      "ADG-X-4001-A",
+      "meta広告_Advantage+_Shopping_AG",
+      95000,
+      520000,
+      8200,
+      38,
+      4_100_000,
+    ],
   ];
   const rows: string[][] = [header];
   const today = new Date();
@@ -136,8 +249,20 @@ function mockHsRawAds(): string[][] {
     const date = new Date(today);
     date.setDate(today.getDate() - d);
     const iso = date.toISOString().slice(0, 10);
-    for (const [media, campaignId, campaignName, adgroupId, adgroupName, cost, impr, clicks, cv, cvValue] of templates) {
-      const jitter = 0.8 + ((Math.sin((d + campaignName.length) * 1.7) + 1) / 2) * 0.4;
+    for (const [
+      media,
+      campaignId,
+      campaignName,
+      adgroupId,
+      adgroupName,
+      cost,
+      impr,
+      clicks,
+      cv,
+      cvValue,
+    ] of templates) {
+      const jitter =
+        0.8 + ((Math.sin((d + campaignName.length) * 1.7) + 1) / 2) * 0.4;
       rows.push([
         iso,
         media,

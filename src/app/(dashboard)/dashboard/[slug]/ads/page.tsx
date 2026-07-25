@@ -1,11 +1,17 @@
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getDailyRows, type DailyRow } from "@/lib/sources/raw";
 import type { DailyRowWithTracking } from "@/lib/sources/bq-raw";
-import { getGa4MonthlyChannels, getGa4PaidCampaigns, type Ga4CampaignRow } from "@/lib/sources/ga4";
+import {
+  getGa4MonthlyChannels,
+  getGa4PaidCampaigns,
+  type Ga4CampaignRow,
+} from "@/lib/sources/ga4";
 import { getTargetsForMonth } from "@/lib/sources/target";
 import { resolveFromSearchParams, type DateRange } from "@/lib/range";
 import MediaTable, { type MediaRow } from "@/components/dashboard/MediaTable";
-import MediaCampaignTable, { type MediaCampaignRow } from "@/components/dashboard/MediaCampaignTable";
+import MediaCampaignTable, {
+  type MediaCampaignRow,
+} from "@/components/dashboard/MediaCampaignTable";
 import DailyTrendChart from "@/components/dashboard/DailyTrendChart";
 import RefreshButton from "@/components/dashboard/RefreshButton";
 import PrintButton from "@/components/dashboard/PrintButton";
@@ -30,8 +36,13 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /** Sum GA4 paid-campaign rows per internal media. */
-function ga4TotalsByMedia(rows: Ga4CampaignRow[]): Map<string, { sessions: number; conversions: number; revenue: number }> {
-  const m = new Map<string, { sessions: number; conversions: number; revenue: number }>();
+function ga4TotalsByMedia(
+  rows: Ga4CampaignRow[],
+): Map<string, { sessions: number; conversions: number; revenue: number }> {
+  const m = new Map<
+    string,
+    { sessions: number; conversions: number; revenue: number }
+  >();
   for (const r of rows) {
     const cur = m.get(r.media) ?? { sessions: 0, conversions: 0, revenue: 0 };
     cur.sessions += r.sessions;
@@ -43,7 +54,9 @@ function ga4TotalsByMedia(rows: Ga4CampaignRow[]): Map<string, { sessions: numbe
 }
 
 /** Sum GA4 paid-campaign rows per day (all media). */
-function ga4DailyTotals(rows: Ga4CampaignRow[]): Map<string, { conversions: number; revenue: number }> {
+function ga4DailyTotals(
+  rows: Ga4CampaignRow[],
+): Map<string, { conversions: number; revenue: number }> {
   const m = new Map<string, { conversions: number; revenue: number }>();
   for (const r of rows) {
     if (!r.date) continue;
@@ -61,7 +74,10 @@ function pct(a: number, b: number): number | null {
 }
 
 /** Sum GA4 monthly rows whose yearMonth overlaps the [start, end] range. */
-function filterGa4ByRange<T extends { yearMonth: string }>(rows: T[], r: DateRange): T[] {
+function filterGa4ByRange<T extends { yearMonth: string }>(
+  rows: T[],
+  r: DateRange,
+): T[] {
   return rows.filter((x) => {
     const monthStart = `${x.yearMonth}-01`;
     const [y, m] = x.yearMonth.split("-").map(Number);
@@ -72,7 +88,7 @@ function filterGa4ByRange<T extends { yearMonth: string }>(rows: T[], r: DateRan
 
 function ga4RevenueAndCv(
   rows: Array<{ yearMonth: string; revenue: number; conversions: number }>,
-  range: DateRange
+  range: DateRange,
 ): { revenue: number; conversions: number } {
   let revenue = 0;
   let conversions = 0;
@@ -95,20 +111,36 @@ export default async function AdsScreen({
   const source = readSource(sp);
   const client = await assertUserCanAccessClientBySlug(slug);
 
-  const { rows: rawRows, fetchedAt, isMock } = await getDailyRows(client);
+  const { rows: rawRows, fetchedAt, isMock } = await getDailyRows(client, sp);
   // BQ_SOURCE_RAW path (bq-raw.ts) attaches trackingId (Yahoo only, see
   // DailyRowWithTracking); the Sheet path never sets it. DailyRow itself
   // (raw.ts) isn't widened, so this is a same-shape cast, not a real type
   // change — trackingId is simply absent/undefined off the Sheet path.
   const rows = rawRows as DailyRowWithTracking[];
-  const allDates = rows.map((r) => r.date).filter(Boolean).sort();
-  const anchor = allDates[allDates.length - 1] ?? new Date().toISOString().slice(0, 10);
+  const allDates = rows
+    .map((r) => r.date)
+    .filter(Boolean)
+    .sort();
+  const anchor =
+    allDates[allDates.length - 1] ?? new Date().toISOString().slice(0, 10);
 
-  const rr = resolveFromSearchParams(sp, { preset: "thisMonth", compare: "prev" }, anchor);
+  const rr = resolveFromSearchParams(
+    sp,
+    { preset: "thisMonth", compare: "prev" },
+    anchor,
+  );
 
-  const cur = filterByRange(rows, rr.current.start, rr.current.end) as DailyRowWithTracking[];
+  const cur = filterByRange(
+    rows,
+    rr.current.start,
+    rr.current.end,
+  ) as DailyRowWithTracking[];
   const prev = rr.previous
-    ? (filterByRange(rows, rr.previous.start, rr.previous.end) as DailyRowWithTracking[])
+    ? (filterByRange(
+        rows,
+        rr.previous.start,
+        rr.previous.end,
+      ) as DailyRowWithTracking[])
     : [];
   const curTotals = sumRows(cur);
   const prevTotals = sumRows(prev);
@@ -116,16 +148,23 @@ export default async function AdsScreen({
   // Top-level KPIs prefer GA4 for Revenue / ROAS (site-side truth). The
   // media table stays ad-platform side because only that source breaks out
   // per-media. Differences between the two are expected (attribution).
-  const { rows: ga4All, isMock: ga4AllIsMock } = await getGa4MonthlyChannels(client);
+  const { rows: ga4All, isMock: ga4AllIsMock } =
+    await getGa4MonthlyChannels(client);
   const curGa4 = ga4RevenueAndCv(ga4All, rr.current);
-  const prevGa4 = rr.previous ? ga4RevenueAndCv(ga4All, rr.previous) : { revenue: 0, conversions: 0 };
-  const curGa4RoasPct = curTotals.cost > 0 ? (curGa4.revenue / curTotals.cost) * 100 : null;
+  const prevGa4 = rr.previous
+    ? ga4RevenueAndCv(ga4All, rr.previous)
+    : { revenue: 0, conversions: 0 };
+  const curGa4RoasPct =
+    curTotals.cost > 0 ? (curGa4.revenue / curTotals.cost) * 100 : null;
   const prevGa4RoasPct =
-    rr.previous && prevTotals.cost > 0 ? (prevGa4.revenue / prevTotals.cost) * 100 : null;
+    rr.previous && prevTotals.cost > 0
+      ? (prevGa4.revenue / prevTotals.cost) * 100
+      : null;
 
   // Pull GA4 paid-campaign data for the same window so the media table can
   // JOIN real GA4 CV / Revenue per media (not a fake 0.9x multiplier).
-  const { rows: ga4Campaigns, isMock: ga4CampaignsIsMock } = await getGa4PaidCampaigns(client, rr.current.start, rr.current.end);
+  const { rows: ga4Campaigns, isMock: ga4CampaignsIsMock } =
+    await getGa4PaidCampaigns(client, rr.current.start, rr.current.end);
   const ga4MediaTot = ga4TotalsByMedia(ga4Campaigns);
   const ga4DailyTot = ga4DailyTotals(ga4Campaigns);
 
@@ -134,7 +173,10 @@ export default async function AdsScreen({
   // Microsoft/meta where the ad-platform id is only surfaced as name through
   // GA4 auto-tagging, `ga4MatchKey()` (in ga4.ts) already falls back to the
   // campaignName at build time. Here we just aggregate to (media, key).
-  const ga4CampaignTot = new Map<string, { conversions: number; revenue: number }>();
+  const ga4CampaignTot = new Map<
+    string,
+    { conversions: number; revenue: number }
+  >();
   // Yahoo-only: GA4 always reports sessionCampaignId="(not set)" for yhl/cpc
   // sessions, with the true numeric tracking id surfacing in
   // sessionCampaignName instead — same shape as the Meta id quirk, but
@@ -143,7 +185,10 @@ export default async function AdsScreen({
   // sessionCampaignId="(not set)" / sessionCampaignName="15510337322" for
   // yhl/cpc). JOIN directly on raw campaignName (= campaign_tracking_id)
   // instead of matchKey for this one media.
-  const ga4YahooByTrackingId = new Map<string, { conversions: number; revenue: number }>();
+  const ga4YahooByTrackingId = new Map<
+    string,
+    { conversions: number; revenue: number }
+  >();
   for (const r of ga4Campaigns) {
     const key = `${r.media}|${r.matchKey}`;
     const cur = ga4CampaignTot.get(key) ?? { conversions: 0, revenue: 0 };
@@ -152,7 +197,10 @@ export default async function AdsScreen({
     ga4CampaignTot.set(key, cur);
 
     if (r.media === "Yahoo" && r.campaignName) {
-      const yCur = ga4YahooByTrackingId.get(r.campaignName) ?? { conversions: 0, revenue: 0 };
+      const yCur = ga4YahooByTrackingId.get(r.campaignName) ?? {
+        conversions: 0,
+        revenue: 0,
+      };
       yCur.conversions += r.conversions;
       yCur.revenue += r.revenue;
       ga4YahooByTrackingId.set(r.campaignName, yCur);
@@ -192,8 +240,8 @@ export default async function AdsScreen({
       const g =
         m.media === "Yahoo" && m.trackingId
           ? ga4YahooByTrackingId.get(m.trackingId)
-          : ga4CampaignTot.get(`${m.media}|${m.campaignId}`) ??
-            ga4CampaignTot.get(`${m.media}|${m.campaignName}`);
+          : (ga4CampaignTot.get(`${m.media}|${m.campaignId}`) ??
+            ga4CampaignTot.get(`${m.media}|${m.campaignName}`));
       return {
         ...m,
         ga4Cv: g ? Math.round(g.conversions) : 0,
@@ -244,13 +292,20 @@ export default async function AdsScreen({
   const spend14 = series14.map((d) => d.cost);
   // CV / Revenue series switches per source so the sparkline matches the KPI.
   const cv14 = series14.map((d) =>
-    source === "ga4" ? ga4DailyTot.get(d.date)?.conversions ?? 0 : d.conversions
+    source === "ga4"
+      ? (ga4DailyTot.get(d.date)?.conversions ?? 0)
+      : d.conversions,
   );
   const rev14 = series14.map((d) =>
-    source === "ga4" ? ga4DailyTot.get(d.date)?.revenue ?? 0 : d.conversionValue
+    source === "ga4"
+      ? (ga4DailyTot.get(d.date)?.revenue ?? 0)
+      : d.conversionValue,
   );
   const roas14 = series14.map((d) => {
-    const rev = source === "ga4" ? ga4DailyTot.get(d.date)?.revenue ?? 0 : d.conversionValue;
+    const rev =
+      source === "ga4"
+        ? (ga4DailyTot.get(d.date)?.revenue ?? 0)
+        : d.conversionValue;
     return d.cost > 0 ? (rev / d.cost) * 100 : 0;
   });
 
@@ -264,8 +319,12 @@ export default async function AdsScreen({
       <MockBanner isMock={isMock || ga4AllIsMock || ga4CampaignsIsMock} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">Ads</div>
-          <h1 className="text-2xl font-semibold tracking-tight">広告サマリー · {rr.presetLabel}</h1>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">
+            Ads
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            広告サマリー · {rr.presetLabel}
+          </h1>
           <div className="mt-1 text-sm text-muted-foreground">
             {rr.current.start} 〜 {rr.current.end}
             {rr.previous && (
@@ -276,7 +335,9 @@ export default async function AdsScreen({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-xs text-muted-foreground">最終取得 {fetchedAtLabel}</div>
+          <div className="text-xs text-muted-foreground">
+            最終取得 {fetchedAtLabel}
+          </div>
           <PrintButton />
           <RefreshButton clientId={client.id} />
         </div>
@@ -288,7 +349,16 @@ export default async function AdsScreen({
           label="Spend"
           value={fmtJpy(curTotals.cost)}
           lowerIsBetter
-          comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(curTotals.cost, prevTotals.cost) }] : []}
+          comparisons={
+            rr.previous
+              ? [
+                  {
+                    label: rr.compareLabel,
+                    delta: pct(curTotals.cost, prevTotals.cost),
+                  },
+                ]
+              : []
+          }
           sparkline={spend14}
           sparkDates={dates14}
           sparkFormat="jpy"
@@ -296,15 +366,21 @@ export default async function AdsScreen({
         />
         <BigKpiCard
           label={source === "ga4" ? "GA4 CV" : "媒体CV"}
-          value={fmtInt(source === "ga4" ? curGa4.conversions : curTotals.conversions)}
+          value={fmtInt(
+            source === "ga4" ? curGa4.conversions : curTotals.conversions,
+          )}
           comparisons={
             rr.previous
               ? [
                   {
                     label: rr.compareLabel,
                     delta: pct(
-                      source === "ga4" ? curGa4.conversions : curTotals.conversions,
-                      source === "ga4" ? prevGa4.conversions : prevTotals.conversions
+                      source === "ga4"
+                        ? curGa4.conversions
+                        : curTotals.conversions,
+                      source === "ga4"
+                        ? prevGa4.conversions
+                        : prevTotals.conversions,
                     ),
                   },
                 ]
@@ -316,15 +392,21 @@ export default async function AdsScreen({
         />
         <BigKpiCard
           label={source === "ga4" ? "GA4 売上" : "媒体売上"}
-          value={fmtJpy(source === "ga4" ? curGa4.revenue : curTotals.conversionValue)}
+          value={fmtJpy(
+            source === "ga4" ? curGa4.revenue : curTotals.conversionValue,
+          )}
           comparisons={
             rr.previous
               ? [
                   {
                     label: rr.compareLabel,
                     delta: pct(
-                      source === "ga4" ? curGa4.revenue : curTotals.conversionValue,
-                      source === "ga4" ? prevGa4.revenue : prevTotals.conversionValue
+                      source === "ga4"
+                        ? curGa4.revenue
+                        : curTotals.conversionValue,
+                      source === "ga4"
+                        ? prevGa4.revenue
+                        : prevTotals.conversionValue,
                     ),
                   },
                 ]
@@ -338,7 +420,7 @@ export default async function AdsScreen({
           label={source === "ga4" ? "GA4 ROAS" : "媒体ROAS"}
           value={fmtRatioPct(
             source === "ga4" ? curGa4RoasPct : curTotals.roasPct,
-            0
+            0,
           )}
           comparisons={
             rr.previous
@@ -350,9 +432,10 @@ export default async function AdsScreen({
                         ? curGa4RoasPct != null && prevGa4RoasPct != null
                           ? pct(curGa4RoasPct, prevGa4RoasPct)
                           : null
-                        : curTotals.roasPct != null && prevTotals.roasPct != null
-                        ? pct(curTotals.roasPct, prevTotals.roasPct)
-                        : null,
+                        : curTotals.roasPct != null &&
+                            prevTotals.roasPct != null
+                          ? pct(curTotals.roasPct, prevTotals.roasPct)
+                          : null,
                   },
                 ]
               : []
@@ -368,7 +451,11 @@ export default async function AdsScreen({
           <h2 className="text-sm font-semibold">媒体別サマリ</h2>
           <SourceToggle />
         </div>
-        <MediaTable rows={mediaRows} targetRoasPct={tgt.roasPct} source={source} />
+        <MediaTable
+          rows={mediaRows}
+          targetRoasPct={tgt.roasPct}
+          source={source}
+        />
       </section>
 
       <section className="space-y-3">
@@ -376,7 +463,8 @@ export default async function AdsScreen({
           <div>
             <h2 className="text-sm font-semibold">媒体別キャンペーンサマリ</h2>
             <p className="text-xs text-muted-foreground">
-              媒体 × CPN 単位で横比較。ボタンで媒体を絞り込み。KPI は上部の {source === "ga4" ? "GA4" : "媒体"} ソース切替と連動
+              媒体 × CPN 単位で横比較。ボタンで媒体を絞り込み。KPI は上部の{" "}
+              {source === "ga4" ? "GA4" : "媒体"} ソース切替と連動
             </p>
           </div>
         </div>
@@ -389,13 +477,14 @@ export default async function AdsScreen({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">日次推移（Spend / 媒体CV / 媒体CPA）</CardTitle>
+          <CardTitle className="text-sm">
+            日次推移（Spend / 媒体CV / 媒体CPA）
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <DailyTrendChart data={series} />
         </CardContent>
       </Card>
-
     </div>
   );
 }

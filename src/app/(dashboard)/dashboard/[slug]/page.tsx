@@ -193,7 +193,7 @@ export default async function Overview({
   const source = readSource(sp);
   const client = await assertUserCanAccessClientBySlug(slug);
 
-  const { rows: adRows, fetchedAt, isMock } = await getDailyRows(client);
+  const { rows: adRows, fetchedAt, isMock } = await getDailyRows(client, sp);
   const [ga4Result, ga4DailyResult, eccube] = await Promise.all([
     getGa4MonthlyChannels(client),
     getGa4DailyChannels(client),
