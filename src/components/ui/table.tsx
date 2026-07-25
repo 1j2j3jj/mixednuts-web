@@ -51,6 +51,22 @@ const TableFooter = React.forwardRef<
 ));
 TableFooter.displayName = "TableFooter";
 
+/** Latent contrast trap in the `data-[state=selected]` variant below (noted
+ *  E-4 follow-up, 2026-07-25 — NOT a live bug today): that variant fills the
+ *  row with OPAQUE bg-muted, and no caller in src/components/dashboard or
+ *  src/app sets `data-state="selected"` on a TableRow, so the branch is
+ *  currently unreachable — this is inherited shadcn default styling, left in
+ *  place rather than deleted so row selection stays a drop-in later.
+ *
+ *  If selection IS ever wired up: any cell in the selected row still using
+ *  text-muted-foreground would land on exactly the 4.35:1 pairing that failed
+ *  AA twice in the Phase E pass — SegmentedControl's idle label and
+ *  MediaTable / MediaCampaignTable's unmapped-channel badge — both fixed by
+ *  moving the FOREGROUND to --control-idle-foreground (measured 5.04:1 on
+ *  this same surface, re-verified in-browser). Fix it the same way there;
+ *  don't lighten this background. The `hover:` variant is unaffected either
+ *  way: bg-muted/50 is translucent over white, so it resolves lighter than
+ *  the opaque token and therefore strictly higher-contrast. */
 const TableRow = React.forwardRef<
   HTMLTableRowElement,
   React.HTMLAttributes<HTMLTableRowElement>

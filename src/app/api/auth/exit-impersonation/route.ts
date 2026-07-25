@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies, headers } from "next/headers";
 import { IMPERSONATE_COOKIE_NAME } from "@/lib/impersonate-cookie";
 import { writeAuditLog } from "@/lib/audit";
+import { resolveAdminActor } from "@/lib/admin-actor";
 
 /**
  * GET /api/auth/exit-impersonation
@@ -14,10 +15,8 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
   try {
     const h = await headers();
     const impersonatedSlug = h.get("x-impersonated-slug");
-    const actorEmail = (process.env.ADMIN_EMAILS ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean)[0] ?? "admin@mixednuts-inc.com";
+    // F-4 (2026-07-25): real signed-in admin, not always ADMIN_EMAILS[0].
+    const { actorEmail } = await resolveAdminActor();
 
     if (impersonatedSlug) {
       await writeAuditLog({
@@ -36,5 +35,8 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
   const cookieStore = await cookies();
   cookieStore.delete(IMPERSONATE_COOKIE_NAME);
 
-  return NextResponse.redirect(new URL("/dashboard/admin", _req.nextUrl.origin), 302);
+  return NextResponse.redirect(
+    new URL("/dashboard/admin", _req.nextUrl.origin),
+    302,
+  );
 }

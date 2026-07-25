@@ -2,7 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createTenantInvites, revokeTenantInvite } from "./actions";
+import {
+  createTenantInvites,
+  revokeTenantInvite,
+  resendTenantInvite,
+} from "./actions";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -13,6 +17,61 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { TenantMember, PendingInvite } from "./actions";
+
+/**
+ * Honest email-send status label (F-2, 2026-07-25). Prior copy said
+ * "✉ 送信済み" (sent) for ANY 2xx from Resend's API — which only means
+ * the send REQUEST was accepted, not that the message reached an inbox.
+ * This app has no bounce/delivery webhook wired yet, so 'delivered' and
+ * 'bounced' are shown here for forward-compatibility but never actually
+ * produced by current code (see email.ts, schema.ts invitation table).
+ */
+function emailStatusLabel(inv: PendingInvite): React.ReactNode {
+  const when = inv.emailLastAttemptAt
+    ? new Date(inv.emailLastAttemptAt).toLocaleString("ja-JP", {
+        month: "numeric",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+  const withWhen = (label: string) => (
+    <>
+      {label}
+      {when && <span className="font-normal text-neutral-400"> {when}</span>}
+    </>
+  );
+  switch (inv.emailStatus) {
+    case "delivered":
+      return (
+        <span className="font-medium text-emerald-700">
+          {withWhen("✓ 配信済み")}
+        </span>
+      );
+    case "accepted":
+      // Deliberately NOT "送信済み" — we only know Resend's API accepted
+      // the request, not that it reached the inbox.
+      return (
+        <span className="font-medium text-emerald-600">
+          {withWhen("送信リクエスト受理")}
+        </span>
+      );
+    case "bounced":
+      return (
+        <span className="font-medium text-rose-600">
+          {withWhen("⚠ 配信失敗（bounce）")}
+        </span>
+      );
+    case "failed":
+      return <span className="text-rose-600">{withWhen("送信失敗")}</span>;
+    case "not_configured":
+      return (
+        <span className="text-amber-600">リンク発行のみ（メール未設定）</span>
+      );
+    default:
+      return <span className="text-neutral-400">—</span>;
+  }
+}
 
 interface Props {
   slug: string;
@@ -59,17 +118,22 @@ export default function MembersClient({
   const [isPending, startTransition] = useTransition();
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [revokeError, setRevokeError] = useState<string | null>(null);
+  const [resendError, setResendError] = useState<string | null>(null);
   // 発行直後の控えめな成功トースト（自動で消える）。冗長な結果パネルは廃止し、
   // 承認待ち一覧を唯一の一覧ソースにした（CEO 指摘: 一時パネルの二重表示解消）。
   const [toast, setToast] = useState<string | null>(null);
   // スキップ/失敗の理由だけは一覧に載らないためインラインで簡潔に表示する。
   const [issues, setIssues] = useState<{ email: string; reason: string }[]>([]);
-  // 送信状況の永続化（sentAt 列追加）は deferred。当面はこのセッション中に
-  // 発行したメールと送信可否・時刻をクライアント側に保持し、承認待ち一覧の
-  // 「送信状況」列に ✉送信済み(日時) を出す。リロードで消えるのは許容。
-  const [sentInfo, setSentInfo] = useState<
-    Record<string, { sent: boolean; at: number }>
-  >({});
+  // F-2 (2026-07-25): 送信状況は invitation テーブルに永続化されるため
+  // （emailStatus/emailAttemptCount/emailLastAttemptAt — pendingInvites 経由で
+  // サーバから届く）、以前あったクライアント state ミラー（リロードで消える）は
+  // 廃止した。ここに残すのは「新規発行 / 再送直後、一時的にしか手に入らない生
+  // トークン付きリンク」だけ — F-3 のハッシュ化トークンは DB からは再構成できな
+  // いため、レスポンスで一度だけ受け取ったリンクを invitationId キーで保持する。
+  const [revealedLinks, setRevealedLinks] = useState<Record<string, string>>(
+    {},
+  );
+  const [isResending, setIsResending] = useState<string | null>(null);
 
   const totalMembers = members.length;
   const totalEditors = members.filter(
@@ -129,13 +193,18 @@ export default function MembersClient({
       setIssues(
         failed.map((i) => ({ email: i.email, reason: i.error ?? "失敗" })),
       );
-      // このセッションでの送信状況を記録（承認待ち一覧の「送信状況」列に反映）。
       if (created.length > 0) {
-        const now = Date.now();
-        setSentInfo((prev) => {
+        // F-3: a hashed invite's raw token only ever exists in THIS
+        // response — capture the link here (keyed by email) so it stays
+        // copyable until the next full reload, even after router.refresh()
+        // re-fetches pendingInvites (whose `link` field will be null for
+        // these hashed rows). Email-send status itself no longer needs
+        // client state — it's persisted server-side (F-2) and arrives via
+        // pendingInvites on the next render.
+        setRevealedLinks((prev) => {
           const next = { ...prev };
           for (const i of created) {
-            next[i.email.toLowerCase()] = { sent: !!i.emailSent, at: now };
+            if (i.link) next[i.email.toLowerCase()] = i.link;
           }
           return next;
         });
@@ -158,6 +227,33 @@ export default function MembersClient({
       const res = await revokeTenantInvite(slug, invitationId);
       if (!res.ok) setRevokeError(res.error ?? "取消に失敗しました");
       else router.refresh();
+    });
+  }
+
+  /**
+   * F-3: re-send revokes the old (now-unreachable) invitation and issues
+   * a brand-new one — not a re-transmission of the old link, which we
+   * couldn't reconstruct anyway (only its hash is stored).
+   */
+  function handleResend(invitationId: string, email: string) {
+    setResendError(null);
+    setIsResending(invitationId);
+    startTransition(async () => {
+      const res = await resendTenantInvite(slug, invitationId);
+      setIsResending(null);
+      if (!res.ok) {
+        setResendError(res.error ?? "再送に失敗しました");
+        return;
+      }
+      if (res.link) {
+        setRevealedLinks((prev) => ({
+          ...prev,
+          [email.toLowerCase()]: res.link!,
+        }));
+      }
+      setToast("招待を再送しました（以前のリンクは無効になりました）");
+      setTimeout(() => setToast(null), 4000);
+      router.refresh();
     });
   }
 
@@ -270,6 +366,11 @@ export default function MembersClient({
               {revokeError}
             </p>
           )}
+          {resendError && (
+            <p role="alert" className="mb-2 text-sm text-rose-700">
+              {resendError}
+            </p>
+          )}
           <div className="rounded-card border border-neutral-200 bg-white">
             <Table>
               <TableHeader>
@@ -288,7 +389,11 @@ export default function MembersClient({
               </TableHeader>
               <TableBody>
                 {pendingInvites.map((inv) => {
-                  const sent = sentInfo[inv.email.toLowerCase()];
+                  // F-3: link is server-persisted only for legacy
+                  // (pre-hash) rows; for a hashed row it's null unless
+                  // we JUST created or resent it this session (revealedLinks).
+                  const link =
+                    inv.link ?? revealedLinks[inv.email.toLowerCase()] ?? null;
                   return (
                     <TableRow key={inv.id}>
                       <TableCell className="font-medium">{inv.email}</TableCell>
@@ -298,41 +403,35 @@ export default function MembersClient({
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs">
-                        {sent ? (
-                          sent.sent ? (
-                            <span className="font-medium text-emerald-600">
-                              ✉ 送信済み{" "}
-                              <span className="font-normal text-neutral-400">
-                                {new Date(sent.at).toLocaleString("ja-JP", {
-                                  month: "numeric",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </span>
-                            </span>
-                          ) : (
-                            <span className="text-amber-600">
-                              リンク発行のみ
-                            </span>
-                          )
-                        ) : (
-                          <span className="text-neutral-400">—</span>
-                        )}
+                        {emailStatusLabel(inv)}
                       </TableCell>
                       <TableCell className="text-xs text-neutral-500">
                         {new Date(inv.expiresAt).toLocaleDateString("ja-JP")}
                       </TableCell>
                       <TableCell>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(inv.link)}
-                          className="rounded-md bg-neutral-100 px-2 py-1 text-xs font-mono text-neutral-700 hover:bg-neutral-200"
-                        >
-                          {copiedLink === inv.link
-                            ? "コピーしました！"
-                            : "リンクをコピー"}
-                        </button>
+                        {link ? (
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(link)}
+                            className="rounded-md bg-neutral-100 px-2 py-1 text-xs font-mono text-neutral-700 hover:bg-neutral-200"
+                          >
+                            {copiedLink === link
+                              ? "コピーしました！"
+                              : "リンクをコピー"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={isResending === inv.id}
+                            onClick={() => handleResend(inv.id, inv.email)}
+                            className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50 disabled:opacity-60"
+                            title="このリンクは再表示できません（セキュリティ上、トークンはハッシュのみ保存）。再送すると新しいリンクが発行されます"
+                          >
+                            {isResending === inv.id
+                              ? "再送中…"
+                              : "再送してリンクを表示"}
+                          </button>
+                        )}
                       </TableCell>
                       {canInvite && (
                         <TableCell>

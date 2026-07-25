@@ -7,6 +7,7 @@ import { db } from "@/db/client";
 import { organization as organizationTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { writeAuditLog } from "@/lib/audit";
+import { resolveAdminActor } from "@/lib/admin-actor";
 
 /**
  * Server actions for the admin panel. All actions re-check the viewer
@@ -50,10 +51,16 @@ export interface ClientHealth {
   results: HealthResult[];
 }
 
-async function checkSheet(sheetId: string | undefined, range: string | undefined, label: string): Promise<HealthResult> {
-  if (!sheetId || !range) return { source: label, status: "skipped", detail: "未設定" };
+async function checkSheet(
+  sheetId: string | undefined,
+  range: string | undefined,
+  label: string,
+): Promise<HealthResult> {
+  if (!sheetId || !range)
+    return { source: label, status: "skipped", detail: "未設定" };
   const creds = loadSa();
-  if (!creds) return { source: label, status: "fail", detail: "SA 認証情報なし" };
+  if (!creds)
+    return { source: label, status: "fail", detail: "SA 認証情報なし" };
   const start = Date.now();
   try {
     const auth = new google.auth.GoogleAuth({
@@ -66,21 +73,31 @@ async function checkSheet(sheetId: string | undefined, range: string | undefined
       range: range.replace(/!.*$/, "!A1:A2"),
     });
     const rows = res.data.values?.length ?? 0;
-    return { source: label, status: "ok", detail: `${rows} 行読込`, latencyMs: Date.now() - start };
+    return {
+      source: label,
+      status: "ok",
+      detail: `${rows} 行読込`,
+      latencyMs: Date.now() - start,
+    };
   } catch (e) {
     return {
       source: label,
       status: "fail",
-      detail: e instanceof Error ? e.message.slice(0, 120) : String(e).slice(0, 120),
+      detail:
+        e instanceof Error ? e.message.slice(0, 120) : String(e).slice(0, 120),
       latencyMs: Date.now() - start,
     };
   }
 }
 
-async function checkGa4(propertyId: string | null | undefined): Promise<HealthResult> {
-  if (!propertyId) return { source: "GA4", status: "skipped", detail: "未設定" };
+async function checkGa4(
+  propertyId: string | null | undefined,
+): Promise<HealthResult> {
+  if (!propertyId)
+    return { source: "GA4", status: "skipped", detail: "未設定" };
   const creds = loadSa();
-  if (!creds) return { source: "GA4", status: "fail", detail: "SA 認証情報なし" };
+  if (!creds)
+    return { source: "GA4", status: "fail", detail: "SA 認証情報なし" };
   const start = Date.now();
   try {
     const auth = new google.auth.GoogleAuth({
@@ -96,21 +113,30 @@ async function checkGa4(propertyId: string | null | undefined): Promise<HealthRe
       },
     });
     const v = res.data.rows?.[0]?.metricValues?.[0]?.value ?? "0";
-    return { source: "GA4", status: "ok", detail: `sessions=${v}/7d`, latencyMs: Date.now() - start };
+    return {
+      source: "GA4",
+      status: "ok",
+      detail: `sessions=${v}/7d`,
+      latencyMs: Date.now() - start,
+    };
   } catch (e) {
     return {
       source: "GA4",
       status: "fail",
-      detail: e instanceof Error ? e.message.slice(0, 120) : String(e).slice(0, 120),
+      detail:
+        e instanceof Error ? e.message.slice(0, 120) : String(e).slice(0, 120),
       latencyMs: Date.now() - start,
     };
   }
 }
 
-async function checkGsc(siteUrl: string | null | undefined): Promise<HealthResult> {
+async function checkGsc(
+  siteUrl: string | null | undefined,
+): Promise<HealthResult> {
   if (!siteUrl) return { source: "GSC", status: "skipped", detail: "未設定" };
   const creds = loadSa();
-  if (!creds) return { source: "GSC", status: "fail", detail: "SA 認証情報なし" };
+  if (!creds)
+    return { source: "GSC", status: "fail", detail: "SA 認証情報なし" };
   const start = Date.now();
   try {
     const auth = new google.auth.GoogleAuth({
@@ -132,12 +158,18 @@ async function checkGsc(siteUrl: string | null | undefined): Promise<HealthResul
       },
     });
     const days = res.data.rows?.length ?? 0;
-    return { source: "GSC", status: "ok", detail: `${days} 日データあり`, latencyMs: Date.now() - start };
+    return {
+      source: "GSC",
+      status: "ok",
+      detail: `${days} 日データあり`,
+      latencyMs: Date.now() - start,
+    };
   } catch (e) {
     return {
       source: "GSC",
       status: "fail",
-      detail: e instanceof Error ? e.message.slice(0, 120) : String(e).slice(0, 120),
+      detail:
+        e instanceof Error ? e.message.slice(0, 120) : String(e).slice(0, 120),
       latencyMs: Date.now() - start,
     };
   }
@@ -148,7 +180,9 @@ async function checkGsc(siteUrl: string | null | undefined): Promise<HealthResul
  * sources. Returned in parallel — the caller renders whichever checks
  * complete first.
  */
-export async function runClientHealthCheck(clientId: ClientId): Promise<ClientHealth> {
+export async function runClientHealthCheck(
+  clientId: ClientId,
+): Promise<ClientHealth> {
   await assertAdmin();
   const c = CLIENTS[clientId];
   const ds = c.dataSource;
@@ -201,7 +235,9 @@ export async function listEnvStatus(): Promise<EnvStatus[]> {
   };
   const row = (key: string, target: EnvStatus["target"]): EnvStatus => {
     const v = process.env[key];
-    return v ? { key, set: true, preview: fingerprint(v), target } : { key, set: false, target };
+    return v
+      ? { key, set: true, preview: fingerprint(v), target }
+      : { key, set: false, target };
   };
 
   const result: EnvStatus[] = [
@@ -273,7 +309,10 @@ export async function listClientAccess(): Promise<ClientAccess[]> {
       const sep = authRaw.indexOf(":");
       const user = sep >= 0 ? authRaw.slice(0, sep) : authRaw;
       const pass = sep >= 0 ? authRaw.slice(sep + 1) : "";
-      const preview = pass.length <= 4 ? "•".repeat(pass.length) : `${pass.slice(0, 2)}${"•".repeat(pass.length - 4)}${pass.slice(-2)}`;
+      const preview =
+        pass.length <= 4
+          ? "•".repeat(pass.length)
+          : `${pass.slice(0, 2)}${"•".repeat(pass.length - 4)}${pass.slice(-2)}`;
       entries.push({ kind: "client-credential", label: user, preview });
     }
     out.push({
@@ -301,7 +340,8 @@ export async function generateClientPassword(): Promise<string> {
   crypto.getRandomValues(bytes);
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"; // no 0/O/I/l
   let out = "";
-  for (let i = 0; i < bytes.length; i++) out += alphabet[bytes[i] % alphabet.length];
+  for (let i = 0; i < bytes.length; i++)
+    out += alphabet[bytes[i] % alphabet.length];
   return out;
 }
 
@@ -346,15 +386,12 @@ export interface QuotaUpdateResult {
 export async function updateOrgQuota(
   clientSlug: string,
   maxMembers: number | null,
-  maxAdmins: number | null
+  maxAdmins: number | null,
 ): Promise<QuotaUpdateResult> {
   await assertAdmin();
 
-  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const actorEmail = adminEmails[0] ?? "admin@mixednuts-inc.com";
+  // F-4 (2026-07-25): real signed-in admin, not always ADMIN_EMAILS[0].
+  const { actorEmail } = await resolveAdminActor();
 
   const rows = await db
     .select({ id: organizationTable.id })
@@ -362,7 +399,11 @@ export async function updateOrgQuota(
     .where(eq(organizationTable.slug, clientSlug));
 
   if (!rows.length) {
-    return { ok: false, error: "Organization がまだ作成されていません。先に招待を発行してください。" };
+    return {
+      ok: false,
+      error:
+        "Organization がまだ作成されていません。先に招待を発行してください。",
+    };
   }
 
   const orgId = rows[0].id;

@@ -141,6 +141,51 @@ export const invitation = pgTable("invitation", {
   inviterId: text("inviter_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
+
+  // ---- Phase F hardening (2026-07-25) -------------------------------
+  // Requires drizzle/0003_phase_f_invitation_hardening.sql — NOT YET RUN,
+  // pending CEO approval. Until it runs, these columns don't exist in the
+  // live DB.
+  //
+  // CORRECTION (2026-07-25, post-audit fix): this comment used to claim
+  // "app code treats them as optional/nullable and degrades to
+  // pre-migration behaviour" as a blanket statement. That was only true
+  // for the id-only fallback READ branch in accept-invitation/route.ts —
+  // every SELECT/INSERT/UPDATE elsewhere referenced these columns
+  // unconditionally and would 42703 pre-migration (a bare `.select()` on
+  // this table lists every configured column; `.insert().values()` lists
+  // every configured column too, DEFAULT-filling anything the caller's
+  // object omitted). Fixed by routing every read/write that touches a
+  // Phase F column through src/db/phase-f-columns.ts, which is now the
+  // actual, verified (see phase-f-columns.test.ts) source of the
+  // graceful-degradation behaviour this comment describes. See that
+  // file's module doc comment for the mechanism, and invite-token.ts /
+  // accept-invitation route.ts for the id-only fallback semantics once a
+  // row's tokenHash is (still correctly) null or absent.
+
+  // F-3: SHA-256 hash of the bearer secret embedded in the accept URL.
+  // `id` above stays a non-secret primary key; the actual "password" for
+  // the invite is a separate raw token, generated at creation time, never
+  // persisted, and compared here by hash. Null = pre-migration row
+  // (falls back to id-only matching — see invite-token.ts).
+  tokenHash: text("token_hash"),
+  // F-3: explicit revocation timestamp, distinct from status='cancelled'
+  // (which already blocks reuse) — this records *when*, for audit/debug.
+  revokedAt: timestamp("revoked_at"),
+
+  // F-2: honest email-delivery state. We only ever learn "Resend accepted
+  // the API call" today (no bounce/delivered webhook wired) — so
+  // emailStatus is constrained to what we can actually assert; 'delivered'
+  // and 'bounced' are reserved column values for when a Resend webhook is
+  // added (deferred, documented in the Phase F report) and are never
+  // written by current code.
+  emailStatus: text("email_status"), // 'accepted' | 'failed' | 'not_configured' | 'delivered' | 'bounced' (last two reserved, unused today)
+  emailProviderMessageId: text("email_provider_message_id"),
+  emailAttemptCount: integer("email_attempt_count").notNull().default(0),
+  emailLastAttemptAt: timestamp("email_last_attempt_at"),
+  // Sanitized failure reason only (e.g. "status:429", "fetch_failed") —
+  // never an API key or full URL. See email.ts: SendInvitationEmailResult.
+  emailLastError: text("email_last_error"),
 });
 
 // ----- Client credentials (Basic Auth, DB-backed, 2026-04-28) ----------------
@@ -189,6 +234,22 @@ export const auditLog = pgTable("audit_log", {
   action: text("action").notNull(),
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+
+  // F-4 (2026-07-25): requires drizzle/0003_phase_f_invitation_hardening.sql
+  // (NOT YET RUN). Previously an action's audit row couldn't be
+  // distinguished as "done while impersonating client X" vs "done as
+  // direct admin" — the only signal was targetOrgSlug happening to equal
+  // the impersonated slug, which is indistinguishable from a direct
+  // action against the same org. Set from the x-impersonated-slug header
+  // (already forwarded by middleware) whenever a write happens during an
+  // active mn_impersonate session; null otherwise.
+  //
+  // Every audit_log write goes through insertAuditLogRow
+  // (src/db/phase-f-columns.ts), which drops this column pre-migration
+  // instead of referencing it unconditionally — see that file's module
+  // doc comment for why a plain conditional `.values()` spread does not
+  // achieve this on its own.
+  impersonatedOrgSlug: text("impersonated_org_slug"),
 });
 
 // Re-export the full schema as `schema` so the Better Auth Drizzle

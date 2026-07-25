@@ -8,34 +8,27 @@ import {
   type CampaignMasterRow,
 } from "@/lib/masters";
 import { CLIENT_IDS } from "@/config/clients";
+import { escapeCsvCell } from "./csv-guard";
 
 /**
  * Minimal CSV parser/serializer for master uploads.
  * - Quotes fields containing commas, quotes, or newlines
  * - Doubles internal quotes per RFC 4180
+ * - Guards against formula injection (F-1, 2026-07-25) — see csv-guard.ts
  * - Empty cells → null (caller decides validity)
  *
  * No external dependency: keeps the master surface small.
  */
 
-function escapeCsvField(v: unknown): string {
-  if (v == null) return "";
-  const s = String(v);
-  if (/[",\n\r]/.test(s)) {
-    return `"${s.replace(/"/g, '""')}"`;
-  }
-  return s;
-}
-
 export function rowsToCsv<T extends object>(
   columns: ReadonlyArray<keyof T>,
   rows: T[],
 ): string {
-  const header = columns.map((c) => escapeCsvField(String(c))).join(",");
+  const header = columns.map((c) => escapeCsvCell(String(c))).join(",");
   const body = rows
     .map((r) =>
       columns
-        .map((c) => escapeCsvField((r as Record<string, unknown>)[c as string]))
+        .map((c) => escapeCsvCell((r as Record<string, unknown>)[c as string]))
         .join(","),
     )
     .join("\n");
@@ -54,16 +47,44 @@ export function parseCsv(text: string): string[][] {
     const ch = text[i];
     if (inQuotes) {
       if (ch === '"') {
-        if (text[i + 1] === '"') { field += '"'; i += 2; continue; }
-        inQuotes = false; i++; continue;
+        if (text[i + 1] === '"') {
+          field += '"';
+          i += 2;
+          continue;
+        }
+        inQuotes = false;
+        i++;
+        continue;
       }
-      field += ch; i++; continue;
+      field += ch;
+      i++;
+      continue;
     }
-    if (ch === '"') { inQuotes = true; i++; continue; }
-    if (ch === ",") { cur.push(field); field = ""; i++; continue; }
-    if (ch === "\r") { i++; continue; }
-    if (ch === "\n") { cur.push(field); out.push(cur); cur = []; field = ""; i++; continue; }
-    field += ch; i++;
+    if (ch === '"') {
+      inQuotes = true;
+      i++;
+      continue;
+    }
+    if (ch === ",") {
+      cur.push(field);
+      field = "";
+      i++;
+      continue;
+    }
+    if (ch === "\r") {
+      i++;
+      continue;
+    }
+    if (ch === "\n") {
+      cur.push(field);
+      out.push(cur);
+      cur = [];
+      field = "";
+      i++;
+      continue;
+    }
+    field += ch;
+    i++;
   }
   if (field.length > 0 || cur.length > 0) {
     cur.push(field);
@@ -82,7 +103,11 @@ function emptyToNull(v: string | undefined): string | null {
   return t === "" ? null : t;
 }
 
-function num(v: string | undefined, label: string, lineNo: number): number | null {
+function num(
+  v: string | undefined,
+  label: string,
+  lineNo: number,
+): number | null {
   const t = v?.trim() ?? "";
   if (t === "") return null;
   const n = Number(t.replace(/,/g, ""));
@@ -92,19 +117,31 @@ function num(v: string | undefined, label: string, lineNo: number): number | nul
   return n;
 }
 
-function intRequired(v: string | undefined, label: string, lineNo: number): number {
+function intRequired(
+  v: string | undefined,
+  label: string,
+  lineNo: number,
+): number {
   const n = num(v, label, lineNo);
   if (n == null) throw new Error(`line ${lineNo}: ${label} is required`);
   return Math.round(n);
 }
 
-function strRequired(v: string | undefined, label: string, lineNo: number): string {
+function strRequired(
+  v: string | undefined,
+  label: string,
+  lineNo: number,
+): string {
   const t = v?.trim() ?? "";
   if (t === "") throw new Error(`line ${lineNo}: ${label} is required`);
   return t;
 }
 
-function dateRequired(v: string | undefined, label: string, lineNo: number): string {
+function dateRequired(
+  v: string | undefined,
+  label: string,
+  lineNo: number,
+): string {
   const t = v?.trim() ?? "";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) {
     throw new Error(`line ${lineNo}: ${label} must be yyyy-mm-dd, got "${v}"`);
@@ -112,11 +149,17 @@ function dateRequired(v: string | undefined, label: string, lineNo: number): str
   return t;
 }
 
-function dateOptional(v: string | undefined, label: string, lineNo: number): string | null {
+function dateOptional(
+  v: string | undefined,
+  label: string,
+  lineNo: number,
+): string | null {
   const t = v?.trim() ?? "";
   if (t === "") return null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) {
-    throw new Error(`line ${lineNo}: ${label} must be yyyy-mm-dd or empty, got "${v}"`);
+    throw new Error(
+      `line ${lineNo}: ${label} must be yyyy-mm-dd or empty, got "${v}"`,
+    );
   }
   return t;
 }
@@ -297,7 +340,11 @@ export function parseExternalCvCsv(text: string): ExternalCvRow[] {
   const rows = parseCsv(text);
   if (rows.length === 0) return [];
   const header = rows[0].map((c) => c.trim());
-  validateHeader(header, EXTERNAL_CV_COLUMNS as readonly string[], "external_cv");
+  validateHeader(
+    header,
+    EXTERNAL_CV_COLUMNS as readonly string[],
+    "external_cv",
+  );
   const idx = (col: string) => header.indexOf(col);
   return rows.slice(1).map((r, i) => {
     const lineNo = i + 2;
@@ -307,7 +354,11 @@ export function parseExternalCvCsv(text: string): ExternalCvRow[] {
       media: emptyToNull(r[idx("media")]),
       campaign_id: emptyToNull(r[idx("campaign_id")]),
       conversions: intRequired(r[idx("conversions")], "conversions", lineNo),
-      conversions_value: num(r[idx("conversions_value")], "conversions_value", lineNo),
+      conversions_value: num(
+        r[idx("conversions_value")],
+        "conversions_value",
+        lineNo,
+      ),
       notes: emptyToNull(r[idx("notes")]),
     };
   });
@@ -321,7 +372,11 @@ export function parseCampaignMasterCsv(text: string): CampaignMasterRow[] {
   const rows = parseCsv(text);
   if (rows.length === 0) return [];
   const header = rows[0].map((c) => c.trim());
-  validateHeader(header, CAMPAIGN_MASTER_COLUMNS as readonly string[], "campaign_master");
+  validateHeader(
+    header,
+    CAMPAIGN_MASTER_COLUMNS as readonly string[],
+    "campaign_master",
+  );
   const idx = (col: string) => header.indexOf(col);
   return rows.slice(1).map((r, i) => {
     const lineNo = i + 2;
@@ -371,12 +426,16 @@ function validateHeaderExact(
   return null;
 }
 
-function validateHeader(actual: string[], expected: readonly string[], label: string) {
+function validateHeader(
+  actual: string[],
+  expected: readonly string[],
+  label: string,
+) {
   const missing = expected.filter((c) => !actual.includes(c));
   if (missing.length > 0) {
     throw new Error(
       `${label} CSV is missing columns: ${missing.join(", ")}. ` +
-      `Expected: ${expected.join(", ")}. Got: ${actual.join(", ")}`,
+        `Expected: ${expected.join(", ")}. Got: ${actual.join(", ")}`,
     );
   }
 }

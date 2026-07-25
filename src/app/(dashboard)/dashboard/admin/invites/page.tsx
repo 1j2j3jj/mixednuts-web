@@ -3,10 +3,25 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { CLIENTS, CLIENT_IDS } from "@/config/clients";
-import InviteForm, { RevokeButton, CopyLinkButton } from "./InviteForm";
-import { listOrganisations, listPendingInvites, type OrgSummary } from "./actions";
+import InviteForm, {
+  RevokeButton,
+  CopyLinkButton,
+  ReissueLinkButton,
+} from "./InviteForm";
+import {
+  listOrganisations,
+  listPendingInvites,
+  type OrgSummary,
+} from "./actions";
 
 /**
  * Better Auth Organization invitation panel — admin only.
@@ -23,15 +38,20 @@ export default async function InvitesPage() {
   const h = await headers();
   if (h.get("x-viewer-kind") !== "admin") notFound();
 
-  const [orgs, pending] = await Promise.all([listOrganisations(), listPendingInvites()]);
+  const [orgs, pending] = await Promise.all([
+    listOrganisations(),
+    listPendingInvites(),
+  ]);
 
   const orgBySlug = new Map<string, OrgSummary>();
   for (const o of orgs) orgBySlug.set(o.slug, o);
 
-  const clientOptions = CLIENT_IDS.filter((id) => CLIENTS[id].active).map((id) => ({
-    id,
-    label: CLIENTS[id].label,
-  }));
+  const clientOptions = CLIENT_IDS.filter((id) => CLIENTS[id].active).map(
+    (id) => ({
+      id,
+      label: CLIENTS[id].label,
+    }),
+  );
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6">
@@ -41,18 +61,21 @@ export default async function InvitesPage() {
             ← Admin Panel
           </Link>
         </div>
-        <h1 className="mt-1 text-xl font-semibold tracking-tight text-neutral-900">招待管理</h1>
+        <h1 className="mt-1 text-xl font-semibold tracking-tight text-neutral-900">
+          招待管理
+        </h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Better Auth の Organization 招待フローでクライアント担当者にダッシュボードのアクセス権を発行します。
-          発行直後はリンクが画面に表示されるので、Slack / メールで送付してください
-          （メール自動送信は今後実装予定）。
+          Better Auth の Organization
+          招待フローでクライアント担当者にダッシュボードのアクセス権を発行します。
+          発行直後はリンクが画面に表示されるので、Slack /
+          メールで送付してください （メール自動送信は今後実装予定）。
         </p>
         <div className="mt-2 text-xs text-neutral-500">
           クライアント別の招待は{" "}
           <Link href="/dashboard/admin/clients" className="underline">
             クライアント設定
-          </Link>
-          {" "}の「アクセス管理」タブからも発行できます。
+          </Link>{" "}
+          の「アクセス管理」タブからも発行できます。
         </div>
       </header>
 
@@ -88,12 +111,22 @@ export default async function InvitesPage() {
                 return (
                   <TableRow key={id}>
                     <TableCell>
-                      <div className="font-medium text-neutral-900">{cfg.label}</div>
-                      <div className="text-xs text-neutral-500">{cfg.subtitle}</div>
+                      <div className="font-medium text-neutral-900">
+                        {cfg.label}
+                      </div>
+                      <div className="text-xs text-neutral-500">
+                        {cfg.subtitle}
+                      </div>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">{cfg.slug}</TableCell>
-                    <TableCell className="text-right">{o?.memberCount ?? 0}</TableCell>
-                    <TableCell className="text-right">{o?.pendingInviteCount ?? 0}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {cfg.slug}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {o?.memberCount ?? 0}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {o?.pendingInviteCount ?? 0}
+                    </TableCell>
                     <TableCell className="text-right">
                       {!cfg.active ? (
                         <Badge variant="secondary">未稼働</Badge>
@@ -117,18 +150,23 @@ export default async function InvitesPage() {
             </TableBody>
           </Table>
           <p className="mt-2 text-xs text-neutral-500">
-            ※「未作成」の状態でも、上のフォームから招待を発行すれば自動的に Organization が作成されます。
+            ※「未作成」の状態でも、上のフォームから招待を発行すれば自動的に
+            Organization が作成されます。
           </p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">承認待ち招待 ({pending.length})</CardTitle>
+          <CardTitle className="text-sm">
+            承認待ち招待 ({pending.length})
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {pending.length === 0 ? (
-            <p className="text-xs text-neutral-500">承認待ちの招待はありません。</p>
+            <p className="text-xs text-neutral-500">
+              承認待ちの招待はありません。
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -144,17 +182,26 @@ export default async function InvitesPage() {
                 {pending.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.email}</TableCell>
-                    <TableCell>{p.role === "member" ? "閲覧者" : "編集者"}</TableCell>
+                    <TableCell>
+                      {p.role === "member" ? "閲覧者" : "編集者"}
+                    </TableCell>
                     <TableCell className="text-xs text-neutral-500">
                       {p.expiresAt.toLocaleDateString("ja-JP")}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <code className="block max-w-xs truncate rounded-md bg-neutral-50 px-2 py-1 text-xs text-neutral-700">
-                          {p.link}
-                        </code>
-                        <CopyLinkButton link={p.link} />
-                      </div>
+                      {p.link ? (
+                        <div className="flex items-center gap-2">
+                          <code className="block max-w-xs truncate rounded-md bg-neutral-50 px-2 py-1 text-xs text-neutral-700">
+                            {p.link}
+                          </code>
+                          <CopyLinkButton link={p.link} />
+                        </div>
+                      ) : (
+                        // F-3: hashed invites' raw token isn't stored, so
+                        // the link can't be redisplayed — re-issue a
+                        // fresh one (this also revokes the old one).
+                        <ReissueLinkButton id={p.id} />
+                      )}
                     </TableCell>
                     <TableCell>
                       <RevokeButton id={p.id} />
