@@ -58,8 +58,22 @@ export default async function AuditLogPage() {
   const h = await headers();
   if (h.get("x-viewer-kind") !== "admin") notFound();
 
+  // Explicit projection of only the base columns rendered below — a bare
+  // `.select()` would reference every column configured on `auditLog`,
+  // including impersonatedOrgSlug (added by
+  // drizzle/0003_phase_f_invitation_hardening.sql, NOT YET RUN) and 42703
+  // pre-migration. This page doesn't surface impersonatedOrgSlug today, so
+  // no migration-state branching is needed here — see
+  // src/db/phase-f-columns.ts for the call sites that do need it.
   const rows = await db
-    .select()
+    .select({
+      id: auditLog.id,
+      createdAt: auditLog.createdAt,
+      action: auditLog.action,
+      targetOrgSlug: auditLog.targetOrgSlug,
+      actorEmail: auditLog.actorEmail,
+      metadata: auditLog.metadata,
+    })
     .from(auditLog)
     .orderBy(desc(auditLog.createdAt))
     .limit(200);
@@ -69,7 +83,10 @@ export default async function AuditLogPage() {
       {/* Header */}
       <div>
         <div className="text-xs uppercase tracking-wider text-muted-foreground">
-          <Link href="/dashboard/admin" className="underline hover:text-foreground">
+          <Link
+            href="/dashboard/admin"
+            className="underline hover:text-foreground"
+          >
             Admin
           </Link>
           {" / "}監査ログ
@@ -152,7 +169,8 @@ export default async function AuditLogPage() {
       </div>
 
       <p className="text-xs text-neutral-400">
-        最新 200 件を表示。全履歴は Neon DB の audit_log テーブルで参照できます。
+        最新 200 件を表示。全履歴は Neon DB の audit_log
+        テーブルで参照できます。
       </p>
     </div>
   );

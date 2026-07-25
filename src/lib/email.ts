@@ -29,9 +29,25 @@ export interface SendInvitationEmailArgs {
 }
 
 export interface SendInvitationEmailResult {
+  /**
+   * True only when Resend's API accepted the send request (2xx). This is
+   * NOT proof of delivery — see the F-2 note below and
+   * invitation.emailStatus in schema.ts. Kept for backward compatibility
+   * with existing UI code; prefer reading `status` for new code.
+   */
   sent: boolean;
-  /** 送信しなかった / 失敗した理由（no_api_key / fetch_failed / status:xxx 等）。 */
+  /**
+   * Honest status label (F-2, 2026-07-25). 'accepted' means Resend's API
+   * accepted the request — nothing more. This app has no bounce/delivery
+   * webhook wired yet, so 'delivered'/'bounced' are never produced here;
+   * they exist as a forward-compatible target for when that webhook is
+   * added (deferred — see the Phase F report).
+   */
+  status: "accepted" | "failed" | "not_configured";
+  /** 送信しなかった / 失敗した理由（no_api_key / fetch_failed / status:xxx 等）。API キーや URL は含まない。 */
   reason?: string;
+  /** Resend's message id for the accepted request, when available. Lets us later correlate a webhook delivery/bounce event back to this invitation. */
+  providerMessageId?: string;
 }
 
 /** HTML 差し込みの最低限のエスケープ（clientLabel 等は安全な文字だが二重ガード）。 */
@@ -45,12 +61,12 @@ function escapeHtml(value: string): string {
 }
 
 export async function sendInvitationEmail(
-  args: SendInvitationEmailArgs
+  args: SendInvitationEmailArgs,
 ): Promise<SendInvitationEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
   // キー未設定なら no-op（既存のリンクコピー動線は不変）。
   if (!apiKey) {
-    return { sent: false, reason: "no_api_key" };
+    return { sent: false, status: "not_configured", reason: "no_api_key" };
   }
 
   const { to, clientLabel, roleLabel, acceptUrl } = args;
@@ -175,11 +191,21 @@ mixednuts-inc.com`;
       }),
     });
     if (!res.ok) {
-      return { sent: false, reason: `status:${res.status}` };
+      return { sent: false, status: "failed", reason: `status:${res.status}` };
     }
-    return { sent: true };
+    // Capture Resend's message id (when present) so a future webhook can
+    // correlate a delivered/bounced event back to this send. Never throws
+    // on an unexpected body shape — the send itself already succeeded.
+    let providerMessageId: string | undefined;
+    try {
+      const body = (await res.json()) as { id?: unknown };
+      if (typeof body.id === "string") providerMessageId = body.id;
+    } catch {
+      // Non-JSON or empty body — send still counts as accepted.
+    }
+    return { sent: true, status: "accepted", providerMessageId };
   } catch (err) {
     console.error("[email] sendInvitationEmail failed:", err);
-    return { sent: false, reason: "fetch_failed" };
+    return { sent: false, status: "failed", reason: "fetch_failed" };
   }
 }

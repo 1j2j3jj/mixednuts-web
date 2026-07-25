@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { CLIENTS } from "@/config/clients";
-import { signImpersonate, IMPERSONATE_COOKIE_NAME } from "@/lib/impersonate-cookie";
+import {
+  signImpersonate,
+  IMPERSONATE_COOKIE_NAME,
+} from "@/lib/impersonate-cookie";
 import { writeAuditLog } from "@/lib/audit";
+import { resolveAdminActor } from "@/lib/admin-actor";
 import { db } from "@/db/client";
 import { organization as organizationTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -20,7 +24,7 @@ import { eq } from "drizzle-orm";
  */
 export async function POST(
   _req: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
+  { params }: { params: Promise<{ slug: string }> },
 ): Promise<NextResponse> {
   const h = await headers();
   if (h.get("x-viewer-kind") !== "admin") {
@@ -47,11 +51,11 @@ export async function POST(
     // Non-fatal — audit log will have null orgId.
   }
 
-  // Derive actor email from ADMIN_EMAILS env (first entry).
-  const actorEmail = (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)[0] ?? "admin@mixednuts-inc.com";
+  // F-4 (2026-07-25): resolve the REAL signed-in admin, not always
+  // ADMIN_EMAILS[0] — with multiple admins this previously made every
+  // impersonation.started row indistinguishable as to who actually
+  // started it.
+  const { actorEmail } = await resolveAdminActor();
 
   await writeAuditLog({
     actorEmail,
@@ -61,15 +65,19 @@ export async function POST(
     metadata: { clientLabel: client.label },
   });
 
-  const token = await signImpersonate(slug);
+  // F-4: issuer bound into the token payload itself (self-describing).
+  const token = await signImpersonate(slug, actorEmail);
 
   const res = NextResponse.redirect(
     new URL(`/dashboard/${slug}`, _req.nextUrl.origin),
-    302
+    302,
   );
   res.cookies.set(IMPERSONATE_COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    // F-4: was gated on NODE_ENV==="production" alone, inconsistent with
+    // every other session-cookie writer in this codebase (auth-cookie
+    // login/logout/accept-invitation routes all hardcode secure:true).
+    secure: true,
     sameSite: "lax",
     path: "/",
     maxAge: 2 * 60 * 60, // 2 hours

@@ -2,7 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createInvite, createInvites, revokeInvite } from "./actions";
+import {
+  createInvite,
+  createInvites,
+  revokeInvite,
+  reissueInviteLink,
+} from "./actions";
 import type { ClientId } from "@/config/clients";
 
 interface ClientOption {
@@ -14,7 +19,13 @@ type InviteResult =
   | { kind: "ok-single"; link: string }
   | {
       kind: "ok-bulk";
-      results: Array<{ clientId: ClientId; label: string; link?: string; error?: string; ok: boolean }>;
+      results: Array<{
+        clientId: ClientId;
+        label: string;
+        link?: string;
+        error?: string;
+        ok: boolean;
+      }>;
       combinedLink?: string;
     }
   | { kind: "err"; msg: string }
@@ -25,7 +36,7 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
   const [pending, startTransition] = useTransition();
   // Multi-select state. Default: first client pre-selected for backward compat.
   const [selectedIds, setSelectedIds] = useState<Set<ClientId>>(
-    () => new Set(clients[0]?.id ? [clients[0].id] : [])
+    () => new Set(clients[0]?.id ? [clients[0].id] : []),
   );
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"editor" | "member">("member");
@@ -54,7 +65,10 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
     e.preventDefault();
     setStatus(null);
     if (selectedIds.size === 0) {
-      setStatus({ kind: "err", msg: "クライアントを少なくとも 1 件選択してください" });
+      setStatus({
+        kind: "err",
+        msg: "クライアントを少なくとも 1 件選択してください",
+      });
       return;
     }
     startTransition(async () => {
@@ -63,7 +77,10 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
       if (ids.length === 1) {
         const res = await createInvite({ clientId: ids[0], email, role });
         if (!res.ok || !res.link) {
-          setStatus({ kind: "err", msg: res.error ?? "招待の作成に失敗しました" });
+          setStatus({
+            kind: "err",
+            msg: res.error ?? "招待の作成に失敗しました",
+          });
           return;
         }
         setStatus({ kind: "ok-single", link: res.link });
@@ -80,7 +97,11 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
         error: r.error,
         ok: r.ok,
       }));
-      setStatus({ kind: "ok-bulk", results: enriched, combinedLink: res.combinedLink });
+      setStatus({
+        kind: "ok-bulk",
+        results: enriched,
+        combinedLink: res.combinedLink,
+      });
       if (res.ok) {
         setEmail("");
       }
@@ -172,7 +193,11 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
             disabled={pending || selectedCount === 0}
             className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-60"
           >
-            {pending ? "送信中…" : selectedCount > 1 ? `${selectedCount} 件 招待発行` : "招待発行"}
+            {pending
+              ? "送信中…"
+              : selectedCount > 1
+                ? `${selectedCount} 件 招待発行`
+                : "招待発行"}
           </button>
         </div>
       </form>
@@ -180,7 +205,8 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
       {status?.kind === "ok-single" && (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
           <div className="font-medium">
-            招待を作成しました（メール未送信 — 招待リンクをコピーして送付してください）:
+            招待を作成しました（メール未送信 —
+            招待リンクをコピーして送付してください）:
           </div>
           <code className="mt-1 block break-all rounded-md bg-white p-2 text-emerald-700">
             {status.link}
@@ -191,7 +217,8 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
       {status?.kind === "ok-bulk" && (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
           <div className="mb-2 font-medium">
-            一括招待結果（{status.results.filter((r) => r.ok).length} / {status.results.length} 件 成功）
+            一括招待結果（{status.results.filter((r) => r.ok).length} /{" "}
+            {status.results.length} 件 成功）
           </div>
 
           {status.combinedLink && (
@@ -206,7 +233,10 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
                 {status.combinedLink}
               </code>
               <p className="mt-1.5 text-[11px] leading-snug text-neutral-600">
-                受信者がこの 1 本のリンクをクリックすると、上記{status.results.filter((r) => r.ok).length} 件すべてに同時に参加し、ダッシュボード選択画面 (/dashboard/select) に進みます。
+                受信者がこの 1 本のリンクをクリックすると、上記
+                {status.results.filter((r) => r.ok).length}{" "}
+                件すべてに同時に参加し、ダッシュボード選択画面
+                (/dashboard/select) に進みます。
               </p>
             </div>
           )}
@@ -220,7 +250,9 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
                 <li key={r.clientId} className="rounded-md bg-white p-2">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold">{r.label}</span>
-                    <span className={r.ok ? "text-emerald-700" : "text-rose-700"}>
+                    <span
+                      className={r.ok ? "text-emerald-700" : "text-rose-700"}
+                    >
                       {r.ok ? "✓" : "✗"}
                     </span>
                   </div>
@@ -267,6 +299,56 @@ export function CopyLinkButton({ link }: { link: string }) {
     >
       {copied ? "コピー済 ✓" : "コピー"}
     </button>
+  );
+}
+
+/**
+ * F-3 (2026-07-25): a hashed invitation's raw token can't be
+ * reconstructed from its stored hash, so a pending row created after
+ * this hardening has no redisplayable link. This button revokes the old
+ * (unreachable) invitation and issues a fresh one, showing the new link
+ * inline once — the same one-time-display pattern InviteForm already
+ * uses right after creating an invite.
+ */
+export function ReissueLinkButton({ id }: { id: string }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [link, setLink] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  if (link) {
+    return (
+      <div className="flex items-center gap-2">
+        <code className="block max-w-xs truncate rounded-md bg-emerald-50 px-2 py-1 text-xs text-emerald-800">
+          {link}
+        </code>
+        <CopyLinkButton link={link} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() =>
+          startTransition(async () => {
+            const res = await reissueInviteLink(id);
+            if (res.ok && res.link) {
+              setLink(res.link);
+              router.refresh();
+            } else {
+              setError(res.error ?? "再発行に失敗しました");
+            }
+          })
+        }
+        className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-50 disabled:opacity-60"
+      >
+        {pending ? "発行中…" : "リンクを再発行"}
+      </button>
+      {error && <span className="text-rose-700">{error}</span>}
+    </div>
   );
 }
 

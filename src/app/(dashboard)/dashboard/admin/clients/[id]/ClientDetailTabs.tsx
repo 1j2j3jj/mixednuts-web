@@ -6,7 +6,14 @@ import type { ClientConfig, ClientId } from "@/config/clients";
 import type { ClientAccess } from "../../actions";
 import type { OrgSummary, InviteRow, MemberRow } from "../../invites/actions";
 import type { EnvStatus } from "../../actions";
-import { createInvite, revokeInvite, removeMember, activateMember, updateMemberRole } from "../../invites/actions";
+import {
+  createInvite,
+  revokeInvite,
+  removeMember,
+  activateMember,
+  updateMemberRole,
+} from "../../invites/actions";
+import { ReissueLinkButton } from "../../invites/InviteForm";
 import { generateClientPassword, updateOrgQuota } from "../../actions";
 import {
   setClientCredentials as setClientCredentialsAction,
@@ -33,7 +40,13 @@ interface Props {
 // ---------------------------------------------------------------------------
 // Copy button utility
 // ---------------------------------------------------------------------------
-function CopyButton({ text, label = "コピー" }: { text: string; label?: string }) {
+function CopyButton({
+  text,
+  label = "コピー",
+}: {
+  text: string;
+  label?: string;
+}) {
   const [copied, setCopied] = useState(false);
   async function doCopy() {
     try {
@@ -65,34 +78,48 @@ function OverviewTab({ client }: { client: ClientConfig }) {
   return (
     <div className="space-y-4">
       <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
-        クライアント設定は現在 <code className="font-mono">src/config/clients.ts</code> で管理されています。
-        編集するには Vercel にデプロイ後 git commit が必要です（Phase 3 で DB 化予定）。
+        クライアント設定は現在{" "}
+        <code className="font-mono">src/config/clients.ts</code>{" "}
+        で管理されています。 編集するには Vercel にデプロイ後 git commit
+        が必要です（Phase 3 で DB 化予定）。
       </div>
 
       <div className="grid gap-3 text-sm">
         <Row label="Label" value={client.label} />
         <Row label="Slug" value={`/${client.slug}`} mono />
         <Row label="Subtitle" value={client.subtitle} />
-        <Row label="Status" value={client.active ? "Active (Live)" : "Inactive (Pending)"} />
+        <Row
+          label="Status"
+          value={client.active ? "Active (Live)" : "Inactive (Pending)"}
+        />
         <Row label="Currency" value={client.currency} />
       </div>
 
       <div>
         <h3 className="text-sm font-medium text-neutral-900">月次目標</h3>
         <p className="mb-2 text-xs text-muted-foreground">
-          目標はアップロード正本（targets_long / targets_monthly）のみ参照。未アップロード月は
-          「—（未設定）」表示（旧 計画 Sheet・静的フォールバックは 2026-07-08 廃止）。
+          目標はアップロード正本（targets_long /
+          targets_monthly）のみ参照。未アップロード月は 「—（未設定）」表示（旧
+          計画 Sheet・静的フォールバックは 2026-07-08 廃止）。
         </p>
       </div>
 
       {ds && (
         <div>
-          <h3 className="text-sm font-medium text-neutral-900">Data Source 設定</h3>
+          <h3 className="text-sm font-medium text-neutral-900">
+            Data Source 設定
+          </h3>
           <div className="mt-2 grid gap-2 text-sm">
             <Row label="Sheet ID (Raw Ads)" value={ds.sheetId} mono />
-            {ds.eccubeSheetId && <Row label="Sheet ID (外部CV)" value={ds.eccubeSheetId} mono />}
-            {client.ga4PropertyId && <Row label="GA4 Property ID" value={client.ga4PropertyId} mono />}
-            {client.gscSiteUrl && <Row label="GSC Site URL" value={client.gscSiteUrl} mono />}
+            {ds.eccubeSheetId && (
+              <Row label="Sheet ID (外部CV)" value={ds.eccubeSheetId} mono />
+            )}
+            {client.ga4PropertyId && (
+              <Row label="GA4 Property ID" value={client.ga4PropertyId} mono />
+            )}
+            {client.gscSiteUrl && (
+              <Row label="GSC Site URL" value={client.gscSiteUrl} mono />
+            )}
           </div>
         </div>
       )}
@@ -100,11 +127,23 @@ function OverviewTab({ client }: { client: ClientConfig }) {
   );
 }
 
-function Row({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+function Row({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
     <div className="flex items-center gap-4">
-      <span className="w-48 shrink-0 text-xs text-muted-foreground">{label}</span>
-      <span className={`flex-1 text-sm ${mono ? "font-mono text-xs" : ""}`}>{value}</span>
+      <span className="w-48 shrink-0 text-xs text-muted-foreground">
+        {label}
+      </span>
+      <span className={`flex-1 text-sm ${mono ? "font-mono text-xs" : ""}`}>
+        {value}
+      </span>
     </div>
   );
 }
@@ -142,9 +181,16 @@ function AccessTab({
     e.preventDefault();
     setInvResult(null);
     startInvTransition(async () => {
-      const res = await createInvite({ clientId, email: invEmail, role: invRole });
+      const res = await createInvite({
+        clientId,
+        email: invEmail,
+        role: invRole,
+      });
       if (!res.ok || !res.link) {
-        setInvResult({ kind: "err", msg: res.error ?? "招待の作成に失敗しました" });
+        setInvResult({
+          kind: "err",
+          msg: res.error ?? "招待の作成に失敗しました",
+        });
         return;
       }
       setInvResult({ kind: "ok", link: res.link });
@@ -153,17 +199,23 @@ function AccessTab({
     });
   }
 
-  const adminEntries = access?.entries.filter((e) => e.kind === "admin-email") ?? [];
-  const oauthEntries = access?.entries.filter((e) => e.kind === "client-email") ?? [];
-  const credEntries = access?.entries.filter((e) => e.kind === "client-credential") ?? [];
+  const adminEntries =
+    access?.entries.filter((e) => e.kind === "admin-email") ?? [];
+  const oauthEntries =
+    access?.entries.filter((e) => e.kind === "client-email") ?? [];
+  const credEntries =
+    access?.entries.filter((e) => e.kind === "client-credential") ?? [];
 
   return (
     <div className="space-y-6">
       {/* Section 1: Invite form (inline, top) */}
       <div>
-        <h3 className="text-sm font-semibold text-neutral-900">新規招待を発行</h3>
+        <h3 className="text-sm font-semibold text-neutral-900">
+          新規招待を発行
+        </h3>
         <p className="mb-3 text-xs text-muted-foreground">
-          Better Auth の Organization 招待。発行後はリンクをコピーして Slack / メールで送付。
+          Better Auth の Organization 招待。発行後はリンクをコピーして Slack /
+          メールで送付。
         </p>
         <form onSubmit={submitInvite} className="flex flex-wrap gap-2">
           <input
@@ -219,11 +271,16 @@ function AccessTab({
           承認待ち招待 ({pendingInvites.length})
         </h3>
         {pendingInvites.length === 0 ? (
-          <p className="mt-2 text-xs text-muted-foreground">承認待ちの招待はありません。</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            承認待ちの招待はありません。
+          </p>
         ) : (
           <div className="mt-2 divide-y rounded-md border border-neutral-200">
             {pendingInvites.map((inv) => (
-              <div key={inv.id} className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm">
+              <div
+                key={inv.id}
+                className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm"
+              >
                 <span className="flex-1 font-medium">{inv.email}</span>
                 <span className="text-xs text-muted-foreground">
                   {inv.role === "member" ? "閲覧者" : "編集者"}
@@ -232,7 +289,13 @@ function AccessTab({
                   {inv.expiresAt.toLocaleDateString("ja-JP")} まで
                 </span>
                 <div className="flex items-center gap-2">
-                  <CopyButton text={inv.link} label="リンクをコピー" />
+                  {inv.link ? (
+                    <CopyButton text={inv.link} label="リンクをコピー" />
+                  ) : (
+                    // F-3: hashed invites' raw token isn't stored, so the
+                    // link can't be redisplayed — re-issue a fresh one.
+                    <ReissueLinkButton id={inv.id} />
+                  )}
                   <button
                     type="button"
                     disabled={revPending}
@@ -260,7 +323,8 @@ function AccessTab({
         </h3>
         <p className="mt-1 text-xs text-muted-foreground">
           Better Auth の Organization に参加済みのメンバー。
-          {!org && " ※ まだ Organization が作成されていません。招待を発行すると自動作成されます。"}
+          {!org &&
+            " ※ まだ Organization が作成されていません。招待を発行すると自動作成されます。"}
         </p>
         {orgMembers.length === 0 ? (
           <p className="mt-2 text-xs text-muted-foreground">
@@ -269,11 +333,16 @@ function AccessTab({
         ) : (
           <div className="mt-2 divide-y rounded-md border border-neutral-200">
             {orgMembers.map((m) => (
-              <div key={m.id} className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm">
+              <div
+                key={m.id}
+                className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm"
+              >
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{m.email}</div>
                   {m.name && m.name !== m.email && (
-                    <div className="text-xs text-muted-foreground truncate">{m.name}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {m.name}
+                    </div>
                   )}
                 </div>
                 {m.role === "owner" ? (
@@ -288,9 +357,10 @@ function AccessTab({
                       startRemoveTransition(async () => {
                         const res = await updateMemberRole(
                           m.id,
-                          e.target.value as "editor" | "member"
+                          e.target.value as "editor" | "member",
                         );
-                        if (!res.ok) alert(res.error ?? "ロール変更に失敗しました");
+                        if (!res.ok)
+                          alert(res.error ?? "ロール変更に失敗しました");
                         router.refresh();
                       })
                     }
@@ -355,16 +425,23 @@ function AccessTab({
 
       {/* Section 4: Env-based access (CLIENT_EMAILS + CLIENT_AUTH) */}
       <div>
-        <h3 className="text-sm font-semibold text-neutral-900">環境変数ベースのアクセス</h3>
+        <h3 className="text-sm font-semibold text-neutral-900">
+          環境変数ベースのアクセス
+        </h3>
         <p className="mb-2 text-xs text-muted-foreground">
-          Vercel env で管理している OAuth メールアドレスと Basic Auth クレデンシャル。
+          Vercel env で管理している OAuth メールアドレスと Basic Auth
+          クレデンシャル。
         </p>
         <div className="divide-y rounded-md border border-neutral-200">
           {/* Admin emails */}
           <div className="px-3 py-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-neutral-700">管理者 (ADMIN_EMAILS)</span>
-              <span className="text-xs text-muted-foreground">{adminEntries.length} 件</span>
+              <span className="text-xs font-medium text-neutral-700">
+                管理者 (ADMIN_EMAILS)
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {adminEntries.length} 件
+              </span>
             </div>
             {adminEntries.map((e, i) => (
               <div key={i} className="mt-1 flex items-center gap-2">
@@ -380,7 +457,9 @@ function AccessTab({
               <span className="text-xs font-medium text-neutral-700">
                 Google OAuth ({access?.envKeys.oauthEmails})
               </span>
-              <span className="text-xs text-muted-foreground">{oauthEntries.length} 件</span>
+              <span className="text-xs text-muted-foreground">
+                {oauthEntries.length} 件
+              </span>
             </div>
             {oauthEntries.length === 0 ? (
               <div className="mt-1 text-xs text-muted-foreground">未設定</div>
@@ -401,8 +480,10 @@ function AccessTab({
                 className="underline"
               >
                 Vercel Settings
-              </a>
-              {" "}で <code className="font-mono">{access?.envKeys.oauthEmails}</code> を編集
+              </a>{" "}
+              で{" "}
+              <code className="font-mono">{access?.envKeys.oauthEmails}</code>{" "}
+              を編集
             </div>
           </div>
 
@@ -412,14 +493,18 @@ function AccessTab({
               <span className="text-xs font-medium text-neutral-700">
                 Basic Auth ({access?.envKeys.credential})
               </span>
-              <span className="text-xs text-muted-foreground">{credEntries.length} 件</span>
+              <span className="text-xs text-muted-foreground">
+                {credEntries.length} 件
+              </span>
             </div>
             {credEntries.map((e, i) => (
               <div key={i} className="mt-1 flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-neutral-400" />
                 <span className="text-xs font-mono">{e.label}</span>
                 {e.preview && (
-                  <span className="text-[10px] text-muted-foreground font-mono">{e.preview}</span>
+                  <span className="text-[10px] text-muted-foreground font-mono">
+                    {e.preview}
+                  </span>
                 )}
               </div>
             ))}
@@ -497,7 +582,9 @@ function DataSourcesTab({ client }: { client: ClientConfig }) {
                 s.configured ? "bg-emerald-500" : "bg-neutral-300"
               }`}
             />
-            <span className="w-40 shrink-0 text-sm font-medium text-neutral-800">{s.name}</span>
+            <span className="w-40 shrink-0 text-sm font-medium text-neutral-800">
+              {s.name}
+            </span>
             <span className="flex-1 truncate font-mono text-xs text-muted-foreground">
               {s.hint}
             </span>
@@ -539,19 +626,25 @@ function CredentialsTab({
   credInfo: ClientCredentialInfoUI;
 }) {
   const router = useRouter();
-  const [username, setUsername] = useState<string>(credInfo.username ?? client.slug);
+  const [username, setUsername] = useState<string>(
+    credInfo.username ?? client.slug,
+  );
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(
+    null,
+  );
 
   function genRandom() {
     const bytes = new Uint8Array(12);
     crypto.getRandomValues(bytes);
-    const charset = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#%&";
+    const charset =
+      "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#%&";
     let pw = "";
-    for (let i = 0; i < bytes.length; i++) pw += charset[bytes[i] % charset.length];
+    for (let i = 0; i < bytes.length; i++)
+      pw += charset[bytes[i] % charset.length];
     setPassword(pw);
     setConfirm(pw);
     setShowPw(true);
@@ -566,7 +659,11 @@ function CredentialsTab({
       return;
     }
     startTransition(async () => {
-      const res = await setClientCredentialsAction({ clientId, username, password });
+      const res = await setClientCredentialsAction({
+        clientId,
+        username,
+        password,
+      });
       if (!res.ok) {
         setResult({ ok: false, msg: res.error ?? "更新に失敗しました" });
         return;
@@ -580,7 +677,12 @@ function CredentialsTab({
   }
 
   function onClear() {
-    if (!confirm_native("この DB 上の IDPW を削除します。env 設定がある場合はそちらにフォールバックします。よろしいですか？")) return;
+    if (
+      !confirm_native(
+        "この DB 上の IDPW を削除します。env 設定がある場合はそちらにフォールバックします。よろしいですか？",
+      )
+    )
+      return;
     startTransition(async () => {
       const res = await clearClientCredentialsAction(clientId);
       if (!res.ok) {
@@ -601,14 +703,20 @@ function CredentialsTab({
         <h3 className="text-sm font-semibold text-neutral-900">登録状態</h3>
         <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {/* DB */}
-          <div className={`rounded-md border px-3 py-2 ${credInfo.hasDbCredentials ? "border-emerald-300 bg-emerald-50" : "border-neutral-200"}`}>
+          <div
+            className={`rounded-md border px-3 py-2 ${credInfo.hasDbCredentials ? "border-emerald-300 bg-emerald-50" : "border-neutral-200"}`}
+          >
             <div className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
               DB（即時反映）
             </div>
             {credInfo.hasDbCredentials ? (
               <>
-                <div className="mt-1 text-sm font-medium text-emerald-800">✓ 登録済</div>
-                <div className="text-xs text-neutral-700">user: <code className="font-mono">{credInfo.username}</code></div>
+                <div className="mt-1 text-sm font-medium text-emerald-800">
+                  ✓ 登録済
+                </div>
+                <div className="text-xs text-neutral-700">
+                  user: <code className="font-mono">{credInfo.username}</code>
+                </div>
                 {credInfo.updatedAt && (
                   <div className="text-[11px] text-neutral-500">
                     {new Date(credInfo.updatedAt).toLocaleString("ja-JP")} 更新
@@ -621,14 +729,18 @@ function CredentialsTab({
             )}
           </div>
           {/* Env (legacy fallback) */}
-          <div className={`rounded-md border px-3 py-2 ${credStatus?.set ? "border-amber-200 bg-amber-50" : "border-neutral-200"}`}>
+          <div
+            className={`rounded-md border px-3 py-2 ${credStatus?.set ? "border-amber-200 bg-amber-50" : "border-neutral-200"}`}
+          >
             <div className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
               環境変数（フォールバック・廃止予定）
             </div>
             <code className="font-mono text-xs">{envKey}</code>
             <div className="mt-1 text-xs">
               {credStatus?.set ? (
-                <span className="text-amber-700">⚠ 登録済（DB 移行後に Vercel 側で削除推奨）</span>
+                <span className="text-amber-700">
+                  ⚠ 登録済（DB 移行後に Vercel 側で削除推奨）
+                </span>
               ) : (
                 <span className="text-neutral-500">未登録</span>
               )}
@@ -636,17 +748,23 @@ function CredentialsTab({
           </div>
         </div>
         <p className="mt-2 text-[11px] text-neutral-500">
-          DB と env の両方が登録されている場合、DB が優先されます（verifyCredentials 仕様）。
+          DB と env の両方が登録されている場合、DB
+          が優先されます（verifyCredentials 仕様）。
         </p>
       </div>
 
       {/* Rotation form */}
-      <form onSubmit={onSubmit} className="space-y-3 rounded-md border border-neutral-200 p-4">
+      <form
+        onSubmit={onSubmit}
+        className="space-y-3 rounded-md border border-neutral-200 p-4"
+      >
         <h3 className="text-sm font-semibold text-neutral-900">
           {credInfo.hasDbCredentials ? "ローテート" : "新規登録"}
         </h3>
         <div>
-          <label className="block text-xs font-medium text-neutral-700">ユーザー名</label>
+          <label className="block text-xs font-medium text-neutral-700">
+            ユーザー名
+          </label>
           <input
             type="text"
             value={username}
@@ -659,7 +777,9 @@ function CredentialsTab({
         </div>
         <div>
           <div className="flex items-center justify-between">
-            <label className="block text-xs font-medium text-neutral-700">パスワード（8 文字以上）</label>
+            <label className="block text-xs font-medium text-neutral-700">
+              パスワード（8 文字以上）
+            </label>
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -689,7 +809,9 @@ function CredentialsTab({
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-neutral-700">確認用パスワード</label>
+          <label className="block text-xs font-medium text-neutral-700">
+            確認用パスワード
+          </label>
           <input
             type={showPw ? "text" : "password"}
             value={confirm}
@@ -706,7 +828,11 @@ function CredentialsTab({
             disabled={pending || !password || !username}
             className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-neutral-800 disabled:opacity-60"
           >
-            {pending ? "保存中…" : credInfo.hasDbCredentials ? "ローテート保存" : "登録"}
+            {pending
+              ? "保存中…"
+              : credInfo.hasDbCredentials
+                ? "ローテート保存"
+                : "登録"}
           </button>
           {credInfo.hasDbCredentials && (
             <button
@@ -734,8 +860,8 @@ function CredentialsTab({
       </form>
 
       <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-[11px] text-muted-foreground">
-        パスワードは PBKDF2-SHA256 (100,000 iterations) でハッシュ化された状態で DB に保存されます。
-        平文は永続化されません。
+        パスワードは PBKDF2-SHA256 (100,000 iterations) でハッシュ化された状態で
+        DB に保存されます。 平文は永続化されません。
       </div>
     </div>
   );
@@ -759,12 +885,14 @@ function QuotaTab({
   quota: OrgQuota;
 }) {
   const [maxMembers, setMaxMembers] = useState<string>(
-    quota.maxMembers !== null ? String(quota.maxMembers) : ""
+    quota.maxMembers !== null ? String(quota.maxMembers) : "",
   );
   const [maxAdmins, setMaxAdmins] = useState<string>(
-    quota.maxAdmins !== null ? String(quota.maxAdmins) : ""
+    quota.maxAdmins !== null ? String(quota.maxAdmins) : "",
   );
-  const [result, setResult] = useState<{ ok: boolean; error?: string } | null>(null);
+  const [result, setResult] = useState<{ ok: boolean; error?: string } | null>(
+    null,
+  );
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(e: React.FormEvent) {
@@ -772,8 +900,14 @@ function QuotaTab({
     setResult(null);
     const mm = maxMembers.trim() === "" ? null : parseInt(maxMembers, 10);
     const ma = maxAdmins.trim() === "" ? null : parseInt(maxAdmins, 10);
-    if ((mm !== null && (isNaN(mm) || mm < 1)) || (ma !== null && (isNaN(ma) || ma < 1))) {
-      setResult({ ok: false, error: "正の整数を入力するか空欄（制限なし）にしてください" });
+    if (
+      (mm !== null && (isNaN(mm) || mm < 1)) ||
+      (ma !== null && (isNaN(ma) || ma < 1))
+    ) {
+      setResult({
+        ok: false,
+        error: "正の整数を入力するか空欄（制限なし）にしてください",
+      });
       return;
     }
     startTransition(async () => {
@@ -792,7 +926,8 @@ function QuotaTab({
 
       {quota.orgId === null && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Organization がまだ作成されていません。招待を一件発行すると自動作成されます。
+          Organization
+          がまだ作成されていません。招待を一件発行すると自動作成されます。
         </div>
       )}
 
@@ -812,7 +947,10 @@ function QuotaTab({
               className="w-32 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none disabled:opacity-50"
             />
             <span className="text-xs text-neutral-500">
-              現在: {quota.maxMembers !== null ? `${quota.maxMembers} 名` : "制限なし"}
+              現在:{" "}
+              {quota.maxMembers !== null
+                ? `${quota.maxMembers} 名`
+                : "制限なし"}
             </span>
           </div>
           <p className="text-xs text-neutral-500">
@@ -835,7 +973,8 @@ function QuotaTab({
               className="w-32 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none disabled:opacity-50"
             />
             <span className="text-xs text-neutral-500">
-              現在: {quota.maxAdmins !== null ? `${quota.maxAdmins} 名` : "制限なし"}
+              現在:{" "}
+              {quota.maxAdmins !== null ? `${quota.maxAdmins} 名` : "制限なし"}
             </span>
           </div>
           <p className="text-xs text-neutral-500">
@@ -874,24 +1013,32 @@ function DangerZoneTab({ client }: { client: ClientConfig }) {
   return (
     <div className="space-y-4">
       <div className="rounded-md border border-rose-200 bg-rose-50 p-4">
-        <h3 className="text-sm font-semibold text-rose-900">クライアントを非アクティブにする</h3>
+        <h3 className="text-sm font-semibold text-rose-900">
+          クライアントを非アクティブにする
+        </h3>
         <p className="mt-1 text-xs text-rose-800">
           <code className="font-mono">active: false</code> に変更します。
           <code className="mx-1 font-mono">src/config/clients.ts</code>
-          を直接編集して commit &amp; deploy してください（Phase 3 で UI から変更可能予定）。
+          を直接編集して commit &amp; deploy してください（Phase 3 で UI
+          から変更可能予定）。
         </p>
         <div className="mt-2 text-xs text-rose-800">
           現在の状態:{" "}
-          <code className="font-mono">{client.active ? "active: true" : "active: false"}</code>
+          <code className="font-mono">
+            {client.active ? "active: true" : "active: false"}
+          </code>
         </div>
       </div>
 
       <div className="rounded-md border border-rose-200 bg-rose-50 p-4">
-        <h3 className="text-sm font-semibold text-rose-900">Better Auth Organization を削除する</h3>
+        <h3 className="text-sm font-semibold text-rose-900">
+          Better Auth Organization を削除する
+        </h3>
         <p className="mt-1 text-xs text-rose-800">
           Organization を削除するとメンバーシップと招待が全て削除されます。
-          招待済みのユーザーはダッシュボードにアクセスできなくなります。
-          現在は Neon Database を直接操作して削除してください（Phase 3 で UI から可能予定）。
+          招待済みのユーザーはダッシュボードにアクセスできなくなります。 現在は
+          Neon Database を直接操作して削除してください（Phase 3 で UI
+          から可能予定）。
         </p>
       </div>
     </div>
@@ -956,7 +1103,9 @@ export default function ClientDetailTabs({
 
             {/* アクセス上限 (旧クォータタブ) */}
             <section className="border-t border-neutral-200 pt-6">
-              <h2 className="text-base font-semibold text-neutral-900">アクセス上限</h2>
+              <h2 className="text-base font-semibold text-neutral-900">
+                アクセス上限
+              </h2>
               <p className="mt-0.5 text-xs text-neutral-500">
                 Organization 単位のメンバー数 / 管理者数の上限。空欄 = 無制限。
               </p>
@@ -967,12 +1116,21 @@ export default function ClientDetailTabs({
 
             {/* ID / パスワード認証 (旧クレデンシャルタブ) */}
             <section className="border-t border-neutral-200 pt-6">
-              <h2 className="text-base font-semibold text-neutral-900">ID / パスワード認証</h2>
+              <h2 className="text-base font-semibold text-neutral-900">
+                ID / パスワード認証
+              </h2>
               <p className="mt-0.5 text-xs text-neutral-500">
-                Google ログインを使わない簡易ログイン用。クライアントダッシュボード（/dashboard/{client.slug}）の Basic Auth 認証情報。
+                Google
+                ログインを使わない簡易ログイン用。クライアントダッシュボード（/dashboard/
+                {client.slug}）の Basic Auth 認証情報。
               </p>
               <div className="mt-4">
-                <CredentialsTab clientId={clientId} client={client} credStatus={credStatus} credInfo={credInfo} />
+                <CredentialsTab
+                  clientId={clientId}
+                  client={client}
+                  credStatus={credStatus}
+                  credInfo={credInfo}
+                />
               </div>
             </section>
           </div>
@@ -983,9 +1141,12 @@ export default function ClientDetailTabs({
 
             {/* 月次目標: アップロード正本のみ（静的フォールバック廃止 2026-07-08） */}
             <section className="border-t border-neutral-200 pt-6">
-              <h2 className="text-base font-semibold text-neutral-900">月次目標</h2>
+              <h2 className="text-base font-semibold text-neutral-900">
+                月次目標
+              </h2>
               <p className="mt-0.5 text-xs text-neutral-500">
-                目標はアップロード正本（targets_long / targets_monthly）のみ参照。未アップロード月は
+                目標はアップロード正本（targets_long /
+                targets_monthly）のみ参照。未アップロード月は
                 ダッシュボードに「—（未設定）」と表示されます。設定はクライアント設定画面の
                 目標アップロード、または管理マスタの一括アップロードから。
               </p>
