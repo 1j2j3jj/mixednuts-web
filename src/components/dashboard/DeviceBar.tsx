@@ -1,8 +1,17 @@
 import type { DeviceTotals } from "@/lib/sources/ga4";
 import { fmtInt, fmtJpy, fmtPct, safeDiv } from "@/lib/utils";
+import AbsenceNotice from "@/components/dashboard/AbsenceNotice";
+import type { AbsenceReason, NoDataPeriodDetail } from "@/lib/absence";
 
 interface Props {
   rows: DeviceTotals[];
+  /** Phase D sweep (item 2): `rows` empty used to render an empty wrapper
+   *  div with no message — the exact A-21 failure mode ChannelStackedBar
+   *  was already fixed for, just not applied here. Caller can pass a reason
+   *  to distinguish not-configured/unavailable from a true empty result;
+   *  defaults to the generic "no data" copy. */
+  absenceReason?: AbsenceReason;
+  absenceDetail?: NoDataPeriodDetail;
 }
 
 const LABEL: Record<string, string> = {
@@ -17,7 +26,20 @@ const COLOUR: Record<string, string> = {
   tablet: "var(--chart-4)",
 };
 
-export default function DeviceBar({ rows }: Props) {
+export default function DeviceBar({
+  rows,
+  absenceReason,
+  absenceDetail,
+}: Props) {
+  if (rows.length === 0) {
+    return (
+      <AbsenceNotice
+        reason={absenceReason ?? "no_data_period"}
+        detail={absenceDetail}
+        className="min-h-[120px]"
+      />
+    );
+  }
   const totalSessions = rows.reduce((s, r) => s + r.sessions, 0);
   return (
     <div className="space-y-3">

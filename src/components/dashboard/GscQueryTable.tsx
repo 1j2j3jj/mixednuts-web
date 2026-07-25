@@ -1,10 +1,25 @@
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { GscQueryRow } from "@/lib/sources/gsc";
 import { cn, fmtInt, fmtPct } from "@/lib/utils";
+import AbsenceTableRow from "@/components/dashboard/AbsenceTableRow";
+import type { AbsenceReason, NoDataPeriodDetail } from "@/lib/absence";
 
 interface Props {
   rows: GscQueryRow[];
   limit?: number;
+  /** Set when `rows` is empty because the source is unavailable / not
+   *  configured (Phase D — see @/lib/sources/gsc.ts getTopGscQueries doc,
+   *  the mock-leak fix this replaces). Undefined + empty rows = a genuine
+   *  measured-empty result for this period. */
+  absenceReason?: AbsenceReason;
+  absenceDetail?: NoDataPeriodDetail;
 }
 
 function positionClass(pos: number): string {
@@ -13,7 +28,12 @@ function positionClass(pos: number): string {
   return "text-muted-foreground";
 }
 
-export default function GscQueryTable({ rows, limit = 10 }: Props) {
+export default function GscQueryTable({
+  rows,
+  limit = 10,
+  absenceReason,
+  absenceDetail,
+}: Props) {
   const sorted = [...rows].sort((a, b) => b.clicks - a.clicks).slice(0, limit);
   return (
     <Table>
@@ -27,13 +47,31 @@ export default function GscQueryTable({ rows, limit = 10 }: Props) {
         </TableRow>
       </TableHeader>
       <TableBody>
+        {sorted.length === 0 && (
+          <AbsenceTableRow
+            colSpan={5}
+            reason={absenceReason ?? "no_data_period"}
+            detail={absenceDetail}
+          />
+        )}
         {sorted.map((r) => (
           <TableRow key={r.query}>
             <TableCell className="font-medium">{r.query}</TableCell>
-            <TableCell className="text-right tabular-nums">{fmtInt(r.clicks)}</TableCell>
-            <TableCell className="text-right tabular-nums">{fmtInt(r.impressions)}</TableCell>
-            <TableCell className="text-right tabular-nums">{fmtPct(r.ctr, 1)}</TableCell>
-            <TableCell className={cn("text-right tabular-nums", positionClass(r.position))}>
+            <TableCell className="text-right tabular-nums">
+              {fmtInt(r.clicks)}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {fmtInt(r.impressions)}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {fmtPct(r.ctr, 1)}
+            </TableCell>
+            <TableCell
+              className={cn(
+                "text-right tabular-nums",
+                positionClass(r.position),
+              )}
+            >
               {r.position.toFixed(1)}
             </TableCell>
           </TableRow>

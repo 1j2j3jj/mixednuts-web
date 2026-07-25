@@ -13,11 +13,13 @@ import {
 } from "recharts";
 import SegmentedControl from "@/components/dashboard/SegmentedControl";
 import ChartTooltip from "@/components/dashboard/ChartTooltip";
+import AbsenceNotice from "@/components/dashboard/AbsenceNotice";
 import type {
   ChannelDay,
   ChannelGroup,
   SecondaryEventDef,
 } from "@/lib/sources/ga4";
+import type { AbsenceReason, NoDataPeriodDetail } from "@/lib/absence";
 
 interface Props {
   data: ChannelDay[];
@@ -27,6 +29,15 @@ interface Props {
   defaultGranularity?: Granularity;
   /** クライアント別の第4トグル以降の定義（HS=[会員登録] / DOZO=[Thanks,Wedding]）。 */
   secondaryDefs?: SecondaryEventDef[];
+  /** Phase D sweep (item 2): `data` empty (a genuinely new/quiet client with
+   *  no GA4 rows in the past 90 days) used to render the toggles followed by
+   *  an empty Recharts canvas with no message — the exact A-21 failure mode
+   *  ChannelStackedBar was already fixed for, just not applied to this
+   *  sibling chart. Caller can pass a reason to distinguish
+   *  not-configured/unavailable from a true empty result; defaults to the
+   *  generic "no data" copy. */
+  absenceReason?: AbsenceReason;
+  absenceDetail?: NoDataPeriodDetail;
 }
 
 type BaseMetric = "sessions" | "conversions" | "revenue";
@@ -90,6 +101,8 @@ export default function ChannelTrendChart({
   defaultMetric = "sessions",
   defaultGranularity = "day",
   secondaryDefs = [],
+  absenceReason,
+  absenceDetail,
 }: Props) {
   const METRICS = [
     ...BASE_METRICS,
@@ -98,6 +111,35 @@ export default function ChannelTrendChart({
   const [metric, setMetric] = useState<Metric>(defaultMetric);
   const [granularity, setGranularity] =
     useState<Granularity>(defaultGranularity);
+
+  // Phase D sweep (item 2): same treatment as ChannelStackedBar's A-21 fix —
+  // title/toggles stay visible (what the client was looking at), only the
+  // chart body is replaced.
+  if (data.length === 0) {
+    return (
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <SegmentedControl
+            value={metric}
+            options={METRICS.map((m) => ({ value: m.key, label: m.label }))}
+            onValueChange={setMetric}
+            ariaLabel="グラフ指標"
+          />
+          <SegmentedControl
+            value={granularity}
+            options={GRAN.map((g) => ({ value: g.key, label: g.label }))}
+            onValueChange={setGranularity}
+            ariaLabel="集計単位"
+          />
+        </div>
+        <AbsenceNotice
+          reason={absenceReason ?? "no_data_period"}
+          detail={absenceDetail}
+          className="h-72"
+        />
+      </div>
+    );
+  }
 
   // Pivot: (bucket × channel) → value
   const byBucket = new Map<string, Record<string, number | string>>();

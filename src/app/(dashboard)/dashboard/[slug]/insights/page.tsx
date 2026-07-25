@@ -1,4 +1,5 @@
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
+import { clientHasEcommerce } from "@/config/clients";
 import { getTopProducts, getTopLandingPages } from "@/lib/sources/ga4";
 import { getTopGscQueries } from "@/lib/sources/gsc";
 import { resolveFromSearchParams } from "@/lib/range";
@@ -8,7 +9,6 @@ import GscQueryTable from "@/components/dashboard/GscQueryTable";
 import CsvExportButton from "@/components/dashboard/CsvExportButton";
 import RefreshButton from "@/components/dashboard/RefreshButton";
 import PrintButton from "@/components/dashboard/PrintButton";
-import MockBanner from "@/components/dashboard/MockBanner";
 import PageHeader from "@/components/dashboard/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -65,8 +65,13 @@ export default async function InsightsScreen({
   } = productsResult;
   const { rows: landingPages } = landingPagesResult;
   const { rows: queries } = queriesResult;
-  const anyMock =
-    productsResult.isMock || landingPagesResult.isMock || queriesResult.isMock;
+  // Phase D mock-leak fix: products/landingPages/queries no longer
+  // substitute fabricated content (see @/lib/sources/ga4.ts /
+  // @/lib/sources/gsc.ts) — MockBanner's "サンプル値を表示中" no longer
+  // applies to this tab (it would be inaccurate: an empty result here is
+  // either a genuine absence or a real "not configured", not a sample).
+  // Each section instead renders the shared AbsenceNotice via its
+  // `absenceReason` prop when it has no rows.
 
   // CSV mirrors the on-screen columns（売上は revenueBasis に従う）。
   const productCsv = products.map((p) => ({
@@ -116,10 +121,22 @@ export default async function InsightsScreen({
   const periodLabel = `${period.start} 〜 ${period.end}`;
   const periodSlug = `${period.start}_${period.end}`;
 
+  // Phase D item 1: a permanent, structural absence (this client's business
+  // has no e-commerce, ever — see ClientConfig.hasEcommerce) must not tell
+  // the client to try a different period. When getTopProducts resolved
+  // "not_configured" for that reason specifically, supply the plain factual
+  // clause instead of the generic { periodLabel } used for a genuine
+  // no-data-this-period result — see absenceCopy()'s not_configured branch
+  // in @/lib/absence.ts (NotConfiguredDetail is exactly this: "a single
+  // factual clause, not new vocabulary").
+  const productAbsenceDetail =
+    productsResult.reason === "not_configured" && !clientHasEcommerce(client)
+      ? "自社ECサイトを保有しない事業"
+      : { periodLabel };
+
   return (
     <div className="space-y-6">
       <div className="space-y-3">
-        <MockBanner isMock={anyMock} />
         <PageHeader
           kicker="商品・検索"
           title="商品・検索 詳細"
@@ -153,6 +170,8 @@ export default async function InsightsScreen({
             rows={products}
             limit={30}
             hideRevenue={revenueUnreliable}
+            absenceReason={productsResult.reason}
+            absenceDetail={productAbsenceDetail}
           />
           <p className="mt-2 text-xs text-muted-foreground">
             購入件数=その商品を含む注文数 / 点数=商品の購入点数 /
@@ -182,7 +201,12 @@ export default async function InsightsScreen({
           />
         </CardHeader>
         <CardContent>
-          <LandingPageTable rows={landingPages} limit={30} />
+          <LandingPageTable
+            rows={landingPages}
+            limit={30}
+            absenceReason={landingPagesResult.reason}
+            absenceDetail={{ periodLabel }}
+          />
         </CardContent>
       </Card>
 
@@ -204,7 +228,12 @@ export default async function InsightsScreen({
           />
         </CardHeader>
         <CardContent>
-          <GscQueryTable rows={queries} limit={50} />
+          <GscQueryTable
+            rows={queries}
+            limit={50}
+            absenceReason={queriesResult.reason}
+            absenceDetail={{ periodLabel }}
+          />
         </CardContent>
       </Card>
     </div>

@@ -13,11 +13,13 @@ import {
 } from "recharts";
 import SegmentedControl from "@/components/dashboard/SegmentedControl";
 import ChartTooltip from "@/components/dashboard/ChartTooltip";
+import AbsenceNotice from "@/components/dashboard/AbsenceNotice";
 import type {
   ChannelGroup,
   ChannelMonth,
   SecondaryEventDef,
 } from "@/lib/sources/ga4";
+import type { AbsenceReason, NoDataPeriodDetail } from "@/lib/absence";
 
 interface Props {
   data: ChannelMonth[];
@@ -26,6 +28,18 @@ interface Props {
   defaultMetric?: BaseMetric | string;
   /** クライアント別の第4トグル以降の定義（HS=[会員登録] / DOZO=[Thanks,Wedding]）。 */
   secondaryDefs?: SecondaryEventDef[];
+  /**
+   * A-21 fix: when `data` is empty (a genuinely new client with no GA4 rows
+   * at all — not just a period outside 過去12ヶ月), this card used to render
+   * an empty Recharts canvas with only the title+toggle visible (confirmed
+   * live on this worktree: the card does NOT go blank for an out-of-range
+   * custom period since the source query is fixed to real 過去12ヶ月, but IS
+   * unguarded for the genuinely-empty-source case). Caller can pass a reason
+   * to distinguish not-configured/unavailable from a true empty result;
+   * defaults to the generic "no data" copy.
+   */
+  absenceReason?: AbsenceReason;
+  absenceDetail?: NoDataPeriodDetail;
 }
 
 type BaseMetric = "sessions" | "conversions" | "revenue";
@@ -81,6 +95,8 @@ export default function ChannelStackedBar({
   data,
   defaultMetric = "sessions",
   secondaryDefs = [],
+  absenceReason,
+  absenceDetail,
 }: Props) {
   const METRICS = [
     ...BASE_METRICS,
@@ -118,6 +134,28 @@ export default function ChannelStackedBar({
     if (metric === "revenue") return `¥${Math.round(n).toLocaleString()}`;
     return Math.round(n).toLocaleString();
   };
+
+  // A-21 fix: `data` genuinely empty (no ga4Last12Months rows at all) used
+  // to render title+toggle followed by an empty Recharts canvas with no
+  // message. The title/toggle (what the client is looking at) stay visible;
+  // only the chart body is replaced.
+  if (data.length === 0) {
+    return (
+      <div className="space-y-3">
+        <SegmentedControl
+          value={metric}
+          options={METRICS.map((m) => ({ value: m.key, label: m.label }))}
+          onValueChange={setMetric}
+          ariaLabel="グラフ指標"
+        />
+        <AbsenceNotice
+          reason={absenceReason ?? "no_data_period"}
+          detail={absenceDetail}
+          className="h-72"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">

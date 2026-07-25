@@ -260,6 +260,12 @@ export default async function AdsScreen({
         ...m,
         ga4Cv: g ? Math.round(g.conversions) : 0,
         ga4Revenue: g ? g.revenue : 0,
+        // Join-failure marker (Phase D): `g === undefined` means the GA4
+        // join found NO record at all for this campaign — the `0` above is
+        // "couldn't match", not "measured zero". Never changes the rendered
+        // number (ga4Cv/ga4Revenue are identical to before this field
+        // existed); MediaCampaignTable renders it as a separate badge.
+        ga4Matched: g !== undefined,
       };
     });
   }
@@ -290,6 +296,8 @@ export default async function AdsScreen({
         ...m,
         ga4Cv: g ? Math.round(g.conversions) : 0,
         ga4Revenue: g ? g.revenue : 0,
+        // Join-failure marker — same rationale as byMediaCampaign above.
+        ga4Matched: g !== undefined,
       };
     });
   }
@@ -647,7 +655,12 @@ export default async function AdsScreen({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <DailyTrendChart data={series} />
+          <DailyTrendChart
+            data={series}
+            absenceDetail={{
+              periodLabel: `${rr.current.start} 〜 ${rr.current.end}`,
+            }}
+          />
         </CardContent>
       </Card>
     </div>

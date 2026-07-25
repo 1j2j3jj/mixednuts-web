@@ -75,6 +75,23 @@ export interface ClientConfig {
    * makes the distinction explicit rather than guessed.
    */
   hasTargets?: boolean;
+  /**
+   * Whether this client's business ever has e-commerce / product-purchase
+   * data. Defaults to `true` (most clients with an empty products table
+   * just have a quiet period or an unconfigured GA4 items feed — a normal,
+   * period-scoped empty state). Set `false` only for a client who
+   * structurally has no e-commerce by business model (Phase D item 1: chakin
+   * sells life-insurance policies — 申込/leads, never a purchasable product —
+   * so its GA4 property will never carry e-commerce "items" events, in any
+   * period, no matter how the date range is changed). There is no other
+   * signal in the data model that distinguishes "this business will never
+   * sell products" from "a genuinely quiet period for a real e-commerce
+   * site" (both resolve to zero rows from getTopProducts — see
+   * src/lib/sources/ga4.ts), so this flag is the smallest addition that
+   * makes the distinction explicit rather than guessed — same precedent as
+   * `hasTargets` above (C3-f).
+   */
+  hasEcommerce?: boolean;
 }
 
 export const INTERNAL_ADMIN_USER_IDS: string[] = [
@@ -147,6 +164,10 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     ga4PropertyId: "263217673",
     gscSiteUrl: null, // GSC not provided by client
     currency: "JPY",
+    // Phase D item 1: Chakin sells life-insurance policies (申込/leads), not
+    // physical/digital products — structurally no e-commerce, in any period.
+    // See ClientConfig.hasEcommerce doc.
+    hasEcommerce: false,
   },
   dozo: {
     id: "dozo",
@@ -262,4 +283,19 @@ export function clientHasTargets(
   client: Pick<ClientConfig, "hasTargets">,
 ): boolean {
   return client.hasTargets !== false;
+}
+
+/**
+ * Phase D item 1: whether a client's business can ever have e-commerce /
+ * product-purchase data — `false` only for a client who structurally has no
+ * e-commerce (see ClientConfig.hasEcommerce doc). Defaults to `true`
+ * (unset/undefined) so every existing client keeps today's behaviour
+ * (products table renders NO_DATA_FOR_PERIOD when empty) unless explicitly
+ * opted out. Same shape as clientHasTargets (C3-f) above — one flag, one
+ * helper, reused rather than re-decided per call site.
+ */
+export function clientHasEcommerce(
+  client: Pick<ClientConfig, "hasEcommerce">,
+): boolean {
+  return client.hasEcommerce !== false;
 }

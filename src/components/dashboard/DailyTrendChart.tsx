@@ -12,10 +12,20 @@ import {
   YAxis,
 } from "recharts";
 import ChartTooltip from "@/components/dashboard/ChartTooltip";
+import AbsenceNotice from "@/components/dashboard/AbsenceNotice";
 import type { DailySeriesPoint } from "@/lib/metrics";
+import type { AbsenceReason, NoDataPeriodDetail } from "@/lib/absence";
 
 interface Props {
   data: DailySeriesPoint[];
+  /** Phase D sweep (item 2): `data` empty (e.g. a custom period with no ad
+   *  rows at all — reproduced live on dozo's 2019-01-01〜01-07) used to
+   *  render an empty Recharts canvas with no message. Caller can pass a
+   *  reason/detail; defaults to the generic "no data this period" copy,
+   *  which is almost always the right one here since this chart is fed by
+   *  the ad-side daily series, not a per-client capability. */
+  absenceReason?: AbsenceReason;
+  absenceDetail?: NoDataPeriodDetail;
 }
 
 const costAxisFormat = (v: number) =>
@@ -30,7 +40,20 @@ const costAxisFormat = (v: number) =>
  * when the page's GA4/媒体 toggle is on GA4 — those headline KPIs use
  * GA4 but this chart stays on the ad-side daily series.
  */
-export default function DailyTrendChart({ data }: Props) {
+export default function DailyTrendChart({
+  data,
+  absenceReason,
+  absenceDetail,
+}: Props) {
+  if (data.length === 0) {
+    return (
+      <AbsenceNotice
+        reason={absenceReason ?? "no_data_period"}
+        detail={absenceDetail}
+        className="h-72"
+      />
+    );
+  }
   const withCpa = data.map((d) => ({
     ...d,
     cpa: d.conversions > 0 ? Math.round(d.cost / d.conversions) : null,

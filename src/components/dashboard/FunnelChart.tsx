@@ -1,4 +1,6 @@
 import { fmtInt, fmtJpy, fmtPct, safeDiv } from "@/lib/utils";
+import AbsenceNotice from "@/components/dashboard/AbsenceNotice";
+import type { AbsenceReason, NoDataPeriodDetail } from "@/lib/absence";
 
 type Unit = "count" | "currency";
 
@@ -13,6 +15,12 @@ interface Stage {
 
 interface Props {
   stages: Stage[];
+  /** Phase D sweep (item 2): `stages` empty used to `return null` — a
+   *  literally-silent blank inside the card's CardContent, with only the
+   *  title left visible. Caller can pass a reason/detail; defaults to the
+   *  generic "no data this period" copy. */
+  absenceReason?: AbsenceReason;
+  absenceDetail?: NoDataPeriodDetail;
 }
 
 function unitOf(s: Stage): Unit {
@@ -27,8 +35,23 @@ function unitOf(s: Stage): Unit {
  * This avoids the "9,366,273%" nonsense when conversions (count) step up to
  * revenue (currency), which used to be rendered as `(revenue/conversions) × 100`.
  */
-export default function FunnelChart({ stages }: Props) {
-  if (stages.length === 0) return null;
+export default function FunnelChart({
+  stages,
+  absenceReason,
+  absenceDetail,
+}: Props) {
+  if (stages.length === 0) {
+    // Non-compact, sized to match DailyTrendChart's absence placement (its
+    // grid sibling on the drill page's lg:grid-cols-2 row) rather than the
+    // table-cell-oriented `compact` variant.
+    return (
+      <AbsenceNotice
+        reason={absenceReason ?? "no_data_period"}
+        detail={absenceDetail}
+        className="h-72"
+      />
+    );
+  }
   const max = Math.max(...stages.map((s) => s.value));
   return (
     <div className="space-y-1">
@@ -52,7 +75,9 @@ export default function FunnelChart({ stages }: Props) {
         return (
           <div key={s.label}>
             {annotation && (
-              <div className="py-1 pl-4 text-[10px] text-muted-foreground">{annotation}</div>
+              <div className="py-1 pl-4 text-[10px] text-muted-foreground">
+                {annotation}
+              </div>
             )}
             <div className="relative h-9 w-full overflow-hidden rounded-md bg-muted">
               <div

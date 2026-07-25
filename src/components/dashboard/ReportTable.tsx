@@ -12,6 +12,11 @@ import {
 } from "@/components/ui/table";
 import { cn, fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 import type { EventCvDef } from "@/lib/sources/bq-rpt";
+import {
+  MATCH_STATUS_DESC,
+  MATCH_STATUS_LABEL,
+  matchBadgeClass,
+} from "@/lib/match-status";
 
 /**
  * Report table for the BQ rpt_* views. Columns follow the classic daily ad
@@ -110,27 +115,9 @@ interface Props {
   showAdCvPurchase?: boolean;
 }
 
-const MATCH_STATUS_DESC: Record<string, string> = {
-  matched: "広告費とGA計測が突合済み",
-  unmapped: "GA計測はあるが対応広告費が未着（広告費は1日遅れで翌日回収）",
-  ad_only: "広告費のみでGA計測なし",
-};
-
-/** Short badge text for r.matchStatus — the raw value ("matched" / "unmapped"
- *  / "ad_only") is an internal status string, not something to show a client
- *  as-is; MATCH_STATUS_DESC above is the long-form tooltip, this is the
- *  compact on-badge label. */
-const MATCH_STATUS_LABEL: Record<string, string> = {
-  matched: "突合済み",
-  unmapped: "未突合",
-  ad_only: "広告費のみ",
-};
-
-function matchBadgeClass(status: string): string {
-  if (status === "matched") return "bg-emerald-100 text-emerald-800";
-  if (status === "unmapped") return "bg-amber-100 text-amber-800";
-  return "bg-muted text-muted-foreground"; // ad_only / other
-}
+// MATCH_STATUS_DESC / MATCH_STATUS_LABEL / matchBadgeClass moved to
+// @/lib/match-status (Phase D) so the ads tab can reuse the exact same
+// vocabulary for its own GA4-join badge instead of inventing a second one.
 
 /** Sortable columns. Mirrors the visible column set (label excluded — use natural order for that).
  *  Event-CV columns are sorted via a synthetic key "event:{eventKey}" (see sortKeyFor). */

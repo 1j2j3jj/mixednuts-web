@@ -797,7 +797,12 @@ export default async function DrillScreen({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <FunnelChart stages={funnelStages} />
+            <FunnelChart
+              stages={funnelStages}
+              absenceDetail={{
+                periodLabel: `${rr.current.start} 〜 ${rr.current.end}`,
+              }}
+            />
           </CardContent>
         </Card>
         <Card>
@@ -812,7 +817,12 @@ export default async function DrillScreen({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <DailyTrendChart data={series} />
+            <DailyTrendChart
+              data={series}
+              absenceDetail={{
+                periodLabel: `${rr.current.start} 〜 ${rr.current.end}`,
+              }}
+            />
           </CardContent>
         </Card>
       </div>

@@ -11,6 +11,11 @@ import ShareBar from "@/components/dashboard/ShareBar";
 import { cn, fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 import { computeShare } from "@/lib/share";
 import type { MetricSource } from "@/lib/source";
+import {
+  MATCH_STATUS_LABEL,
+  MATCH_STATUS_DESC,
+  matchBadgeClass,
+} from "@/lib/match-status";
 
 export interface MediaRow {
   media: string;
@@ -25,6 +30,15 @@ export interface MediaRow {
   conversionValue: number;
   /** GA4 purchase revenue (joined). 0 if unavailable. */
   ga4Revenue?: number;
+  /**
+   * Whether the GA4 join found a matching record for this media at all
+   * (Phase D, ads-tab join-failure fix). `ga4Cv` stays `0` either way — this
+   * field never changes what number renders, it only lets the table mark a
+   * `0` that came from "no join found" differently from a `0` that came
+   * from "joined, and the real value is zero". Optional so callers that
+   * haven't computed it (none currently) still render exactly as before.
+   */
+  ga4Matched?: boolean;
 }
 
 interface Props {
@@ -128,7 +142,29 @@ export default function MediaTable({ rows, targetRoasPct, source }: Props) {
           {fmtPct(ctr, 2)}
         </TableCell>
         <TableCell className="text-right tabular-nums">{fmtJpy(cpc)}</TableCell>
-        <TableCell className="text-right tabular-nums">{fmtInt(cv)}</TableCell>
+        <TableCell className="text-right tabular-nums">
+          {/* Join-failure marker (Phase D, reuses report tab's exact
+              matched/unmapped vocabulary — @/lib/match-status): this media
+              had ad spend but the GA4 join found no matching record, so `cv`
+              is `0` *because we couldn't match it*, not because it measured
+              zero. Only shown on the GA4-basis column and never on the total
+              row (the total's own caveat is the KPI-grid note above this
+              table, unchanged). */}
+          <span className="inline-flex items-center justify-end gap-1">
+            {fmtInt(cv)}
+            {source === "ga4" && !isTotal && r.ga4Matched === false && (
+              <span
+                className={cn(
+                  "rounded px-1 py-0.5 text-xs leading-none",
+                  matchBadgeClass("unmapped"),
+                )}
+                title={MATCH_STATUS_DESC.unmapped}
+              >
+                {MATCH_STATUS_LABEL.unmapped}
+              </span>
+            )}
+          </span>
+        </TableCell>
         <TableCell className="text-right tabular-nums">
           {fmtPct(cvr, 2)}
         </TableCell>
