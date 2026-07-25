@@ -53,6 +53,11 @@ function listSourceFiles(dirs: string[]): string[] {
           continue;
         walk(full);
       } else if (/\.(tsx?|jsx?)$/.test(entry.name)) {
+        // .css is deliberately excluded — see the Guard 2 comment in
+        // design-guards.ts ("Adversarial review (2026-07-25)..."):
+        // globals.css is the declared token source of truth, not something
+        // this guard should police, and a future dashboard-scope CSS
+        // Module would likewise go unscanned here.
         out.push(full);
       }
     }
@@ -104,6 +109,36 @@ describe("findBrandCyanViolations", () => {
       const stroke = "var(--chart-1)";
       const ring = "focus-visible:ring-2 focus-visible:ring-ring";
       const brand = "border-brand-ink bg-brand/14 text-brand-deep";
+    `;
+    expect(findBrandCyanViolations(fixture)).toEqual([]);
+  });
+
+  it("CATCHES a class name built from concatenated string fragments (bypass: string concatenation defeats a contiguous-substring regex)", () => {
+    // Neither "text-" nor "-500" alone contains "cyan", and the old regex
+    // required the CONTIGUOUS substring "text-cyan" — concatenation never
+    // produces that contiguous substring even though "cyan" is plainly
+    // present in the source as its own string literal.
+    const fixture = `const cls = "text-" + "cyan" + "-500";`;
+    expect(findBrandCyanViolations(fixture).length).toBe(1);
+  });
+
+  it("CATCHES a class name built via template-literal interpolation (bypass: `${...}` composition)", () => {
+    // Single-quoted at the outer (test-source) level so the backtick and
+    // double quotes inside the fixture don't need escaping.
+    const fixture = 'const cls = `text-${"cyan-500"}`;';
+    expect(findBrandCyanViolations(fixture).length).toBe(1);
+  });
+
+  it("does NOT flag prose mentioning 'cyan' outside a string literal (clean fixture matching the real ChannelStackedBar.tsx / GoalGauge.tsx doc comments)", () => {
+    // This is the reason detection is scoped to string literals rather than
+    // a whole-source substring search: both real files below say "cyan" in
+    // a `/* ... */` doc comment, not in a class name.
+    const fixture = `
+      /*
+       * \`--chart-1..7\` — 7-hue categorical palette anchored on brand cyan
+       * (slot 1), separate from the brand cyan accent so a status colour
+       * never impersonates a chart series.
+       */
     `;
     expect(findBrandCyanViolations(fixture)).toEqual([]);
   });
@@ -204,6 +239,45 @@ describe("findDarkFillToggleViolations", () => {
     expect(findDarkFillToggleViolations(fixture).length).toBe(1);
   });
 
+  it("CATCHES the pair composed via && short-circuit instead of a ternary (bypass 1: no ternary at all)", () => {
+    const fixture = `
+      className={cn(selected && "bg-primary", selected && "text-primary-foreground")}
+    `;
+    expect(findDarkFillToggleViolations(fixture).length).toBe(1);
+  });
+
+  it("CATCHES the pair gated by an arbitrary boolean identifier, not just selected/active (bypass 2: 'checked')", () => {
+    const fixture = `
+      checked
+        ? "bg-primary text-primary-foreground"
+        : "bg-transparent text-muted-foreground"
+    `;
+    expect(findDarkFillToggleViolations(fixture).length).toBe(1);
+  });
+
+  it("CATCHES the pair regardless of WHICH boolean identifier gates it (bypass 2, generality: current/open/highlighted)", () => {
+    for (const identifier of ["current", "open", "highlighted"]) {
+      const fixture = `${identifier} ? "bg-primary text-primary-foreground" : "bg-transparent"`;
+      expect(findDarkFillToggleViolations(fixture).length).toBe(1);
+    }
+  });
+
+  it("CATCHES the pair composed via clsx object syntax (bypass 3: no ternary, no adjacent string)", () => {
+    const fixture = `
+      clsx({ "bg-primary": selected, "text-primary-foreground": selected })
+    `;
+    expect(findDarkFillToggleViolations(fixture).length).toBe(1);
+  });
+
+  it("CATCHES the pair extracted to a named constant referenced from the ternary (bypass 4: no proximity to 'selected' at all)", () => {
+    const fixture = `
+      const SELECTED_STYLE = "bg-primary text-primary-foreground";
+      const UNSELECTED_STYLE = "text-muted-foreground";
+      className={cn(base, selected ? SELECTED_STYLE : UNSELECTED_STYLE)}
+    `;
+    expect(findDarkFillToggleViolations(fixture).length).toBe(1);
+  });
+
   it("does NOT flag the current SegmentedControl.tsx selected style (clean fixture)", () => {
     const fixture = `
       className={cn(
@@ -217,7 +291,18 @@ describe("findDarkFillToggleViolations", () => {
     expect(findDarkFillToggleViolations(fixture)).toEqual([]);
   });
 
-  it("does NOT flag the shared Button component's unrelated default variant (clean fixture, proves no false positive on static variant maps)", () => {
+  it("no longer exempts the shared Button/Badge variant-map shape — now flags it too (accepted tradeoff of closing bypass 4)", () => {
+    // Historical note: this fixture used to be a "clean, does NOT flag"
+    // case, specifically proving the old ternary-plus-identifier keying
+    // didn't false-positive on Button's unrelated `default` variant. Bypass
+    // 4 above (extraction to a named constant) proved that keying scheme
+    // bypassable, and closing it requires flagging the two classes on bare
+    // co-occurrence — which makes this fixture textually indistinguishable
+    // from the named-constant bypass: both are simply "a string literal
+    // containing both classes". This is an accepted, documented tradeoff
+    // (see the Guard 3 comment block in design-guards.ts) — real safety for
+    // Button/Badge comes from directory scope, not from this function. The
+    // next test proves the real files are excluded that way.
     const fixture = `
       variants: {
         variant: {
@@ -226,7 +311,33 @@ describe("findDarkFillToggleViolations", () => {
         },
       },
     `;
-    expect(findDarkFillToggleViolations(fixture)).toEqual([]);
+    expect(findDarkFillToggleViolations(fixture).length).toBeGreaterThan(0);
+  });
+
+  it("the REAL button.tsx/badge.tsx contain this pair too, and are clean of the real-tree scan ONLY because src/components/ui is outside dashboard scope (proves the boundary this guard now relies on)", () => {
+    const buttonSource = fs.readFileSync(
+      path.join(process.cwd(), "src/components/ui/button.tsx"),
+      "utf-8",
+    );
+    const badgeSource = fs.readFileSync(
+      path.join(process.cwd(), "src/components/ui/badge.tsx"),
+      "utf-8",
+    );
+    // If either file were ever fed through this detector, it WOULD be
+    // flagged — that is the accepted cost documented above, not a bug.
+    expect(findDarkFillToggleViolations(buttonSource).length).toBeGreaterThan(
+      0,
+    );
+    expect(findDarkFillToggleViolations(badgeSource).length).toBeGreaterThan(0);
+    // What actually keeps the real-tree assertion below clean: neither file
+    // is part of the scanned dashboard-scope set (DASHBOARD_SCOPE_DIRS) in
+    // the first place. If this ever becomes false — e.g. Button/Badge move
+    // into src/components/dashboard — the real-tree test below will start
+    // failing, which is the correct, honest outcome (allowlist it then,
+    // per the Guard 3 comment).
+    expect(
+      DASHBOARD_FILES.some((f) => relPath(f).includes("components/ui")),
+    ).toBe(false);
   });
 
   it("does NOT flag an isActive ternary whose consequent is unrelated to bg-primary (clean fixture matching Tabs.tsx)", () => {
@@ -264,11 +375,37 @@ describe("findSubReadablePxFontSizes", () => {
     expect(findSubReadablePxFontSizes(fixture).length).toBe(1);
   });
 
-  it("does NOT flag the text-xs scale step (12px) or larger arbitrary values (clean fixture)", () => {
+  it("CATCHES an arbitrary sub-12px em value (bypass: em was not recognised at all)", () => {
+    // 0.7em treated at the task-specified 1em = 16px basis => 11.2px < 12
+    const fixture = `<span className="text-[0.7em]">tiny</span>`;
+    expect(findSubReadablePxFontSizes(fixture).length).toBe(1);
+  });
+
+  it("CATCHES an arbitrary sub-12px percent value (bypass: % was not recognised at all)", () => {
+    // 70% of the 16px basis => 11.2px < 12
+    const fixture = `<span className="text-[70%]">tiny</span>`;
+    expect(findSubReadablePxFontSizes(fixture).length).toBe(1);
+  });
+
+  it('CATCHES an inline style-object fontSize, string form (bypass: style={{ fontSize: "10px" }} was invisible to a text-[...] -only regex)', () => {
+    const fixture = `<span style={{ fontSize: "10px" }}>tiny</span>`;
+    expect(findSubReadablePxFontSizes(fixture).length).toBe(1);
+  });
+
+  it("CATCHES an inline style-object fontSize, bare-numeric form (bypass: style={{ fontSize: 10 }} — React/DOM imply px)", () => {
+    const fixture = `<span style={{ fontSize: 10 }}>tiny</span>`;
+    expect(findSubReadablePxFontSizes(fixture).length).toBe(1);
+  });
+
+  it("does NOT flag the text-xs scale step (12px) or larger arbitrary values, in ANY recognised unit including the newly-added ones (clean fixture)", () => {
     const fixture = `
       <span className="text-xs text-muted-foreground">normal</span>
       <span className="text-[14px]">also fine</span>
       <span className="text-[1.75rem] font-extrabold">kpi value</span>
+      <span className="text-[1em]">also fine (1em = 16px)</span>
+      <span className="text-[100%]">also fine (100% = 16px)</span>
+      <span style={{ fontSize: "14px" }}>also fine</span>
+      <span style={{ fontSize: 16 }}>also fine</span>
     `;
     expect(findSubReadablePxFontSizes(fixture)).toEqual([]);
   });
@@ -289,19 +426,39 @@ describe("findSubReadablePxFontSizes", () => {
     expect(allViolations).toEqual([]);
   });
 
-  it("dashboard-wide sub-12px count does not exceed the frozen 2026-07-25 baseline (ratchet, not a full ban)", () => {
+  it("dashboard-wide sub-12px count does not exceed the frozen, RECOMPUTED 2026-07-25 baseline (ratchet, not a full ban)", () => {
     // The typography-spacing audit (2026-07-24) found 31 existing
     // text-[10px]/text-[11px] sites (18 + 13) across page-level content —
     // several load-bearing (DrillTable anomaly badge, ReportTable
     // data-quality caveats, FunnelChart step delta). Rewriting each site's
     // information hierarchy is a Phase C (information-design) judgment
     // call, not a Phase B mechanical token swap, so this program does not
-    // bulk-fix them. What Phase B CAN and does enforce: the count must never
-    // grow. If this assertion fails, either (a) a new sub-12px site was
+    // bulk-fix them.
+    //
+    // RECOMPUTED 2026-07-25: closing the em/%/inline-fontSize bypasses (see
+    // design-guards.ts Guard 4 comment) made this detector see MORE of the
+    // real tree than before — 4 pre-existing sites that were always sub-12px
+    // but invisible to the old text-[...px]/text-[...rem]-only regex, all
+    // the same shape (a Recharts `wrapperStyle`/style-object
+    // `fontSize: "11px"` on a chart legend or tooltip):
+    //   - src/components/dashboard/Sparkline.tsx:53
+    //   - src/components/dashboard/ChannelTrendChart.tsx:181
+    //   - src/components/dashboard/ChannelStackedBar.tsx:162
+    //   - src/components/dashboard/NewVsRepeatChart.tsx:57
+    // (Verified by running the broadened detector against the real tree and
+    // diffing against the pre-broadening 31; zero em/% sites were found —
+    // only the fontSize:"11px" shape above.) Per the task brief, broadening
+    // detection is not the same program as fixing what it finds, so the
+    // baseline is RAISED to match the new true count (31 -> 35) instead of
+    // silently failing the suite. These 4 join the same Phase C backlog as
+    // the original 31 — not fixed here.
+    //
+    // What Phase B CAN and does enforce: the count must never grow from
+    // here. If this assertion fails, either (a) a new sub-12px site was
     // added — fix it before merging — or (b) Phase C shrank the real count
     // below BASELINE — great, lower BASELINE to match and keep the ratchet
     // tight.
-    const BASELINE = 31;
+    const BASELINE = 35;
     const allViolations = DASHBOARD_FILES.flatMap((file) => {
       const source = fs.readFileSync(file, "utf-8");
       return findSubReadablePxFontSizes(source).map((v) => ({
