@@ -24,11 +24,14 @@ import PrintButton from "@/components/dashboard/PrintButton";
 import MockBanner from "@/components/dashboard/MockBanner";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
 import SourceToggle from "@/components/dashboard/SourceToggle";
+import PageHeader from "@/components/dashboard/PageHeader";
+import StatusChip from "@/components/dashboard/StatusChip";
 import { readSource } from "@/lib/source";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
 import { lastN } from "@/lib/analysis";
 import { fmtInt, fmtJpy, fmtRatioPct, safeDiv } from "@/lib/utils";
+import { computeWinRate, meetsRoasTarget, winRateTone } from "@/lib/chip";
 
 /**
  * Screen 2 — Ads summary.
@@ -302,6 +305,26 @@ export default async function AdsScreen({
   const targetPeriodMatches =
     rr.current.start.slice(0, 7) === anchor.slice(0, 7);
 
+  // Card-level "win rate" chip (C2-d) for 媒体別サマリ: share of media rows
+  // whose ROAS meets-or-beats the target, reusing the exact per-cell
+  // threshold MediaTable already colours with (roasClass). No target
+  // configured (MSEC) or an empty media set => computeWinRate/winRateTone
+  // both return null => no chip, never a false reading.
+  const mediaWinHits =
+    targetPeriodMatches && tgt.roasPct != null && tgt.roasPct > 0
+      ? mediaRows.filter((r) => {
+          const rev =
+            source === "ga4" ? (r.ga4Revenue ?? 0) : r.conversionValue;
+          const roasPct = r.spend > 0 ? (rev / r.spend) * 100 : null;
+          return meetsRoasTarget(roasPct, tgt.roasPct);
+        }).length
+      : null;
+  const mediaWinRate =
+    mediaWinHits != null
+      ? computeWinRate(mediaWinHits, mediaRows.length)
+      : null;
+  const mediaWinTone = winRateTone(mediaWinRate);
+
   const series = aggregateByDate(cur);
 
   // Sparklines: last 14 buckets. Dates paired for tooltip.
@@ -334,31 +357,31 @@ export default async function AdsScreen({
 
   return (
     <div className="space-y-6">
-      <MockBanner isMock={isMock || ga4AllIsMock || ga4CampaignsIsMock} />
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">
-            Ads
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            広告サマリー · {rr.presetLabel}
-          </h1>
-          <div className="mt-1 text-sm text-muted-foreground">
-            {rr.current.start} 〜 {rr.current.end}
-            {rr.previous && (
-              <span className="ml-2">
-                · {rr.compareLabel}: {rr.previous.start} 〜 {rr.previous.end}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="text-xs text-muted-foreground">
-            最終取得 {fetchedAtLabel}
-          </div>
-          <PrintButton />
-          <RefreshButton clientId={client.id} />
-        </div>
+      <div className="space-y-3">
+        <MockBanner isMock={isMock || ga4AllIsMock || ga4CampaignsIsMock} />
+        <PageHeader
+          kicker="Ads"
+          title={<>広告サマリー · {rr.presetLabel}</>}
+          subtitle={
+            <>
+              {rr.current.start} 〜 {rr.current.end}
+              {rr.previous && (
+                <span className="ml-2">
+                  · {rr.compareLabel}: {rr.previous.start} 〜 {rr.previous.end}
+                </span>
+              )}
+            </>
+          }
+          controls={
+            <>
+              <div className="text-xs text-muted-foreground">
+                最終取得 {fetchedAtLabel}
+              </div>
+              <PrintButton />
+              <RefreshButton clientId={client.id} />
+            </>
+          }
+        />
       </div>
 
       {/* Period KPIs with comparison + sparkline */}
@@ -523,7 +546,14 @@ export default async function AdsScreen({
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold">媒体別サマリ</h2>
-          <SourceToggle />
+          <div className="flex items-center gap-2">
+            {mediaWinTone && mediaWinHits != null && (
+              <StatusChip tone={mediaWinTone}>
+                目標達成 {mediaWinHits}/{mediaRows.length} 媒体
+              </StatusChip>
+            )}
+            <SourceToggle />
+          </div>
         </div>
         <MediaTable
           rows={mediaRows}

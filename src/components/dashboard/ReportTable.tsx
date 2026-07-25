@@ -8,6 +8,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TOTAL_ROW_CLASS,
 } from "@/components/ui/table";
 import { cn, fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 import type { EventCvDef } from "@/lib/sources/bq-rpt";
@@ -260,7 +261,11 @@ export default function ReportTable({
 
   function sortIndicator(key: SortKey) {
     if (sortKey !== key) return null;
-    return <span className="ml-0.5 inline-block">{sortDir === "desc" ? "▼" : "▲"}</span>;
+    return (
+      <span className="ml-0.5 inline-block">
+        {sortDir === "desc" ? "▼" : "▲"}
+      </span>
+    );
   }
 
   function sortableHeadProps(key: SortKey, extraClassName?: string) {
@@ -269,7 +274,7 @@ export default function ReportTable({
       className: cn(
         "cursor-pointer select-none hover:bg-accent/50",
         sortKey === key && "bg-accent/30",
-        extraClassName
+        extraClassName,
       ),
     };
   }
@@ -353,7 +358,9 @@ export default function ReportTable({
               CV Value
               {sortIndicator("mediaValue")}
             </TableHead>
-            <TableHead {...sortableHeadProps("sessions", "border-l text-right")}>
+            <TableHead
+              {...sortableHeadProps("sessions", "border-l text-right")}
+            >
               Session
               {sortIndicator("sessions")}
             </TableHead>
@@ -383,7 +390,10 @@ export default function ReportTable({
             {eventDefs.map((ev) => (
               <TableHead
                 key={ev.key}
-                {...sortableHeadProps(`event:${ev.key}`, "text-right whitespace-nowrap")}
+                {...sortableHeadProps(
+                  `event:${ev.key}`,
+                  "text-right whitespace-nowrap",
+                )}
               >
                 {ev.label}
                 {sortIndicator(`event:${ev.key}`)}
@@ -391,7 +401,10 @@ export default function ReportTable({
             ))}
             {showAdCvPurchase && (
               <TableHead
-                {...sortableHeadProps("adCvPurchase", "text-right whitespace-nowrap")}
+                {...sortableHeadProps(
+                  "adCvPurchase",
+                  "text-right whitespace-nowrap",
+                )}
                 title="fct_ad_daily 由来（広告エンティティに帰属したGA計測分）。参考列 — サイト全体のGA_CV(購入)とは別の数字"
               >
                 GA_CV(広告帰属)
@@ -400,7 +413,10 @@ export default function ReportTable({
             )}
             {showOverall && (
               <TableHead
-                {...sortableHeadProps("overallCv", "border-l text-right whitespace-nowrap")}
+                {...sortableHeadProps(
+                  "overallCv",
+                  "border-l text-right whitespace-nowrap",
+                )}
               >
                 {overallLabel}
                 {sortIndicator("overallCv")}
@@ -408,7 +424,10 @@ export default function ReportTable({
             )}
             {showOverall && showOverallValue && (
               <TableHead
-                {...sortableHeadProps("overallValue", "text-right whitespace-nowrap")}
+                {...sortableHeadProps(
+                  "overallValue",
+                  "text-right whitespace-nowrap",
+                )}
               >
                 全体売上
                 {sortIndicator("overallValue")}
@@ -419,26 +438,44 @@ export default function ReportTable({
         <TableBody>
           {rows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={colSpan} className="py-6 text-center text-muted-foreground">
+              <TableCell
+                colSpan={colSpan}
+                className="py-6 text-center text-muted-foreground"
+              >
                 選択期間にデータがありません
               </TableCell>
             </TableRow>
           )}
           {sortedRows.map((r, i) => {
-            const { ctr, cpc, mediaCvr, mediaCpa, mediaRoasPct, gaCvr, gaCpa, gaRoasPct } = r;
+            const {
+              ctr,
+              cpc,
+              mediaCvr,
+              mediaCpa,
+              mediaRoasPct,
+              gaCvr,
+              gaCpa,
+              gaRoasPct,
+            } = r;
             return (
               <TableRow
                 key={`${r.label}:${r.media ?? ""}:${r.subLabel ?? ""}:${r.grainLevel ?? ""}:${r.matchStatus ?? ""}:${i}`}
-                className={cn(r.isTotal && "bg-muted/40 font-medium")}
+                className={cn(r.isTotal && TOTAL_ROW_CLASS)}
               >
                 <TableCell
-                  className={cn("whitespace-nowrap", monoLabel && !r.isTotal && "font-mono text-xs")}
+                  className={cn(
+                    "whitespace-nowrap",
+                    monoLabel && !r.isTotal && "font-mono text-xs",
+                  )}
                 >
                   <div className="max-w-xs truncate" title={r.label}>
                     {r.label}
                   </div>
                   {r.subLabel && (
-                    <div className="max-w-xs truncate text-[10px] font-mono text-muted-foreground" title={r.subLabel}>
+                    <div
+                      className="max-w-xs truncate text-[10px] font-mono text-muted-foreground"
+                      title={r.subLabel}
+                    >
                       {r.subLabel}
                     </div>
                   )}
@@ -456,9 +493,11 @@ export default function ReportTable({
                         <span
                           className={cn(
                             "rounded-md px-1.5 py-0.5 text-[10px]",
-                            matchBadgeClass(r.matchStatus)
+                            matchBadgeClass(r.matchStatus),
                           )}
-                          title={MATCH_STATUS_DESC[r.matchStatus] ?? r.matchStatus}
+                          title={
+                            MATCH_STATUS_DESC[r.matchStatus] ?? r.matchStatus
+                          }
                         >
                           {r.matchStatus}
                         </span>
@@ -475,22 +514,54 @@ export default function ReportTable({
                   )}
                 </TableCell>
                 {showMedia && <TableCell>{r.media ?? ""}</TableCell>}
-                <TableCell className="border-l text-right tabular-nums">{fmtJpy(r.cost)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtInt(r.impressions)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtInt(r.clicks)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtPct(ctr, 2)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtJpy(cpc)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtInt(r.mediaCv)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtPct(mediaCvr, 2)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtJpy(mediaCpa)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtRatioPct(mediaRoasPct, 0)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtJpy(r.mediaValue)}</TableCell>
-                <TableCell className="border-l text-right tabular-nums">{fmtInt(r.sessions)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtInt(r.gaCvPurchase)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtPct(gaCvr, 2)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtJpy(gaCpa)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtJpy(r.gaValue)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtRatioPct(gaRoasPct, 0)}</TableCell>
+                <TableCell className="border-l text-right tabular-nums">
+                  {fmtJpy(r.cost)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtInt(r.impressions)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtInt(r.clicks)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtPct(ctr, 2)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtJpy(cpc)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtInt(r.mediaCv)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtPct(mediaCvr, 2)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtJpy(mediaCpa)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtRatioPct(mediaRoasPct, 0)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtJpy(r.mediaValue)}
+                </TableCell>
+                <TableCell className="border-l text-right tabular-nums">
+                  {fmtInt(r.sessions)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtInt(r.gaCvPurchase)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtPct(gaCvr, 2)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtJpy(gaCpa)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtJpy(r.gaValue)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtRatioPct(gaRoasPct, 0)}
+                </TableCell>
                 {eventDefs.map((ev) => (
                   <TableCell key={ev.key} className="text-right tabular-nums">
                     {fmtInt(r.gaCvEvents[ev.key] ?? 0)}
@@ -507,7 +578,9 @@ export default function ReportTable({
                   </TableCell>
                 )}
                 {showOverall && showOverallValue && (
-                  <TableCell className="text-right tabular-nums">{fmtJpy(r.overallValue)}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {fmtJpy(r.overallValue)}
+                  </TableCell>
                 )}
               </TableRow>
             );

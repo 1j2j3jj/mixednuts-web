@@ -1,5 +1,15 @@
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TOTAL_ROW_CLASS,
+} from "@/components/ui/table";
+import ShareBar from "@/components/dashboard/ShareBar";
 import { cn, fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
+import { computeShare } from "@/lib/share";
 import type { MetricSource } from "@/lib/source";
 
 export interface MediaRow {
@@ -67,7 +77,7 @@ export default function MediaTable({ rows, targetRoasPct, source }: Props) {
       ga4Cv: 0,
       conversionValue: 0,
       ga4Revenue: 0,
-    } as MediaRow
+    } as MediaRow,
   );
 
   const cvLabel = source === "ga4" ? "GA4 CV" : "媒体CV";
@@ -79,31 +89,58 @@ export default function MediaTable({ rows, targetRoasPct, source }: Props) {
     const ctr = safeDiv(r.clicks, r.impressions);
     const cpc = safeDiv(r.spend, r.clicks);
     const cv = source === "ga4" ? r.ga4Cv : r.adsCv;
-    const rev = source === "ga4" ? r.ga4Revenue ?? 0 : r.conversionValue;
+    const rev = source === "ga4" ? (r.ga4Revenue ?? 0) : r.conversionValue;
     const cvr = safeDiv(cv, r.clicks);
     const aov = safeDiv(rev, cv);
     const cpa = safeDiv(r.spend, cv);
     const roasPct = r.spend > 0 ? (rev / r.spend) * 100 : null;
     return (
-      <TableRow key={r.media} className={cn(isTotal && "border-t-2 bg-muted/40 font-medium")}>
+      <TableRow key={r.media} className={cn(isTotal && TOTAL_ROW_CLASS)}>
         <TableCell>
           {isTotal ? (
             <span>{r.media}</span>
           ) : (
-            <span className={`inline-flex rounded-md px-2 py-0.5 text-xs ${mediaBadge(r.media)}`}>{r.media}</span>
+            <span
+              className={`inline-flex rounded-md px-2 py-0.5 text-xs ${mediaBadge(r.media)}`}
+            >
+              {r.media}
+            </span>
           )}
         </TableCell>
-        <TableCell className="text-right tabular-nums">{fmtJpy(r.spend)}</TableCell>
-        <TableCell className="text-right tabular-nums">{fmtInt(r.impressions)}</TableCell>
-        <TableCell className="text-right tabular-nums">{fmtInt(r.clicks)}</TableCell>
-        <TableCell className="text-right tabular-nums">{fmtPct(ctr, 2)}</TableCell>
+        <TableCell className="text-right tabular-nums">
+          {fmtJpy(r.spend)}
+        </TableCell>
+        <TableCell>
+          {/* C2-b share-of-total column (e.g. "Google is 78% of spend",
+              previously not visually encoded at all). For the total row,
+              r === tot, so this naturally reads 100% when spend > 0, or the
+              zero-denominator em-dash when total spend is 0 — no special
+              case needed. */}
+          <ShareBar ratio={computeShare(r.spend, tot.spend)} />
+        </TableCell>
+        <TableCell className="text-right tabular-nums">
+          {fmtInt(r.impressions)}
+        </TableCell>
+        <TableCell className="text-right tabular-nums">
+          {fmtInt(r.clicks)}
+        </TableCell>
+        <TableCell className="text-right tabular-nums">
+          {fmtPct(ctr, 2)}
+        </TableCell>
         <TableCell className="text-right tabular-nums">{fmtJpy(cpc)}</TableCell>
         <TableCell className="text-right tabular-nums">{fmtInt(cv)}</TableCell>
-        <TableCell className="text-right tabular-nums">{fmtPct(cvr, 2)}</TableCell>
+        <TableCell className="text-right tabular-nums">
+          {fmtPct(cvr, 2)}
+        </TableCell>
         <TableCell className="text-right tabular-nums">{fmtJpy(cpa)}</TableCell>
         <TableCell className="text-right tabular-nums">{fmtJpy(rev)}</TableCell>
         <TableCell className="text-right tabular-nums">{fmtJpy(aov)}</TableCell>
-        <TableCell className={cn("text-right tabular-nums", !isTotal && roasClass(roasPct, targetRoasPct))}>
+        <TableCell
+          className={cn(
+            "text-right tabular-nums",
+            !isTotal && roasClass(roasPct, targetRoasPct),
+          )}
+        >
           {fmtRatioPct(roasPct, 0)}
         </TableCell>
       </TableRow>
@@ -117,6 +154,7 @@ export default function MediaTable({ rows, targetRoasPct, source }: Props) {
           <TableRow>
             <TableHead>媒体</TableHead>
             <TableHead className="text-right">Spend</TableHead>
+            <TableHead className="text-right">Spend比</TableHead>
             <TableHead className="text-right">Imp</TableHead>
             <TableHead className="text-right">Click</TableHead>
             <TableHead className="text-right">CTR</TableHead>

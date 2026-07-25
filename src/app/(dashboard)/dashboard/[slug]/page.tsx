@@ -36,6 +36,9 @@ import PrintButton from "@/components/dashboard/PrintButton";
 import MockBanner from "@/components/dashboard/MockBanner";
 import StaleDataBanner from "@/components/dashboard/StaleDataBanner";
 import FirstRunGuide from "@/components/dashboard/FirstRunGuide";
+import PageHeader from "@/components/dashboard/PageHeader";
+import ShareBar from "@/components/dashboard/ShareBar";
+import StatusChip from "@/components/dashboard/StatusChip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -46,6 +49,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
+import { computeShare } from "@/lib/share";
+import { achievementTone, sumAchievement } from "@/lib/chip";
 
 export const dynamic = "force-dynamic";
 // Allow up to 60s (Vercel default 30s was a timeout risk for the parallel
@@ -349,6 +354,10 @@ export default async function Overview({
     byChannel.set(r.channel, cur);
   }
   const topChannelsAll = Array.from(byChannel.values());
+  // Denominator for the Top-5 table's 売上比 share bar (C2-b): revenue across
+  // ALL channels, not just the 5 shown — "share of total", matching the
+  // MediaTable Spend share-bar pattern (share of the table's grand total).
+  const totalChannelRevenue = topChannelsAll.reduce((s, c) => s + c.revenue, 0);
   const topChannels = topChannelsAll
     .slice()
     .sort((a, b) => b.revenue - a.revenue)
@@ -441,6 +450,20 @@ export default async function Overview({
       };
     });
   })();
+
+  // Card-level chip (C2-d) for the チャネル別 目標vs実績 card: reuses the
+  // exact rows/thresholds ChannelTargetTable already renders per-cell
+  // (achievementColour), so the chip can't disagree with the table under it.
+  // sumAchievement returns ratio=null when no row carries a target (or the
+  // summed target is 0) — achievementTone then returns null and no chip
+  // renders, rather than a false "0% achieved" reading.
+  const channelAchievement = sumAchievement(
+    channelTargetRows.map((r) => ({
+      actual: r.revenue,
+      target: r.revenueTarget,
+    })),
+  );
+  const channelAchievementTone = achievementTone(channelAchievement.ratio);
 
   const monthProgressNote = (() => {
     if (channelTargetRows.length === 0) return undefined;
@@ -550,57 +573,64 @@ export default async function Overview({
 
   return (
     <div className="space-y-6">
-      <MockBanner isMock={anyMock} />
-      <StaleDataBanner maxDate={adMaxDate} />
-      <FirstRunGuide />
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="text-xs uppercase tracking-wider text-brand-ink">
-            Overview
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {rr.presetLabel}
-          </h1>
-          <div className="mt-1 text-sm text-muted-foreground">
-            {rr.current.start} 〜 {rr.current.end}
-            {rr.previous && (
+      {/* C2-a: banners + page header + pacing alert are one tight cluster
+          (space-y-3, 12px) instead of riding the page's normal space-y-6
+          (24px) rhythm — they're all "before you see any data" chrome, not
+          content sections that deserve full breathing room. The KPI grid
+          onward keeps the normal 24px rhythm. */}
+      <div className="space-y-3">
+        <MockBanner isMock={anyMock} />
+        <StaleDataBanner maxDate={adMaxDate} />
+        <FirstRunGuide />
+        <PageHeader
+          kicker="Overview"
+          title={rr.presetLabel}
+          subtitle={
+            <>
+              {rr.current.start} 〜 {rr.current.end}
+              {rr.previous && (
+                <span className="ml-2">
+                  · {rr.compareLabel}: {rr.previous.start} 〜 {rr.previous.end}
+                </span>
+              )}
+            </>
+          }
+          controls={
+            <>
+              <SourceToggle
+                sources={
+                  hasEccube ? ["ga4", "media", "eccube"] : ["ga4", "media"]
+                }
+              />
+              <div className="text-xs text-muted-foreground">
+                最終取得 {fetchedAtLabel}
+              </div>
+              <PrintButton />
+              <RefreshButton clientId={client.id} />
+            </>
+          }
+        />
+        {source === "eccube" && hasEccube && (
+          <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+            表示値: ECCUBE 購入実績（shop DB 直接）。データ開始日:
+            <span className="ml-1 font-mono">{eccube.rows[0].date}</span>
+            {rr.current.start < eccube.rows[0].date && (
               <span className="ml-2">
-                · {rr.compareLabel}: {rr.previous.start} 〜 {rr.previous.end}
+                · この期間の一部は ECCUBE データ未取得のため売上・CV
+                が過小表示されている可能性あり。
               </span>
             )}
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <SourceToggle
-            sources={hasEccube ? ["ga4", "media", "eccube"] : ["ga4", "media"]}
-          />
-          <div className="text-xs text-muted-foreground">
-            最終取得 {fetchedAtLabel}
-          </div>
-          <PrintButton />
-          <RefreshButton clientId={client.id} />
-        </div>
-      </div>
-      {source === "eccube" && hasEccube && (
-        <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
-          表示値: ECCUBE 購入実績（shop DB 直接）。データ開始日:
-          <span className="ml-1 font-mono">{eccube.rows[0].date}</span>
-          {rr.current.start < eccube.rows[0].date && (
-            <span className="ml-2">
-              · この期間の一部は ECCUBE データ未取得のため売上・CV
-              が過小表示されている可能性あり。
-            </span>
-          )}
-        </div>
-      )}
+        )}
 
-      {pacing && tgt.adSpendBudget != null && (
-        <PacingAlert
-          result={pacing}
-          actualSpend={costCur}
-          monthlyBudget={tgt.adSpendBudget}
-        />
-      )}
+        {pacing && tgt.adSpendBudget != null && (
+          <PacingAlert
+            result={pacing}
+            actualSpend={costCur}
+            monthlyBudget={tgt.adSpendBudget}
+          />
+        )}
+      </div>
 
       {/* 5 big KPI with sparklines */}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
@@ -808,16 +838,29 @@ export default async function Overview({
             自動有効化する設計、2026-07-02 Codex監査で協議の上維持）。非対応クライアントは Top5 表示。 */}
         {channelTargetRows.length > 0 ? (
           <Card className="shadow-card">
-            <CardHeader>
-              {/* 期間ラベルを動的化 — 固定「（当月）」だと 先月 選択時に実績と表示が矛盾する
-                  （channelTargetRows は showGoals=thisMonth/lastMonth の時のみ populate、上参照）。 */}
-              <CardTitle className="text-base">
-                チャネル別 目標vs実績（{rr.presetLabel}）
-              </CardTitle>
-              <div className="mt-1 text-xs text-muted-foreground">
-                実績は GA4 チャネル別（{rr.presetLabel}
-                ）を計画シートのチャネル区分（organic/direct/mail/referral/広告）へ集約。目標欄が「—」の行は計画シートに対応する区分がないチャネル（実績のみ表示）
+            <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+              <div>
+                {/* 期間ラベルを動的化 — 固定「（当月）」だと 先月 選択時に実績と表示が矛盾する
+                    （channelTargetRows は showGoals=thisMonth/lastMonth の時のみ populate、上参照）。 */}
+                <CardTitle className="text-base">
+                  チャネル別 目標vs実績（{rr.presetLabel}）
+                </CardTitle>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  実績は GA4 チャネル別（{rr.presetLabel}
+                  ）を計画シートのチャネル区分（organic/direct/mail/referral/広告）へ集約。目標欄が「—」の行は計画シートに対応する区分がないチャネル（実績のみ表示）
+                </div>
               </div>
+              {/* C2-d: card-level chip, reusing the exact ratio the table
+                  below already colours per-cell — see channelAchievement /
+                  channelAchievementTone above. No target configured (MSEC-
+                  style) or a zero summed target => tone is null => no chip,
+                  never a false "0% achieved". */}
+              {channelAchievementTone && (
+                <StatusChip tone={channelAchievementTone}>
+                  売上達成率{" "}
+                  {fmtRatioPct((channelAchievement.ratio ?? 0) * 100, 0)}
+                </StatusChip>
+              )}
             </CardHeader>
             <CardContent>
               <ChannelTargetTable
@@ -840,6 +883,7 @@ export default async function Overview({
                     <TableHead className="text-right">CV</TableHead>
                     <TableHead className="text-right">CVR</TableHead>
                     <TableHead className="text-right">Revenue</TableHead>
+                    <TableHead className="text-right">売上比</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -861,6 +905,11 @@ export default async function Overview({
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {fmtJpy(c.revenue)}
+                        </TableCell>
+                        <TableCell>
+                          <ShareBar
+                            ratio={computeShare(c.revenue, totalChannelRevenue)}
+                          />
                         </TableCell>
                       </TableRow>
                     );

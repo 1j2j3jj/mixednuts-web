@@ -2,7 +2,9 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
+import { Megaphone, Layers, ListTree } from "lucide-react";
 import SegmentedControl from "@/components/dashboard/SegmentedControl";
+import ControlSelect from "@/components/dashboard/ControlSelect";
 
 interface Props {
   slug: string;
@@ -16,7 +18,12 @@ interface Props {
  * deep links share the same view. Cascade: media → campaign → adgroup. A
  * deeper filter auto-clears when an ancestor changes.
  */
-export default function DrillFilters({ slug, medias, campaigns, adgroups }: Props) {
+export default function DrillFilters({
+  slug,
+  medias,
+  campaigns,
+  adgroups,
+}: Props) {
   const router = useRouter();
   const sp = useSearchParams();
   const [isPending, startTransition] = useTransition();
@@ -26,8 +33,12 @@ export default function DrillFilters({ slug, medias, campaigns, adgroups }: Prop
   const adgroup = sp.get("adgroup") ?? "";
   const granularity = sp.get("g") ?? "day";
 
-  const filteredCampaigns = media ? campaigns.filter((c) => c.media === media) : campaigns;
-  const filteredAdgroups = campaign ? adgroups.filter((a) => a.campaignId === campaign) : [];
+  const filteredCampaigns = media
+    ? campaigns.filter((c) => c.media === media)
+    : campaigns;
+  const filteredAdgroups = campaign
+    ? adgroups.filter((a) => a.campaignId === campaign)
+    : [];
 
   function update(key: string, value: string) {
     const params = new URLSearchParams(sp.toString());
@@ -48,11 +59,17 @@ export default function DrillFilters({ slug, medias, campaigns, adgroups }: Prop
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-md border bg-card p-3 text-sm">
       <div>
-        <label className="mb-1 block text-xs text-muted-foreground">媒体</label>
-        <select
+        <label
+          htmlFor="drill-media"
+          className="mb-1 block text-xs text-muted-foreground"
+        >
+          媒体
+        </label>
+        <ControlSelect
+          id="drill-media"
+          icon={<Megaphone />}
           value={media}
           onChange={(e) => update("media", e.target.value)}
-          className="h-8 rounded-md border bg-background px-2 text-sm"
         >
           <option value="">すべて</option>
           {medias.map((m) => (
@@ -60,14 +77,22 @@ export default function DrillFilters({ slug, medias, campaigns, adgroups }: Prop
               {m}
             </option>
           ))}
-        </select>
+        </ControlSelect>
       </div>
       <div>
-        <label className="mb-1 block text-xs text-muted-foreground">キャンペーン</label>
-        <select
+        <label
+          htmlFor="drill-campaign"
+          className="mb-1 block text-xs text-muted-foreground"
+        >
+          キャンペーン
+        </label>
+        <ControlSelect
+          id="drill-campaign"
+          icon={<Layers />}
           value={campaign}
           onChange={(e) => update("campaign", e.target.value)}
-          className="h-8 min-w-[200px] rounded-md border bg-background px-2 text-sm"
+          wrapperClassName="min-w-[200px]"
+          className="w-full"
         >
           <option value="">すべて</option>
           {filteredCampaigns.map((c) => (
@@ -75,26 +100,38 @@ export default function DrillFilters({ slug, medias, campaigns, adgroups }: Prop
               {c.name}
             </option>
           ))}
-        </select>
+        </ControlSelect>
       </div>
       <div>
-        <label className="mb-1 block text-xs text-muted-foreground">広告グループ</label>
-        <select
+        <label
+          htmlFor="drill-adgroup"
+          className="mb-1 block text-xs text-muted-foreground"
+        >
+          広告グループ
+        </label>
+        <ControlSelect
+          id="drill-adgroup"
+          icon={<ListTree />}
           value={adgroup}
           onChange={(e) => update("adgroup", e.target.value)}
           disabled={!campaign}
-          className="h-8 min-w-[200px] rounded-md border bg-background px-2 text-sm disabled:opacity-50"
+          wrapperClassName="min-w-[200px]"
+          className="w-full"
         >
-          <option value="">{campaign ? "すべて" : "先にキャンペーンを選択"}</option>
+          <option value="">
+            {campaign ? "すべて" : "先にキャンペーンを選択"}
+          </option>
           {filteredAdgroups.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}
             </option>
           ))}
-        </select>
+        </ControlSelect>
       </div>
       <div>
-        <label className="mb-1 block text-xs text-muted-foreground">集計単位</label>
+        <label className="mb-1 block text-xs text-muted-foreground">
+          集計単位
+        </label>
         <SegmentedControl
           value={granularity}
           options={[
@@ -107,7 +144,9 @@ export default function DrillFilters({ slug, medias, campaigns, adgroups }: Prop
           size="md"
         />
       </div>
-      {isPending && <span className="text-xs text-muted-foreground">更新中…</span>}
+      {isPending && (
+        <span className="text-xs text-muted-foreground">更新中…</span>
+      )}
     </div>
   );
 }

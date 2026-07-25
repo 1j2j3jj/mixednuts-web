@@ -9,8 +9,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TOTAL_ROW_CLASS,
 } from "@/components/ui/table";
+import ShareBar from "@/components/dashboard/ShareBar";
 import { cn, fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
+import { computeShare } from "@/lib/share";
 import type { MetricSource } from "@/lib/source";
 
 /**
@@ -148,10 +151,7 @@ export default function MediaCampaignTable({
       ? "__total__"
       : `${r.media}|${r.campaignId}|${r.campaignName}`;
     return (
-      <TableRow
-        key={rowKey}
-        className={cn(isTotal && "border-t-2 bg-muted/40 font-medium")}
-      >
+      <TableRow key={rowKey} className={cn(isTotal && TOTAL_ROW_CLASS)}>
         <TableCell className="whitespace-nowrap">
           {isTotal ? (
             <span>{r.media}</span>
@@ -172,6 +172,13 @@ export default function MediaCampaignTable({
         </TableCell>
         <TableCell className="text-right tabular-nums">
           {fmtJpy(r.spend)}
+        </TableCell>
+        <TableCell>
+          {/* C2-b share-of-total column, scoped to the CURRENTLY FILTERED
+              set (tot already re-sums per media-pill selection above) so
+              the share reads correctly whether "全媒体" or a single medium
+              is selected. */}
+          <ShareBar ratio={computeShare(r.spend, tot.spend)} />
         </TableCell>
         <TableCell className="text-right tabular-nums">
           {fmtInt(r.impressions)}
@@ -236,6 +243,7 @@ export default function MediaCampaignTable({
               <TableHead>媒体</TableHead>
               <TableHead>キャンペーン</TableHead>
               <TableHead className="text-right">Spend</TableHead>
+              <TableHead className="text-right">Spend比</TableHead>
               <TableHead className="text-right">Imp</TableHead>
               <TableHead className="text-right">Click</TableHead>
               <TableHead className="text-right">CTR</TableHead>
@@ -251,7 +259,7 @@ export default function MediaCampaignTable({
             {filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={12}
+                  colSpan={13}
                   className="text-center text-sm text-muted-foreground py-8"
                 >
                   該当キャンペーンなし

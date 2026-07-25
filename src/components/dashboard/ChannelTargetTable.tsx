@@ -1,4 +1,12 @@
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TOTAL_ROW_CLASS,
+} from "@/components/ui/table";
 import { cn, fmtInt, fmtJpy, fmtRatioPct, safeDiv } from "@/lib/utils";
 
 export interface ChannelTargetRow {
@@ -36,10 +44,16 @@ export default function ChannelTargetTable({ rows, progressNote }: Props) {
       acc.conversionsTarget += r.conversionsTarget ?? 0;
       return acc;
     },
-    { revenue: 0, conversions: 0, revenueTarget: 0, conversionsTarget: 0 }
+    { revenue: 0, conversions: 0, revenueTarget: 0, conversionsTarget: 0 },
   );
-  const totalRevenueRatio = safeDiv(totals.revenue, totals.revenueTarget || null);
-  const totalCvRatio = safeDiv(totals.conversions, totals.conversionsTarget || null);
+  const totalRevenueRatio = safeDiv(
+    totals.revenue,
+    totals.revenueTarget || null,
+  );
+  const totalCvRatio = safeDiv(
+    totals.conversions,
+    totals.conversionsTarget || null,
+  );
 
   return (
     <div>
@@ -62,43 +76,79 @@ export default function ChannelTargetTable({ rows, progressNote }: Props) {
             return (
               <TableRow key={r.channel}>
                 <TableCell className="font-medium">{r.channel}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtJpy(r.revenue)}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtJpy(r.revenue)}
+                </TableCell>
                 <TableCell className="text-right tabular-nums text-muted-foreground">
                   {r.revenueTarget != null ? fmtJpy(r.revenueTarget) : "—"}
                 </TableCell>
-                <TableCell className={cn("text-right tabular-nums font-medium", achievementColour(revRatio))}>
+                <TableCell
+                  className={cn(
+                    "text-right tabular-nums font-medium",
+                    achievementColour(revRatio),
+                  )}
+                >
                   {revRatio != null ? fmtRatioPct(revRatio * 100, 0) : "—"}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">{fmtInt(r.conversions)}</TableCell>
-                <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {r.conversionsTarget != null ? fmtInt(r.conversionsTarget) : "—"}
+                <TableCell className="text-right tabular-nums">
+                  {fmtInt(r.conversions)}
                 </TableCell>
-                <TableCell className={cn("text-right tabular-nums font-medium", achievementColour(cvRatio))}>
+                <TableCell className="text-right tabular-nums text-muted-foreground">
+                  {r.conversionsTarget != null
+                    ? fmtInt(r.conversionsTarget)
+                    : "—"}
+                </TableCell>
+                <TableCell
+                  className={cn(
+                    "text-right tabular-nums font-medium",
+                    achievementColour(cvRatio),
+                  )}
+                >
                   {cvRatio != null ? fmtRatioPct(cvRatio * 100, 0) : "—"}
                 </TableCell>
               </TableRow>
             );
           })}
-          <TableRow className="border-t-2 font-semibold">
+          <TableRow className={TOTAL_ROW_CLASS}>
             <TableCell>合計</TableCell>
-            <TableCell className="text-right tabular-nums">{fmtJpy(totals.revenue)}</TableCell>
+            <TableCell className="text-right tabular-nums">
+              {fmtJpy(totals.revenue)}
+            </TableCell>
             <TableCell className="text-right tabular-nums text-muted-foreground">
               {totals.revenueTarget > 0 ? fmtJpy(totals.revenueTarget) : "—"}
             </TableCell>
-            <TableCell className={cn("text-right tabular-nums", achievementColour(totalRevenueRatio))}>
-              {totalRevenueRatio != null ? fmtRatioPct(totalRevenueRatio * 100, 0) : "—"}
+            <TableCell
+              className={cn(
+                "text-right tabular-nums",
+                achievementColour(totalRevenueRatio),
+              )}
+            >
+              {totalRevenueRatio != null
+                ? fmtRatioPct(totalRevenueRatio * 100, 0)
+                : "—"}
             </TableCell>
-            <TableCell className="text-right tabular-nums">{fmtInt(totals.conversions)}</TableCell>
+            <TableCell className="text-right tabular-nums">
+              {fmtInt(totals.conversions)}
+            </TableCell>
             <TableCell className="text-right tabular-nums text-muted-foreground">
-              {totals.conversionsTarget > 0 ? fmtInt(totals.conversionsTarget) : "—"}
+              {totals.conversionsTarget > 0
+                ? fmtInt(totals.conversionsTarget)
+                : "—"}
             </TableCell>
-            <TableCell className={cn("text-right tabular-nums", achievementColour(totalCvRatio))}>
+            <TableCell
+              className={cn(
+                "text-right tabular-nums",
+                achievementColour(totalCvRatio),
+              )}
+            >
               {totalCvRatio != null ? fmtRatioPct(totalCvRatio * 100, 0) : "—"}
             </TableCell>
           </TableRow>
         </TableBody>
       </Table>
-      {progressNote && <div className="mt-2 text-xs text-muted-foreground">{progressNote}</div>}
+      {progressNote && (
+        <div className="mt-2 text-xs text-muted-foreground">{progressNote}</div>
+      )}
     </div>
   );
 }

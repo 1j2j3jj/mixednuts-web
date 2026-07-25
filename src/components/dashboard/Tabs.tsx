@@ -49,7 +49,10 @@ export default function DashboardTabs({
       : []),
   ];
   return (
-    <nav className="flex gap-1 border-b">
+    // border-b lives on the parent row (see [slug]/layout.tsx, C2-a) so it
+    // spans the whole client-name+tabs+date-picker band, not just this
+    // shrink-to-fit <nav>'s own width.
+    <nav className="flex gap-1">
       {tabs.map((t) => {
         const isActive =
           t.href === `/dashboard/${slug}`

@@ -9,6 +9,7 @@ import CsvExportButton from "@/components/dashboard/CsvExportButton";
 import RefreshButton from "@/components/dashboard/RefreshButton";
 import PrintButton from "@/components/dashboard/PrintButton";
 import MockBanner from "@/components/dashboard/MockBanner";
+import PageHeader from "@/components/dashboard/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 /**
@@ -45,14 +46,20 @@ export default async function InsightsScreen({
   const client = await assertUserCanAccessClientBySlug(slug);
 
   const anchor = new Date().toISOString().slice(0, 10);
-  const rr = resolveFromSearchParams(sp, { preset: "last28", compare: "none" }, anchor);
+  const rr = resolveFromSearchParams(
+    sp,
+    { preset: "last28", compare: "none" },
+    anchor,
+  );
   const period = { start: rr.current.start, end: rr.current.end };
 
-  const [productsResult, landingPagesResult, queriesResult] = await Promise.all([
-    getTopProducts(client, period),
-    getTopLandingPages(client, period),
-    getTopGscQueries(client, period),
-  ]);
+  const [productsResult, landingPagesResult, queriesResult] = await Promise.all(
+    [
+      getTopProducts(client, period),
+      getTopLandingPages(client, period),
+      getTopGscQueries(client, period),
+    ],
+  );
   const {
     rows: { rows: products, revenueUnreliable, revenueBasis },
   } = productsResult;
@@ -91,24 +98,31 @@ export default async function InsightsScreen({
 
   return (
     <div className="space-y-6">
-      <MockBanner isMock={anyMock} />
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">Insights</div>
-          <h1 className="text-2xl font-semibold tracking-tight">商品・検索 詳細</h1>
-          <div className="mt-1 text-sm text-muted-foreground">
-            {rr.presetLabel}（{periodLabel}）の Top リスト · GA4 商品購入 / ランディングページ / GSC 検索クエリ
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <PrintButton />
-          <RefreshButton clientId={client.id} />
-        </div>
+      <div className="space-y-3">
+        <MockBanner isMock={anyMock} />
+        <PageHeader
+          kicker="Insights"
+          title="商品・検索 詳細"
+          subtitle={
+            <>
+              {rr.presetLabel}（{periodLabel}）の Top リスト · GA4 商品購入 /
+              ランディングページ / GSC 検索クエリ
+            </>
+          }
+          controls={
+            <>
+              <PrintButton />
+              <RefreshButton clientId={client.id} />
+            </>
+          }
+        />
       </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-sm">商品別売上 Top 30（GA4 items）</CardTitle>
+          <CardTitle className="text-sm">
+            商品別売上 Top 30（GA4 items）
+          </CardTitle>
           <CsvExportButton
             filename={`products-${slug}-${periodSlug}.csv`}
             rows={productCsv}
@@ -116,20 +130,27 @@ export default async function InsightsScreen({
           />
         </CardHeader>
         <CardContent>
-          <ProductRanking rows={products} limit={30} hideRevenue={revenueUnreliable} />
+          <ProductRanking
+            rows={products}
+            limit={30}
+            hideRevenue={revenueUnreliable}
+          />
           <p className="mt-2 text-xs text-muted-foreground">
-            購入件数=その商品を含む注文数（purchase件数） / 点数=注文点数（GA4 itemsPurchased） /
+            購入件数=その商品を含む注文数（purchase件数） / 点数=注文点数（GA4
+            itemsPurchased） /
             {revenueBasis === "order"
               ? "売上=その商品を含む注文のGA売上合計（複数商品の注文は各商品行に全額計上のため列合計はサイト全体と一致しない）"
-              : "売上=商品自身のGA売上（itemRevenue）"} /
-            単価=売上÷点数 / 1件あたり=売上÷購入件数
+              : "売上=商品自身のGA売上（itemRevenue）"}{" "}
+            / 単価=売上÷点数 / 1件あたり=売上÷購入件数
           </p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-sm">ランディングページ Top 30（GA4 · {periodLabel}）</CardTitle>
+          <CardTitle className="text-sm">
+            ランディングページ Top 30（GA4 · {periodLabel}）
+          </CardTitle>
           <CsvExportButton
             filename={`landing-${slug}-${periodSlug}.csv`}
             rows={landingCsv}
@@ -144,8 +165,12 @@ export default async function InsightsScreen({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-sm">オーガニック検索クエリ Top 50（GSC · {periodLabel}）</CardTitle>
-            <div className="mt-1 text-xs text-muted-foreground">順位は小さいほど良い（1 = 1位表示）</div>
+            <CardTitle className="text-sm">
+              オーガニック検索クエリ Top 50（GSC · {periodLabel}）
+            </CardTitle>
+            <div className="mt-1 text-xs text-muted-foreground">
+              順位は小さいほど良い（1 = 1位表示）
+            </div>
           </div>
           <CsvExportButton
             filename={`gsc-queries-${slug}-${periodSlug}.csv`}
