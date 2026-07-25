@@ -91,19 +91,19 @@ export default async function AccessMatrixPage() {
       {/* Legend */}
       <div className="flex flex-wrap gap-3 text-xs">
         <div className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded bg-emerald-200 ring-1 ring-emerald-400" />
+          <span className="inline-block h-3 w-3 rounded-md bg-emerald-200 ring-1 ring-emerald-400" />
           <span>admin (全クライアント閲覧可)</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded bg-blue-200 ring-1 ring-blue-400" />
+          <span className="inline-block h-3 w-3 rounded-md bg-blue-200 ring-1 ring-blue-400" />
           <span>oauth (Google サインイン)</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded bg-neutral-200 ring-1 ring-neutral-400" />
+          <span className="inline-block h-3 w-3 rounded-md bg-neutral-200 ring-1 ring-neutral-400" />
           <span>basic (ID/PW 認証)</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded bg-white ring-1 ring-neutral-200" />
+          <span className="inline-block h-3 w-3 rounded-md bg-white ring-1 ring-neutral-200" />
           <span>— (アクセスなし)</span>
         </div>
       </div>
@@ -198,21 +198,21 @@ export default async function AccessMatrixPage() {
 function CellBadge({ value }: { value: "admin" | "oauth" | "basic" | null }) {
   if (value === "admin") {
     return (
-      <span className="inline-flex items-center rounded px-2 py-0.5 text-[10px] font-medium bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200">
+      <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200">
         admin
       </span>
     );
   }
   if (value === "oauth") {
     return (
-      <span className="inline-flex items-center rounded px-2 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-800 ring-1 ring-blue-200">
+      <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-800 ring-1 ring-blue-200">
         oauth
       </span>
     );
   }
   if (value === "basic") {
     return (
-      <span className="inline-flex items-center rounded px-2 py-0.5 text-[10px] font-medium bg-neutral-100 text-neutral-700 ring-1 ring-neutral-200">
+      <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium bg-neutral-100 text-neutral-700 ring-1 ring-neutral-200">
         basic
       </span>
     );

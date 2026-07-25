@@ -45,7 +45,7 @@ export default async function AdminOrgsPage() {
       </div>
 
       {/* Orgs table */}
-      <div className="rounded-lg border border-neutral-200 bg-white shadow-sm">
+      <div className="rounded-card border border-neutral-200 bg-white shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>

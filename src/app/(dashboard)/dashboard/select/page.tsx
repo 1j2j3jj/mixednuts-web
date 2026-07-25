@@ -60,7 +60,7 @@ export default async function SelectClientPage() {
           <form key={client.id} action={switchClient.bind(null, client.slug)}>
             <button
               type="submit"
-              className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg"
+              className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-card"
             >
               <Card className="h-full cursor-pointer transition-colors hover:border-primary/60 hover:bg-muted/30">
                 <CardHeader>

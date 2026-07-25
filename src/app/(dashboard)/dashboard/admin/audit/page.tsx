@@ -81,7 +81,7 @@ export default async function AuditLogPage() {
       </div>
 
       {/* Log table */}
-      <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-card border border-neutral-200 bg-white shadow-sm">
         {rows.length === 0 ? (
           <div className="px-6 py-12 text-center text-sm text-muted-foreground">
             イベントはまだありません

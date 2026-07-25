@@ -48,7 +48,7 @@ function CopyButton({ text, label = "コピー" }: { text: string; label?: strin
     <button
       type="button"
       onClick={doCopy}
-      className="rounded border border-neutral-300 bg-white px-2 py-0.5 text-xs hover:bg-neutral-50"
+      className="rounded-md border border-neutral-300 bg-white px-2 py-0.5 text-xs hover:bg-neutral-50"
     >
       {copied ? "コピー済" : label}
     </button>
@@ -199,7 +199,7 @@ function AccessTab({
               招待を作成しました — 以下のリンクをコピーして送付してください
             </div>
             <div className="flex items-center gap-2">
-              <code className="flex-1 truncate rounded bg-white px-2 py-1 text-xs text-emerald-700">
+              <code className="flex-1 truncate rounded-md bg-white px-2 py-1 text-xs text-emerald-700">
                 {invResult.link}
               </code>
               <CopyButton text={invResult.link} label="リンクをコピー" />
@@ -242,7 +242,7 @@ function AccessTab({
                         router.refresh();
                       })
                     }
-                    className="rounded border border-rose-300 bg-white px-2 py-0.5 text-xs text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                    className="rounded-md border border-rose-300 bg-white px-2 py-0.5 text-xs text-rose-700 hover:bg-rose-50 disabled:opacity-60"
                   >
                     取消
                   </button>
@@ -277,7 +277,7 @@ function AccessTab({
                   )}
                 </div>
                 {m.role === "owner" ? (
-                  <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-xs font-medium text-white">
+                  <span className="rounded-md bg-neutral-900 px-1.5 py-0.5 text-xs font-medium text-white">
                     オーナー
                   </span>
                 ) : (
@@ -306,7 +306,7 @@ function AccessTab({
                 </span>
                 {m.blockedAt && (
                   <span
-                    className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800"
+                    className="rounded-md bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800"
                     title={`${m.blockedAt.toLocaleDateString("ja-JP")} ブロック (6 ヶ月以上未ログイン)`}
                   >
                     ブロック中
@@ -327,7 +327,7 @@ function AccessTab({
                         router.refresh();
                       })
                     }
-                    className="rounded border border-emerald-300 bg-white px-2 py-0.5 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
+                    className="rounded-md border border-emerald-300 bg-white px-2 py-0.5 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
                   >
                     アクティベート
                   </button>
@@ -342,7 +342,7 @@ function AccessTab({
                         router.refresh();
                       })
                     }
-                    className="rounded border border-rose-300 bg-white px-2 py-0.5 text-xs text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                    className="rounded-md border border-rose-300 bg-white px-2 py-0.5 text-xs text-rose-700 hover:bg-rose-50 disabled:opacity-60"
                   >
                     削除
                   </button>
@@ -506,7 +506,7 @@ function DataSourcesTab({ client }: { client: ClientConfig }) {
                 href={s.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="shrink-0 rounded border border-neutral-300 bg-white px-2 py-0.5 text-xs hover:bg-neutral-50"
+                className="shrink-0 rounded-md border border-neutral-300 bg-white px-2 py-0.5 text-xs hover:bg-neutral-50"
               >
                 開く ↗
               </a>

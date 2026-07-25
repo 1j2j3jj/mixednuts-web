@@ -29,9 +29,9 @@ export default function Sparkline({
   const data = values.map((v, i) => ({ i, v, date: dates?.[i] ?? "" }));
   const stroke =
     tone === "positive"
-      ? "#059669"
+      ? "var(--positive)"
       : tone === "negative"
-        ? "#dc2626"
+        ? "var(--negative)"
         : "var(--chart-1)";
   const showTooltip = dates && dates.length === values.length;
 

@@ -34,7 +34,7 @@ export default function SegmentedControl<T extends string>({
       aria-label={ariaLabel}
       className={cn(
         "inline-flex items-center gap-0.5 rounded-md border bg-muted p-0.5",
-        className
+        className,
       )}
     >
       {options.map((option) => {
@@ -48,11 +48,15 @@ export default function SegmentedControl<T extends string>({
             className={cn(
               "border-[1.5px] text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
               size === "sm" ? "h-6 px-3" : "h-8 px-3",
-              shape === "pill" ? "rounded-full" : "rounded",
+              // 2-value radius system (Phase B, 2026-07-24 audit A-8): this used
+              // to be the untokenized bare Tailwind `rounded` (4px, half the
+              // track's own 8px), unrelated to the --radius scale. rounded-md
+              // is the same 8px control token the track itself uses.
+              shape === "pill" ? "rounded-full" : "rounded-md",
               selected
                 ? "border-brand-ink bg-brand/14 text-brand-deep"
                 : "border-transparent text-muted-foreground hover:bg-background hover:text-foreground",
-              !selected && option.inactiveClassName
+              !selected && option.inactiveClassName,
             )}
           >
             {option.label}

@@ -23,7 +23,7 @@ export default function MockBanner({ isMock }: Props) {
         <div className="font-semibold">MOCK DATA · 本番データ未接続</div>
         <div className="text-xs text-amber-800/80">
           このページの数値はダミー値です。Vercel 環境変数
-          <code className="mx-1 rounded bg-amber-100 px-1 font-mono">GOOGLE_SERVICE_ACCOUNT_JSON_BASE64</code>
+          <code className="mx-1 rounded-md bg-amber-100 px-1 font-mono">GOOGLE_SERVICE_ACCOUNT_JSON_BASE64</code>
           を設定すると実データに切り替わります。意思決定の根拠には使用しないでください。
         </div>
       </div>

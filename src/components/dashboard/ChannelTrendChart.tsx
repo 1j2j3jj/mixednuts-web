@@ -191,7 +191,10 @@ export default function ChannelTrendChart({
                 radius={
                   idx === channels.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]
                 }
-                fill={CHANNEL_COLOURS[ch as ChannelGroup] ?? "#ccc"}
+                fill={
+                  CHANNEL_COLOURS[ch as ChannelGroup] ??
+                  "var(--muted-foreground)"
+                }
               />
             ))}
           </BarChart>

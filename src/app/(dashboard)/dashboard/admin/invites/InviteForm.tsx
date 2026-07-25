@@ -107,7 +107,7 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
                 type="button"
                 onClick={selectAll}
                 disabled={pending}
-                className="rounded border border-neutral-300 bg-white px-2 py-0.5 hover:bg-neutral-50"
+                className="rounded-md border border-neutral-300 bg-white px-2 py-0.5 hover:bg-neutral-50"
               >
                 全選択
               </button>
@@ -115,7 +115,7 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
                 type="button"
                 onClick={clearAll}
                 disabled={pending}
-                className="rounded border border-neutral-300 bg-white px-2 py-0.5 hover:bg-neutral-50"
+                className="rounded-md border border-neutral-300 bg-white px-2 py-0.5 hover:bg-neutral-50"
               >
                 クリア
               </button>
@@ -127,7 +127,7 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
               return (
                 <label
                   key={c.id}
-                  className={`flex cursor-pointer items-center gap-2 rounded border px-2 py-1.5 text-xs transition ${
+                  className={`flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-xs transition ${
                     checked
                       ? "border-neutral-900 bg-neutral-900 text-white"
                       : "border-neutral-300 bg-white text-neutral-800 hover:bg-neutral-50"
@@ -182,7 +182,7 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
           <div className="font-medium">
             招待を作成しました（メール未送信 — 招待リンクをコピーして送付してください）:
           </div>
-          <code className="mt-1 block break-all rounded bg-white p-2 text-emerald-700">
+          <code className="mt-1 block break-all rounded-md bg-white p-2 text-emerald-700">
             {status.link}
           </code>
         </div>
@@ -202,7 +202,7 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
                 </span>
                 <CopyLinkButton link={status.combinedLink} />
               </div>
-              <code className="block break-all rounded bg-emerald-50 p-2 text-emerald-800">
+              <code className="block break-all rounded-md bg-emerald-50 p-2 text-emerald-800">
                 {status.combinedLink}
               </code>
               <p className="mt-1.5 text-[11px] leading-snug text-neutral-600">
@@ -217,7 +217,7 @@ export default function InviteForm({ clients }: { clients: ClientOption[] }) {
             </summary>
             <ul className="mt-2 space-y-2">
               {status.results.map((r) => (
-                <li key={r.clientId} className="rounded bg-white p-2">
+                <li key={r.clientId} className="rounded-md bg-white p-2">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold">{r.label}</span>
                     <span className={r.ok ? "text-emerald-700" : "text-rose-700"}>
@@ -263,7 +263,7 @@ export function CopyLinkButton({ link }: { link: string }) {
     <button
       type="button"
       onClick={doCopy}
-      className="shrink-0 rounded border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-50"
+      className="shrink-0 rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-50"
     >
       {copied ? "コピー済 ✓" : "コピー"}
     </button>

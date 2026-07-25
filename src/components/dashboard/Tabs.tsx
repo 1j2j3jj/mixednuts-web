@@ -62,7 +62,7 @@ export default function DashboardTabs({
             href={href}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "relative rounded-sm px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              "relative rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               isActive
                 ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground",

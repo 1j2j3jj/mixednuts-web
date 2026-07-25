@@ -73,7 +73,7 @@ export default async function ClientDetailPage({ params }: PageProps) {
           <Badge variant={client.active ? "success" : "secondary"}>
             {client.active ? "Live" : "Inactive"}
           </Badge>
-          <code className="rounded bg-neutral-100 px-2 py-0.5 text-xs font-mono text-muted-foreground">
+          <code className="rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-mono text-muted-foreground">
             /{client.slug}
           </code>
         </div>

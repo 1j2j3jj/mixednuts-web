@@ -150,7 +150,7 @@ export default async function InvitesPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <code className="block max-w-xs truncate rounded bg-neutral-50 px-2 py-1 text-xs text-neutral-700">
+                        <code className="block max-w-xs truncate rounded-md bg-neutral-50 px-2 py-1 text-xs text-neutral-700">
                           {p.link}
                         </code>
                         <CopyLinkButton link={p.link} />

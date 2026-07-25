@@ -24,7 +24,7 @@ export default function ImpersonationBanner({ clientLabel, exitHref }: Props) {
       </span>
       <a
         href={exitHref}
-        className="rounded border border-amber-700 bg-amber-600 px-3 py-0.5 text-xs font-semibold text-white hover:bg-amber-700"
+        className="rounded-md border border-amber-700 bg-amber-600 px-3 py-0.5 text-xs font-semibold text-white hover:bg-amber-700"
       >
         閲覧を終了
       </a>

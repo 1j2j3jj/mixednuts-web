@@ -17,7 +17,7 @@ export function KpiRowSkeleton({ count = 5 }: { count?: number }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="space-y-3 rounded-lg border bg-card p-4">
+        <div key={i} className="space-y-3 rounded-card border bg-card p-4">
           <Skeleton className="h-3 w-16" />
           <Skeleton className="h-7 w-24" />
           <Skeleton className="h-8 w-full" />
@@ -31,7 +31,7 @@ export function KpiRowSkeleton({ count = 5 }: { count?: number }) {
 /** A bordered card with a title bar and a tall body (chart placeholder). */
 export function ChartSkeleton({ height = "h-72" }: { height?: string }) {
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="rounded-card border bg-card p-4">
       <Skeleton className="mb-3 h-4 w-40" />
       <Skeleton className={`w-full ${height}`} />
     </div>
@@ -47,7 +47,7 @@ export function TableSkeleton({
   title?: boolean;
 }) {
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="rounded-card border bg-card p-4">
       {title && <Skeleton className="mb-3 h-4 w-32" />}
       <div className="space-y-2">
         <Skeleton className="h-8 w-full opacity-70" />

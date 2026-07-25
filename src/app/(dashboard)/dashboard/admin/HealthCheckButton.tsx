@@ -58,7 +58,7 @@ export default function HealthCheckButton() {
                   <span className="ml-2 font-mono text-xs text-muted-foreground">/{c.slug}</span>
                 </div>
                 <span
-                  className={`rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wider ${
+                  className={`rounded-md px-1.5 py-0.5 text-[10px] uppercase tracking-wider ${
                     c.active ? "bg-emerald-100 text-emerald-800" : "bg-neutral-200 text-neutral-700"
                   }`}
                 >
