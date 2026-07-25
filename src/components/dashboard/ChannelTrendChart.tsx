@@ -12,6 +12,7 @@ import {
   YAxis,
 } from "recharts";
 import SegmentedControl from "@/components/dashboard/SegmentedControl";
+import ChartTooltip from "@/components/dashboard/ChartTooltip";
 import type {
   ChannelDay,
   ChannelGroup,
@@ -121,11 +122,11 @@ export default function ChannelTrendChart({
         ? (v: number) => Math.round(v).toLocaleString()
         : (v: number) => `${Math.round(v / 1000).toLocaleString()}k`;
 
-  const tooltipFormat = (value: unknown): [string, string] => {
+  const tooltipValueFormatter = (value: unknown): string => {
     const n = typeof value === "number" ? value : Number(value);
-    if (!Number.isFinite(n)) return [String(value ?? "—"), ""];
-    if (metric === "revenue") return [`¥${Math.round(n).toLocaleString()}`, ""];
-    return [Math.round(n).toLocaleString(), ""];
+    if (!Number.isFinite(n)) return "—";
+    if (metric === "revenue") return `¥${Math.round(n).toLocaleString()}`;
+    return Math.round(n).toLocaleString();
   };
 
   return (
@@ -165,15 +166,13 @@ export default function ChannelTrendChart({
               domain={[0, "auto"]}
             />
             <Tooltip
-              contentStyle={{
-                background: "var(--card)",
-                border: "1px solid var(--border)",
-                borderRadius: "6px",
-                fontSize: "12px",
-              }}
-              itemStyle={{ color: "var(--foreground)" }}
-              labelStyle={{ color: "var(--foreground)", fontWeight: 600 }}
-              formatter={tooltipFormat}
+              cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+              content={(props) => (
+                <ChartTooltip
+                  {...props}
+                  valueFormatter={tooltipValueFormatter}
+                />
+              )}
             />
             <Legend
               iconType="circle"

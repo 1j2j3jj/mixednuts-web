@@ -11,13 +11,15 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import ChartTooltip from "@/components/dashboard/ChartTooltip";
 import type { DailySeriesPoint } from "@/lib/metrics";
 
 interface Props {
   data: DailySeriesPoint[];
 }
 
-const costAxisFormat = (v: number) => `¥${Math.round(v / 1000).toLocaleString()}k`;
+const costAxisFormat = (v: number) =>
+  `¥${Math.round(v / 1000).toLocaleString()}k`;
 
 /**
  * Mixed chart: Spend as a bar (magnitude emphasis) + CV and CPA as lines
@@ -37,34 +39,50 @@ export default function DailyTrendChart({ data }: Props) {
   return (
     <div className="h-72 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={withCpa} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+        <ComposedChart
+          data={withCpa}
+          margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-          <XAxis dataKey="date" fontSize={11} tickMargin={6} stroke="var(--muted-foreground)" />
+          <XAxis
+            dataKey="date"
+            fontSize={11}
+            tickMargin={6}
+            stroke="var(--muted-foreground)"
+          />
           <YAxis
             yAxisId="left"
             fontSize={11}
             tickFormatter={costAxisFormat}
             stroke="var(--muted-foreground)"
           />
-          <YAxis yAxisId="right" orientation="right" fontSize={11} stroke="var(--muted-foreground)" />
-          <Tooltip
-            contentStyle={{
-              background: "var(--card)",
-              border: "1px solid var(--border)",
-              borderRadius: "6px",
-              fontSize: "12px",
-            }}
-            formatter={(value, name) => {
-              const num = typeof value === "number" ? value : Number(value);
-              if (!Number.isFinite(num)) return [String(value ?? "—"), String(name ?? "")];
-              const label = String(name ?? "");
-              if (label === "Spend" || label.includes("CPA")) {
-                return [`¥${Math.round(num).toLocaleString()}`, label];
-              }
-              return [Math.round(num).toLocaleString(), label];
-            }}
+          <YAxis
+            yAxisId="right"
+            orientation="right"
+            fontSize={11}
+            stroke="var(--muted-foreground)"
           />
-          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "12px" }} />
+          <Tooltip
+            cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+            content={(props) => (
+              <ChartTooltip
+                {...props}
+                valueFormatter={(value, name) => {
+                  const num = typeof value === "number" ? value : Number(value);
+                  if (!Number.isFinite(num)) return String(value ?? "—");
+                  if (name === "Spend" || name.includes("CPA")) {
+                    return `¥${Math.round(num).toLocaleString()}`;
+                  }
+                  return Math.round(num).toLocaleString();
+                }}
+              />
+            )}
+          />
+          <Legend
+            iconType="circle"
+            iconSize={8}
+            wrapperStyle={{ fontSize: "12px" }}
+          />
           <Bar
             yAxisId="left"
             dataKey="cost"

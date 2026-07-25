@@ -40,23 +40,30 @@ export default async function ClientLayout({
   });
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-lg font-semibold tracking-tight">
-          {client.label}
-          {subtitle && (
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
-              · {subtitle}
-            </span>
-          )}
-        </h2>
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-1">
-        <DashboardTabs
-          slug={slug}
-          showReport={isRptSupported(client.id)}
-          showMembers={canInviteMembers(orgRole)}
-        />
+    <div className="mx-auto w-full max-w-7xl space-y-4">
+      {/* C2-a (defect A-3): client-name + tab row + date picker used to be
+          two separately-margined bands (h2 row, then a gap, then the tabs+
+          picker row) — merged into one row here. The client identity (was
+          the sidebar's job before the sidebar was removed) now sits inline
+          to the left of the tabs instead of on its own line; the bottom
+          rule that used to live on <nav> (see Tabs.tsx) moved to this
+          wrapper so it still spans the full row, not just the tab links. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-0">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="shrink-0 text-sm font-semibold tracking-tight">
+            {client.label}
+            {subtitle && (
+              <span className="ml-1.5 font-normal text-muted-foreground">
+                · {subtitle}
+              </span>
+            )}
+          </h2>
+          <DashboardTabs
+            slug={slug}
+            showReport={isRptSupported(client.id)}
+            showMembers={canInviteMembers(orgRole)}
+          />
+        </div>
         {/* ml-auto: カスタム期間で日付入力が増えて 2 行目に折り返しても右端に
             アンカーし続ける（折り返し時に左へジャンプして見えるのを防ぐ）。 */}
         <div className="ml-auto">

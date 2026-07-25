@@ -2,6 +2,9 @@
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTransition } from "react";
+import { CalendarRange, ArrowLeftRight } from "lucide-react";
+import ControlSelect from "@/components/dashboard/ControlSelect";
+import ControlDateInput from "@/components/dashboard/ControlDateInput";
 import { PRESETS, COMPARES } from "@/lib/range";
 
 interface Props {
@@ -57,41 +60,45 @@ export default function DateRangePicker({
         <label htmlFor="range-preset" className="text-xs text-muted-foreground">
           期間
         </label>
-        <select
+        <ControlSelect
           id="range-preset"
           aria-label="表示期間"
+          icon={<CalendarRange />}
           value={preset}
           disabled={isPending}
           onChange={(e) => update({ preset: e.target.value })}
-          className="h-8 rounded-md border bg-background px-2 text-sm transition-colors hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed"
         >
           {PRESETS.map((p) => (
             <option key={p.key} value={p.key}>
               {p.label}
             </option>
           ))}
-        </select>
+        </ControlSelect>
       </div>
       {preset === "custom" && (
         <div className="flex items-center gap-1.5">
-          <input
-            type="date"
+          <label htmlFor="range-start" className="sr-only">
+            開始日
+          </label>
+          <ControlDateInput
+            id="range-start"
             aria-label="開始日"
             value={start}
             disabled={isPending}
             onChange={(e) => update({ start: e.target.value })}
-            className="h-8 rounded-md border bg-background px-2 text-sm transition-colors hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           <span className="text-xs text-muted-foreground" aria-hidden="true">
             〜
           </span>
-          <input
-            type="date"
+          <label htmlFor="range-end" className="sr-only">
+            終了日
+          </label>
+          <ControlDateInput
+            id="range-end"
             aria-label="終了日"
             value={end}
             disabled={isPending}
             onChange={(e) => update({ end: e.target.value })}
-            className="h-8 rounded-md border bg-background px-2 text-sm transition-colors hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
       )}
@@ -102,20 +109,20 @@ export default function DateRangePicker({
         >
           比較
         </label>
-        <select
+        <ControlSelect
           id="range-compare"
           aria-label="比較対象"
+          icon={<ArrowLeftRight />}
           value={compare}
           disabled={isPending}
           onChange={(e) => update({ cmp: e.target.value })}
-          className="h-8 rounded-md border bg-background px-2 text-sm transition-colors hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed"
         >
           {COMPARES.map((c) => (
             <option key={c.key} value={c.key}>
               {c.label}
             </option>
           ))}
-        </select>
+        </ControlSelect>
       </div>
       <span aria-live="polite" className="text-xs text-muted-foreground">
         {isPending ? "更新中…" : ""}

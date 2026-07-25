@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import ChartTooltip from "@/components/dashboard/ChartTooltip";
 
 interface Point {
   yearMonth: string;
@@ -42,14 +43,8 @@ export default function NewVsRepeatChart({ data }: Props) {
             domain={[0, "auto"]}
           />
           <Tooltip
-            contentStyle={{
-              background: "var(--card)",
-              border: "1px solid var(--border)",
-              borderRadius: "6px",
-              fontSize: "12px",
-            }}
-            itemStyle={{ color: "var(--foreground)" }}
-            labelStyle={{ color: "var(--foreground)", fontWeight: 600 }}
+            cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+            content={(props) => <ChartTooltip {...props} />}
           />
           <Legend
             iconType="circle"

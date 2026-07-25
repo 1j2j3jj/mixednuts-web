@@ -27,6 +27,7 @@ import FunnelChart from "@/components/dashboard/FunnelChart";
 import MockBanner from "@/components/dashboard/MockBanner";
 import DailyTrendChart from "@/components/dashboard/DailyTrendChart";
 import SourceToggle from "@/components/dashboard/SourceToggle";
+import PageHeader from "@/components/dashboard/PageHeader";
 import { readSource } from "@/lib/source";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fmtInt, fmtJpy, fmtRatioPct } from "@/lib/utils";
@@ -553,31 +554,31 @@ export default async function DrillScreen({
 
   return (
     <div className="space-y-6">
-      <MockBanner isMock={isMock} />
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">
-            Drilldown
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            フィルター詳細 · {rr.presetLabel}
-          </h1>
-          <div className="mt-1 text-sm text-muted-foreground">
-            {rr.current.start} 〜 {rr.current.end} · 階層: 媒体 → キャンペーン →
-            広告グループ
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="text-xs text-muted-foreground">
-            最終取得 {fetchedAtLabel}
-          </div>
-          <CsvExportButton
-            filename={`drill-${slug}-${new Date().toISOString().slice(0, 10)}.csv`}
-            rows={csvRows}
-          />
-          <PrintButton />
-          <RefreshButton clientId={client.id} />
-        </div>
+      <div className="space-y-3">
+        <MockBanner isMock={isMock} />
+        <PageHeader
+          kicker="Drilldown"
+          title={<>フィルター詳細 · {rr.presetLabel}</>}
+          subtitle={
+            <>
+              {rr.current.start} 〜 {rr.current.end} · 階層: 媒体 → キャンペーン
+              → 広告グループ
+            </>
+          }
+          controls={
+            <>
+              <div className="text-xs text-muted-foreground">
+                最終取得 {fetchedAtLabel}
+              </div>
+              <CsvExportButton
+                filename={`drill-${slug}-${new Date().toISOString().slice(0, 10)}.csv`}
+                rows={csvRows}
+              />
+              <PrintButton />
+              <RefreshButton clientId={client.id} />
+            </>
+          }
+        />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">

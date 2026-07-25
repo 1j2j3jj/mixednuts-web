@@ -31,6 +31,7 @@ import {
 import CsvExportButton from "@/components/dashboard/CsvExportButton";
 import PrintButton from "@/components/dashboard/PrintButton";
 import RefreshButton from "@/components/dashboard/RefreshButton";
+import PageHeader from "@/components/dashboard/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fmtInt, fmtJpy, fmtRatioPct } from "@/lib/utils";
 
@@ -567,39 +568,37 @@ export default async function ReportScreen({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">
-            Report
+      <div className="space-y-3">
+        <StaleDataBanner maxDate={maxDataDate} />
+        <PageHeader
+          kicker="Report"
+          title={<>レポート（GA×広告 突合） · {rr.presetLabel}</>}
+          subtitle={
+            <>
+              {start} 〜 {end} · CV3層: 媒体CV / GA_CV(購入) / 全体CV（
+              {meta.overallCvLabel}）
+            </>
+          }
+          controls={
+            <>
+              <div className="text-xs text-muted-foreground">
+                最終取得 {fetchedAtLabel}
+              </div>
+              <CsvExportButton
+                filename={`report-${view}-${slug}-${new Date().toISOString().slice(0, 10)}.csv`}
+                rows={csvRows}
+              />
+              <PrintButton />
+              <RefreshButton clientId={client.id} />
+            </>
+          }
+        />
+        {warnings.length > 0 && (
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            データ取得で問題が発生した項目があります: {warnings.join(" / ")}
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            レポート（GA×広告 突合） · {rr.presetLabel}
-          </h1>
-          <div className="mt-1 text-sm text-muted-foreground">
-            {start} 〜 {end} · CV3層: 媒体CV / GA_CV(購入) / 全体CV（
-            {meta.overallCvLabel}）
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="text-xs text-muted-foreground">
-            最終取得 {fetchedAtLabel}
-          </div>
-          <CsvExportButton
-            filename={`report-${view}-${slug}-${new Date().toISOString().slice(0, 10)}.csv`}
-            rows={csvRows}
-          />
-          <PrintButton />
-          <RefreshButton clientId={client.id} />
-        </div>
+        )}
       </div>
-
-      <StaleDataBanner maxDate={maxDataDate} />
-
-      {warnings.length > 0 && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          データ取得で問題が発生した項目があります: {warnings.join(" / ")}
-        </div>
-      )}
 
       {/* Period KPIs — window totals independent of the granularity tab. No
           prior-period or target value is computed anywhere on this tab (see
