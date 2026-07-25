@@ -18,7 +18,20 @@ export default function ShareBar({ ratio, className }: Props) {
   const pct = shareToPercent(ratio);
   return (
     <div className={cn("flex items-center justify-end gap-2", className)}>
-      <span className="h-1.5 w-14 shrink-0 overflow-hidden rounded-full bg-muted">
+      {/* E-4: the bar encodes a percentage graphically with no ARIA value —
+          a screen reader landing on this element got nothing. The adjacent
+          text span already carries the value visually; role="progressbar"
+          + aria-valuenow/min/max exposes the same number to assistive tech
+          even if this element is queried on its own. */}
+      <span
+        role="progressbar"
+        aria-label="構成比"
+        aria-valuenow={pct ?? undefined}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuetext={pct != null ? `${pct}%` : "データなし"}
+        className="h-1.5 w-14 shrink-0 overflow-hidden rounded-full bg-muted"
+      >
         {pct != null && (
           <span
             className="block h-full rounded-full bg-brand"
@@ -26,7 +39,10 @@ export default function ShareBar({ ratio, className }: Props) {
           />
         )}
       </span>
-      <span className="w-9 shrink-0 text-right tabular-nums text-xs text-muted-foreground">
+      <span
+        aria-hidden="true"
+        className="w-9 shrink-0 text-right tabular-nums text-xs text-muted-foreground"
+      >
         {pct != null ? `${pct}%` : "—"}
       </span>
     </div>

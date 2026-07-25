@@ -845,6 +845,7 @@ export default async function Overview({
             defaultMetric="sessions"
             secondaryDefs={ga4SecondaryEventDefs(client)}
             absenceReason={client.ga4PropertyId ? undefined : "not_configured"}
+            title="月次チャネル別（GA4 過去12ヶ月）"
           />
         </CardContent>
       </Card>
@@ -862,6 +863,7 @@ export default async function Overview({
             defaultGranularity="day"
             secondaryDefs={ga4SecondaryEventDefs(client)}
             absenceReason={client.ga4PropertyId ? undefined : "not_configured"}
+            title="日別/週別チャネル別（GA4 過去90日）"
           />
         </CardContent>
       </Card>
@@ -876,6 +878,7 @@ export default async function Overview({
           <NewVsRepeatChart
             data={newVsRepeat}
             absenceReason={client.ga4PropertyId ? undefined : "not_configured"}
+            title="新規 vs リピート Users（GA4 過去6ヶ月）"
           />
         </CardContent>
       </Card>
@@ -907,6 +910,14 @@ export default async function Overview({
                 <StatusChip tone={channelAchievementTone}>
                   売上達成率{" "}
                   {fmtRatioPct((channelAchievement.ratio ?? 0) * 100, 0)}
+                  {/* E-3: the chip's tone (colour) was the only signal for
+                      whether this percentage was on-track — a qualifier
+                      word makes that explicit in text too when it's not a
+                      clean pass. */}
+                  {channelAchievementTone !== "positive" &&
+                    (channelAchievementTone === "warning"
+                      ? "（未達）"
+                      : "（大幅未達）")}
                 </StatusChip>
               )}
             </CardHeader>

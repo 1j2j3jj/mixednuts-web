@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
-import WorkspaceSwitcher, { type WorkspaceItem } from "@/components/dashboard/WorkspaceSwitcher";
+import WorkspaceSwitcher, {
+  type WorkspaceItem,
+} from "@/components/dashboard/WorkspaceSwitcher";
 import ImpersonationBanner from "@/components/dashboard/ImpersonationBanner";
 import { CLIENTS, CLIENT_IDS } from "@/config/clients";
 
@@ -24,15 +26,21 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const h = await headers();
   const viewerKind = h.get("x-viewer-kind"); // "admin" | "client" | "client-multi" | null
   const isAdmin = viewerKind === "admin";
 
   // Impersonation: admin may have mn_impersonate cookie active.
-  const impersonatedSlug = isAdmin ? (h.get("x-impersonated-slug") ?? null) : null;
+  const impersonatedSlug = isAdmin
+    ? (h.get("x-impersonated-slug") ?? null)
+    : null;
   const impersonatedClient = impersonatedSlug
-    ? Object.values(CLIENTS).find((c) => c.slug === impersonatedSlug) ?? null
+    ? (Object.values(CLIENTS).find((c) => c.slug === impersonatedSlug) ?? null)
     : null;
 
   // Derive which "workspace" is currently active from the URL path.
@@ -40,7 +48,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // x-viewer-slug header for client sessions; for admin sessions the slug
   // is read from the path — we pass "admin" as a sentinel.
   // middleware forwards x-viewer-client-slug for both "client" and "client-multi"
-  const viewerSlug = h.get("x-viewer-client-slug") ?? (isAdmin ? "admin" : null);
+  const viewerSlug =
+    h.get("x-viewer-client-slug") ?? (isAdmin ? "admin" : null);
 
   // For multi-client sessions: enumerate available slugs from the header.
   const isMultiClient = viewerKind === "client-multi";
@@ -61,7 +70,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
         href: `/dashboard/${c.slug}`,
       });
     }
-    switcherItems.push({ key: "admin", label: "管理パネル", href: "/dashboard/admin", isAdmin: true });
+    switcherItems.push({
+      key: "admin",
+      label: "管理パネル",
+      href: "/dashboard/admin",
+      isAdmin: true,
+    });
   } else if (isMultiClient && availableSlugs.length >= 2) {
     // Multi-client: show available slugs only.
     for (const slug of availableSlugs) {
@@ -82,6 +96,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="dashboard-scope min-h-screen bg-background text-foreground">
+      {/* E-4: skip link — genuinely missing. A keyboard user previously had
+          to Tab through the logo link, workspace switcher (or brand text),
+          Logout, then every tab + both DateRangePicker selects on the
+          per-client layout before reaching any page content. Visually
+          hidden until focused (Tailwind's sr-only / focus:not-sr-only), so
+          this has no effect on sighted mouse users. */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[60] focus:rounded-md focus:bg-foreground focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-background"
+      >
+        本文へスキップ
+      </a>
       {/* Impersonation banner — above header, always visible */}
       {impersonatedClient && (
         <ImpersonationBanner
@@ -93,7 +119,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <div className="flex items-center gap-3">
           <Link href="/" className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-mark.png" alt="mixednuts Inc." className="h-6 w-auto" />
+            <img
+              src="/logo-mark.png"
+              alt="mixednuts Inc."
+              className="h-6 w-auto"
+            />
           </Link>
           {showSwitcher ? (
             <WorkspaceSwitcher
@@ -102,11 +132,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
               isAdmin={isAdmin}
             />
           ) : (
-            <span className="text-sm font-semibold tracking-tight">mixednuts</span>
+            <span className="text-sm font-semibold tracking-tight">
+              mixednuts
+            </span>
           )}
         </div>
         <div className="flex items-center gap-4">
-          {(viewerKind === "admin" || viewerKind === "client" || viewerKind === "client-multi") && (
+          {(viewerKind === "admin" ||
+            viewerKind === "client" ||
+            viewerKind === "client-multi") && (
             <Link
               href="/api/auth/logout"
               prefetch={false}
@@ -117,7 +151,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
           )}
         </div>
       </header>
-      <main className="p-6">{children}</main>
+      <main id="main-content" className="p-6">
+        {children}
+      </main>
     </div>
   );
 }

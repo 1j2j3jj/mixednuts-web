@@ -55,11 +55,18 @@ export default function FirstRunGuide() {
         type="button"
         onClick={closeOnce}
         aria-label="ガイドを閉じる"
-        className="absolute right-2 top-2 rounded-md px-1.5 text-sky-400 hover:text-sky-700"
+        // ITEM 3 fix (2026-07-25 Phase E audit): text-sky-400 on bg-sky-50
+        // measured 2.044:1 at 14px — far under the 4.5:1 small-text floor.
+        // sky-700 = 5.49:1 (verified live); hover bumped from sky-700 to
+        // sky-900 so the hover state still visibly darkens instead of
+        // becoming a no-op once resting and old-hover coincide.
+        className="absolute right-2 top-2 rounded-md px-1.5 text-sky-700 hover:text-sky-900"
       >
         ×
       </button>
-      <p className="mb-1.5 font-semibold">はじめての方へ — このダッシュボードの見方</p>
+      <p className="mb-1.5 font-semibold">
+        はじめての方へ — このダッシュボードの見方
+      </p>
       <ul className="mb-2 space-y-0.5">
         {TAB_GUIDE.map(([tab, desc]) => (
           <li key={tab}>
@@ -75,7 +82,11 @@ export default function FirstRunGuide() {
       <button
         type="button"
         onClick={dismissForever}
-        className="text-xs text-sky-600 underline hover:text-sky-900"
+        // ITEM 3 fix (2026-07-25 Phase E audit): text-sky-600 on bg-sky-50
+        // measured 3.773:1 at 12px, under the 4.5:1 floor. sky-700 = 5.49:1
+        // (verified live); hover:sky-900 unchanged — still a visibly darker
+        // step down from the new resting colour.
+        className="text-xs text-sky-700 underline hover:text-sky-900"
       >
         今後表示しない
       </button>

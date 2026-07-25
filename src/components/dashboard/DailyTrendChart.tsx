@@ -15,6 +15,7 @@ import ChartTooltip from "@/components/dashboard/ChartTooltip";
 import AbsenceNotice from "@/components/dashboard/AbsenceNotice";
 import type { DailySeriesPoint } from "@/lib/metrics";
 import type { AbsenceReason, NoDataPeriodDetail } from "@/lib/absence";
+import { usePrefersReducedMotion } from "@/lib/use-reduced-motion";
 
 interface Props {
   data: DailySeriesPoint[];
@@ -26,6 +27,10 @@ interface Props {
    *  the ad-side daily series, not a per-client capability. */
   absenceReason?: AbsenceReason;
   absenceDetail?: NoDataPeriodDetail;
+  /** Accessible name for the chart (E-2/E-4) — callers pass their own
+   *  visible CardTitle text (ads/page.tsx and drill/page.tsx each render a
+   *  different one), not new copy. */
+  title?: string;
 }
 
 const costAxisFormat = (v: number) =>
@@ -44,7 +49,9 @@ export default function DailyTrendChart({
   data,
   absenceReason,
   absenceDetail,
+  title = "日次推移",
 }: Props) {
+  const reducedMotion = usePrefersReducedMotion();
   if (data.length === 0) {
     return (
       <AbsenceNotice
@@ -64,6 +71,8 @@ export default function DailyTrendChart({
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
           data={withCpa}
+          title={title}
+          desc="日次のCOST・媒体CV・媒体CPAの推移をコンボチャートで表示"
           margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -113,6 +122,7 @@ export default function DailyTrendChart({
             fill="var(--chart-1)"
             fillOpacity={0.35}
             radius={[2, 2, 0, 0]}
+            isAnimationActive={!reducedMotion}
           />
           <Line
             yAxisId="right"
@@ -122,6 +132,7 @@ export default function DailyTrendChart({
             stroke="var(--chart-3)"
             strokeWidth={2}
             dot={false}
+            isAnimationActive={!reducedMotion}
           />
           <Line
             yAxisId="right"
@@ -133,6 +144,7 @@ export default function DailyTrendChart({
             strokeDasharray="4 3"
             dot={false}
             connectNulls
+            isAnimationActive={!reducedMotion}
           />
         </ComposedChart>
       </ResponsiveContainer>

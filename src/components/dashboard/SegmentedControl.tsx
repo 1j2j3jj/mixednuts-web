@@ -55,7 +55,24 @@ export default function SegmentedControl<T extends string>({
               shape === "pill" ? "rounded-full" : "rounded-md",
               selected
                 ? "border-brand-ink bg-brand/14 text-brand-deep"
-                : "border-transparent text-muted-foreground hover:bg-background hover:text-foreground",
+                : // ITEM 1 fix (2026-07-25 Phase E audit): text-muted-foreground
+                  // against this control's own bg-muted backdrop (not white)
+                  // measured 4.35:1 — under the 4.5:1 small-text floor.
+                  // --control-idle-foreground (globals.css) is a
+                  // control-specific token, not a darkening of the shared
+                  // --muted-foreground: every other dashboard call site of
+                  // that token (~60, grepped and individually checked) sits
+                  // on white/background or a translucent `bg-muted/NN`
+                  // tint, never this control's OPAQUE bg-muted — darkening
+                  // the shared token would have touched all of them for no
+                  // benefit. One other opaque bg-muted + text-muted-foreground
+                  // pairing exists (MediaTable.tsx / MediaCampaignTable.tsx's
+                  // unmapped-media-channel fallback badge) but that's a
+                  // different component, out of this audit's scope — see
+                  // handoff report. The new token (oklch(0.52 0 0), a step
+                  // darker than neutral-500) reaches 5.04:1 against
+                  // bg-muted, verified live.
+                  "border-transparent text-control-idle-foreground hover:bg-background hover:text-foreground",
               !selected && option.inactiveClassName,
             )}
           >

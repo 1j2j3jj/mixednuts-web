@@ -17,7 +17,11 @@ interface Props {
  * テンプレ DL / 現状 DL → CSV 選択 → プレビュー(検証) → 確定 の流れ。
  * 確定はこのクライアントの目標を全置換する（サーバ側で client_id 強制）。
  */
-export default function TargetsClient({ slug, templateCsv, currentCsv }: Props) {
+export default function TargetsClient({
+  slug,
+  templateCsv,
+  currentCsv,
+}: Props) {
   const [csv, setCsv] = useState<string>("");
   const [filename, setFilename] = useState<string>("");
   const [previewMsg, setPreviewMsg] = useState<string | null>(null);
@@ -101,14 +105,18 @@ export default function TargetsClient({ slug, templateCsv, currentCsv }: Props) 
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          onClick={() => downloadBlob(currentCsv, `${slug}-targets-current.csv`)}
+          onClick={() =>
+            downloadBlob(currentCsv, `${slug}-targets-current.csv`)
+          }
           className="rounded-md border bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent"
         >
           ⬇ 現状をCSV ダウンロード
         </button>
         <button
           type="button"
-          onClick={() => downloadBlob(templateCsv, `${slug}-targets-template.csv`)}
+          onClick={() =>
+            downloadBlob(templateCsv, `${slug}-targets-template.csv`)
+          }
           className="rounded-md border bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent"
         >
           ⬇ テンプレ CSV
@@ -116,10 +124,15 @@ export default function TargetsClient({ slug, templateCsv, currentCsv }: Props) 
       </div>
 
       <div className="border-t pt-4">
-        <label className="block text-sm font-medium">
+        {/* E-4 fix: label and input were separate siblings with no
+            id/htmlFor association — a screen reader focusing the file input
+            got only the browser's generic "Choose File" name, not this
+            label's text. */}
+        <label htmlFor="targets-csv-file" className="block text-sm font-medium">
           ⬆ CSV をアップロード（このクライアントの目標を全置換）
         </label>
         <input
+          id="targets-csv-file"
           type="file"
           accept=".csv,text/csv"
           onChange={onFile}
@@ -127,7 +140,9 @@ export default function TargetsClient({ slug, templateCsv, currentCsv }: Props) 
           disabled={pending}
         />
         {filename && (
-          <p className="mt-1 text-xs text-muted-foreground">選択中: {filename}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            選択中: {filename}
+          </p>
         )}
 
         <div className="mt-3 flex gap-2">
@@ -143,30 +158,50 @@ export default function TargetsClient({ slug, templateCsv, currentCsv }: Props) 
             type="button"
             onClick={doCommit}
             disabled={!csv || previewCount == null || pending}
-            className="rounded-md border border-emerald-600 bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-40"
+            // E-1 contrast fix: white text on bg-emerald-600 measured
+            // 3.65:1 (below the 4.5:1 normal-text floor at this 12px size).
+            // Bumped to emerald-700 (5.36:1, verified) — same shade the
+            // roasClass/achievementColour cells elsewhere already use.
+            className="rounded-md border border-emerald-700 bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-800 disabled:opacity-40"
           >
             {pending ? "実行中..." : `確定 (${previewCount ?? "?"} 行を保存)`}
           </button>
         </div>
 
+        {/* E-4: preview/success are non-urgent confirmations -> role="status"
+            (polite); error/rowErrors interrupt the flow -> role="alert"
+            (assertive). Previously silent to screen readers — visible text
+            unchanged. */}
         {previewMsg && !error && (
-          <p className="mt-3 rounded-md bg-emerald-50 p-2 text-sm text-emerald-900">
+          <p
+            role="status"
+            aria-live="polite"
+            className="mt-3 rounded-md bg-emerald-50 p-2 text-sm text-emerald-900"
+          >
             ✓ {previewMsg}
             {" — "}
             「確定」を押すとこのクライアントの目標を全置換します
           </p>
         )}
         {error && (
-          <p className="mt-3 rounded-md bg-rose-50 p-2 text-sm text-rose-900">
+          <p
+            role="alert"
+            className="mt-3 rounded-md bg-rose-50 p-2 text-sm text-rose-900"
+          >
             ✗ {error}
           </p>
         )}
         {rowErrors && rowErrors.length > 0 && (
-          <div className="mt-2 max-h-64 overflow-auto rounded-md border border-rose-200 bg-rose-50 p-2 text-xs text-rose-900">
+          <div
+            role="alert"
+            className="mt-2 max-h-64 overflow-auto rounded-md border border-rose-200 bg-rose-50 p-2 text-xs text-rose-900"
+          >
             <ul className="space-y-1">
               {rowErrors.map((re) => (
                 <li key={re.row}>
-                  <span className="font-mono font-semibold">{re.row} 行目:</span>{" "}
+                  <span className="font-mono font-semibold">
+                    {re.row} 行目:
+                  </span>{" "}
                   {re.errors.join(" / ")}
                 </li>
               ))}
@@ -174,7 +209,11 @@ export default function TargetsClient({ slug, templateCsv, currentCsv }: Props) 
           </div>
         )}
         {success && (
-          <p className="mt-3 rounded-md bg-emerald-100 p-2 text-sm text-emerald-900">
+          <p
+            role="status"
+            aria-live="polite"
+            className="mt-3 rounded-md bg-emerald-100 p-2 text-sm text-emerald-900"
+          >
             ✅ {success}
           </p>
         )}

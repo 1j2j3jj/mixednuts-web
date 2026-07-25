@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * 退会（アカウント削除）Danger Zone。
@@ -20,15 +20,61 @@ export default function DeleteAccountSection() {
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  // Read inside close()/the keydown handler via a ref, not the `busy` state
+  // directly — the effect below subscribes once per `open` toggle, so a
+  // closure over `busy` captured at that time would go stale the moment
+  // deletion starts (busy: false -> true) without the effect re-running,
+  // letting Escape bypass the busy guard. Kept in sync every render instead.
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
 
   const confirmed = confirm.trim() === CONFIRM_TEXT;
 
   function close() {
-    if (busy) return;
+    if (busyRef.current) return;
     setOpen(false);
     setConfirm("");
     setError(null);
+    triggerRef.current?.focus();
   }
+
+  // E-2 fix: this dialog declared `role="dialog" aria-modal="true"` (a
+  // promise to assistive tech that focus is trapped inside) but implemented
+  // neither a focus trap nor an Escape handler — Tab from the last button
+  // fell through to whatever page content sat behind the overlay, and
+  // Escape did nothing. Both are added here without changing the dialog's
+  // visible content or its existing autoFocus/click-outside-to-close
+  // behaviour.
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        close();
+        return;
+      }
+      if (e.key !== "Tab" || !panelRef.current) return;
+      const focusables = Array.from(
+        panelRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   async function handleDelete() {
     if (!confirmed || busy) return;
@@ -36,14 +82,15 @@ export default function DeleteAccountSection() {
     setError(null);
     try {
       const res = await fetch("/api/auth/delete-account", { method: "POST" });
-      const data: { ok?: boolean; error?: string; redirect?: string } = await res
-        .json()
-        .catch(() => ({}));
+      const data: { ok?: boolean; error?: string; redirect?: string } =
+        await res.json().catch(() => ({}));
       if (res.ok && data.ok) {
         window.location.href = data.redirect ?? "/login";
         return;
       }
-      setError(data.error ?? "削除に失敗しました。時間をおいて再度お試しください");
+      setError(
+        data.error ?? "削除に失敗しました。時間をおいて再度お試しください",
+      );
     } catch {
       setError("削除に失敗しました。時間をおいて再度お試しください");
     }
@@ -59,6 +106,7 @@ export default function DeleteAccountSection() {
         ご自身のアカウントとすべての組織メンバーシップを削除します。この操作は取り消せません。
       </p>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
         className="mt-3 rounded-md border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 transition-colors hover:bg-red-600 hover:text-white dark:border-red-800 dark:bg-transparent dark:text-red-400 dark:hover:bg-red-900"
@@ -75,6 +123,7 @@ export default function DeleteAccountSection() {
           onClick={close}
         >
           <div
+            ref={panelRef}
             className="w-full max-w-md rounded-card border bg-background p-5 shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >

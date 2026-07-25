@@ -1,6 +1,7 @@
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -48,6 +49,7 @@ export default function ProductRanking({
   const colSpan = hideRevenue ? 5 : 8;
   return (
     <Table>
+      <TableCaption className="sr-only">商品別ランキングテーブル</TableCaption>
       <TableHeader>
         <TableRow>
           <TableHead className="w-10">#</TableHead>

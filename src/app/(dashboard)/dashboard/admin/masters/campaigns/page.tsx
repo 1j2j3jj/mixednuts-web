@@ -25,9 +25,11 @@ export default async function CampaignMasterPage({ searchParams }: PageProps) {
   if (h.get("x-viewer-kind") !== "admin") notFound();
 
   const sp = await searchParams;
-  const clientId = (sp.client && (CLIENT_IDS as readonly string[]).includes(sp.client)
-    ? sp.client
-    : "hs") as ClientId;
+  const clientId = (
+    sp.client && (CLIENT_IDS as readonly string[]).includes(sp.client)
+      ? sp.client
+      : "hs"
+  ) as ClientId;
 
   const rows = await fetchCampaignMaster(clientId);
   const currentCsv = rowsToCsv(CAMPAIGN_MASTER_COLUMNS, rows);
@@ -36,16 +38,28 @@ export default async function CampaignMasterPage({ searchParams }: PageProps) {
     <div className="mx-auto w-full max-w-7xl space-y-6">
       <div>
         <div className="flex items-center gap-2 text-xs text-neutral-500">
-          <Link href="/dashboard/admin" className="underline hover:text-neutral-800">管理</Link>
+          <Link
+            href="/dashboard/admin"
+            className="underline hover:text-neutral-800"
+          >
+            管理
+          </Link>
           <span>/</span>
-          <Link href="/dashboard/admin/masters" className="underline hover:text-neutral-800">マスタ管理</Link>
+          <Link
+            href="/dashboard/admin/masters"
+            className="underline hover:text-neutral-800"
+          >
+            マスタ管理
+          </Link>
           <span>/</span>
           <span>キャンペーンマスタ</span>
         </div>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight">キャンペーンマスタ</h1>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight">
+          キャンペーンマスタ
+        </h1>
         <p className="mt-1 text-xs text-neutral-600">
-          UTM ⇄ プラットフォーム ID の対応表。粒度可変 (媒体 / CPN / ADG / 広告)。
-          マスタ無いCPNは既存 ga4MatchKey フォールバックで動く。
+          UTM ⇄ プラットフォーム ID の対応表。粒度可変 (媒体 / CPN / ADG /
+          広告)。 マスタ無いCPNは既存 ga4MatchKey フォールバックで動く。
         </p>
       </div>
 
@@ -56,9 +70,12 @@ export default async function CampaignMasterPage({ searchParams }: PageProps) {
             <Link
               key={cid}
               href={`/dashboard/admin/masters/campaigns?client=${cid}`}
+              // E-1 contrast fix: white text on bg-emerald-600 measured
+              // 3.65:1, below the 4.5:1 floor — see TargetsClient.tsx's
+              // identical fix for the full measurement.
               className={`rounded-md px-3 py-1.5 text-xs font-medium ${
                 isActive
-                  ? "bg-emerald-600 text-white"
+                  ? "bg-emerald-700 text-white"
                   : "border border-neutral-300 bg-white hover:bg-neutral-50"
               }`}
             >
@@ -100,13 +117,21 @@ export default async function CampaignMasterPage({ searchParams }: PageProps) {
           </thead>
           <tbody>
             {rows.length === 0 && (
-              <tr><td colSpan={11} className="p-4 text-center text-neutral-400">データなし</td></tr>
+              <tr>
+                <td colSpan={11} className="p-4 text-center text-neutral-400">
+                  データなし
+                </td>
+              </tr>
             )}
             {rows.map((r, i) => (
               <tr key={i} className="border-t border-neutral-200">
                 <td className="p-2">{r.media}</td>
-                <td className="p-2 font-mono">{r.platform_campaign_id ?? "*"}</td>
-                <td className="p-2 font-mono">{r.platform_adgroup_id ?? "*"}</td>
+                <td className="p-2 font-mono">
+                  {r.platform_campaign_id ?? "*"}
+                </td>
+                <td className="p-2 font-mono">
+                  {r.platform_adgroup_id ?? "*"}
+                </td>
                 <td className="p-2 font-mono">{r.platform_ad_id ?? "*"}</td>
                 <td className="p-2">{r.utm_source ?? "—"}</td>
                 <td className="p-2">{r.utm_medium ?? "—"}</td>
@@ -114,7 +139,8 @@ export default async function CampaignMasterPage({ searchParams }: PageProps) {
                 <td className="p-2">{r.utm_content ?? "—"}</td>
                 <td className="p-2">{r.campaign_type ?? "—"}</td>
                 <td className="p-2 text-neutral-500">
-                  {r.active_from ?? "—"}{r.active_to ? ` 〜 ${r.active_to}` : ""}
+                  {r.active_from ?? "—"}
+                  {r.active_to ? ` 〜 ${r.active_to}` : ""}
                 </td>
                 <td className="p-2 text-neutral-600">{r.notes ?? "—"}</td>
               </tr>

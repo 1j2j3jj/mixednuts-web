@@ -5,6 +5,7 @@ import SegmentedControl from "@/components/dashboard/SegmentedControl";
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -12,9 +13,11 @@ import {
   TOTAL_ROW_CLASS,
 } from "@/components/ui/table";
 import ShareBar from "@/components/dashboard/ShareBar";
+import TierGlyph from "@/components/dashboard/TierGlyph";
 import { cn, fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 import { computeShare } from "@/lib/share";
 import type { MetricSource } from "@/lib/source";
+import { higherIsBetterTier } from "@/lib/tier";
 import {
   MATCH_STATUS_LABEL,
   MATCH_STATUS_DESC,
@@ -70,15 +73,23 @@ const MEDIA_BADGE: Record<string, string> = {
 };
 
 function mediaBadge(m: string): string {
-  return MEDIA_BADGE[m] ?? "bg-muted text-muted-foreground";
+  // 未突合媒体のフォールバック。text-muted-foreground を opaque な bg-muted に
+  // 乗せると 4.35:1 で AA(4.5:1)未達になるため、SegmentedControl と同じ
+  // control-idle-foreground（bg-muted 上で 5.04:1）を使う。
+  return MEDIA_BADGE[m] ?? "bg-muted text-control-idle-foreground";
 }
 
+/** See MediaTable.tsx's identical constant for the rationale — threshold
+ *  logic lives once in @/lib/tier, only the class strings are per-table. */
+const ROAS_TIER_CLASS: Record<string, string> = {
+  good: "text-emerald-700 font-semibold",
+  warning: "text-amber-700",
+  bad: "text-rose-700",
+};
+
 function roasClass(actualPct: number | null, targetPct: number | null): string {
-  if (actualPct == null || !Number.isFinite(actualPct)) return "";
-  if (targetPct == null || targetPct <= 0) return "";
-  if (actualPct >= targetPct) return "text-emerald-700 font-semibold";
-  if (actualPct >= targetPct * 0.8) return "text-amber-700";
-  return "text-rose-700";
+  const tier = higherIsBetterTier(actualPct, targetPct);
+  return tier ? ROAS_TIER_CLASS[tier] : "";
 }
 
 const ALL = "__all__";
@@ -156,12 +167,18 @@ export default function MediaCampaignTable({
     const cvr = safeDiv(cv, r.clicks);
     const cpa = safeDiv(r.spend, cv);
     const roasPct = r.spend > 0 ? (rev / r.spend) * 100 : null;
+    const roasTier = isTotal
+      ? null
+      : higherIsBetterTier(roasPct, targetRoasPct);
     const rowKey = isTotal
       ? "__total__"
       : `${r.media}|${r.campaignId}|${r.campaignName}`;
     return (
       <TableRow key={rowKey} className={cn(isTotal && TOTAL_ROW_CLASS)}>
-        <TableCell className="whitespace-nowrap">
+        <TableCell
+          scope={isTotal ? "row" : undefined}
+          className="whitespace-nowrap"
+        >
           {isTotal ? (
             <span>{r.media}</span>
           ) : (
@@ -228,7 +245,11 @@ export default function MediaCampaignTable({
             !isTotal && roasClass(roasPct, targetRoasPct),
           )}
         >
-          {fmtRatioPct(roasPct, 0)}
+          {/* E-3: non-colour carrier — see MediaTable.tsx's identical fix. */}
+          <span className="inline-flex items-center justify-end gap-1">
+            {roasTier && <TierGlyph tier={roasTier} />}
+            {fmtRatioPct(roasPct, 0)}
+          </span>
         </TableCell>
       </TableRow>
     );
@@ -264,6 +285,9 @@ export default function MediaCampaignTable({
 
       <div className="rounded-md border">
         <Table>
+          <TableCaption className="sr-only">
+            媒体 × キャンペーン別サマリテーブル
+          </TableCaption>
           <TableHeader>
             <TableRow>
               <TableHead>媒体</TableHead>

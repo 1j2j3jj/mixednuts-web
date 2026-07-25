@@ -23,6 +23,28 @@
   outline-offset: 2px;
   border-radius: 4px;
 }
+/* ITEM 2 fix (2026-07-25 Phase E audit, SC 1.4.11 non-text contrast): the
+   impersonation banner's exit link sits on bg-amber-500; outline-offset's
+   2px gap exposes that backdrop, and the base rule's var(--ring) (=--brand,
+   #0091b8) only reaches 1.71:1 there — short of the 3:1 floor. Scoped
+   override, deliberately MORE SPECIFIC than the base rule above rather than
+   a Tailwind `focus-visible:outline-*` utility class on the link itself:
+   Tailwind's generated utilities live inside `@layer utilities`, and this
+   file's plain custom CSS (including the base rule above) is unlayered —
+   under CSS cascade-layer rules, unlayered declarations always beat
+   layered ones regardless of selector specificity or source order, so a
+   Tailwind class here could never have won. Only outline-color is
+   redeclared; width/offset/radius still inherit from the base rule so the
+   ring's shape stays identical everywhere else. Reuses --color-amber-950 —
+   already this banner's own body-text colour (see text-amber-950 in
+   ImpersonationBanner.tsx) — which measures 7.03:1 against the same
+   amber-500 (verified live via canvas-rasterizing the compiled class), so
+   the ring "adapts to its surroundings" instead of introducing an
+   unrelated hue. Global --ring is untouched — every other :focus-visible
+   ring in the dashboard is unaffected. */
+.dashboard-scope .impersonation-banner :focus-visible {
+  outline-color: var(--color-amber-950);
+}
 @media (max-width: 768px) {
   .dashboard-scope main {
     padding: 1rem !important;
@@ -86,6 +108,22 @@
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
+  /* ITEM 1 fix (2026-07-25 Phase E audit): SegmentedControl's unselected
+     label used text-muted-foreground (#737373) against the control's own
+     bg-muted backdrop (#f5f5f5, NOT white) = 4.35:1 — short of the 4.5:1
+     small-text floor (12px font-medium never qualifies as "large text").
+     This is a control-specific token, not a darkening of the shared
+     --muted-foreground above: that token has ~60 other call sites in this
+     codebase, almost all against white/background where it already sits at
+     only 4.73:1 (a thin 0.23 margin per the same audit) — every one was
+     individually checked (see SegmentedControl.tsx comment + the handoff
+     report for the audit trail); none regress because none of them change.
+     oklch(0.52 0 0) = #696969, 5.04:1
+     against bg-muted — verified two ways: this formula, and canvas-
+     rasterizing the actual compiled Tailwind class in a live browser
+     (lab()/oklch gamut mapping can shift the "used value" slightly from a
+     hand-converted hex — confirmed no drift here since chroma is 0). */
+  --control-idle-foreground: oklch(0.52 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
@@ -155,6 +193,7 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-control-idle-foreground: var(--control-idle-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);

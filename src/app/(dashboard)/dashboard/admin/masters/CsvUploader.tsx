@@ -45,12 +45,18 @@ async function dispatch(
 ): Promise<UploadResult> {
   if (kind === "targets") return uploadTargetsAction(csv, mode);
   if (!clientId) return { ok: false, message: "clientId is required" };
-  if (kind === "external_cv") return uploadExternalCvAction(clientId, csv, mode);
+  if (kind === "external_cv")
+    return uploadExternalCvAction(clientId, csv, mode);
   return uploadCampaignMasterAction(clientId, csv, mode);
 }
 
 export function CsvUploader({
-  kind, clientId, label, templateCsv, templateName, currentCsv,
+  kind,
+  clientId,
+  label,
+  templateCsv,
+  templateName,
+  currentCsv,
 }: Props) {
   // targets uses idempotent upsert (key = client_id + year_month); the other
   // masters keep their full-replace (TRUNCATE) semantics.
@@ -123,8 +129,11 @@ export function CsvUploader({
     const blob = new Blob(["﻿", text], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = name;
-    document.body.appendChild(a); a.click(); a.remove();
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
     URL.revokeObjectURL(url);
   }
 
@@ -133,14 +142,18 @@ export function CsvUploader({
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          onClick={() => downloadBlob(currentCsv, `${templateName}-current.csv`)}
+          onClick={() =>
+            downloadBlob(currentCsv, `${templateName}-current.csv`)
+          }
           className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium hover:bg-neutral-50"
         >
           ⬇ 現状をCSV ダウンロード
         </button>
         <button
           type="button"
-          onClick={() => downloadBlob(templateCsv, `${templateName}-template.csv`)}
+          onClick={() =>
+            downloadBlob(templateCsv, `${templateName}-template.csv`)
+          }
           className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium hover:bg-neutral-50"
         >
           ⬇ テンプレ CSV
@@ -149,7 +162,9 @@ export function CsvUploader({
 
       <div className="border-t border-neutral-200 pt-4">
         <label className="block text-sm font-medium text-neutral-800">
-          {isUpsert ? "⬆ CSV をアップロード（該当キーのみ更新）" : "⬆ CSV をアップロード（全置換）"}
+          {isUpsert
+            ? "⬆ CSV をアップロード（該当キーのみ更新）"
+            : "⬆ CSV をアップロード（全置換）"}
         </label>
         <input
           type="file"
@@ -175,7 +190,10 @@ export function CsvUploader({
             type="button"
             onClick={doCommit}
             disabled={!csv || previewRows == null || pending}
-            className="rounded-md border border-emerald-600 bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-40"
+            // E-1 contrast fix: white text on bg-emerald-600 measured
+            // 3.65:1, below the 4.5:1 floor — see TargetsClient.tsx's
+            // identical fix for the full measurement.
+            className="rounded-md border border-emerald-700 bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-800 disabled:opacity-40"
           >
             {pending
               ? "実行中..."
@@ -204,7 +222,9 @@ export function CsvUploader({
             <ul className="space-y-1">
               {rowErrors.map((re) => (
                 <li key={re.row}>
-                  <span className="font-mono font-semibold">{re.row} 行目:</span>{" "}
+                  <span className="font-mono font-semibold">
+                    {re.row} 行目:
+                  </span>{" "}
                   {re.errors.join(" / ")}
                 </li>
               ))}

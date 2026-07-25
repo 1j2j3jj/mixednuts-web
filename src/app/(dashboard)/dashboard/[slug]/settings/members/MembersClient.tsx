@@ -73,7 +73,7 @@ export default function MembersClient({
 
   const totalMembers = members.length;
   const totalEditors = members.filter(
-    (m) => m.role === "editor" || m.role === "admin" || m.role === "owner"
+    (m) => m.role === "editor" || m.role === "admin" || m.role === "owner",
   ).length;
 
   const memberQuotaReached = maxMembers !== null && totalMembers >= maxMembers;
@@ -127,7 +127,7 @@ export default function MembersClient({
       const failed = res.items.filter((i) => !i.ok);
       // スキップ/失敗はインラインに簡潔表示（成功分は一覧へ集約）。
       setIssues(
-        failed.map((i) => ({ email: i.email, reason: i.error ?? "失敗" }))
+        failed.map((i) => ({ email: i.email, reason: i.error ?? "失敗" })),
       );
       // このセッションでの送信状況を記録（承認待ち一覧の「送信状況」列に反映）。
       if (created.length > 0) {
@@ -177,7 +177,13 @@ export default function MembersClient({
       <div className="flex flex-wrap gap-4 rounded-card border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm">
         <span className="text-neutral-600">
           メンバー:{" "}
-          <span className={memberQuotaReached ? "font-semibold text-rose-600" : "font-semibold"}>
+          <span
+            className={
+              memberQuotaReached
+                ? "font-semibold text-rose-600"
+                : "font-semibold"
+            }
+          >
             {totalMembers}
           </span>
           {maxMembers !== null && (
@@ -185,8 +191,7 @@ export default function MembersClient({
           )}
         </span>
         <span className="text-neutral-600">
-          編集者:{" "}
-          <span className="font-semibold">{totalEditors}</span>
+          編集者: <span className="font-semibold">{totalEditors}</span>
           {maxAdmins !== null && (
             <span className="text-neutral-400"> / {maxAdmins}</span>
           )}
@@ -226,8 +231,12 @@ export default function MembersClient({
               ) : (
                 members.map((m) => (
                   <TableRow key={m.id}>
-                    <TableCell className="font-medium">{m.name || "—"}</TableCell>
-                    <TableCell className="text-sm text-neutral-600">{m.email}</TableCell>
+                    <TableCell className="font-medium">
+                      {m.name || "—"}
+                    </TableCell>
+                    <TableCell className="text-sm text-neutral-600">
+                      {m.email}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={roleBadgeVariant(m.role)}>
                         {roleLabel(m.role)}
@@ -250,8 +259,16 @@ export default function MembersClient({
           <h2 className="mb-2 text-sm font-semibold text-neutral-900">
             承認待ち招待
           </h2>
+          {/* E-1: text-rose-600 on white measured 4.53:1 — technically over
+              the 4.5:1 floor but by a margin thin enough (0.03) that it's
+              effectively at risk from any future palette rounding; bumped to
+              rose-700 (6.03:1) to match the safety margin every other fixed
+              pair in this phase now has. E-4: role="alert" — was silent to
+              screen readers. */}
           {revokeError && (
-            <p className="mb-2 text-sm text-rose-600">{revokeError}</p>
+            <p role="alert" className="mb-2 text-sm text-rose-700">
+              {revokeError}
+            </p>
           )}
           <div className="rounded-card border border-neutral-200 bg-white">
             <Table>
@@ -262,66 +279,74 @@ export default function MembersClient({
                   <TableHead scope="col">送信状況</TableHead>
                   <TableHead scope="col">有効期限</TableHead>
                   <TableHead scope="col">招待リンク</TableHead>
-                  {canInvite && <TableHead scope="col"><span className="sr-only">操作</span></TableHead>}
+                  {canInvite && (
+                    <TableHead scope="col">
+                      <span className="sr-only">操作</span>
+                    </TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {pendingInvites.map((inv) => {
                   const sent = sentInfo[inv.email.toLowerCase()];
                   return (
-                  <TableRow key={inv.id}>
-                    <TableCell className="font-medium">{inv.email}</TableCell>
-                    <TableCell>
-                      <Badge variant={roleBadgeVariant(inv.role ?? "member")}>
-                        {roleLabel(inv.role ?? "member")}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {sent ? (
-                        sent.sent ? (
-                          <span className="font-medium text-emerald-600">
-                            ✉ 送信済み{" "}
-                            <span className="font-normal text-neutral-400">
-                              {new Date(sent.at).toLocaleString("ja-JP", {
-                                month: "numeric",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                    <TableRow key={inv.id}>
+                      <TableCell className="font-medium">{inv.email}</TableCell>
+                      <TableCell>
+                        <Badge variant={roleBadgeVariant(inv.role ?? "member")}>
+                          {roleLabel(inv.role ?? "member")}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {sent ? (
+                          sent.sent ? (
+                            <span className="font-medium text-emerald-600">
+                              ✉ 送信済み{" "}
+                              <span className="font-normal text-neutral-400">
+                                {new Date(sent.at).toLocaleString("ja-JP", {
+                                  month: "numeric",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
                             </span>
-                          </span>
+                          ) : (
+                            <span className="text-amber-600">
+                              リンク発行のみ
+                            </span>
+                          )
                         ) : (
-                          <span className="text-amber-600">リンク発行のみ</span>
-                        )
-                      ) : (
-                        <span className="text-neutral-400">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs text-neutral-500">
-                      {new Date(inv.expiresAt).toLocaleDateString("ja-JP")}
-                    </TableCell>
-                    <TableCell>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(inv.link)}
-                        className="rounded-md bg-neutral-100 px-2 py-1 text-xs font-mono text-neutral-700 hover:bg-neutral-200"
-                      >
-                        {copiedLink === inv.link ? "コピーしました！" : "リンクをコピー"}
-                      </button>
-                    </TableCell>
-                    {canInvite && (
+                          <span className="text-neutral-400">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs text-neutral-500">
+                        {new Date(inv.expiresAt).toLocaleDateString("ja-JP")}
+                      </TableCell>
                       <TableCell>
                         <button
                           type="button"
-                          onClick={() => handleRevoke(inv.id)}
-                          disabled={isPending}
-                          className="text-xs text-rose-600 underline hover:text-rose-800 disabled:opacity-40"
+                          onClick={() => handleCopy(inv.link)}
+                          className="rounded-md bg-neutral-100 px-2 py-1 text-xs font-mono text-neutral-700 hover:bg-neutral-200"
                         >
-                          取消
+                          {copiedLink === inv.link
+                            ? "コピーしました！"
+                            : "リンクをコピー"}
                         </button>
                       </TableCell>
-                    )}
-                  </TableRow>
+                      {canInvite && (
+                        <TableCell>
+                          <button
+                            type="button"
+                            onClick={() => handleRevoke(inv.id)}
+                            disabled={isPending}
+                            className="text-xs text-rose-600 underline hover:text-rose-800 disabled:opacity-40"
+                          >
+                            取消
+                          </button>
+                        </TableCell>
+                      )}
+                    </TableRow>
                   );
                 })}
               </TableBody>
@@ -339,16 +364,33 @@ export default function MembersClient({
 
           {memberQuotaReached && (
             <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              メンバー上限（{maxMembers}名）に達しています。招待するには運営にお問い合わせください。
+              メンバー上限（{maxMembers}
+              名）に達しています。招待するには運営にお問い合わせください。
             </div>
           )}
 
           <p className="mb-2 text-xs text-muted-foreground">
-            メールアドレスを入力または貼り付け（Enter・カンマ・スペース・改行で区切ってチップ化）。まとめて 1 つのロールで招待します。
+            メールアドレスを入力または貼り付け（Enter・カンマ・スペース・改行で区切ってチップ化）。まとめて
+            1 つのロールで招待します。
           </p>
-          <form onSubmit={handleInvite} className="flex flex-col gap-2 sm:flex-row sm:items-start">
+          <form
+            onSubmit={handleInvite}
+            className="flex flex-col gap-2 sm:flex-row sm:items-start"
+          >
+            {/* E-4 fix: no <label> existed for #invite-chip-input — its only
+                accessible name came from `placeholder`, which is not a valid
+                substitute for a persistent label (SC 3.3.2) AND disappears
+                entirely once a chip exists (`chips.length ? "" : "..."`
+                below), leaving the input with NO accessible name at that
+                point. sr-only label is always present regardless of chip
+                state; visible layout is unchanged. */}
+            <label htmlFor="invite-chip-input" className="sr-only">
+              招待するメールアドレス
+            </label>
             <div
-              onClick={() => document.getElementById("invite-chip-input")?.focus()}
+              onClick={() =>
+                document.getElementById("invite-chip-input")?.focus()
+              }
               className={`flex min-h-[46px] min-w-[220px] flex-1 flex-wrap items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-2 py-1.5 focus-within:border-neutral-900 ${
                 inviteDisabled ? "cursor-not-allowed opacity-50" : "cursor-text"
               }`}
@@ -358,7 +400,11 @@ export default function MembersClient({
                 return (
                   <span
                     key={c}
-                    title={ok ? c : "メールアドレスの形式が正しくない可能性があります"}
+                    title={
+                      ok
+                        ? c
+                        : "メールアドレスの形式が正しくない可能性があります"
+                    }
                     className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs ${
                       ok
                         ? "border-neutral-300 bg-neutral-100 text-neutral-800"
@@ -396,7 +442,11 @@ export default function MembersClient({
                   if (e.key === "Enter") {
                     e.preventDefault();
                     addTokens(draft);
-                  } else if (e.key === "Backspace" && draft === "" && chips.length > 0) {
+                  } else if (
+                    e.key === "Backspace" &&
+                    draft === "" &&
+                    chips.length > 0
+                  ) {
                     setChips((prev) => prev.slice(0, -1));
                   }
                 }}
@@ -412,7 +462,11 @@ export default function MembersClient({
               />
             </div>
             <div className="flex gap-2 sm:flex-col">
+              <label htmlFor="invite-role-select" className="sr-only">
+                招待するロール
+              </label>
               <select
+                id="invite-role-select"
                 value={inviteRole}
                 onChange={(e) =>
                   setInviteRole(e.target.value as "editor" | "member")
@@ -434,8 +488,8 @@ export default function MembersClient({
                   memberQuotaReached
                     ? "上限に達しています。運営にお問い合わせください。"
                     : editorQuotaReached
-                    ? "編集者上限に達しています。"
-                    : undefined
+                      ? "編集者上限に達しています。"
+                      : undefined
                 }
                 className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -460,9 +514,15 @@ export default function MembersClient({
             </div>
           )}
 
-          {/* スキップ / 失敗の理由だけインライン表示（成功分は一覧へ）。 */}
+          {/* スキップ / 失敗の理由だけインライン表示（成功分は一覧へ）。
+              E-4: role="status" — was silent to screen readers, unlike the
+              toast above it which already had one. */}
           {issues.length > 0 && (
-            <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <div
+              role="status"
+              aria-live="polite"
+              className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+            >
               <p className="mb-1 font-medium">
                 発行できなかった招待（{issues.length}件）
               </p>

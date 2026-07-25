@@ -1,6 +1,7 @@
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -39,6 +40,9 @@ export default function LandingPageTable({
     .slice(0, limit);
   return (
     <Table>
+      <TableCaption className="sr-only">
+        ランディングページ別パフォーマンステーブル
+      </TableCaption>
       <TableHeader>
         <TableRow>
           <TableHead className="w-10">#</TableHead>

@@ -20,6 +20,7 @@ import type {
   SecondaryEventDef,
 } from "@/lib/sources/ga4";
 import type { AbsenceReason, NoDataPeriodDetail } from "@/lib/absence";
+import { usePrefersReducedMotion } from "@/lib/use-reduced-motion";
 
 interface Props {
   data: ChannelMonth[];
@@ -40,6 +41,10 @@ interface Props {
    */
   absenceReason?: AbsenceReason;
   absenceDetail?: NoDataPeriodDetail;
+  /** Accessible name for the chart (E-2/E-4) — defaults to the visible
+   *  CardTitle text already rendered at the one real call site, not new
+   *  copy. */
+  title?: string;
 }
 
 type BaseMetric = "sessions" | "conversions" | "revenue";
@@ -97,12 +102,14 @@ export default function ChannelStackedBar({
   secondaryDefs = [],
   absenceReason,
   absenceDetail,
+  title = "月次チャネル別",
 }: Props) {
   const METRICS = [
     ...BASE_METRICS,
     ...secondaryDefs.map((d) => ({ key: d.key, label: d.label })),
   ];
   const [metric, setMetric] = useState<Metric>(defaultMetric);
+  const reducedMotion = usePrefersReducedMotion();
 
   const byMonth = new Map<string, Record<string, number | string>>();
   for (const row of data) {
@@ -169,6 +176,8 @@ export default function ChannelStackedBar({
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={wide}
+            title={title}
+            desc={`月別のチャネル別${METRICS.find((m) => m.key === metric)?.label ?? metric}を積み上げ棒グラフで表示`}
             margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
           >
             <CartesianGrid vertical={false} stroke="var(--border)" />
@@ -213,6 +222,7 @@ export default function ChannelStackedBar({
                 radius={
                   idx === channels.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]
                 }
+                isAnimationActive={!reducedMotion}
               />
             ))}
           </BarChart>

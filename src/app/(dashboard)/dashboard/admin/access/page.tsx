@@ -25,7 +25,10 @@ export default async function AccessMatrixPage() {
   type CellValue = "admin" | "oauth" | "basic" | null;
   type IdentityKey = string; // email or "slug:basicauth"
 
-  const identityMap = new Map<IdentityKey, { label: string; type: "email" | "basic" }>();
+  const identityMap = new Map<
+    IdentityKey,
+    { label: string; type: "email" | "basic" }
+  >();
   const matrix = new Map<IdentityKey, Map<string, CellValue>>();
 
   for (const ca of clientAccess) {
@@ -54,8 +57,8 @@ export default async function AccessMatrixPage() {
         entry.kind === "admin-email"
           ? "admin"
           : entry.kind === "client-email"
-          ? "oauth"
-          : "basic";
+            ? "oauth"
+            : "basic";
 
       // Admin emails apply to all clients
       if (entry.kind === "admin-email") {
@@ -75,13 +78,18 @@ export default async function AccessMatrixPage() {
       {/* Header */}
       <div>
         <div className="text-xs text-muted-foreground">
-          <Link href="/dashboard/admin" className="underline hover:text-foreground">
+          <Link
+            href="/dashboard/admin"
+            className="underline hover:text-foreground"
+          >
             管理パネル
           </Link>
           {" / "}
           <span>アクセスMatrix</span>
         </div>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">アクセスMatrix</h1>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+          アクセスMatrix
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           全クライアント × アイデンティティのアクセス権限一覧。
           セルをクリックするとクライアントの設定ページに移動します。
@@ -124,7 +132,9 @@ export default async function AccessMatrixPage() {
                     className="px-3 py-2 text-center font-medium text-neutral-700"
                   >
                     <div>{c.label}</div>
-                    <div className="font-normal text-muted-foreground">/{c.slug}</div>
+                    <div className="font-normal text-muted-foreground">
+                      /{c.slug}
+                    </div>
                   </th>
                 );
               })}
@@ -147,12 +157,33 @@ export default async function AccessMatrixPage() {
                   <tr key={key} className="hover:bg-neutral-50/50">
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-1.5">
+                        {/* E-1 contrast fix: bg-neutral-400 measured 2.58:1
+                            against the page background — below the 3:1
+                            non-text-UI floor. Bumped to neutral-600 (7.81:1).
+                            bg-blue-500 already cleared 3:1 (3.76:1) so it's
+                            unchanged. E-3 fix: neither dot had ANY adjacent
+                            text distinguishing "signed in with Google" from
+                            "Basic Auth" — the small text tag below adds one
+                            (the "Basic Auth" wording embedded in
+                            identity.label for the basic case was a
+                            coincidence of that string's format, not a
+                            reliable carrier — a Basic Auth username can
+                            itself look like an email). */}
                         <span
                           className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                            identity.type === "email" ? "bg-blue-500" : "bg-neutral-400"
+                            identity.type === "email"
+                              ? "bg-blue-500"
+                              : "bg-neutral-600"
                           }`}
+                          aria-hidden="true"
                         />
-                        <span className="font-mono truncate max-w-48" title={identity.label}>
+                        <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                          {identity.type === "email" ? "Google" : "Basic"}
+                        </span>
+                        <span
+                          className="font-mono truncate max-w-48"
+                          title={identity.label}
+                        >
                           {identity.label}
                         </span>
                       </div>
@@ -179,8 +210,8 @@ export default async function AccessMatrixPage() {
       </div>
 
       <div className="text-xs text-muted-foreground">
-        アクセス権限の変更はクライアント設定の「アクセス管理」タブから。
-        env ベースの変更は{" "}
+        アクセス権限の変更はクライアント設定の「アクセス管理」タブから。 env
+        ベースの変更は{" "}
         <a
           href="https://vercel.com/mixednuts-8dc5d7a1/mixednuts-web/settings/environment-variables"
           target="_blank"
@@ -188,8 +219,8 @@ export default async function AccessMatrixPage() {
           className="underline"
         >
           Vercel Settings
-        </a>
-        {" "}から。
+        </a>{" "}
+        から。
       </div>
     </div>
   );

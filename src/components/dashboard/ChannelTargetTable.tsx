@@ -1,12 +1,15 @@
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
   TOTAL_ROW_CLASS,
 } from "@/components/ui/table";
+import TierGlyph from "@/components/dashboard/TierGlyph";
+import type { Tier } from "@/lib/tier";
 import { cn, fmtInt, fmtJpy, fmtRatioPct, safeDiv } from "@/lib/utils";
 
 export interface ChannelTargetRow {
@@ -23,11 +26,32 @@ interface Props {
   progressNote?: string;
 }
 
+/**
+ * E-1 contrast fix (2026-07-25): this used to be -600 weight for all three
+ * tiers. Measured against white: emerald-600 3.65:1 and amber-600 3.19:1 —
+ * BOTH below the 4.5:1 normal-text floor for 14px table-cell text (rose-600
+ * was 4.53:1, technically over the line but by only 0.03 — effectively
+ * broken too). Every OTHER 3-tier judgement cell in this codebase
+ * (MediaTable/MediaCampaignTable/DrillTable's roasClass, DrillTable's
+ * cpaClass, GscQueryTable's positionClass) already uses the -700 step, which
+ * clears 4.5:1 with real margin (emerald-700 5.36:1, amber-700 5.03:1,
+ * rose-700 6.03:1) — this was simply the one place that got the wrong shade
+ * step. Bumped to match, closing both the AA failure and the inconsistency.
+ */
 function achievementColour(ratio: number | null): string {
   if (ratio == null) return "text-muted-foreground";
-  if (ratio >= 1) return "text-emerald-600";
-  if (ratio >= 0.8) return "text-amber-600";
-  return "text-rose-600";
+  if (ratio >= 1) return "text-emerald-700";
+  if (ratio >= 0.8) return "text-amber-700";
+  return "text-rose-700";
+}
+
+/** Same thresholds as achievementColour, expressed as a Tier for TierGlyph
+ *  (E-3: the colour above was the ONLY signal for pass/near-miss/fail). */
+function achievementTier(ratio: number | null): Tier | null {
+  if (ratio == null) return null;
+  if (ratio >= 1) return "good";
+  if (ratio >= 0.8) return "warning";
+  return "bad";
 }
 
 /** Channel-level target vs. actual table (revenue & conversions), replacing
@@ -58,6 +82,9 @@ export default function ChannelTargetTable({ rows, progressNote }: Props) {
   return (
     <div>
       <Table>
+        <TableCaption className="sr-only">
+          チャネル別目標対比テーブル
+        </TableCaption>
         <TableHeader>
           <TableRow>
             <TableHead>チャネル</TableHead>
@@ -73,6 +100,8 @@ export default function ChannelTargetTable({ rows, progressNote }: Props) {
           {rows.map((r) => {
             const revRatio = safeDiv(r.revenue, r.revenueTarget);
             const cvRatio = safeDiv(r.conversions, r.conversionsTarget);
+            const revTier = achievementTier(revRatio);
+            const cvTier = achievementTier(cvRatio);
             return (
               <TableRow key={r.channel}>
                 <TableCell className="font-medium">{r.channel}</TableCell>
@@ -88,7 +117,12 @@ export default function ChannelTargetTable({ rows, progressNote }: Props) {
                     achievementColour(revRatio),
                   )}
                 >
-                  {revRatio != null ? fmtRatioPct(revRatio * 100, 0) : "—"}
+                  {/* E-3: achievementColour's colour was the only signal for
+                      hit/near-miss/missed — TierGlyph adds a shape. */}
+                  <span className="inline-flex items-center justify-end gap-1">
+                    {revTier && <TierGlyph tier={revTier} />}
+                    {revRatio != null ? fmtRatioPct(revRatio * 100, 0) : "—"}
+                  </span>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {fmtInt(r.conversions)}
@@ -104,13 +138,16 @@ export default function ChannelTargetTable({ rows, progressNote }: Props) {
                     achievementColour(cvRatio),
                   )}
                 >
-                  {cvRatio != null ? fmtRatioPct(cvRatio * 100, 0) : "—"}
+                  <span className="inline-flex items-center justify-end gap-1">
+                    {cvTier && <TierGlyph tier={cvTier} />}
+                    {cvRatio != null ? fmtRatioPct(cvRatio * 100, 0) : "—"}
+                  </span>
                 </TableCell>
               </TableRow>
             );
           })}
           <TableRow className={TOTAL_ROW_CLASS}>
-            <TableCell>合計</TableCell>
+            <TableCell scope="row">合計</TableCell>
             <TableCell className="text-right tabular-nums">
               {fmtJpy(totals.revenue)}
             </TableCell>
@@ -123,9 +160,14 @@ export default function ChannelTargetTable({ rows, progressNote }: Props) {
                 achievementColour(totalRevenueRatio),
               )}
             >
-              {totalRevenueRatio != null
-                ? fmtRatioPct(totalRevenueRatio * 100, 0)
-                : "—"}
+              <span className="inline-flex items-center justify-end gap-1">
+                {achievementTier(totalRevenueRatio) && (
+                  <TierGlyph tier={achievementTier(totalRevenueRatio)!} />
+                )}
+                {totalRevenueRatio != null
+                  ? fmtRatioPct(totalRevenueRatio * 100, 0)
+                  : "—"}
+              </span>
             </TableCell>
             <TableCell className="text-right tabular-nums">
               {fmtInt(totals.conversions)}
@@ -141,7 +183,14 @@ export default function ChannelTargetTable({ rows, progressNote }: Props) {
                 achievementColour(totalCvRatio),
               )}
             >
-              {totalCvRatio != null ? fmtRatioPct(totalCvRatio * 100, 0) : "—"}
+              <span className="inline-flex items-center justify-end gap-1">
+                {achievementTier(totalCvRatio) && (
+                  <TierGlyph tier={achievementTier(totalCvRatio)!} />
+                )}
+                {totalCvRatio != null
+                  ? fmtRatioPct(totalCvRatio * 100, 0)
+                  : "—"}
+              </span>
             </TableCell>
           </TableRow>
         </TableBody>

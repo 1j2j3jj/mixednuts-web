@@ -209,6 +209,13 @@ export default function BigKpiCard({
               tone={sparkTone}
               height={32}
               format={sparkFormat}
+              // E-2/E-4: accessible name reuses the card's own `label` prop
+              // (already the visible CardTitle text) — no new visible copy,
+              // just wired into the chart's invisible SVG <title> so a
+              // screen reader user reaching this KPI card's sparkline (via
+              // Tab — recharts' default accessibilityLayer makes it a
+              // keyboard-focusable target) hears what it is.
+              title={`${label} の推移`}
             />
           )}
         </div>

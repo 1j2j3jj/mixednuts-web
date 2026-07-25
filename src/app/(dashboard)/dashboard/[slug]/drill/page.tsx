@@ -822,6 +822,13 @@ export default async function DrillScreen({
               absenceDetail={{
                 periodLabel: `${rr.current.start} 〜 ${rr.current.end}`,
               }}
+              title={`${
+                granularity === "day"
+                  ? "日次"
+                  : granularity === "week"
+                    ? "週次"
+                    : "月次"
+              }推移（COST / CV / CPA）`}
             />
           </CardContent>
         </Card>
