@@ -14,8 +14,8 @@ interface Props {
   /** One-line muted definition clarifier under the label (e.g.
    *  "COST=全媒体合算" on the CPA/ROAS cards) — keeps a metric's scope
    *  visible instead of folding it into the label name (2026-07-24 CEO
-   *  review: dropped "Blended" from CPA/ROAS labels, kept the nuance it
-   *  used to carry as this explicit note). */
+   *  review: simplified the CPA/ROAS labels and kept their cost-scope nuance
+   *  as this explicit note). */
   note?: string;
   /** Up to three comparison lines — displayed stacked under the value. */
   comparisons?: Comparison[];
@@ -64,7 +64,7 @@ export default function BigKpiCard({
           {label}
         </CardTitle>
         {note && (
-          <div className="text-[10px] leading-tight text-muted-foreground/80">
+          <div className="text-xs leading-tight text-muted-foreground">
             {note}
           </div>
         )}

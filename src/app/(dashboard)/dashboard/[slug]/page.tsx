@@ -35,7 +35,6 @@ import PrintButton from "@/components/dashboard/PrintButton";
 import MockBanner from "@/components/dashboard/MockBanner";
 import StaleDataBanner from "@/components/dashboard/StaleDataBanner";
 import FirstRunGuide from "@/components/dashboard/FirstRunGuide";
-import DataUpdatedFooter from "@/components/dashboard/DataUpdatedFooter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -157,8 +156,8 @@ function pct(a: number, b: number): number | null {
 /** KPI card vocabulary — matches the weekly/monthly client-report vocabulary
  *  (COST / SESSION / GA_CV / GA売上 / GA_ROAS / 媒体CV / EC-CUBE_CV /
  *  EC-CUBE売上 / EC-CUBE_ROAS), switching with the 表示値 source toggle
- *  (2026-07-24 CEO review). "Blended CPA/ROAS" is retired — it read as
- *  unclear; the CPA/ROAS cards keep their 全媒体COST合算 nuance visible via
+ *  (2026-07-24 CEO review). The prior generic CPA/ROAS wording is retired;
+ *  the cards keep their 全媒体COST合算 nuance visible via
  *  KPI_COST_NOTE instead of folding it into the label. */
 const KPI_LABELS: Record<
   MetricSource,
@@ -179,8 +178,7 @@ const KPI_LABELS: Record<
   },
 };
 /** CPA/ROAS's cost side is always 全媒体COST合算 regardless of which
- *  revenue/CV source is toggled — this is the definition "Blended" used to
- *  signal; surfaced explicitly now so it isn't lost. */
+ *  revenue/CV source is toggled; surfaced explicitly so it isn't lost. */
 const KPI_COST_NOTE = "COST=全媒体合算";
 
 export default async function Overview({
@@ -248,7 +246,7 @@ export default async function Overview({
   const adTotalsPrev = sumRows(adPrev);
 
   // Select the effective CV/Revenue per source. Cost always comes from ad
-  // rows — it's not a revenue-side metric. Blended CPA/ROAS are computed
+  // rows — it's not a revenue-side metric. CPA/ROAS are computed
   // against whichever source is active so the card math is internally
   // consistent (ROAS uses the same numerator source as the Revenue card).
   const pickCv = (src: "ga4" | "media" | "eccube"): number =>
@@ -514,7 +512,7 @@ export default async function Overview({
     const rev = revAt(d.date, source);
     return d.cost > 0 ? (rev / d.cost) * 100 : 0;
   });
-  // CPA sparkline: blended CPA = ad spend / effective-source CV per day.
+  // CPA sparkline: ad spend / effective-source CV per day.
   const cpaSpark = daily14.map((d) => {
     const conv = cvAt(d.date, source);
     return conv > 0 ? d.cost / conv : 0;
@@ -849,8 +847,6 @@ export default async function Overview({
           </CardContent>
         </Card>
       </div>
-
-      <DataUpdatedFooter timestamp={fetchedAtLabel} />
     </div>
   );
 }

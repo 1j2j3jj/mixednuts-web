@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
+import SegmentedControl from "@/components/dashboard/SegmentedControl";
 import { REPORT_VIEWS, type ReportViewKey } from "@/lib/report-views";
 
 interface Props {
@@ -32,22 +33,16 @@ export default function ReportViewTabs({ slug, active }: Props) {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="inline-flex rounded-md border">
-        {REPORT_VIEWS.map((v) => (
-          <button
-            key={v.key}
-            type="button"
-            onClick={() => update(v.key)}
-            className={`h-8 px-3 text-xs transition-colors ${
-              active === v.key
-                ? "bg-primary text-primary-foreground"
-                : "hover:bg-accent"
-            }`}
-          >
-            {v.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        value={active}
+        options={REPORT_VIEWS.map((view) => ({
+          value: view.key,
+          label: view.label,
+        }))}
+        onValueChange={update}
+        ariaLabel="レポート表示単位"
+        size="md"
+      />
       {isPending && <span className="text-xs text-muted-foreground">更新中…</span>}
     </div>
   );

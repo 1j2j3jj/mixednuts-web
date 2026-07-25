@@ -11,6 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import SegmentedControl from "@/components/dashboard/SegmentedControl";
 import type {
   ChannelDay,
   ChannelGroup,
@@ -130,40 +131,18 @@ export default function ChannelTrendChart({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex items-center gap-0.5 rounded-md border bg-muted p-0.5">
-          {METRICS.map((m) => (
-            <button
-              key={m.key}
-              type="button"
-              onClick={() => setMetric(m.key)}
-              aria-pressed={metric === m.key}
-              className={`h-6 rounded border-[1.5px] px-3 text-xs font-medium transition-colors ${
-                metric === m.key
-                  ? "border-brand-ink bg-brand/14 text-brand-deep"
-                  : "border-transparent text-muted-foreground hover:bg-background hover:text-foreground"
-              }`}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-        <div className="inline-flex items-center gap-0.5 rounded-md border bg-muted p-0.5">
-          {GRAN.map((g) => (
-            <button
-              key={g.key}
-              type="button"
-              onClick={() => setGranularity(g.key)}
-              aria-pressed={granularity === g.key}
-              className={`h-6 rounded border-[1.5px] px-3 text-xs font-medium transition-colors ${
-                granularity === g.key
-                  ? "border-brand-ink bg-brand/14 text-brand-deep"
-                  : "border-transparent text-muted-foreground hover:bg-background hover:text-foreground"
-              }`}
-            >
-              {g.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          value={metric}
+          options={METRICS.map((m) => ({ value: m.key, label: m.label }))}
+          onValueChange={setMetric}
+          ariaLabel="グラフ指標"
+        />
+        <SegmentedControl
+          value={granularity}
+          options={GRAN.map((g) => ({ value: g.key, label: g.label }))}
+          onValueChange={setGranularity}
+          ariaLabel="集計単位"
+        />
       </div>
       <div className="h-72 w-full">
         <ResponsiveContainer width="100%" height="100%">

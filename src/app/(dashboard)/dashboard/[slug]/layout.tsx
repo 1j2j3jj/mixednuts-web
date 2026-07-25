@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { isRptSupported } from "@/lib/sources/bq-rpt";
 import DashboardTabs from "@/components/dashboard/Tabs";
+import DataUpdatedFooter from "@/components/dashboard/DataUpdatedFooter";
 import { getViewerOrgRole, canInviteMembers } from "@/lib/org-role";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 
@@ -33,6 +34,10 @@ export default async function ClientLayout({
   // internal context that's not relevant to them.
   const subtitle =
     viewerKind === "admin" || viewerKind === null ? client.subtitle : null;
+  const renderedAtLabel = new Date().toLocaleTimeString("ja-JP", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6">
@@ -59,6 +64,7 @@ export default async function ClientLayout({
         </div>
       </div>
       {children}
+      <DataUpdatedFooter timestamp={renderedAtLabel} />
       {/* サポート導線（Batch5）: 行き止まりを作らない。バグ報告も同じ窓口。 */}
       <footer className="border-t border-border pt-3 pb-2 text-center text-xs text-muted-foreground">
         お困りですか？{" "}
