@@ -32,7 +32,7 @@ type BaseMetric = "sessions" | "conversions" | "revenue";
 type Metric = BaseMetric | string;
 
 const BASE_METRICS: Array<{ key: Metric; label: string }> = [
-  { key: "sessions", label: "Sessions" },
+  { key: "sessions", label: "SESSION" },
   { key: "conversions", label: "CV" },
   { key: "revenue", label: "売上" },
 ];

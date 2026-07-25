@@ -98,8 +98,8 @@ interface Props {
   showOverallValue?: boolean;
   /** Header label of the GA group — clarifies site-wide vs ad-attributed. */
   gaGroupLabel?: string;
-  /** Label for the primary GA_CV column (defaults to "GA_CV(購入)"). Callers
-   *  pass a site-wide-clarifying label on daily/monthly. */
+  /** Label for the primary GA_CV column (defaults to "GA_CV(購入)").
+   *  Callers pass a site-wide-clarifying label on daily/monthly. */
   gaCvLabel?: string;
   /** Render labels in monospace (dates). */
   monoLabel?: boolean;
@@ -114,6 +114,16 @@ const MATCH_STATUS_DESC: Record<string, string> = {
   matched: "広告費とGA計測が突合済み",
   unmapped: "GA計測はあるが対応広告費が未着（広告費は1日遅れで翌日回収）",
   ad_only: "広告費のみでGA計測なし",
+};
+
+/** Short badge text for r.matchStatus — the raw value ("matched" / "unmapped"
+ *  / "ad_only") is an internal status string, not something to show a client
+ *  as-is; MATCH_STATUS_DESC above is the long-form tooltip, this is the
+ *  compact on-badge label. */
+const MATCH_STATUS_LABEL: Record<string, string> = {
+  matched: "突合済み",
+  unmapped: "未突合",
+  ad_only: "広告費のみ",
 };
 
 function matchBadgeClass(status: string): string {
@@ -213,7 +223,7 @@ export default function ReportTable({
   eventDefs = [],
   showAdCvPurchase = false,
 }: Props) {
-  const mediaCols = 10; // COST..CV Value
+  const mediaCols = 10; // COST..媒体売上
   const gaCols = 6 + eventDefs.length + (showAdCvPurchase ? 1 : 0); // SESSION..GA_ROAS + secondary event CVs + ad-attributed reference
   const overallCols = showOverall ? (showOverallValue ? 2 : 1) : 0;
   const headCols = 1 + (showMedia ? 1 : 0);
@@ -319,7 +329,7 @@ export default function ReportTable({
               </TableHead>
             )}
             <TableHead {...sortableHeadProps("cost", "border-l text-right")}>
-              Cost
+              COST
               {sortIndicator("cost")}
             </TableHead>
             <TableHead {...sortableHeadProps("impressions", "text-right")}>
@@ -355,18 +365,18 @@ export default function ReportTable({
               {sortIndicator("mediaRoasPct")}
             </TableHead>
             <TableHead {...sortableHeadProps("mediaValue", "text-right")}>
-              CV Value
+              媒体売上
               {sortIndicator("mediaValue")}
             </TableHead>
             <TableHead
               {...sortableHeadProps("sessions", "border-l text-right")}
             >
-              Session
+              SESSION
               {sortIndicator("sessions")}
             </TableHead>
             <TableHead
               {...sortableHeadProps("gaCvPurchase", "text-right")}
-              title="GA4 purchase イベント基準"
+              title="GA4の購入イベント基準"
             >
               {gaCvLabel}
               {sortIndicator("gaCvPurchase")}
@@ -405,7 +415,7 @@ export default function ReportTable({
                   "adCvPurchase",
                   "text-right whitespace-nowrap",
                 )}
-                title="fct_ad_daily 由来（広告エンティティに帰属したGA計測分）。参考列 — サイト全体のGA_CV(購入)とは別の数字"
+                title="広告エンティティに帰属したGA計測分。参考列 — サイト全体のGA_CV(購入)とは別の数字"
               >
                 GA_CV(広告帰属)
                 {sortIndicator("adCvPurchase")}
@@ -499,13 +509,13 @@ export default function ReportTable({
                             MATCH_STATUS_DESC[r.matchStatus] ?? r.matchStatus
                           }
                         >
-                          {r.matchStatus}
+                          {MATCH_STATUS_LABEL[r.matchStatus] ?? r.matchStatus}
                         </span>
                       )}
                       {r.hasUnmapped && (
                         <span
                           className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800"
-                          title="同一キャンペーン/広告グループ配下に unmapped（GA計測はあるが対応広告費が未着）分を含む"
+                          title="同一キャンペーン/広告グループ配下に未突合（GA計測はあるが対応広告費が未着）分を含む"
                         >
                           +未突合分
                         </span>

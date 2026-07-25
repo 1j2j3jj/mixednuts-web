@@ -15,7 +15,7 @@ export default function PrintButton() {
       variant="outline"
       data-print-hide="true"
       onClick={() => window.print()}
-      aria-label="PDF (print)"
+      aria-label="PDF出力"
       className="transition-colors hover:border-brand hover:text-brand-ink"
     >
       <Printer />

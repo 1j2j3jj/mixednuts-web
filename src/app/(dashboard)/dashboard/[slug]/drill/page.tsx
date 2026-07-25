@@ -492,9 +492,9 @@ export default async function DrillScreen({
   }> = [
     { label: "Impressions", value: curTotals.impressions },
     { label: "Clicks", value: curTotals.clicks },
-    { label: source === "ga4" ? "GA4 CV" : "媒体CV", value: funnelCv },
+    { label: source === "ga4" ? "GA_CV" : "媒体CV", value: funnelCv },
     {
-      label: source === "ga4" ? "GA4 売上" : "媒体売上",
+      label: source === "ga4" ? "GA売上" : "媒体売上",
       value: funnelRevenue,
       format: "jpy",
     },
@@ -537,6 +537,36 @@ export default async function DrillScreen({
     ga4Conversions: r.ga4Conversions ?? "",
     ga4Revenue: r.ga4Revenue ?? "",
   }));
+  // Column labels mirror DrillTable's on-screen headers (期間/媒体/Imp/Click)
+  // plus the app-wide report vocabulary (COST/SESSION/GA_CV/GA売上/媒体CV/
+  // 媒体売上) for the fields DrillTable itself only shows one side of via the
+  // source toggle — the CSV always exports both ad-side and GA4-side columns,
+  // so both get their proper vocabulary label rather than a toggle-dependent
+  // single name. "label"'s header follows the same level→text mapping the
+  // page already uses for the section heading (see levelLabel) so a bucket-
+  // level export (no entity grouping) still reads as the date it duplicates.
+  const csvLabelHeader =
+    level === "media"
+      ? "媒体"
+      : level === "campaign"
+        ? "キャンペーン"
+        : level === "adgroup"
+          ? "広告グループ"
+          : "期間";
+  const csvHeaders = [
+    "期間",
+    csvLabelHeader,
+    "ID",
+    "媒体",
+    "COST",
+    "Imp",
+    "Click",
+    "媒体CV",
+    "媒体売上",
+    "SESSION",
+    "GA_CV",
+    "GA売上",
+  ];
 
   const fetchedAtLabel = new Date(fetchedAt).toLocaleTimeString("ja-JP", {
     hour: "2-digit",
@@ -557,7 +587,7 @@ export default async function DrillScreen({
       <div className="space-y-3">
         <MockBanner isMock={isMock} />
         <PageHeader
-          kicker="Drilldown"
+          kicker="フィルター詳細"
           title={<>フィルター詳細 · {rr.presetLabel}</>}
           subtitle={
             <>
@@ -573,6 +603,7 @@ export default async function DrillScreen({
               <CsvExportButton
                 filename={`drill-${slug}-${new Date().toISOString().slice(0, 10)}.csv`}
                 rows={csvRows}
+                headers={csvHeaders}
               />
               <PrintButton />
               <RefreshButton clientId={client.id} />
@@ -594,7 +625,7 @@ export default async function DrillScreen({
       {/* Period KPIs with 4 sparklines + hover date tooltip */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <BigKpiCard
-          label="Spend"
+          label="COST"
           value={fmtJpy(curTotals.cost)}
           caption={
             targetPeriodMatches &&
@@ -622,7 +653,7 @@ export default async function DrillScreen({
           hue="chart-5"
         />
         <BigKpiCard
-          label={source === "ga4" ? "GA4 CV" : "媒体CV"}
+          label={source === "ga4" ? "GA_CV" : "媒体CV"}
           value={fmtInt(
             source === "ga4" ? curGa4.conversions : curTotals.conversions,
           )}
@@ -664,7 +695,7 @@ export default async function DrillScreen({
           hue="chart-3"
         />
         <BigKpiCard
-          label={source === "ga4" ? "GA4 売上" : "媒体売上"}
+          label={source === "ga4" ? "GA売上" : "媒体売上"}
           value={fmtJpy(
             source === "ga4" ? curGa4.revenue : curTotals.conversionValue,
           )}
@@ -704,7 +735,7 @@ export default async function DrillScreen({
           hue="chart-1"
         />
         <BigKpiCard
-          label={source === "ga4" ? "GA4 ROAS" : "媒体ROAS"}
+          label={source === "ga4" ? "GA_ROAS" : "媒体ROAS"}
           value={fmtRatioPct(
             source === "ga4" ? curGa4RoasPct : curTotals.roasPct,
             0,
@@ -752,8 +783,8 @@ export default async function DrillScreen({
 
       {ga4ApproxNonGoogleAdg && source === "ga4" && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          注: GA4 は Google Ads 以外の ADG 粒度を提供しないため、GA4 CV / 売上 /
-          ROAS は
+          注: GA4 は Google Ads 以外の ADG 粒度を提供しないため、GA_CV / GA売上
+          / GA_ROAS は
           キャンペーン単位の値（上限近似）を表示しています。媒体値は広告プラットフォーム実績ベース。
         </div>
       )}
@@ -777,7 +808,7 @@ export default async function DrillScreen({
                 : granularity === "week"
                   ? "週次"
                   : "月次"}
-              推移（Spend / CV / CPA）
+              推移（COST / CV / CPA）
             </CardTitle>
           </CardHeader>
           <CardContent>

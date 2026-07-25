@@ -29,7 +29,7 @@ export default function DeviceBar({ rows }: Props) {
             <div className="flex items-baseline justify-between text-xs">
               <span className="font-medium">{LABEL[r.device] ?? r.device}</span>
               <span className="text-muted-foreground tabular-nums">
-                {fmtInt(r.sessions)} sessions · CVR {fmtPct(cvr, 2)} ·{" "}
+                {fmtInt(r.sessions)} セッション · CVR {fmtPct(cvr, 2)} ·{" "}
                 {fmtJpy(r.revenue)}
               </span>
             </div>

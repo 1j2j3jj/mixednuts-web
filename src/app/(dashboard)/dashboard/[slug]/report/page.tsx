@@ -9,6 +9,8 @@ import {
   getRptWeekly,
   isRptSupported,
   RPT_SUPPORTED,
+  formatOverallCvLabel,
+  formatOverallSalesLabel,
   type RptAllRow,
   type RptDailyRow,
   type RptMetrics,
@@ -178,7 +180,7 @@ export default async function ReportScreen({
       <div className="space-y-6">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
-            Report
+            レポート
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">レポート</h1>
         </div>
@@ -192,6 +194,9 @@ export default async function ReportScreen({
   }
 
   const meta = RPT_SUPPORTED[client.id];
+  // C3-d (defect A-23) — see formatOverallCvLabel doc in bq-rpt.ts.
+  const overallCvLabelFull = formatOverallCvLabel(meta);
+  const overallSalesLabelFull = formatOverallSalesLabel(meta);
   const view: ReportViewKey =
     REPORT_VIEWS.find((v) => v.key === sp.view)?.key ?? "daily";
 
@@ -251,6 +256,10 @@ export default async function ReportScreen({
   let showAdCvPurchase = false;
   let monoLabel = false;
   let gaGroupLabel = "GA（広告帰属）";
+  // GA_CV(購入) — matches the client-report vocabulary (COST / SESSION /
+  // GA_CV / GA売上 / GA_ROAS / GA_CPA / 媒体CV / EC-CUBE_CV / EC-CUBE売上 /
+  // EC-CUBE_ROAS, CEO decision 2026-07-24) used on every tab, not a bare
+  // snake_case DB column name.
   let gaCvLabel = "GA_CV(購入)";
   // Monthly tab only: achievement-rate column (全体売上 ÷ 目標). Rendered
   // as a lightweight table below the main ReportTable rather than wired
@@ -560,6 +569,37 @@ export default async function ReportScreen({
     ...rows.map(toCsvRow),
   ];
 
+  // Column labels for the CSV header row — must mirror toCsvRow()'s key
+  // order and conditional shape exactly (Object.keys(csvRows[0]) drives the
+  // actual per-row lookup in toCsv(); this array only supplies the display
+  // text for that same position, see src/lib/csv.ts). Uses ReportTable's own
+  // on-screen headers (labelHeader / gaCvLabel / the report vocabulary) so a
+  // client's downloaded CSV reads the same words as the table on screen.
+  // grain_level/match_status/has_unmapped aren't dedicated table columns
+  // (they render as inline badges under the label cell — see ReportTable's
+  // showBadges) so these three use plain-language equivalents of the badge
+  // vocabulary used elsewhere on this tab (突合済み/未突合/未突合分).
+  const csvHeaders = [
+    labelHeader,
+    "ID",
+    "媒体",
+    "粒度",
+    "突合状況",
+    "未突合分",
+    "COST",
+    "Imp",
+    "Click",
+    "媒体CV",
+    "媒体売上",
+    "SESSION",
+    gaCvLabel,
+    ...(showAdCvPurchase ? ["GA_CV(広告帰属)"] : []),
+    ...meta.secondaryEvents.map((ev) => ev.label),
+    "GA売上",
+    meta.overallCvLabel,
+    "全体売上",
+  ];
+
   const fetchedAtLabel = new Date(fetchedAt).toLocaleTimeString("ja-JP", {
     hour: "2-digit",
     minute: "2-digit",
@@ -571,12 +611,12 @@ export default async function ReportScreen({
       <div className="space-y-3">
         <StaleDataBanner maxDate={maxDataDate} />
         <PageHeader
-          kicker="Report"
+          kicker="レポート"
           title={<>レポート（GA×広告 突合） · {rr.presetLabel}</>}
           subtitle={
             <>
-              {start} 〜 {end} · CV3層: 媒体CV / GA_CV(購入) / 全体CV（
-              {meta.overallCvLabel}）
+              {start} 〜 {end} · CV3層: 媒体CV / GA_CV(購入) /{" "}
+              {overallCvLabelFull}
             </>
           }
           controls={
@@ -587,6 +627,7 @@ export default async function ReportScreen({
               <CsvExportButton
                 filename={`report-${view}-${slug}-${new Date().toISOString().slice(0, 10)}.csv`}
                 rows={csvRows}
+                headers={csvHeaders}
               />
               <PrintButton />
               <RefreshButton clientId={client.id} />
@@ -608,7 +649,7 @@ export default async function ReportScreen({
           "vs last period" / "of target". */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <BigKpiCard
-          label="Cost"
+          label="COST"
           value={fmtJpy(kpi.cost)}
           caption="全媒体COST合算"
           lowerIsBetter
@@ -630,15 +671,15 @@ export default async function ReportScreen({
           hue="chart-7"
         />
         <BigKpiCard
-          label={`全体CV（${meta.overallCvLabel}）`}
+          label={overallCvLabelFull}
           value={fmtInt(kpiOverallCv)}
-          caption={`計測経路: ${meta.overallCvLabel}`}
+          caption={`計測経路: ${meta.overallCvSourceName ?? "全体CV"}`}
           icon={Layers}
           hue="chart-2"
         />
       </div>
       <div className="text-xs text-muted-foreground">
-        期間 GA_ROAS（サイト全体GA売上 ÷ Cost）: {fmtRatioPct(kpiGaRoasPct, 0)}
+        期間 GA_ROAS（サイト全体GA売上 ÷ COST）: {fmtRatioPct(kpiGaRoasPct, 0)}
       </div>
 
       <section className="space-y-3">
@@ -665,7 +706,7 @@ export default async function ReportScreen({
             >
               {siteWide
                 ? "このタブの GA_CV / GA売上 は「サイト全体」の GA4 計測です（広告以外の流入も含むため広告帰属より大きく出ます）。広告経由の購入CVは「GA_CV(購入)」列で別掲。"
-                : "このタブの GA_CV / GA売上 は「広告帰属」（この広告経由の GA4 計測のみ）です。サイト全体の数値は Daily / 月次 タブで確認できます。"}
+                : "このタブの GA_CV / GA売上 は「広告帰属」（この広告経由の GA4 計測のみ）です。サイト全体の数値は 日次 / 月次 タブで確認できます。"}
             </div>
           );
         })()}
@@ -690,7 +731,7 @@ export default async function ReportScreen({
                 <tr className="bg-muted/30">
                   <th className="px-3 py-2 text-left font-semibold">月</th>
                   <th className="px-3 py-2 text-right font-semibold">
-                    全体売上（{meta.overallCvLabel.replace(" CV", "")}）
+                    {overallSalesLabelFull}
                   </th>
                   <th className="px-3 py-2 text-right font-semibold">
                     売上目標
@@ -784,7 +825,7 @@ export default async function ReportScreen({
           )}
         <div className="space-y-1 text-[11px] text-muted-foreground">
           <div>
-            ROAS = 売上 ÷ Cost の%表示（例 1677% =
+            ROAS = 売上 ÷ COST の%表示（例 1677% =
             16.77倍）。比率は期間合計から再計算（日次比率の平均ではない）。
           </div>
           <div>
@@ -792,8 +833,7 @@ export default async function ReportScreen({
           </div>
           <div>
             {gaCvLabel} は GA4
-            purchase（ecommercePurchases）イベント基準（旧表示の GA_CV は全 key
-            event 合算だったが、purchase 基準に変更）。
+            の購入（コンバージョン）イベント基準です（以前はGA4の主要イベントすべてを合算していましたが、購入基準に変更しました）。
             {meta.secondaryEvents.length > 0 && (
               <>
                 {" "}
@@ -805,11 +845,12 @@ export default async function ReportScreen({
           {view === "daily" || view === "monthly" ? (
             <div>
               GA列はサイト全体（全チャネル）の GA4 実測（返品は0フロア済）。
-              {gaCvLabel} はサイト全体の purchase 件数、GA_CV(広告帰属)
+              {gaCvLabel} はサイト全体の購入件数、GA_CV(広告帰属)
               は広告エンティティに帰属した参考値（媒体別/CPN/ADGタブの
               GA_CV(購入)
-              と同一系列）——両者は一致しない（未計測トラフィックや直接流入分だけサイト全体側が上回るため）。全体CV（
-              {meta.overallCvLabel}）は連携未取得の期間は「—」表示。
+              と同一系列）——両者は一致しない（未計測トラフィックや直接流入分だけサイト全体側が上回るため）。
+              {overallCvLabelFull}
+              は連携未取得の期間は「—」表示。
             </div>
           ) : view === "weekly" ? (
             <div>
@@ -848,7 +889,7 @@ export default async function ReportScreen({
               </CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
-              データソース（BigQuery）への権限が不足しているため取得できませんでした。
+              データ基盤への権限が不足しているため取得できませんでした。
               期間を変更しても解消しません。管理者に連絡してください。
             </CardContent>
           </Card>

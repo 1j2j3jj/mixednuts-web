@@ -80,10 +80,10 @@ export default function MediaTable({ rows, targetRoasPct, source }: Props) {
     } as MediaRow,
   );
 
-  const cvLabel = source === "ga4" ? "GA4 CV" : "媒体CV";
-  const revLabel = source === "ga4" ? "GA4 売上" : "媒体売上";
-  const cpaLabel = source === "ga4" ? "GA4 CPA" : "媒体CPA";
-  const roasLabel = source === "ga4" ? "GA4 ROAS" : "媒体ROAS";
+  const cvLabel = source === "ga4" ? "GA_CV" : "媒体CV";
+  const revLabel = source === "ga4" ? "GA売上" : "媒体売上";
+  const cpaLabel = source === "ga4" ? "GA_CPA" : "媒体CPA";
+  const roasLabel = source === "ga4" ? "GA_ROAS" : "媒体ROAS";
 
   function renderRow(r: MediaRow, isTotal = false) {
     const ctr = safeDiv(r.clicks, r.impressions);
@@ -153,8 +153,8 @@ export default function MediaTable({ rows, targetRoasPct, source }: Props) {
         <TableHeader>
           <TableRow>
             <TableHead>媒体</TableHead>
-            <TableHead className="text-right">Spend</TableHead>
-            <TableHead className="text-right">Spend比</TableHead>
+            <TableHead className="text-right">COST</TableHead>
+            <TableHead className="text-right">COST比</TableHead>
             <TableHead className="text-right">Imp</TableHead>
             <TableHead className="text-right">Click</TableHead>
             <TableHead className="text-right">CTR</TableHead>

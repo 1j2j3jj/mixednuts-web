@@ -102,6 +102,18 @@ export interface EventCvDef {
 export interface RptClientMeta {
   /** Display label for the overall-CV layer (the shop system of record). */
   overallCvLabel: string;
+  /**
+   * Display name of the named overall-CV source system (e.g. "Shopify CV" /
+   * "EC-CUBE CV"). Undefined when the client has no self-owned shop/order
+   * data source — for those clients `overallCvLabel` is just the generic
+   * placeholder "全体CV" itself, and composing "全体CV（${overallCvLabel}）"
+   * literally produced "全体CV（全体CV）" on screen (C3-d / A-23 fix,
+   * 2026-07-25: confirmed live on msec/ogc/ogp). report/page.tsx uses this
+   * field to omit the parenthetical entirely when there's no real named
+   * source to disclose, instead of guessing from overallCvLabel's string
+   * value.
+   */
+  overallCvSourceName?: string;
   /** Whether the overall layer also carries a revenue value column. */
   hasOverallValue: boolean;
   /** Whether rpt_media carries a per-media overall CV column (dozo only). */
@@ -123,6 +135,7 @@ export interface RptClientMeta {
 export const RPT_SUPPORTED: Record<RptClientId, RptClientMeta> = {
   dozo: {
     overallCvLabel: "Shopify CV",
+    overallCvSourceName: "Shopify CV",
     hasOverallValue: false,
     mediaHasOverallCv: true,
     hasAddToCart: true,
@@ -133,6 +146,7 @@ export const RPT_SUPPORTED: Record<RptClientId, RptClientMeta> = {
   },
   hs: {
     overallCvLabel: "EC-CUBE CV",
+    overallCvSourceName: "EC-CUBE CV",
     hasOverallValue: true,
     mediaHasOverallCv: false,
     hasAddToCart: true,
@@ -148,9 +162,7 @@ export const RPT_SUPPORTED: Record<RptClientId, RptClientMeta> = {
     hasOverallValue: false,
     mediaHasOverallCv: false,
     hasAddToCart: true,
-    secondaryEvents: [
-      { key: "signup", label: "会員登録CV" },
-    ],
+    secondaryEvents: [{ key: "signup", label: "会員登録CV" }],
   },
   ogc: {
     // OGC も自社受注集計ソースなし（overallCv=null）。4媒体の GA×広告突合。
@@ -158,9 +170,7 @@ export const RPT_SUPPORTED: Record<RptClientId, RptClientMeta> = {
     hasOverallValue: false,
     mediaHasOverallCv: false,
     hasAddToCart: false,
-    secondaryEvents: [
-      { key: "member", label: "会員登録CV" },
-    ],
+    secondaryEvents: [{ key: "member", label: "会員登録CV" }],
   },
   ogp: {
     overallCvLabel: "全体CV",
@@ -179,6 +189,35 @@ export function isRptSupported(clientId: string): clientId is RptClientId {
   // toString/hasOwnProperty 等を true にしてしまい、この allow-list をすり抜けて
   // buildSql の `${clientId}_marts` に混入しうるため）。自社データセットのみ許可。
   return Object.hasOwn(RPT_SUPPORTED, clientId);
+}
+
+/**
+ * Composes the "全体CV" heading for the report tab's 3-tier CV block
+ * (C3-d / A-23 fix). Only parenthesizes with a named source when one
+ * actually exists (dozo: Shopify CV / hs: EC-CUBE CV) — msec/ogc/ogp have
+ * no self-owned shop/order data source (overallCvSourceName undefined),
+ * so composing "全体CV（${meta.overallCvLabel}）" against the generic
+ * placeholder itself previously rendered the literal duplicate
+ * "全体CV（全体CV）" on screen for those 3 clients (confirmed live via
+ * curl on /dashboard/a4m8r2/report, 2026-07-25).
+ */
+export function formatOverallCvLabel(
+  meta: Pick<RptClientMeta, "overallCvSourceName">,
+): string {
+  return meta.overallCvSourceName
+    ? `全体CV（${meta.overallCvSourceName}）`
+    : "全体CV";
+}
+
+/** Same composition for the monthly target table's "全体売上" column
+ *  header — drops the " CV" suffix from the source name (e.g. "Shopify CV"
+ *  → "Shopify") since this heading is about revenue, not CV count. */
+export function formatOverallSalesLabel(
+  meta: Pick<RptClientMeta, "overallCvSourceName">,
+): string {
+  return meta.overallCvSourceName
+    ? `全体売上（${meta.overallCvSourceName.replace(" CV", "")}）`
+    : "全体売上";
 }
 
 /** Lowercase view value → display label (matches bq-raw.ts mediaLabel). */
@@ -358,7 +397,9 @@ type RptView = "daily" | "weekly" | "monthly" | "media" | "cpn" | "adg" | "all";
 
 /** Per-client event-CV column list: purchase (primary) + secondaryEvents +
  *  add_to_cart, all selected as ga_cv_{key} AS event_{key}. */
-function eventCvColumns(clientId: RptClientId): { key: string; expr: string; alias: string }[] {
+function eventCvColumns(
+  clientId: RptClientId,
+): { key: string; expr: string; alias: string }[] {
   const meta = RPT_SUPPORTED[clientId];
   return [
     { key: "purchase", expr: "ga_cv_purchase", alias: "event_purchase" },
@@ -398,12 +439,18 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function isoDateLiteral(d: string): string {
   if (!ISO_DATE_RE.test(d)) {
-    throw new Error(`bq-rpt: invalid ISO date passed to buildSql: ${JSON.stringify(d)}`);
+    throw new Error(
+      `bq-rpt: invalid ISO date passed to buildSql: ${JSON.stringify(d)}`,
+    );
   }
   return `DATE('${d}')`;
 }
 
-function buildSql(clientId: RptClientId, view: RptView, range?: { start: string; end: string }): string {
+function buildSql(
+  clientId: RptClientId,
+  view: RptView,
+  range?: { start: string; end: string },
+): string {
   const project = process.env.GCP_PROJECT_ID ?? "ai-agent-mixednuts";
   const ds = `\`${project}.${clientId}_marts\``;
   const events = eventCvSelectList(clientId);
@@ -483,8 +530,7 @@ function buildSql(clientId: RptClientId, view: RptView, range?: { start: string;
         FROM ${ds}.rpt_adg
         ORDER BY date, media, campaign_id, ad_group_id`;
     case "all": {
-      const overallCv =
-        clientId === "dozo" ? "shopify_cv" : "eccube_cv";
+      const overallCv = clientId === "dozo" ? "shopify_cv" : "eccube_cv";
       const overallValue =
         clientId === "dozo" ? "CAST(NULL AS NUMERIC)" : "eccube_value";
       return `
@@ -516,7 +562,8 @@ async function _runRptQuery(
   rangeEnd: string,
 ): Promise<RawRow[]> {
   const bq = getBigQuery();
-  const range = rangeStart && rangeEnd ? { start: rangeStart, end: rangeEnd } : undefined;
+  const range =
+    rangeStart && rangeEnd ? { start: rangeStart, end: rangeEnd } : undefined;
   const [job] = await bq.createQueryJob({
     query: buildSql(clientId, view, range),
     location: BQ_LOCATION,
@@ -563,7 +610,11 @@ const _cachedRptQuery = unstable_cache(_runRptQuery, ["bq-rpt-rows"], {
 function eventCvs(
   clientId: RptClientId,
   r: RawRow,
-): { gaCvPurchase: number; gaCvEvents: Record<string, number>; gaCvAddToCart: number } {
+): {
+  gaCvPurchase: number;
+  gaCvEvents: Record<string, number>;
+  gaCvAddToCart: number;
+} {
   const meta = RPT_SUPPORTED[clientId];
   const gaCvEvents: Record<string, number> = {};
   for (const ev of meta.secondaryEvents) {
@@ -624,7 +675,12 @@ async function fetchView<T>(
   range?: { start: string; end: string },
 ): Promise<RptFetchResult<T>> {
   try {
-    const raw = await _cachedRptQuery(clientId, view, range?.start ?? "", range?.end ?? "");
+    const raw = await _cachedRptQuery(
+      clientId,
+      view,
+      range?.start ?? "",
+      range?.end ?? "",
+    );
     return { rows: raw.map(map), fetchedAt: Date.now(), warnings: [] };
   } catch (err) {
     // Tagged with a machine-readable reason ([permission] / [fetch_failed])
@@ -643,7 +699,9 @@ async function fetchView<T>(
   }
 }
 
-export function getRptDaily(clientId: RptClientId): Promise<RptFetchResult<RptDailyRow>> {
+export function getRptDaily(
+  clientId: RptClientId,
+): Promise<RptFetchResult<RptDailyRow>> {
   return fetchView(clientId, "daily", (r) => ({
     date: _date(r.date),
     ...metrics(clientId, r),
@@ -688,7 +746,9 @@ export function getRptMonthlyAds(
   }));
 }
 
-export function getRptMedia(clientId: RptClientId): Promise<RptFetchResult<RptMediaRow>> {
+export function getRptMedia(
+  clientId: RptClientId,
+): Promise<RptFetchResult<RptMediaRow>> {
   return fetchView(clientId, "media", (r) => ({
     date: _date(r.date),
     media: mediaLabel(typeof r.media === "string" ? r.media : null),
@@ -697,7 +757,9 @@ export function getRptMedia(clientId: RptClientId): Promise<RptFetchResult<RptMe
   }));
 }
 
-export function getRptCpn(clientId: RptClientId): Promise<RptFetchResult<RptCpnRow>> {
+export function getRptCpn(
+  clientId: RptClientId,
+): Promise<RptFetchResult<RptCpnRow>> {
   return fetchView(clientId, "cpn", (r) => ({
     date: _date(r.date),
     media: mediaLabel(typeof r.media === "string" ? r.media : null),
@@ -708,7 +770,9 @@ export function getRptCpn(clientId: RptClientId): Promise<RptFetchResult<RptCpnR
   }));
 }
 
-export function getRptAdg(clientId: RptClientId): Promise<RptFetchResult<RptAdgRow>> {
+export function getRptAdg(
+  clientId: RptClientId,
+): Promise<RptFetchResult<RptAdgRow>> {
   return fetchView(clientId, "adg", (r) => ({
     date: _date(r.date),
     media: mediaLabel(typeof r.media === "string" ? r.media : null),
@@ -722,11 +786,12 @@ export function getRptAdg(clientId: RptClientId): Promise<RptFetchResult<RptAdgR
   }));
 }
 
-export function getRptAll(clientId: RptClientId): Promise<RptFetchResult<RptAllRow>> {
+export function getRptAll(
+  clientId: RptClientId,
+): Promise<RptFetchResult<RptAllRow>> {
   return fetchView(clientId, "all", (r) => ({
     granularity: (_date(r.granularity) === "monthly" ? "monthly" : "daily") as
-      | "daily"
-      | "monthly",
+      "daily" | "monthly",
     date: _date(r.date),
     cost: _num(r.cost),
     sessions: _num(r.sessions),

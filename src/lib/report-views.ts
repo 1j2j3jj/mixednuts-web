@@ -10,7 +10,12 @@
  * monthly rows joined with a rpt_daily month rollup — see bq-rpt.ts).
  */
 export const REPORT_VIEWS = [
-  { key: "daily", label: "Daily" },
+  // C3-d: was "Daily" — the only English label among the six, and the
+  // default view (no ?view= param — see ReportViewTabs.tsx), so it was the
+  // first thing a client saw on this tab. Renamed to match the 週次/月次/
+  // 媒体/キャンペーン/広告グループ pattern; the `key` ("daily") is
+  // unchanged so no URL/query-param behaviour changes.
+  { key: "daily", label: "日次" },
   { key: "weekly", label: "週次" },
   { key: "monthly", label: "月次" },
   { key: "media", label: "媒体" },

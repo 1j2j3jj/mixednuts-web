@@ -12,9 +12,23 @@ function escapeCell(v: unknown): string {
   return s;
 }
 
-export function toCsv(rows: Array<Record<string, unknown>>, headers?: string[]): string {
+export function toCsv(
+  rows: Array<Record<string, unknown>>,
+  headers?: string[],
+): string {
   if (rows.length === 0) return "";
-  const cols = headers ?? Object.keys(rows[0]);
-  const body = rows.map((r) => cols.map((c) => escapeCell(r[c])).join(",")).join("\r\n");
+  // `keys` always drives the per-row value lookup (the actual property
+  // names on each row object); `headers`, when passed, only substitutes the
+  // DISPLAY text on the first line. These must stay decoupled — if the
+  // header row itself were used as the lookup key (as a naive `cols =
+  // headers ?? Object.keys(rows[0])` used for both jobs would do), passing
+  // human-readable Japanese headers would silently blank every data cell,
+  // since `row["商品名"]` doesn't resolve when the row's actual key is
+  // `productName`.
+  const keys = Object.keys(rows[0]);
+  const cols = headers ?? keys;
+  const body = rows
+    .map((r) => keys.map((k) => escapeCell(r[k])).join(","))
+    .join("\r\n");
   return `${cols.join(",")}\r\n${body}\r\n`;
 }

@@ -50,14 +50,29 @@ export default async function ClientLayout({
           wrapper so it still spans the full row, not just the tab links. */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-0">
         <div className="flex flex-wrap items-center gap-3">
-          <h2 className="shrink-0 text-sm font-semibold tracking-tight">
+          {/* C3-a (defect A-22): this is tenant-identity CHROME shared by
+              every tab, not page content — it must not be a heading at all.
+              It used to be an <h2>, which put a level-2 heading in the DOM
+              before any page's own <h1> (PageHeader.tsx) on every single
+              tab, an invalid heading order for screen-reader users. A <div>
+              styled identically has no semantic heading role, so the page's
+              own <h1> (rendered inside {children} below) is once again the
+              first heading in document order — with no visible-text change. */}
+          <div className="shrink-0 text-sm font-semibold tracking-tight">
             {client.label}
             {subtitle && (
-              <span className="ml-1.5 font-normal text-muted-foreground">
-                · {subtitle}
+              // C3-e (defect A-24): was `ml-1.5` + literal "· " (space only
+              // AFTER the dot, via CSS margin BEFORE it) — asymmetric and the
+              // one inconsistent spot vs. the " · " (space-space) composition
+              // used everywhere else in the dashboard (ads/drill/report/
+              // insights page titles). Switched to the same literal " · "
+              // token, no CSS margin, for one consistent separator idiom.
+              <span className="font-normal text-muted-foreground">
+                {" · "}
+                {subtitle}
               </span>
             )}
-          </h2>
+          </div>
           <DashboardTabs
             slug={slug}
             showReport={isRptSupported(client.id)}
