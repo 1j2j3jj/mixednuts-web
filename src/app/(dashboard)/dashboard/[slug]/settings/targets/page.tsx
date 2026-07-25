@@ -4,6 +4,7 @@ import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getViewerOrgRole, canInviteMembers } from "@/lib/org-role";
 import { fetchClientTargetsLong, type TargetLongRow } from "@/lib/masters";
 import { CLIENT_TARGETS_HEADER } from "./targets-schema";
+import { MATRIX_CHANNELS, MATRIX_METRICS } from "./targets-matrix";
 import TargetsClient from "./TargetsClient";
 
 /**
@@ -101,16 +102,28 @@ export default async function TenantTargetsPage({ params }: PageProps) {
         </div>
         <h1 className="mt-2 text-xl font-semibold tracking-tight">目標設定</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          月次の目標を long 形式（指標・チャネル・年月・値）の CSV でアップロードします。
-          テンプレをダウンロードして数値を埋め、プレビューで検証してから確定してください。
-          CSV に含めない既存行はそのまま温存されます。指標・チャネル・年月を入力し、値だけを
-          空欄にした行は、そのキーの目標を明示削除します。削除しない空行は CSV から取り除いてください。
-          指標は セッション / 受注件数 / 受注金額 / 広告費用、チャネルは organic / direct /
-          mail / referral / 広告、全体集計は「全体」を使います。
+          月次の目標は、お手元のスプレッドシートの範囲をそのまま貼り付けて登録できます（下の「貼り付けで一括入力」）。
+          貼り付けた範囲の空欄セルは単に「未入力」として無視され、既存の目標が消えることはありません。
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          既存の目標を削除したい場合や、1行ずつ確実に指定したい場合は、long
+          形式（指標・チャネル・年月・値）の CSV
+          アップロードを使ってください。テンプレをダウンロードして数値を埋め、プレビューで検証してから確定してください。
+          CSV
+          に含めない既存行はそのまま温存されます。指標・チャネル・年月を入力し、値だけを空欄にした行は、そのキーの目標を明示削除します（この経路だけの挙動です）。
+          削除しない空行は CSV から取り除いてください。 指標は セッション /
+          受注件数 / 受注金額 / 広告費用、チャネルは organic / direct / mail /
+          referral / 広告、全体集計は「全体」を使います。
         </p>
       </div>
 
-      <TargetsClient slug={slug} templateCsv={templateCsv} currentCsv={currentCsv} />
+      <TargetsClient
+        slug={slug}
+        templateCsv={templateCsv}
+        matrixMetrics={MATRIX_METRICS}
+        matrixChannels={MATRIX_CHANNELS}
+        currentCsv={currentCsv}
+      />
 
       {/* 現状表示（このクライアントのみ） */}
       <div className="rounded-md border bg-card">
@@ -134,7 +147,8 @@ export default async function TenantTargetsPage({ params }: PageProps) {
                     colSpan={4}
                     className="p-4 text-center text-muted-foreground"
                   >
-                    データなし — テンプレ CSV をダウンロードして目標を登録してください
+                    データなし — テンプレ CSV
+                    をダウンロードして目標を登録してください
                   </td>
                 </tr>
               )}
