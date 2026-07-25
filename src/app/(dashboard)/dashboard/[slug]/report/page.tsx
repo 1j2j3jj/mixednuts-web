@@ -18,8 +18,16 @@ import { REPORT_VIEWS, type ReportViewKey } from "@/lib/report-views";
 import ReportViewTabs from "@/components/dashboard/ReportViewTabs";
 import StaleDataBanner from "@/components/dashboard/StaleDataBanner";
 import { hasWarnReason } from "@/lib/fetch-warnings";
-import ReportTable, { type ReportTableRow } from "@/components/dashboard/ReportTable";
+import ReportTable, {
+  type ReportTableRow,
+} from "@/components/dashboard/ReportTable";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
+import {
+  Wallet,
+  Target as TargetIcon,
+  ShoppingCart,
+  Layers,
+} from "lucide-react";
 import CsvExportButton from "@/components/dashboard/CsvExportButton";
 import PrintButton from "@/components/dashboard/PrintButton";
 import RefreshButton from "@/components/dashboard/RefreshButton";
@@ -120,7 +128,10 @@ function emptyBucket(): Bucket {
  *  undefined there rather than folding in a spurious 0. */
 function addMetrics(
   b: Bucket,
-  m: Omit<RptMetrics, "gaCvAddToCart"> & { gaCvAddToCart?: number; adCvPurchase?: number },
+  m: Omit<RptMetrics, "gaCvAddToCart"> & {
+    gaCvAddToCart?: number;
+    adCvPurchase?: number;
+  },
 ): void {
   b.cost += m.cost;
   b.impressions += m.impressions;
@@ -165,7 +176,9 @@ export default async function ReportScreen({
     return (
       <div className="space-y-6">
         <div>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">Report</div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">
+            Report
+          </div>
           <h1 className="text-2xl font-semibold tracking-tight">レポート</h1>
         </div>
         <Card>
@@ -198,7 +211,11 @@ export default async function ReportScreen({
   // null (no rows at all) renders no banner; the empty state covers that.
   const maxDataDate = anchorDates[anchorDates.length - 1] ?? null;
   const anchor = maxDataDate ?? new Date().toISOString().slice(0, 10);
-  const rr = resolveFromSearchParams(sp, { preset: "thisMonth", compare: "none" }, anchor);
+  const rr = resolveFromSearchParams(
+    sp,
+    { preset: "thisMonth", compare: "none" },
+    anchor,
+  );
   const { start, end } = rr.current;
 
   const dailyCur = dailyRes.rows.filter((r) => inRange(r.date, start, end));
@@ -336,10 +353,15 @@ export default async function ReportScreen({
     const adsRes = await getRptMonthlyAds(client.id);
     warnings.push(...adsRes.warnings);
     fetchedAt = Math.max(fetchedAt, adsRes.fetchedAt);
-    const byMonth = new Map<string, { ads?: (typeof adsRes.rows)[number]; all?: RptAllRow }>();
+    const byMonth = new Map<
+      string,
+      { ads?: (typeof adsRes.rows)[number]; all?: RptAllRow }
+    >();
     for (const r of adsRes.rows) byMonth.set(r.month, { ads: r });
-    for (const r of allMonthly) byMonth.set(r.date, { ...byMonth.get(r.date), all: r });
-    const monthInWindow = (month: string) => month <= end && month.slice(0, 7) >= start.slice(0, 7);
+    for (const r of allMonthly)
+      byMonth.set(r.date, { ...byMonth.get(r.date), all: r });
+    const monthInWindow = (month: string) =>
+      month <= end && month.slice(0, 7) >= start.slice(0, 7);
     rows = Array.from(byMonth.entries())
       .filter(([month]) => monthInWindow(month))
       .sort((x, y) => y[0].localeCompare(x[0]))
@@ -369,7 +391,13 @@ export default async function ReportScreen({
           overallValue != null && targetValue != null && targetValue !== 0
             ? overallValue / targetValue
             : null;
-        return { month, overallValue, targetValue, achievementRate, externalCv: all?.externalCv ?? null };
+        return {
+          month,
+          overallValue,
+          targetValue,
+          achievementRate,
+          externalCv: all?.externalCv ?? null,
+        };
       });
     labelHeader = "月";
     monoLabel = true;
@@ -452,8 +480,11 @@ export default async function ReportScreen({
         ({
           // PMax folds back to campaign grain — ad_group_name is empty
           // there, so fall back to the campaign name as the row label.
-          label: r.adGroupName || r.campaignName || r.adGroupId || "(no ad group)",
-          subLabel: r.adGroupName ? r.campaignName : r.adGroupId || r.campaignId,
+          label:
+            r.adGroupName || r.campaignName || r.adGroupId || "(no ad group)",
+          subLabel: r.adGroupName
+            ? r.campaignName
+            : r.adGroupId || r.campaignId,
           media: r.media,
           grainLevel: r.grainLevel,
           matchStatus: r.matchStatus,
@@ -491,7 +522,9 @@ export default async function ReportScreen({
   // table (site-wide on daily/monthly via showAdCvPurchase, ad-attributed
   // elsewhere) — see module doc. The ad-attributed reference column is only
   // included when the tab actually populates adCvPurchase.
-  const gaCvPurchaseCsvKey = showAdCvPurchase ? "ga_cv_purchase_sitewide" : "ga_cv_purchase";
+  const gaCvPurchaseCsvKey = showAdCvPurchase
+    ? "ga_cv_purchase_sitewide"
+    : "ga_cv_purchase";
   function toCsvRow(r: ReportTableRow) {
     const eventCols: Record<string, number> = {};
     for (const ev of meta.secondaryEvents) {
@@ -511,7 +544,9 @@ export default async function ReportScreen({
       media_value: r.mediaValue,
       sessions: r.sessions,
       [gaCvPurchaseCsvKey]: r.gaCvPurchase,
-      ...(showAdCvPurchase ? { ga_cv_purchase_ad_attributed: r.adCvPurchase ?? "" } : {}),
+      ...(showAdCvPurchase
+        ? { ga_cv_purchase_ad_attributed: r.adCvPurchase ?? "" }
+        : {}),
       ...eventCols,
       ga_value: r.gaValue,
       overall_cv: r.overallCv ?? "",
@@ -534,16 +569,21 @@ export default async function ReportScreen({
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">Report</div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">
+            Report
+          </div>
           <h1 className="text-2xl font-semibold tracking-tight">
             レポート（GA×広告 突合） · {rr.presetLabel}
           </h1>
           <div className="mt-1 text-sm text-muted-foreground">
-            {start} 〜 {end} · CV3層: 媒体CV / GA_CV(購入) / 全体CV（{meta.overallCvLabel}）
+            {start} 〜 {end} · CV3層: 媒体CV / GA_CV(購入) / 全体CV（
+            {meta.overallCvLabel}）
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-xs text-muted-foreground">最終取得 {fetchedAtLabel}</div>
+          <div className="text-xs text-muted-foreground">
+            最終取得 {fetchedAtLabel}
+          </div>
           <CsvExportButton
             filename={`report-${view}-${slug}-${new Date().toISOString().slice(0, 10)}.csv`}
             rows={csvRows}
@@ -561,18 +601,41 @@ export default async function ReportScreen({
         </div>
       )}
 
-      {/* Period KPIs — window totals independent of the granularity tab. */}
+      {/* Period KPIs — window totals independent of the granularity tab. No
+          prior-period or target value is computed anywhere on this tab (see
+          BigKpiCard.tsx module doc for why `comparison` is safe to omit —
+          it renders a reserved "—"/"—" placeholder row rather than
+          vanishing), so captions here are definitional rather than
+          "vs last period" / "of target". */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <BigKpiCard label="Cost" value={fmtJpy(kpi.cost)} lowerIsBetter />
-        <BigKpiCard label="媒体CV" value={fmtInt(kpi.mediaCv)} />
+        <BigKpiCard
+          label="Cost"
+          value={fmtJpy(kpi.cost)}
+          caption="全媒体COST合算"
+          lowerIsBetter
+          icon={Wallet}
+          hue="chart-5"
+        />
+        <BigKpiCard
+          label="媒体CV"
+          value={fmtInt(kpi.mediaCv)}
+          caption="広告プラットフォーム計測"
+          icon={TargetIcon}
+          hue="chart-3"
+        />
         <BigKpiCard
           label="GA_CV(サイト全体·購入)"
           value={fmtInt(kpiSiteGaCv)}
-          comparisons={[]}
+          caption="GA4 サイト全体の購入イベント"
+          icon={ShoppingCart}
+          hue="chart-7"
         />
         <BigKpiCard
           label={`全体CV（${meta.overallCvLabel}）`}
           value={fmtInt(kpiOverallCv)}
+          caption={`計測経路: ${meta.overallCvLabel}`}
+          icon={Layers}
+          hue="chart-2"
         />
       </div>
       <div className="text-xs text-muted-foreground">
@@ -627,8 +690,12 @@ export default async function ReportScreen({
               <thead>
                 <tr className="bg-muted/30">
                   <th className="px-3 py-2 text-left font-semibold">月</th>
-                  <th className="px-3 py-2 text-right font-semibold">全体売上（{meta.overallCvLabel.replace(" CV", "")}）</th>
-                  <th className="px-3 py-2 text-right font-semibold">売上目標</th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    全体売上（{meta.overallCvLabel.replace(" CV", "")}）
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    売上目標
+                  </th>
                   <th className="px-3 py-2 text-right font-semibold">達成率</th>
                 </tr>
               </thead>
@@ -636,10 +703,16 @@ export default async function ReportScreen({
                 {monthlyTargetRows.map((r) => (
                   <tr key={r.month} className="border-t">
                     <td className="px-3 py-1.5 font-mono">{r.month}</td>
-                    <td className="px-3 py-1.5 text-right tabular-nums">{fmtJpy(r.overallValue)}</td>
-                    <td className="px-3 py-1.5 text-right tabular-nums">{fmtJpy(r.targetValue)}</td>
                     <td className="px-3 py-1.5 text-right tabular-nums">
-                      {r.achievementRate != null ? fmtRatioPct(r.achievementRate * 100, 1) : "—"}
+                      {fmtJpy(r.overallValue)}
+                    </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums">
+                      {fmtJpy(r.targetValue)}
+                    </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums">
+                      {r.achievementRate != null
+                        ? fmtRatioPct(r.achievementRate * 100, 1)
+                        : "—"}
                     </td>
                   </tr>
                 ))}
@@ -659,10 +732,18 @@ export default async function ReportScreen({
                     <th className="px-3 py-2 text-left font-semibold">月</th>
                     <th className="px-3 py-2 text-right font-semibold">電話</th>
                     <th className="px-3 py-2 text-right font-semibold">店舗</th>
-                    <th className="px-3 py-2 text-right font-semibold">イベント</th>
-                    <th className="px-3 py-2 text-right font-semibold">フォーム</th>
-                    <th className="px-3 py-2 text-right font-semibold">その他</th>
-                    <th className="px-3 py-2 text-right font-semibold">合計CV</th>
+                    <th className="px-3 py-2 text-right font-semibold">
+                      イベント
+                    </th>
+                    <th className="px-3 py-2 text-right font-semibold">
+                      フォーム
+                    </th>
+                    <th className="px-3 py-2 text-right font-semibold">
+                      その他
+                    </th>
+                    <th className="px-3 py-2 text-right font-semibold">
+                      合計CV
+                    </th>
                     <th className="px-3 py-2 text-right font-semibold">売上</th>
                   </tr>
                 </thead>
@@ -674,13 +755,27 @@ export default async function ReportScreen({
                       return (
                         <tr key={r.month} className="border-t">
                           <td className="px-3 py-1.5 font-mono">{r.month}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums">{fmtInt(e.phone)}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums">{fmtInt(e.store)}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums">{fmtInt(e.event)}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums">{fmtInt(e.form)}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums">{fmtInt(e.other)}</td>
-                          <td className="px-3 py-1.5 text-right font-semibold tabular-nums">{fmtInt(e.total)}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums">{fmtJpy(e.value)}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums">
+                            {fmtInt(e.phone)}
+                          </td>
+                          <td className="px-3 py-1.5 text-right tabular-nums">
+                            {fmtInt(e.store)}
+                          </td>
+                          <td className="px-3 py-1.5 text-right tabular-nums">
+                            {fmtInt(e.event)}
+                          </td>
+                          <td className="px-3 py-1.5 text-right tabular-nums">
+                            {fmtInt(e.form)}
+                          </td>
+                          <td className="px-3 py-1.5 text-right tabular-nums">
+                            {fmtInt(e.other)}
+                          </td>
+                          <td className="px-3 py-1.5 text-right font-semibold tabular-nums">
+                            {fmtInt(e.total)}
+                          </td>
+                          <td className="px-3 py-1.5 text-right tabular-nums">
+                            {fmtJpy(e.value)}
+                          </td>
                         </tr>
                       );
                     })}
@@ -690,38 +785,52 @@ export default async function ReportScreen({
           )}
         <div className="space-y-1 text-[11px] text-muted-foreground">
           <div>
-            ROAS = 売上 ÷ Cost の%表示（例 1677% = 16.77倍）。比率は期間合計から再計算（日次比率の平均ではない）。
+            ROAS = 売上 ÷ Cost の%表示（例 1677% =
+            16.77倍）。比率は期間合計から再計算（日次比率の平均ではない）。
           </div>
           <div>
             CSVは合計行を含み、表の既定ソート順（並び替え前の順序）で出力されます。テーブル上でソートを変更してもCSVの行順には反映されません。
           </div>
           <div>
-            {gaCvLabel} は GA4 purchase（ecommercePurchases）イベント基準（旧表示の GA_CV は全 key event 合算だったが、purchase 基準に変更）。
+            {gaCvLabel} は GA4
+            purchase（ecommercePurchases）イベント基準（旧表示の GA_CV は全 key
+            event 合算だったが、purchase 基準に変更）。
             {meta.secondaryEvents.length > 0 && (
               <>
                 {" "}
-                {meta.secondaryEvents.map((ev) => ev.label).join(" / ")} は別列で参考表示。
+                {meta.secondaryEvents.map((ev) => ev.label).join(" / ")}{" "}
+                は別列で参考表示。
               </>
             )}
           </div>
           {view === "daily" || view === "monthly" ? (
             <div>
-              GA列はサイト全体（全チャネル）の GA4 実測（返品は0フロア済）。{gaCvLabel} はサイト全体の purchase 件数、GA_CV(広告帰属) は広告エンティティに帰属した参考値（媒体別/CPN/ADGタブの GA_CV(購入) と同一系列）——両者は一致しない（未計測トラフィックや直接流入分だけサイト全体側が上回るため）。全体CV（{meta.overallCvLabel}）は連携未取得の期間は「—」表示。
+              GA列はサイト全体（全チャネル）の GA4 実測（返品は0フロア済）。
+              {gaCvLabel} はサイト全体の purchase 件数、GA_CV(広告帰属)
+              は広告エンティティに帰属した参考値（媒体別/CPN/ADGタブの
+              GA_CV(購入)
+              と同一系列）——両者は一致しない（未計測トラフィックや直接流入分だけサイト全体側が上回るため）。全体CV（
+              {meta.overallCvLabel}）は連携未取得の期間は「—」表示。
             </div>
           ) : view === "weekly" ? (
             <div>
-              GA列は広告エンティティに帰属した GA4 計測分の週次集計。全体CV（サイト全体・目標比較）は月次タブを参照。
+              GA列は広告エンティティに帰属した GA4
+              計測分の週次集計。全体CV（サイト全体・目標比較）は月次タブを参照。
             </div>
           ) : (
             <div>
               GA列は広告エンティティに帰属した GA4 計測分。バッジ:
-              matched=広告費とGA計測が突合済み / unmapped=GA計測はあるが対応広告費が未着（1日遅れで翌日回収）/
-              ad_only=広告費のみでGA計測なし。同一キャンペーン・広告グループ配下に matched と unmapped が混在する場合は1行に統合し「+未突合分」バッジを付与。
+              matched=広告費とGA計測が突合済み /
+              unmapped=GA計測はあるが対応広告費が未着（1日遅れで翌日回収）/
+              ad_only=広告費のみでGA計測なし。同一キャンペーン・広告グループ配下に
+              matched と unmapped
+              が混在する場合は1行に統合し「+未突合分」バッジを付与。
             </div>
           )}
           {view === "adg" && (
             <div>
-              PMax は媒体仕様上 ADG 粒度が存在しないため、該当行は CPN 粒度に折返して表示（grain_level=campaign のバッジ行）。
+              PMax は媒体仕様上 ADG 粒度が存在しないため、該当行は CPN
+              粒度に折返して表示（grain_level=campaign のバッジ行）。
             </div>
           )}
         </div>
@@ -735,7 +844,9 @@ export default async function ReportScreen({
         (hasWarnReason(warnings, "permission") ? (
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">データにアクセスできません（権限エラー）</CardTitle>
+              <CardTitle className="text-sm">
+                データにアクセスできません（権限エラー）
+              </CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
               データソース（BigQuery）への権限が不足しているため取得できませんでした。
@@ -745,7 +856,9 @@ export default async function ReportScreen({
         ) : hasWarnReason(warnings, "fetch_failed") ? (
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">データの取得に失敗しました</CardTitle>
+              <CardTitle className="text-sm">
+                データの取得に失敗しました
+              </CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
               一時的なエラーでデータを取得できませんでした（表示されている他の数値は
@@ -759,7 +872,8 @@ export default async function ReportScreen({
               <CardTitle className="text-sm">データなし</CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
-              選択期間（{start} 〜 {end}）に表示できるレポートデータがありません。
+              選択期間（{start} 〜 {end}
+              ）に表示できるレポートデータがありません。
               上部の「期間」を広げるか別の期間に変更してください。データ連携直後は
               反映まで時間がかかる場合があります。
             </CardContent>

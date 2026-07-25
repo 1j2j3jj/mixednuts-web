@@ -19,6 +19,7 @@ import { resolveFromSearchParams, type DateRange } from "@/lib/range";
 import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
 import { analysePacing, lastN } from "@/lib/analysis";
 import { readSource, type MetricSource } from "@/lib/source";
+import { JapaneseYen, Target, Users, Receipt, TrendingUp } from "lucide-react";
 import SourceToggle from "@/components/dashboard/SourceToggle";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
 import ChannelStackedBar from "@/components/dashboard/ChannelStackedBar";
@@ -151,6 +152,13 @@ function resolveGa4ChannelRows(
 function pct(a: number, b: number): number | null {
   if (b === 0) return null;
   return (a - b) / b;
+}
+
+/** Achievement percentage for a "目標 X の Y%" KPI caption (Q1, spec §2.1).
+ *  Rounds like the existing GoalGauge ratio display so the two stay
+ *  internally consistent. */
+function pctOfTarget(actual: number, target: number): number {
+  return target > 0 ? Math.round((actual / target) * 100) : 0;
 }
 
 /** KPI card vocabulary — matches the weekly/monthly client-report vocabulary
@@ -599,90 +607,115 @@ export default async function Overview({
         <BigKpiCard
           label={KPI_LABELS[source].revenue}
           value={fmtJpy(effectiveRev)}
-          comparisons={
+          caption={
+            showGoals && tgt.revenue != null && tgt.revenue > 0
+              ? `目標 ${fmtJpy(tgt.revenue)} の ${pctOfTarget(effectiveRev, tgt.revenue)}%`
+              : rr.previous
+                ? `${rr.compareLabel} ${fmtJpy(effectiveRevPrev)}`
+                : "比較対象なし（今期のみ）"
+          }
+          comparison={
             rr.previous
-              ? [
-                  {
-                    label: rr.compareLabel,
-                    delta: pct(effectiveRev, effectiveRevPrev),
-                  },
-                ]
-              : []
+              ? {
+                  label: rr.compareLabel,
+                  delta: pct(effectiveRev, effectiveRevPrev),
+                }
+              : undefined
           }
           sparkline={revSpark}
           sparkDates={sparkDates}
           sparkFormat="jpy"
+          icon={JapaneseYen}
+          hue="chart-1"
         />
         <BigKpiCard
           label={KPI_LABELS[source].cv}
           value={fmtInt(effectiveCv)}
-          comparisons={
+          caption={
+            showGoals && tgt.conversions != null && tgt.conversions > 0
+              ? `目標 ${fmtInt(tgt.conversions)} の ${pctOfTarget(effectiveCv, tgt.conversions)}%`
+              : rr.previous
+                ? `${rr.compareLabel} ${fmtInt(effectiveCvPrev)}`
+                : "比較対象なし（今期のみ）"
+          }
+          comparison={
             rr.previous
-              ? [
-                  {
-                    label: rr.compareLabel,
-                    delta: pct(effectiveCv, effectiveCvPrev),
-                  },
-                ]
-              : []
+              ? {
+                  label: rr.compareLabel,
+                  delta: pct(effectiveCv, effectiveCvPrev),
+                }
+              : undefined
           }
           sparkline={cvSpark}
           sparkDates={sparkDates}
           sparkFormat="int"
+          icon={Target}
+          hue="chart-3"
         />
         <BigKpiCard
           label="SESSION (GA4)"
           value={fmtInt(gaCur.sessions)}
-          comparisons={
+          caption={
             rr.previous
-              ? [
-                  {
-                    label: rr.compareLabel,
-                    delta: pct(gaCur.sessions, gaPrev.sessions),
-                  },
-                ]
-              : []
+              ? `${rr.compareLabel} ${fmtInt(gaPrev.sessions)}`
+              : "比較対象なし（今期のみ）"
+          }
+          comparison={
+            rr.previous
+              ? {
+                  label: rr.compareLabel,
+                  delta: pct(gaCur.sessions, gaPrev.sessions),
+                }
+              : undefined
           }
           sparkline={sessionsSpark}
           sparkDates={sparkDates}
           sparkFormat="int"
+          icon={Users}
+          hue="chart-7"
         />
         <BigKpiCard
           label={KPI_LABELS[source].cpa}
           value={blendedCpa != null ? fmtJpy(blendedCpa) : "—"}
-          note={KPI_COST_NOTE}
+          caption={KPI_COST_NOTE}
           lowerIsBetter
-          comparisons={
-            rr.previous && blendedCpa != null && blendedCpaPrev != null
-              ? [
-                  {
-                    label: rr.compareLabel,
-                    delta: pct(blendedCpa, blendedCpaPrev),
-                  },
-                ]
-              : []
+          comparison={
+            rr.previous
+              ? {
+                  label: rr.compareLabel,
+                  delta:
+                    blendedCpa != null && blendedCpaPrev != null
+                      ? pct(blendedCpa, blendedCpaPrev)
+                      : null,
+                }
+              : undefined
           }
           sparkline={cpaSpark}
           sparkDates={sparkDates}
           sparkFormat="jpy"
+          icon={Receipt}
+          hue="chart-6"
         />
         <BigKpiCard
           label={KPI_LABELS[source].roas}
           value={blendedRoas != null ? fmtRatioPct(blendedRoas * 100, 0) : "—"}
-          note={KPI_COST_NOTE}
-          comparisons={
-            rr.previous && blendedRoas != null && blendedRoasPrev != null
-              ? [
-                  {
-                    label: rr.compareLabel,
-                    delta: pct(blendedRoas, blendedRoasPrev),
-                  },
-                ]
-              : []
+          caption={KPI_COST_NOTE}
+          comparison={
+            rr.previous
+              ? {
+                  label: rr.compareLabel,
+                  delta:
+                    blendedRoas != null && blendedRoasPrev != null
+                      ? pct(blendedRoas, blendedRoasPrev)
+                      : null,
+                }
+              : undefined
           }
           sparkline={roasSpark}
           sparkDates={sparkDates}
           sparkFormat="pct"
+          icon={TrendingUp}
+          hue="chart-4"
         />
       </div>
 
