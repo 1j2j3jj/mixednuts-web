@@ -3,11 +3,7 @@ import Link from "next/link";
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
 import { getViewerOrgRole, canInviteMembers } from "@/lib/org-role";
 import { fetchClientTargetsLong, type TargetLongRow } from "@/lib/masters";
-import {
-  CLIENT_TARGETS_HEADER,
-  RECOMMENDED_METRICS,
-  TOTAL_CHANNEL,
-} from "./targets-schema";
+import { CLIENT_TARGETS_HEADER } from "./targets-schema";
 import TargetsClient from "./TargetsClient";
 
 /**
@@ -26,20 +22,6 @@ interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-/** 当月起点の 'YYYY-MM' を n 件（当月, 翌月, …）。 */
-function upcomingMonths(count: number): string[] {
-  const out: string[] = [];
-  const d = new Date();
-  for (let i = 0; i < count; i++) {
-    const y = d.getFullYear();
-    const m = d.getMonth() + 1 + i;
-    const yy = y + Math.floor((m - 1) / 12);
-    const mm = ((m - 1) % 12) + 1;
-    out.push(`${yy}-${String(mm).padStart(2, "0")}`);
-  }
-  return out;
-}
-
 /** CSV 用のセルエスケープ（RFC 4180）。 */
 function csvCell(v: unknown): string {
   if (v == null) return "";
@@ -48,20 +30,11 @@ function csvCell(v: unknown): string {
 }
 
 /**
- * long テンプレ（指標,チャネル,年月,値）。推奨 4 指標 × '全体' チャネル ×
- * 当月起点 12 か月ぶんの空欄行を用意（値だけ埋めてもらう）。チャネル別に分けたい
- * 場合は '全体' を organic / direct / 広告 等へ書き換えれば行を増やせる。
+ * long テンプレ（指標,チャネル,年月,値）。空の値は明示削除を意味するため、
+ * 誤削除を誘発するキー入り空行は事前生成せず、ヘッダだけを提供する。
  */
 function buildTemplateCsv(): string {
-  const header = CLIENT_TARGETS_HEADER.join(",");
-  const months = upcomingMonths(12);
-  const lines: string[] = [];
-  for (const metric of RECOMMENDED_METRICS) {
-    for (const ym of months) {
-      lines.push([metric, TOTAL_CHANNEL, ym, ""].map(csvCell).join(","));
-    }
-  }
-  return `${header}\n${lines.join("\n")}\n`;
+  return `${CLIENT_TARGETS_HEADER.join(",")}\n`;
 }
 
 /** 現状の目標行（このクライアントのみ）を long 4 列 CSV 化。 */
@@ -130,6 +103,8 @@ export default async function TenantTargetsPage({ params }: PageProps) {
         <p className="mt-1 text-sm text-muted-foreground">
           月次の目標を long 形式（指標・チャネル・年月・値）の CSV でアップロードします。
           テンプレをダウンロードして数値を埋め、プレビューで検証してから確定してください。
+          CSV に含めない既存行はそのまま温存されます。指標・チャネル・年月を入力し、値だけを
+          空欄にした行は、そのキーの目標を明示削除します。削除しない空行は CSV から取り除いてください。
           指標は セッション / 受注件数 / 受注金額 / 広告費用、チャネルは organic / direct /
           mail / referral / 広告、全体集計は「全体」を使います。
         </p>
