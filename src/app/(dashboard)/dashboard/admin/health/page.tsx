@@ -34,7 +34,7 @@ export default async function HealthPage() {
       </div>
 
       {/* Health check button + results */}
-      <div className="rounded-lg border border-neutral-200 bg-white p-4">
+      <div className="rounded-card border border-neutral-200 bg-white p-4">
         <HealthCheckButton />
       </div>
 

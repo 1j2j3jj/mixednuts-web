@@ -446,7 +446,7 @@ export default function ReportTable({
                     <div className="mt-0.5 flex flex-wrap gap-1">
                       {r.grainLevel === "campaign" && (
                         <span
-                          className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] text-sky-800"
+                          className="rounded-md bg-sky-100 px-1.5 py-0.5 text-[10px] text-sky-800"
                           title="Performance Max は媒体仕様上 広告グループ粒度が存在しないため、キャンペーン粒度に折返して表示"
                         >
                           PMax折返し（CPN粒度）
@@ -455,7 +455,7 @@ export default function ReportTable({
                       {r.matchStatus && (
                         <span
                           className={cn(
-                            "rounded px-1.5 py-0.5 text-[10px]",
+                            "rounded-md px-1.5 py-0.5 text-[10px]",
                             matchBadgeClass(r.matchStatus)
                           )}
                           title={MATCH_STATUS_DESC[r.matchStatus] ?? r.matchStatus}
@@ -465,7 +465,7 @@ export default function ReportTable({
                       )}
                       {r.hasUnmapped && (
                         <span
-                          className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800"
+                          className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800"
                           title="同一キャンペーン/広告グループ配下に unmapped（GA計測はあるが対応広告費が未着）分を含む"
                         >
                           +未突合分

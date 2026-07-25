@@ -174,7 +174,7 @@ export default function MembersClient({
   return (
     <div className="space-y-6">
       {/* Quota summary */}
-      <div className="flex flex-wrap gap-4 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm">
+      <div className="flex flex-wrap gap-4 rounded-card border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm">
         <span className="text-neutral-600">
           メンバー:{" "}
           <span className={memberQuotaReached ? "font-semibold text-rose-600" : "font-semibold"}>
@@ -203,7 +203,7 @@ export default function MembersClient({
         <h2 className="mb-2 text-sm font-semibold text-neutral-900">
           メンバー一覧
         </h2>
-        <div className="rounded-lg border border-neutral-200 bg-white">
+        <div className="rounded-card border border-neutral-200 bg-white">
           <Table>
             <TableHeader>
               <TableRow>
@@ -253,7 +253,7 @@ export default function MembersClient({
           {revokeError && (
             <p className="mb-2 text-sm text-rose-600">{revokeError}</p>
           )}
-          <div className="rounded-lg border border-neutral-200 bg-white">
+          <div className="rounded-card border border-neutral-200 bg-white">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -304,7 +304,7 @@ export default function MembersClient({
                       <button
                         type="button"
                         onClick={() => handleCopy(inv.link)}
-                        className="rounded bg-neutral-100 px-2 py-1 text-xs font-mono text-neutral-700 hover:bg-neutral-200"
+                        className="rounded-md bg-neutral-100 px-2 py-1 text-xs font-mono text-neutral-700 hover:bg-neutral-200"
                       >
                         {copiedLink === inv.link ? "コピーしました！" : "リンクをコピー"}
                       </button>

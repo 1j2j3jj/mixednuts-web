@@ -110,7 +110,7 @@ export default async function AdminIndexPage() {
           return (
             <div
               key={id}
-              className="rounded-lg border border-neutral-200 bg-white shadow-sm"
+              className="rounded-card border border-neutral-200 bg-white shadow-sm"
             >
               {/* Card header */}
               <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">

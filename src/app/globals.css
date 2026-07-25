@@ -130,6 +130,12 @@
   --chart-5: #c13c78; /* Referral — magenta */
   --chart-6: #a8790d; /* Email (+ NewVsRepeatChart "returning") — amber */
   --chart-7: #1f5499; /* Other — navy */
+  /* Semantic status colours (Phase B design-system-guards, 2026-07-25) — the
+     token home for the "good/bad delta" hex literals that Sparkline.tsx used
+     to hardcode inline. Same values (emerald-600 / red-600), now named so a
+     future palette change is a single edit instead of a grep-and-hope. */
+  --positive: #059669;
+  --negative: #dc2626;
   /* Typography: dashboard defaults to system UI, not marketing serif */
   font-family: var(--font-inter), "Noto Sans JP", system-ui, sans-serif;
   background: var(--background);
@@ -166,11 +172,23 @@
   --color-chart-5: var(--chart-5);
   --color-chart-6: var(--chart-6);
   --color-chart-7: var(--chart-7);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
   --shadow-card: var(--card-shadow);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  /* Card radius token (Phase B, 2026-07-25) — spec target is a strict
+     2-value radius system: cards ~12px, controls/badges ~8px (rounded-md,
+     already correct at var(--radius)-2px=8px for --radius:0.625rem). Cards
+     previously rode rounded-xl = var(--radius)+4px = 14px, 2px over target,
+     and a bare set of ad-hoc "card" divs used rounded-lg = 10px. Fixed at
+     12px directly (not derived from --radius) so it does not drift if
+     --radius is retuned for the control/badge side later. Generates the
+     `rounded-card` utility, used by ui/card.tsx and the ad-hoc card-shaped
+     containers flagged in the 2026-07-24 radius audit. */
+  --radius-card: 0.75rem;
 }
 
 @theme {
@@ -191,7 +209,14 @@
   --font-sans-jp: "Noto Sans JP", "Inter", sans-serif;
   --font-sans-en: "Inter", "Noto Sans JP", sans-serif;
   --font-serif-jp: "Noto Serif JP", serif;
-  --font-display: "Archivo", "Noto Sans JP", sans-serif;
+  /* Fixed 2026-07-25 (Phase B): this used to be the literal string "Archivo",
+     which the browser can never match — next/font/google registers the
+     loaded face only under the hashed local family name exposed via the
+     --font-archivo CSS variable (see layout.tsx), never under the human
+     name "Archivo". The literal silently fell through to the next fallback,
+     so every .font-display consumer (e.g. BigKpiCard's KPI value) rendered
+     in default sans-serif. Referencing var(--font-archivo) makes it resolve. */
+  --font-display: var(--font-archivo), "Noto Sans JP", sans-serif;
   --font-italic: "Playfair Display", serif;
 }
 

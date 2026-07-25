@@ -90,7 +90,7 @@ export default function MediaTable({ rows, targetRoasPct, source }: Props) {
           {isTotal ? (
             <span>{r.media}</span>
           ) : (
-            <span className={`inline-flex rounded px-2 py-0.5 text-xs ${mediaBadge(r.media)}`}>{r.media}</span>
+            <span className={`inline-flex rounded-md px-2 py-0.5 text-xs ${mediaBadge(r.media)}`}>{r.media}</span>
           )}
         </TableCell>
         <TableCell className="text-right tabular-nums">{fmtJpy(r.spend)}</TableCell>

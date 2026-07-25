@@ -49,13 +49,13 @@ export default function FirstRunGuide() {
   return (
     <div
       role="note"
-      className="relative rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950"
+      className="relative rounded-card border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950"
     >
       <button
         type="button"
         onClick={closeOnce}
         aria-label="ガイドを閉じる"
-        className="absolute right-2 top-2 rounded px-1.5 text-sky-400 hover:text-sky-700"
+        className="absolute right-2 top-2 rounded-md px-1.5 text-sky-400 hover:text-sky-700"
       >
         ×
       </button>

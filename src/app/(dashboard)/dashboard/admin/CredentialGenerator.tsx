@@ -46,7 +46,7 @@ export default function CredentialGenerator() {
         </button>
         {pw && (
           <>
-            <code className="rounded bg-neutral-100 px-2 py-1 font-mono text-xs">{pw}</code>
+            <code className="rounded-md bg-neutral-100 px-2 py-1 font-mono text-xs">{pw}</code>
             <button
               type="button"
               onClick={copy}

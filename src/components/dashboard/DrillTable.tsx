@@ -189,7 +189,7 @@ export default function DrillTable({
                 </TableCell>
                 <TableCell className="text-right">
                   {hasAnomaly && (
-                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">
+                    <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">
                       {anomalyLabel}
                     </span>
                   )}

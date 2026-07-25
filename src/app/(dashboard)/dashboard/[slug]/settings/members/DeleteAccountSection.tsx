@@ -51,7 +51,7 @@ export default function DeleteAccountSection() {
   }
 
   return (
-    <section className="rounded-lg border border-red-200 bg-red-50/40 p-4 dark:border-red-900 dark:bg-red-950/20">
+    <section className="rounded-card border border-red-200 bg-red-50/40 p-4 dark:border-red-900 dark:bg-red-950/20">
       <h2 className="text-sm font-semibold text-red-700 dark:text-red-400">
         アカウントの削除
       </h2>
@@ -75,7 +75,7 @@ export default function DeleteAccountSection() {
           onClick={close}
         >
           <div
-            className="w-full max-w-md rounded-lg border bg-background p-5 shadow-lg"
+            className="w-full max-w-md rounded-card border bg-background p-5 shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <h3

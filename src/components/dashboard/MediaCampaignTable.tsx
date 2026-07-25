@@ -157,7 +157,7 @@ export default function MediaCampaignTable({
             <span>{r.media}</span>
           ) : (
             <span
-              className={`inline-flex rounded px-2 py-0.5 text-xs ${mediaBadge(r.media)}`}
+              className={`inline-flex rounded-md px-2 py-0.5 text-xs ${mediaBadge(r.media)}`}
             >
               {r.media}
             </span>

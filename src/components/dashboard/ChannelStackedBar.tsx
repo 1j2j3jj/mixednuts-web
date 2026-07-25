@@ -166,7 +166,10 @@ export default function ChannelStackedBar({
                 key={ch}
                 dataKey={ch}
                 stackId="a"
-                fill={CHANNEL_COLOURS[ch as ChannelGroup] ?? "#ccc"}
+                fill={
+                  CHANNEL_COLOURS[ch as ChannelGroup] ??
+                  "var(--muted-foreground)"
+                }
                 stroke="var(--card)"
                 strokeWidth={2}
                 maxBarSize={24}

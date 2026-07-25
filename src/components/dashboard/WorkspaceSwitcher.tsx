@@ -26,7 +26,7 @@ function KbdHint() {
     setHint(navigator.platform.includes("Mac") ? "⌘K" : "Ctrl+K");
   }, []);
   return (
-    <span className="ml-0.5 rounded border border-neutral-200 bg-neutral-50 px-1 py-px font-mono text-[10px] text-muted-foreground">
+    <span className="ml-0.5 rounded-md border border-neutral-200 bg-neutral-50 px-1 py-px font-mono text-[10px] text-muted-foreground">
       {hint}
     </span>
   );
@@ -123,7 +123,7 @@ export default function WorkspaceSwitcher({ current, items, isAdmin }: Props) {
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-72 overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg">
+        <div className="absolute left-0 top-full z-50 mt-1 w-72 overflow-hidden rounded-card border border-neutral-200 bg-white shadow-lg">
           {/* Search input */}
           <div className="border-b border-neutral-100 px-3 py-2">
             <input
