@@ -2,6 +2,12 @@ import "server-only";
 import { google } from "googleapis";
 import { unstable_cache } from "next/cache";
 import type { ClientConfig } from "@/config/clients";
+import { clientHasEcommerce } from "@/config/clients";
+import {
+  classifyFetchError,
+  tagWarning,
+  type FetchWarnReason,
+} from "@/lib/fetch-warnings";
 
 /**
  * GA4 data source. Real implementation uses Google Analytics Data API v1beta
@@ -54,6 +60,16 @@ export interface Ga4Result<T> {
   rows: T;
   isMock: boolean;
   warnings: string[];
+  /**
+   * Machine-readable absence reason (Phase D, @/lib/absence.ts). Only set by
+   * fetchers that were fixed to stop substituting fabricated content for a
+   * genuinely empty/unavailable result (getTopProducts, getTopLandingPages —
+   * see @/lib/sources/gsc.ts's getTopGscQueries for the sibling fix). Absent
+   * (undefined) + `rows` empty means "we asked and genuinely got nothing" —
+   * the caller/UI treats that as NO_DATA_FOR_PERIOD, same bucket the report
+   * tab's own empty-state branch already uses for that case.
+   */
+  reason?: FetchWarnReason | "not_configured";
 }
 
 function mockResult<T>(rows: T): Ga4Result<T> {
@@ -183,8 +199,23 @@ function normaliseAdMedia(source: string, medium: string): string | null {
   const s = source.toLowerCase();
   if (s === "google" || s.startsWith("googleads")) return "Google";
   if (s === "bing" || s === "microsoft" || s === "msn") return "Microsoft";
-  if (s === "yahoo" || s === "yhl" || s === "yss" || s === "ydn" || s.includes("yahoo")) return "Yahoo";
-  if (s === "fb" || s === "facebook" || s === "instagram" || s === "ig" || s === "meta" || s.includes("facebook")) return "meta";
+  if (
+    s === "yahoo" ||
+    s === "yhl" ||
+    s === "yss" ||
+    s === "ydn" ||
+    s.includes("yahoo")
+  )
+    return "Yahoo";
+  if (
+    s === "fb" ||
+    s === "facebook" ||
+    s === "instagram" ||
+    s === "ig" ||
+    s === "meta" ||
+    s.includes("facebook")
+  )
+    return "meta";
   if (s === "linkedin" || s === "li") return "LinkedIn";
   if (s === "tiktok" || s.includes("tiktok")) return "TikTok";
   if (s === "line" || s.includes("line.me")) return "LINE";
@@ -255,7 +286,9 @@ const CHANNEL_NORMAL: Record<string, ChannelGroup> = {
   Unassigned: "Other",
 };
 
-function normaliseChannel(ga4ChannelName: string | undefined | null): ChannelGroup {
+function normaliseChannel(
+  ga4ChannelName: string | undefined | null,
+): ChannelGroup {
   if (!ga4ChannelName) return "Other";
   return CHANNEL_NORMAL[ga4ChannelName] ?? "Other";
 }
@@ -289,7 +322,9 @@ const SECONDARY_EVENTS: Record<string, SecondaryEventDef[]> = {
     { key: "wedding", label: "Wedding", events: ["Wedding complete"] },
   ], // DOZO
 };
-const DEFAULT_SECONDARY: SecondaryEventDef[] = [{ key: "member", label: "会員登録", events: ["sign_up"] }];
+const DEFAULT_SECONDARY: SecondaryEventDef[] = [
+  { key: "member", label: "会員登録", events: ["sign_up"] },
+];
 
 function secondaryEventsFor(propertyId: string): SecondaryEventDef[] {
   return SECONDARY_EVENTS[propertyId] ?? DEFAULT_SECONDARY;
@@ -303,7 +338,10 @@ function allSecondaryEventNames(propertyId: string): string[] {
 }
 
 /** Reverse lookup: GA4 eventName → the toggle key it belongs to. */
-function secondaryKeyForEventName(propertyId: string, eventName: string): string | null {
+function secondaryKeyForEventName(
+  propertyId: string,
+  eventName: string,
+): string | null {
   for (const def of secondaryEventsFor(propertyId)) {
     if (def.events.includes(eventName)) return def.key;
   }
@@ -311,7 +349,9 @@ function secondaryKeyForEventName(propertyId: string, eventName: string): string
 }
 
 /** チャートのトグル定義一覧（page 側から参照）。 */
-export function ga4SecondaryEventDefs(client: ClientConfig): SecondaryEventDef[] {
+export function ga4SecondaryEventDefs(
+  client: ClientConfig,
+): SecondaryEventDef[] {
   return secondaryEventsFor(client.ga4PropertyId ?? "");
 }
 
@@ -334,7 +374,11 @@ async function realChannels(propertyId: string): Promise<ChannelMonth[]> {
       auth,
       requestBody: {
         dateRanges: [{ startDate: "730daysAgo", endDate: "today" }],
-        dimensions: [{ name: "yearMonth" }, { name: "sessionDefaultChannelGroup" }, { name: "newVsReturning" }],
+        dimensions: [
+          { name: "yearMonth" },
+          { name: "sessionDefaultChannelGroup" },
+          { name: "newVsReturning" },
+        ],
         metrics: [
           { name: "sessions" },
           { name: "ecommercePurchases" },
@@ -352,7 +396,11 @@ async function realChannels(propertyId: string): Promise<ChannelMonth[]> {
       auth,
       requestBody: {
         dateRanges: [{ startDate: "730daysAgo", endDate: "today" }],
-        dimensions: [{ name: "yearMonth" }, { name: "sessionDefaultChannelGroup" }, { name: "eventName" }],
+        dimensions: [
+          { name: "yearMonth" },
+          { name: "sessionDefaultChannelGroup" },
+          { name: "eventName" },
+        ],
         metrics: [{ name: "eventCount" }],
         dimensionFilter: {
           filter: {
@@ -373,7 +421,8 @@ async function realChannels(propertyId: string): Promise<ChannelMonth[]> {
     if (!secondaryKey) continue;
     const key = `${ym}|${ch}`;
     const bucket = secondaryMap.get(key) ?? {};
-    bucket[secondaryKey] = (bucket[secondaryKey] ?? 0) + Number(r.metricValues?.[0]?.value ?? 0);
+    bucket[secondaryKey] =
+      (bucket[secondaryKey] ?? 0) + Number(r.metricValues?.[0]?.value ?? 0);
     secondaryMap.set(key, bucket);
   }
 
@@ -403,10 +452,15 @@ async function realChannels(propertyId: string): Promise<ChannelMonth[]> {
     else if (newVsRet === "returning") cur.returningUsers += sessions;
     map.set(key, cur);
   }
-  return Array.from(map.values()).sort((a, b) => a.yearMonth.localeCompare(b.yearMonth));
+  return Array.from(map.values()).sort((a, b) =>
+    a.yearMonth.localeCompare(b.yearMonth),
+  );
 }
 
-async function realDevices(propertyId: string, anchor: string): Promise<DeviceTotals[]> {
+async function realDevices(
+  propertyId: string,
+  anchor: string,
+): Promise<DeviceTotals[]> {
   const auth = makeAuth();
   if (!auth) throw new Error("no-ga4-auth");
   const ym = anchor.slice(0, 7); // yyyy-mm
@@ -459,7 +513,10 @@ function defaultPeriod(): Period {
   return { start: `${DEFAULT_PERIOD_DAYS}daysAgo`, end: "today" };
 }
 
-async function realLandingPages(propertyId: string, period: Period): Promise<LandingPageRow[]> {
+async function realLandingPages(
+  propertyId: string,
+  period: Period,
+): Promise<LandingPageRow[]> {
   const auth = makeAuth();
   if (!auth) throw new Error("no-ga4-auth");
   const analyticsdata = google.analyticsdata("v1beta");
@@ -513,7 +570,10 @@ export interface ProductsResult {
   revenueUnreliable: boolean;
 }
 
-async function realProducts(propertyId: string, period: Period): Promise<ProductsResult> {
+async function realProducts(
+  propertyId: string,
+  period: Period,
+): Promise<ProductsResult> {
   const auth = makeAuth();
   if (!auth) throw new Error("no-ga4-auth");
   const analyticsdata = google.analyticsdata("v1beta");
@@ -527,11 +587,12 @@ async function realProducts(propertyId: string, period: Period): Promise<Product
       auth,
       requestBody: {
         dateRanges: [{ startDate: period.start, endDate: period.end }],
-        dimensions: [{ name: "itemName" }, { name: "itemId" }, { name: "transactionId" }],
-        metrics: [
-          { name: "itemsPurchased" },
-          { name: "itemRevenue" },
+        dimensions: [
+          { name: "itemName" },
+          { name: "itemId" },
+          { name: "transactionId" },
         ],
+        metrics: [{ name: "itemsPurchased" }, { name: "itemRevenue" }],
         limit: "100000",
       },
     }),
@@ -558,13 +619,17 @@ async function realProducts(propertyId: string, period: Period): Promise<Product
       },
     }),
   ]);
-  const txnRevenue = Number(txnRes.data.rows?.[0]?.metricValues?.[0]?.value ?? 0);
+  const txnRevenue = Number(
+    txnRes.data.rows?.[0]?.metricValues?.[0]?.value ?? 0,
+  );
   const txRevenueMap = new Map<string, number>();
   for (const r of txRevRes.data.rows ?? []) {
     const tx = r.dimensionValues?.[0]?.value ?? "";
-    if (tx && tx !== "(not set)") txRevenueMap.set(tx, Number(r.metricValues?.[0]?.value ?? 0));
+    if (tx && tx !== "(not set)")
+      txRevenueMap.set(tx, Number(r.metricValues?.[0]?.value ?? 0));
   }
-  const truncated = Number(res.data.rowCount ?? 0) > (res.data.rows?.length ?? 0);
+  const truncated =
+    Number(res.data.rowCount ?? 0) > (res.data.rows?.length ?? 0);
 
   // 汚染注文の除外（注文まるごと）: 1個あたり単価 > ¥10万、または単一注文内の
   // 商品売上 > ¥1,000万 の行を含む注文は、壊れた purchase イベント由来とみなし
@@ -572,17 +637,30 @@ async function realProducts(propertyId: string, period: Period): Promise<Product
   const hasRealTxId = (v: string) => !!v && v !== "(not set)";
   const isPolluted = (units: number, revenue: number) => {
     const impliedUnitPrice = units > 0 ? revenue / units : 0;
-    return impliedUnitPrice > PRODUCT_UNIT_PRICE_POLLUTION_THRESHOLD || revenue > PRODUCT_TX_REVENUE_POLLUTION_THRESHOLD;
+    return (
+      impliedUnitPrice > PRODUCT_UNIT_PRICE_POLLUTION_THRESHOLD ||
+      revenue > PRODUCT_TX_REVENUE_POLLUTION_THRESHOLD
+    );
   };
   const pollutedTxIds = new Set<string>();
   for (const r of res.data.rows ?? []) {
     const txId = r.dimensionValues?.[2]?.value ?? "";
     const conversions = Number(r.metricValues?.[0]?.value ?? 0);
     const revenue = Number(r.metricValues?.[1]?.value ?? 0);
-    if (hasRealTxId(txId) && isPolluted(conversions, revenue)) pollutedTxIds.add(txId);
+    if (hasRealTxId(txId) && isPolluted(conversions, revenue))
+      pollutedTxIds.add(txId);
   }
   let droppedTx = 0;
-  const byItem = new Map<string, { productName: string; sku: string; tx: Set<string>; conversions: number; revenue: number }>();
+  const byItem = new Map<
+    string,
+    {
+      productName: string;
+      sku: string;
+      tx: Set<string>;
+      conversions: number;
+      revenue: number;
+    }
+  >();
   for (const r of res.data.rows ?? []) {
     const productName = r.dimensionValues?.[0]?.value ?? "";
     const sku = r.dimensionValues?.[1]?.value ?? "";
@@ -590,12 +668,21 @@ async function realProducts(propertyId: string, period: Period): Promise<Product
     const conversions = Number(r.metricValues?.[0]?.value ?? 0);
     const revenue = Number(r.metricValues?.[1]?.value ?? 0);
     // 汚染注文の全行、または txId 不明かつ行単体で汚染判定の行を落とす。
-    if ((hasRealTxId(txId) && pollutedTxIds.has(txId)) || (!hasRealTxId(txId) && isPolluted(conversions, revenue))) {
+    if (
+      (hasRealTxId(txId) && pollutedTxIds.has(txId)) ||
+      (!hasRealTxId(txId) && isPolluted(conversions, revenue))
+    ) {
       droppedTx += 1;
       continue;
     }
     const key = `${sku}|${productName}`;
-    const cur = byItem.get(key) ?? { productName, sku, tx: new Set<string>(), conversions: 0, revenue: 0 };
+    const cur = byItem.get(key) ?? {
+      productName,
+      sku,
+      tx: new Set<string>(),
+      conversions: 0,
+      revenue: 0,
+    };
     // "(not set)" は注文IDとして数えない（orderCount は実IDのユニーク数のみ）。
     if (hasRealTxId(txId)) cur.tx.add(txId);
     cur.conversions += conversions;
@@ -609,13 +696,20 @@ async function realProducts(propertyId: string, period: Period): Promise<Product
   //  - 汚染残存（HS実測10.3x）→ 注文ベースGA売上（その商品を含む注文の
   //    purchaseRevenue合計）へフォールバック。複数商品注文は各商品行に
   //    注文全額を計上（按分しない）ため列合計はサイト全体と一致しない。
-  const itemScopeTotal = Array.from(byItem.values()).reduce((acc, r) => acc + r.revenue, 0);
+  const itemScopeTotal = Array.from(byItem.values()).reduce(
+    (acc, r) => acc + r.revenue,
+    0,
+  );
   const itemScopePolluted = txnRevenue > 0 && itemScopeTotal > txnRevenue * 3;
   const revenueBasis: "item" | "order" = itemScopePolluted ? "order" : "item";
   const all = Array.from(byItem.values()).map((r) => {
-    const revenue = revenueBasis === "order"
-      ? Array.from(r.tx).reduce((acc, tx) => acc + (txRevenueMap.get(tx) ?? 0), 0)
-      : r.revenue;
+    const revenue =
+      revenueBasis === "order"
+        ? Array.from(r.tx).reduce(
+            (acc, tx) => acc + (txRevenueMap.get(tx) ?? 0),
+            0,
+          )
+        : r.revenue;
     return {
       productName: r.productName,
       sku: r.sku,
@@ -632,10 +726,14 @@ async function realProducts(propertyId: string, period: Period): Promise<Product
   let dataQualityNote: string | null = null;
   const notes: string[] = [];
   if (pollutedTxIds.size > 0 || droppedTx > 0) {
-    notes.push(`GA4 item計測の異常注文（単価>¥10万/個 または 1注文¥1,000万超）を${pollutedTxIds.size}注文（明細${droppedTx}行）除外済み`);
+    notes.push(
+      `GA4 item計測の異常注文（単価>¥10万/個 または 1注文¥1,000万超）を${pollutedTxIds.size}注文（明細${droppedTx}行）除外済み`,
+    );
   }
   if (itemScopePolluted) {
-    notes.push(`item計測の汚染が残存（合計がサイト全体売上の${Math.round(itemScopeTotal / txnRevenue)}倍）のため、売上は注文ベース（商品を含む注文のGA売上合計）で表示中。「点数」は過大の可能性 — 根本対処はサイト側purchaseイベント実装の修正`);
+    notes.push(
+      `item計測の汚染が残存（合計がサイト全体売上の${Math.round(itemScopeTotal / txnRevenue)}倍）のため、売上は注文ベース（商品を含む注文のGA売上合計）で表示中。「点数」は過大の可能性 — 根本対処はサイト側purchaseイベント実装の修正`,
+    );
   }
   if (notes.length) dataQualityNote = notes.join(" / ");
   if (truncated) {
@@ -648,11 +746,16 @@ async function realProducts(propertyId: string, period: Period): Promise<Product
  *  with the computed matchKey for JOIN with the ads sheet. */
 function ga4DateToIso(v: string): string {
   // GA4 `date` dimension returns "20260331" format.
-  if (/^\d{8}$/.test(v)) return `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6, 8)}`;
+  if (/^\d{8}$/.test(v))
+    return `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6, 8)}`;
   return v;
 }
 
-async function realPaidCampaigns(propertyId: string, startDate: string, endDate: string): Promise<Ga4CampaignRow[]> {
+async function realPaidCampaigns(
+  propertyId: string,
+  startDate: string,
+  endDate: string,
+): Promise<Ga4CampaignRow[]> {
   const auth = makeAuth();
   if (!auth) throw new Error("no-ga4-auth");
   const analyticsdata = google.analyticsdata("v1beta");
@@ -701,7 +804,11 @@ async function realPaidCampaigns(propertyId: string, startDate: string, endDate:
   return out;
 }
 
-async function realGoogleAdgroups(propertyId: string, startDate: string, endDate: string): Promise<Ga4AdgroupRow[]> {
+async function realGoogleAdgroups(
+  propertyId: string,
+  startDate: string,
+  endDate: string,
+): Promise<Ga4AdgroupRow[]> {
   const auth = makeAuth();
   if (!auth) throw new Error("no-ga4-auth");
   const analyticsdata = google.analyticsdata("v1beta");
@@ -749,7 +856,9 @@ async function realGoogleAdgroups(propertyId: string, startDate: string, endDate
 
 /* ---------------------- public (cached) API ---------------------- */
 
-export async function getGa4MonthlyChannels(client: ClientConfig): Promise<Ga4Result<ChannelMonth[]>> {
+export async function getGa4MonthlyChannels(
+  client: ClientConfig,
+): Promise<Ga4Result<ChannelMonth[]>> {
   if (!client.ga4PropertyId) return mockResult(mockChannels());
   const pid = client.ga4PropertyId;
   return unstable_cache(
@@ -762,11 +871,14 @@ export async function getGa4MonthlyChannels(client: ClientConfig): Promise<Ga4Re
       }
     },
     [`ga4-channels-${pid}`],
-    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] }
+    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] },
   )();
 }
 
-export async function getDeviceTotals(client: ClientConfig, anchor: string): Promise<Ga4Result<DeviceTotals[]>> {
+export async function getDeviceTotals(
+  client: ClientConfig,
+  anchor: string,
+): Promise<Ga4Result<DeviceTotals[]>> {
   if (!client.ga4PropertyId) return mockResult(mockDevices(anchor));
   const pid = client.ga4PropertyId;
   return unstable_cache(
@@ -779,28 +891,43 @@ export async function getDeviceTotals(client: ClientConfig, anchor: string): Pro
       }
     },
     [`ga4-device-${pid}-${anchor.slice(0, 7)}`],
-    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] }
+    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] },
   )();
 }
 
 export async function getTopLandingPages(
   client: ClientConfig,
-  period?: Period
+  period?: Period,
 ): Promise<Ga4Result<LandingPageRow[]>> {
   const p = period ?? defaultPeriod();
-  if (!client.ga4PropertyId) return mockResult(mockLandingPages());
+  // Mock leak fix (Phase D): a client with no ga4PropertyId, or whose real
+  // fetch fails, used to fall back to `mockLandingPages()` — a fixed,
+  // fabricated path list (same anti-pattern as gsc.ts's mockQueries leak).
+  // Return the honest empty result + a machine-readable reason instead; the
+  // UI (LandingPageTable / insights page) renders the shared AbsenceNotice.
+  if (!client.ga4PropertyId)
+    return { rows: [], isMock: false, warnings: [], reason: "not_configured" };
   const pid = client.ga4PropertyId;
   return unstable_cache(
     async (): Promise<Ga4Result<LandingPageRow[]>> => {
       try {
+        // A real, successful call returning zero rows is a genuine measured
+        // empty result for this period — not a cue to substitute fabricated
+        // rows.
         return realResult(await realLandingPages(pid, p));
       } catch (err) {
-        console.error("[ga4] lp fetch failed, using mock:", err);
-        return mockResult(mockLandingPages());
+        console.error("[ga4] lp fetch failed:", err);
+        const reason = classifyFetchError(err);
+        return {
+          rows: [],
+          isMock: false,
+          warnings: [tagWarning(reason, String(err))],
+          reason,
+        };
       }
     },
     [`ga4-lp-${pid}-${p.start}-${p.end}`],
-    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] }
+    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] },
   )();
 }
 
@@ -831,7 +958,11 @@ async function realDailyChannels(propertyId: string): Promise<ChannelDay[]> {
       auth,
       requestBody: {
         dateRanges: [{ startDate: "90daysAgo", endDate: "today" }],
-        dimensions: [{ name: "date" }, { name: "sessionDefaultChannelGroup" }, { name: "eventName" }],
+        dimensions: [
+          { name: "date" },
+          { name: "sessionDefaultChannelGroup" },
+          { name: "eventName" },
+        ],
         metrics: [{ name: "eventCount" }],
         dimensionFilter: {
           filter: {
@@ -852,7 +983,8 @@ async function realDailyChannels(propertyId: string): Promise<ChannelDay[]> {
     if (!secondaryKey) continue;
     const key = `${date}|${ch}`;
     const bucket = secondaryMap.get(key) ?? {};
-    bucket[secondaryKey] = (bucket[secondaryKey] ?? 0) + Number(r.metricValues?.[0]?.value ?? 0);
+    bucket[secondaryKey] =
+      (bucket[secondaryKey] ?? 0) + Number(r.metricValues?.[0]?.value ?? 0);
     secondaryMap.set(key, bucket);
   }
   const out: ChannelDay[] = [];
@@ -871,7 +1003,9 @@ async function realDailyChannels(propertyId: string): Promise<ChannelDay[]> {
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export async function getGa4DailyChannels(client: ClientConfig): Promise<Ga4Result<ChannelDay[]>> {
+export async function getGa4DailyChannels(
+  client: ClientConfig,
+): Promise<Ga4Result<ChannelDay[]>> {
   if (!client.ga4PropertyId) return mockResult(mockDailyChannels());
   const pid = client.ga4PropertyId;
   return unstable_cache(
@@ -884,14 +1018,14 @@ export async function getGa4DailyChannels(client: ClientConfig): Promise<Ga4Resu
       }
     },
     [`ga4-daily-channels-${pid}`],
-    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] }
+    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] },
   )();
 }
 
 export async function getGa4PaidCampaigns(
   client: ClientConfig,
   startDate: string,
-  endDate: string
+  endDate: string,
 ): Promise<Ga4Result<Ga4CampaignRow[]>> {
   if (!client.ga4PropertyId) return { rows: [], isMock: false, warnings: [] };
   const pid = client.ga4PropertyId;
@@ -905,14 +1039,14 @@ export async function getGa4PaidCampaigns(
       }
     },
     [`ga4-paid-${pid}-${startDate}-${endDate}`],
-    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] }
+    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] },
   )();
 }
 
 export async function getGa4GoogleAdgroups(
   client: ClientConfig,
   startDate: string,
-  endDate: string
+  endDate: string,
 ): Promise<Ga4Result<Ga4AdgroupRow[]>> {
   if (!client.ga4PropertyId) return { rows: [], isMock: false, warnings: [] };
   const pid = client.ga4PropertyId;
@@ -926,39 +1060,86 @@ export async function getGa4GoogleAdgroups(
       }
     },
     [`ga4-adg-${pid}-${startDate}-${endDate}`],
-    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] }
+    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] },
   )();
 }
 
 export async function getTopProducts(
   client: ClientConfig,
-  period?: Period
+  period?: Period,
 ): Promise<Ga4Result<ProductsResult>> {
   const p = period ?? defaultPeriod();
-  const mockFallback = (): ProductsResult => ({ rows: mockProducts(), dataQualityNote: null, revenueUnreliable: false, revenueBasis: "item" as const });
-  if (!client.ga4PropertyId) return mockResult(mockFallback());
+  // Mock leak fix (Phase D, ledger "mockLeaks"): this used to fall back to
+  // `mockFallback()` (a fixed, fabricated promotional-goods catalog — HS's
+  // real product taxonomy) whenever a client's GA4 property had no e-commerce
+  // item tagging (chakin: a life-insurance company with no e-commerce at
+  // all — the physically-impossible invented products the survey found) or
+  // whenever no ga4PropertyId was configured, or on any fetch error. Removed:
+  // return the honest empty result + a machine-readable reason; the UI
+  // (ProductRanking / insights page) renders the shared AbsenceNotice
+  // instead of an invented catalog.
+  const emptyProducts = (): ProductsResult => ({
+    rows: [],
+    dataQualityNote: null,
+    revenueUnreliable: false,
+    revenueBasis: "item" as const,
+  });
+  // Phase D item 1: the check above (missing ga4PropertyId) never actually
+  // catches chakin — chakin HAS a ga4PropertyId, it just has no e-commerce
+  // "items" events because its business is life-insurance leads, not
+  // product sales. Without this check, a real (successful) GA4 fetch
+  // returning zero rows for chakin was indistinguishable from a genuinely
+  // quiet period for an e-commerce client, so the UI told chakin to widen
+  // its date range — advice that can never resolve a permanent, structural
+  // absence. Checked before the ga4PropertyId branch since it's the more
+  // specific/fundamental reason when both would apply.
+  if (!clientHasEcommerce(client))
+    return {
+      rows: emptyProducts(),
+      isMock: false,
+      warnings: [],
+      reason: "not_configured",
+    };
+  if (!client.ga4PropertyId)
+    return {
+      rows: emptyProducts(),
+      isMock: false,
+      warnings: [],
+      reason: "not_configured",
+    };
   const pid = client.ga4PropertyId;
   return unstable_cache(
     async (): Promise<Ga4Result<ProductsResult>> => {
       try {
         const result = await realProducts(pid, p);
-        // If GA4 items API returns nothing (no e-commerce tagging), fall back
-        // so the dashboard isn't empty-looking.
-        return result.rows.length > 0 ? realResult(result) : mockResult(mockFallback());
+        // A real, successful call returning zero rows (no e-commerce item
+        // tagging, or genuinely zero purchases this period) is a measured
+        // empty result — not a cue to substitute a fabricated catalog.
+        return realResult(result);
       } catch (err) {
-        console.error("[ga4] products fetch failed, using mock:", err);
-        return mockResult(mockFallback());
+        console.error("[ga4] products fetch failed:", err);
+        const reason = classifyFetchError(err);
+        return {
+          rows: emptyProducts(),
+          isMock: false,
+          warnings: [tagWarning(reason, String(err))],
+          reason,
+        };
       }
     },
     [`ga4-products-${pid}-${p.start}-${p.end}`],
-    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] }
+    { revalidate: CACHE_TTL_SECONDS, tags: [`ga4-${pid}`] },
   )();
 }
 
 /* ---------------------- totals helper ---------------------- */
 
 export function ga4Totals(rows: ChannelMonth[]): Ga4Totals {
-  let sessions = 0, conversions = 0, revenue = 0, newUsers = 0, returningUsers = 0;
+  let sessions = 0,
+    conversions = 0,
+    revenue = 0,
+    newUsers = 0,
+    returningUsers = 0;
   for (const r of rows) {
     sessions += r.sessions;
     conversions += r.conversions;
@@ -975,12 +1156,20 @@ export function ga4Totals(rows: ChannelMonth[]): Ga4Totals {
   };
 }
 
-export function filterByMonth(rows: ChannelMonth[], yearMonth: string): ChannelMonth[] {
+export function filterByMonth(
+  rows: ChannelMonth[],
+  yearMonth: string,
+): ChannelMonth[] {
   return rows.filter((r) => r.yearMonth === yearMonth);
 }
 
 export function latestYearMonth(rows: ChannelMonth[]): string {
-  return rows.map((r) => r.yearMonth).sort().slice(-1)[0] ?? "";
+  return (
+    rows
+      .map((r) => r.yearMonth)
+      .sort()
+      .slice(-1)[0] ?? ""
+  );
 }
 
 export function yoyYearMonth(yearMonth: string): string {
@@ -1024,11 +1213,35 @@ function mockChannels(): ChannelMonth[] {
     const seasonal = 1 + Math.sin((d.getUTCMonth() / 12) * Math.PI * 2) * 0.25;
     for (const ch of CHANNELS) {
       const base =
-        { "Paid Search": 22000, "Paid Social": 9000, "Organic Search": 35000, Direct: 18000, Referral: 6000, Email: 4500, Other: 1500 }[ch] ?? 0;
+        {
+          "Paid Search": 22000,
+          "Paid Social": 9000,
+          "Organic Search": 35000,
+          Direct: 18000,
+          Referral: 6000,
+          Email: 4500,
+          Other: 1500,
+        }[ch] ?? 0;
       const cvRate =
-        { "Paid Search": 0.028, "Paid Social": 0.012, "Organic Search": 0.018, Direct: 0.022, Referral: 0.015, Email: 0.04, Other: 0.005 }[ch] ?? 0;
+        {
+          "Paid Search": 0.028,
+          "Paid Social": 0.012,
+          "Organic Search": 0.018,
+          Direct: 0.022,
+          Referral: 0.015,
+          Email: 0.04,
+          Other: 0.005,
+        }[ch] ?? 0;
       const rpc =
-        { "Paid Search": 5800, "Paid Social": 3200, "Organic Search": 6200, Direct: 9000, Referral: 4800, Email: 11000, Other: 2000 }[ch] ?? 0;
+        {
+          "Paid Search": 5800,
+          "Paid Social": 3200,
+          "Organic Search": 6200,
+          Direct: 9000,
+          Referral: 4800,
+          Email: 11000,
+          Other: 2000,
+        }[ch] ?? 0;
       const jitter = 0.85 + Math.abs(seeded(m * 31 + ch.length)) * 0.3;
       const sessions = Math.round(base * seasonal * jitter);
       const conversions = Math.round(sessions * cvRate);
@@ -1044,7 +1257,12 @@ function mockChannels(): ChannelMonth[] {
         // half for others. Keyed generically as "member" — mocks are only
         // used when no ga4PropertyId is configured, so the per-client
         // SecondaryEventDef key list is unavailable here.
-        secondary: { member: Math.round(sessions * (ch === "Paid Search" || ch === "Paid Social" ? 0.02 : 0.01)) },
+        secondary: {
+          member: Math.round(
+            sessions *
+              (ch === "Paid Search" || ch === "Paid Social" ? 0.02 : 0.01),
+          ),
+        },
         newUsers: Math.round(sessions * newRatio),
         returningUsers: Math.round(sessions * (1 - newRatio)),
       });
@@ -1065,11 +1283,35 @@ function mockDailyChannels(): ChannelDay[] {
     const weekMod = dayOfWeek === 0 || dayOfWeek === 6 ? 0.8 : 1.0;
     for (const ch of CHANNELS) {
       const base =
-        { "Paid Search": 730, "Paid Social": 300, "Organic Search": 1180, Direct: 600, Referral: 200, Email: 150, Other: 50 }[ch] ?? 0;
+        {
+          "Paid Search": 730,
+          "Paid Social": 300,
+          "Organic Search": 1180,
+          Direct: 600,
+          Referral: 200,
+          Email: 150,
+          Other: 50,
+        }[ch] ?? 0;
       const cvRate =
-        { "Paid Search": 0.028, "Paid Social": 0.012, "Organic Search": 0.018, Direct: 0.022, Referral: 0.015, Email: 0.04, Other: 0.005 }[ch] ?? 0;
+        {
+          "Paid Search": 0.028,
+          "Paid Social": 0.012,
+          "Organic Search": 0.018,
+          Direct: 0.022,
+          Referral: 0.015,
+          Email: 0.04,
+          Other: 0.005,
+        }[ch] ?? 0;
       const rpc =
-        { "Paid Search": 5800, "Paid Social": 3200, "Organic Search": 6200, Direct: 9000, Referral: 4800, Email: 11000, Other: 2000 }[ch] ?? 0;
+        {
+          "Paid Search": 5800,
+          "Paid Social": 3200,
+          "Organic Search": 6200,
+          Direct: 9000,
+          Referral: 4800,
+          Email: 11000,
+          Other: 2000,
+        }[ch] ?? 0;
       const jitter = 0.85 + Math.abs(seeded(d * 13 + ch.length)) * 0.3;
       const sessions = Math.round(base * weekMod * jitter);
       const conversions = Math.round(sessions * cvRate);
@@ -1080,7 +1322,12 @@ function mockDailyChannels(): ChannelDay[] {
         sessions,
         conversions,
         revenue,
-        secondary: { member: Math.round(sessions * (ch === "Paid Search" || ch === "Paid Social" ? 0.02 : 0.01)) },
+        secondary: {
+          member: Math.round(
+            sessions *
+              (ch === "Paid Search" || ch === "Paid Social" ? 0.02 : 0.01),
+          ),
+        },
       });
     }
   }
@@ -1095,7 +1342,7 @@ function mockDevices(anchor: string): DeviceTotals[] {
       conversions: s.conversions + r.conversions,
       revenue: s.revenue + r.revenue,
     }),
-    { sessions: 0, conversions: 0, revenue: 0 }
+    { sessions: 0, conversions: 0, revenue: 0 },
   );
   const split: Array<[Device, number, number, number]> = [
     ["mobile", 0.63, 0.85, 0.9],
@@ -1110,49 +1357,9 @@ function mockDevices(anchor: string): DeviceTotals[] {
   }));
 }
 
-function mockLandingPages(): LandingPageRow[] {
-  const base: Array<[string, number, number]> = [
-    ["/", 18500, 0.012],
-    ["/category/tumbler", 12000, 0.028],
-    ["/category/bag", 9800, 0.024],
-    ["/category/tshirt", 8200, 0.019],
-    ["/novelty", 7100, 0.034],
-    ["/exhibition", 4600, 0.042],
-    ["/detail/8481", 3200, 0.018],
-    ["/detail/2191", 2800, 0.001],
-    ["/blog/novelty-2026", 2100, 0.006],
-    ["/guide/printing", 1600, 0.009],
-  ];
-  return base.map(([path, sessions, cvRate]) => {
-    const cv = Math.round(sessions * cvRate);
-    return { path, sessions, conversions: cv, revenue: Math.round(cv * 6500) };
-  });
-}
-
-function mockProducts(): ProductRow[] {
-  const base: Array<[string, string, number, number]> = [
-    ["オリジナル タンブラー 300ml", "TBL-300-01", 182, 8200],
-    ["エコバッグ A4", "BAG-A4-CT", 156, 4125],
-    ["防災7点セット", "EMG-07-STD", 98, 32000],
-    ["クリアファイル A4", "CLF-A4-PP", 240, 980],
-    ["モバイルバッテリー 5000mAh", "MBT-5000-01", 71, 4800],
-    ["オリジナル Tシャツ 綿100%", "TST-CT100", 64, 2400],
-    ["ボールペン 3色", "BPN-3CL", 310, 350],
-    ["キャンバスバッグ M", "BAG-CV-M", 88, 2980],
-    ["ブランケット フリース", "BLK-FL-01", 42, 5500],
-    ["折りたたみ傘", "UMB-FLD-01", 55, 2200],
-  ];
-  return base.map(([productName, sku, cv, unitPrice]) => {
-    const orderCount = Math.max(1, Math.round(cv / 4));
-    const revenue = cv * unitPrice;
-    return {
-      productName,
-      sku,
-      orderCount,
-      conversions: cv,
-      revenue,
-      unitPrice,
-      perOrder: Math.round(revenue / orderCount),
-    };
-  });
-}
+// mockLandingPages()/mockProducts() removed (Phase D mock-leak fix): they
+// fabricated a fixed promotional-goods catalog (HS's real category/product
+// taxonomy) that was being presented to OTHER clients — including chakin, a
+// life-insurance company with no e-commerce at all — as if it were their own
+// real data. getTopLandingPages/getTopProducts above now return an honest
+// empty result + a machine-readable reason instead. See @/lib/absence.ts.

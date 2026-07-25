@@ -11,6 +11,8 @@ import {
   YAxis,
 } from "recharts";
 import ChartTooltip from "@/components/dashboard/ChartTooltip";
+import AbsenceNotice from "@/components/dashboard/AbsenceNotice";
+import type { AbsenceReason, NoDataPeriodDetail } from "@/lib/absence";
 
 interface Point {
   yearMonth: string;
@@ -20,9 +22,29 @@ interface Point {
 
 interface Props {
   data: Point[];
+  /** Phase D sweep (item 2): `data` empty used to render an empty Recharts
+   *  canvas with no message — same A-21 failure mode ChannelStackedBar was
+   *  already fixed for. Caller can pass a reason to distinguish
+   *  not-configured/unavailable from a true empty result; defaults to the
+   *  generic "no data" copy. */
+  absenceReason?: AbsenceReason;
+  absenceDetail?: NoDataPeriodDetail;
 }
 
-export default function NewVsRepeatChart({ data }: Props) {
+export default function NewVsRepeatChart({
+  data,
+  absenceReason,
+  absenceDetail,
+}: Props) {
+  if (data.length === 0) {
+    return (
+      <AbsenceNotice
+        reason={absenceReason ?? "no_data_period"}
+        detail={absenceDetail}
+        className="h-56"
+      />
+    );
+  }
   return (
     <div className="h-56 w-full">
       <ResponsiveContainer width="100%" height="100%">

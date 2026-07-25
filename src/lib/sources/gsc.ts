@@ -4,6 +4,7 @@ import { unstable_cache } from "next/cache";
 import type { ClientConfig } from "@/config/clients";
 import type { Ga4Result, Period } from "@/lib/sources/ga4";
 import type { OAuth2Client, GoogleAuth } from "google-auth-library";
+import { classifyFetchError, tagWarning } from "@/lib/fetch-warnings";
 
 /**
  * GSC source. Follows the SA → OAuth fallback rule defined in
@@ -98,7 +99,11 @@ function makeOAuth(): OAuth2Client | null {
 
 function isPermissionError(err: unknown): boolean {
   if (!err || typeof err !== "object") return false;
-  const e = err as { code?: number; status?: number; response?: { status?: number } };
+  const e = err as {
+    code?: number;
+    status?: number;
+    response?: { status?: number };
+  };
   const code = e.code ?? e.status ?? e.response?.status;
   return code === 401 || code === 403 || code === 404;
 }
@@ -107,14 +112,19 @@ function isPermissionError(err: unknown): boolean {
  * Runs a GSC API call with SA first, falling back to OAuth on permission
  * errors. Throws if both fail — callers catch and revert to mock.
  */
-async function withAuthFallback<T>(run: (auth: AuthLike) => Promise<T>): Promise<T> {
+async function withAuthFallback<T>(
+  run: (auth: AuthLike) => Promise<T>,
+): Promise<T> {
   const sa = makeSaAuth();
   if (sa) {
     try {
       return await run(sa);
     } catch (err) {
       if (!isPermissionError(err)) throw err;
-      console.warn("[gsc] SA denied, trying OAuth fallback:", (err as Error).message);
+      console.warn(
+        "[gsc] SA denied, trying OAuth fallback:",
+        (err as Error).message,
+      );
     }
   }
   const oauth = makeOAuth();
@@ -146,7 +156,7 @@ async function realMonthly(siteUrl: string): Promise<GscMonth[]> {
         dimensions: ["date"],
         rowLimit: 25000,
       },
-    })
+    }),
   );
   const map = new Map<string, GscMonth>();
   for (const r of res.data.rows ?? []) {
@@ -164,10 +174,15 @@ async function realMonthly(siteUrl: string): Promise<GscMonth[]> {
     // Simple running average weighted by impressions.
     const pos = Number(r.position ?? 0);
     const imp = Number(r.impressions ?? 0);
-    cur.avgPosition = cur.impressions > 0 ? (cur.avgPosition + pos * imp) / cur.impressions : pos;
+    cur.avgPosition =
+      cur.impressions > 0
+        ? (cur.avgPosition + pos * imp) / cur.impressions
+        : pos;
     map.set(ym, cur);
   }
-  return Array.from(map.values()).sort((a, b) => a.yearMonth.localeCompare(b.yearMonth));
+  return Array.from(map.values()).sort((a, b) =>
+    a.yearMonth.localeCompare(b.yearMonth),
+  );
 }
 
 /** Default GSC query-report window (matches the previous hardcoded 28-day
@@ -177,7 +192,10 @@ function defaultGscPeriod(): Period {
   return { start: isoDaysAgo(28), end: isoDaysAgo(1) };
 }
 
-async function realQueries(siteUrl: string, period: Period): Promise<GscQueryRow[]> {
+async function realQueries(
+  siteUrl: string,
+  period: Period,
+): Promise<GscQueryRow[]> {
   const sc = google.searchconsole("v1");
   const res = await withAuthFallback((auth) =>
     sc.searchanalytics.query({
@@ -191,7 +209,7 @@ async function realQueries(siteUrl: string, period: Period): Promise<GscQueryRow
         dimensions: ["query"],
         rowLimit: 50,
       },
-    })
+    }),
   );
   return (res.data.rows ?? []).map((r) => ({
     query: r.keys?.[0] ?? "",
@@ -215,31 +233,56 @@ export async function getGscMonthly(client: ClientConfig): Promise<GscMonth[]> {
       }
     },
     [`gsc-monthly-${site}`],
-    { revalidate: CACHE_TTL_SECONDS, tags: [`gsc-${site}`] }
+    { revalidate: CACHE_TTL_SECONDS, tags: [`gsc-${site}`] },
   )();
 }
 
+/**
+ * Mock-leak fix (Phase D, ledger "mockLeaks" — CONFIRMED live cross-client
+ * brand leakage). This used to fall back to `mockQueries()`, a single fixed
+ * dataset shared by EVERY client whose GSC fetch was unavailable for ANY
+ * reason — including a row that is literally client `hs`'s real brand name
+ * (client `hs`'s actual company/brand name) and real product taxonomy,
+ * which was rendering inside
+ * chakin / msec / dōzo's authenticated dashboards. Also: a REAL, successful
+ * call that genuinely returned 0 rows (a plausible outcome, e.g. a brand-new
+ * or very-low-traffic site over a short window) was being silently swapped
+ * for the same fabricated dataset — collapsing a genuine measured zero into
+ * "produce fake data".
+ *
+ * Fixed: never substitute another dataset. Not configured / permission /
+ * fetch-failure all resolve to an honest empty result + a machine-readable
+ * `reason` (see @/lib/absence.ts); a real empty result stays empty with no
+ * reason (the caller's UI renders that as NO_DATA_FOR_PERIOD, same bucket
+ * the report tab's own empty-state branch already uses for "we asked and got
+ * nothing").
+ */
 export async function getTopGscQueries(
   client: ClientConfig,
-  period?: Period
+  period?: Period,
 ): Promise<Ga4Result<GscQueryRow[]>> {
   const p = period ?? defaultGscPeriod();
-  if (!client.gscSiteUrl) return { rows: mockQueries(), isMock: true, warnings: [] };
+  if (!client.gscSiteUrl)
+    return { rows: [], isMock: false, warnings: [], reason: "not_configured" };
   const site = client.gscSiteUrl;
   return unstable_cache(
     async (): Promise<Ga4Result<GscQueryRow[]>> => {
       try {
         const rows = await realQueries(site, p);
-        return rows.length > 0
-          ? { rows, isMock: false, warnings: [] }
-          : { rows: mockQueries(), isMock: true, warnings: [] };
+        return { rows, isMock: false, warnings: [] };
       } catch (err) {
-        console.error("[gsc] queries fetch failed, using mock:", err);
-        return { rows: mockQueries(), isMock: true, warnings: [] };
+        console.error("[gsc] queries fetch failed:", err);
+        const reason = classifyFetchError(err);
+        return {
+          rows: [],
+          isMock: false,
+          warnings: [tagWarning(reason, String(err))],
+          reason,
+        };
       }
     },
     [`gsc-queries-${site}-${p.start}-${p.end}`],
-    { revalidate: CACHE_TTL_SECONDS, tags: [`gsc-${site}`] }
+    { revalidate: CACHE_TTL_SECONDS, tags: [`gsc-${site}`] },
   )();
 }
 
@@ -263,24 +306,9 @@ function mockMonthly(): GscMonth[] {
   return rows;
 }
 
-function mockQueries(): GscQueryRow[] {
-  const base: Array<[string, number, number, number]> = [
-    ["ノベルティ 小ロット", 8200, 142_000, 3.2],
-    ["オリジナル タンブラー", 6100, 98_000, 4.1],
-    ["販促品 オーダーメイド", 4800, 71_000, 2.8],
-    ["展示会 配布品", 4200, 62_000, 3.5],
-    ["エコバッグ オリジナル", 3900, 54_000, 4.7],
-    ["ノベルティ 2026", 3400, 48_000, 2.1],
-    ["販促スタイル", 3100, 4_200, 1.0],
-    ["記念品 オリジナル", 2600, 41_000, 5.2],
-    ["粗品 印刷", 2100, 34_000, 6.4],
-    ["景品 小ロット", 1900, 29_000, 5.9],
-  ];
-  return base.map(([query, clicks, impressions, position]) => ({
-    query,
-    clicks,
-    impressions,
-    ctr: clicks / impressions,
-    position,
-  }));
-}
+// mockQueries() removed (Phase D mock-leak fix — see getTopGscQueries doc
+// above). It fabricated a fixed dataset that included client `hs`'s real
+// company/brand name and real product taxonomy, shared across every client
+// whose own GSC fetch was unavailable. getTopGscQueries now returns an
+// honest empty result + a machine-readable reason instead. See
+// @/lib/absence.ts.

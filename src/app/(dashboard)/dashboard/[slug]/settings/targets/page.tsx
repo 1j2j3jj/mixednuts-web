@@ -70,8 +70,12 @@ export default async function TenantTargetsPage({ params }: PageProps) {
   const client = await assertUserCanAccessClientBySlug(slug);
 
   // 編集者以上のみ入場（閲覧者はダッシュボードへ戻す）。
+  // Phase D item 8: previously a silent, unexplained redirect — the
+  // destination now carries `?denied=targets` so Overview can render why the
+  // navigation didn't land here (see PermissionDeniedNotice in
+  // dashboard/[slug]/page.tsx).
   const orgRole = await getViewerOrgRole(slug);
-  if (!canInviteMembers(orgRole)) redirect(`/dashboard/${slug}`);
+  if (!canInviteMembers(orgRole)) redirect(`/dashboard/${slug}?denied=targets`);
 
   // 現状の目標（このクライアントのみ・long 形式）。BQ 未接続時は notFound で保護。
   let rows: TargetLongRow[];

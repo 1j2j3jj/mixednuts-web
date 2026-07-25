@@ -40,6 +40,9 @@ import FirstRunGuide from "@/components/dashboard/FirstRunGuide";
 import PageHeader from "@/components/dashboard/PageHeader";
 import ShareBar from "@/components/dashboard/ShareBar";
 import StatusChip from "@/components/dashboard/StatusChip";
+import AbsenceNotice from "@/components/dashboard/AbsenceNotice";
+import AbsenceTableRow from "@/components/dashboard/AbsenceTableRow";
+import { permissionDeniedCopy } from "@/lib/absence";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -572,6 +575,31 @@ export default async function Overview({
   // mock dates would make the freshness judgment meaningless anyway).
   const adMaxDate = anyMock ? null : (adDates[adDates.length - 1] ?? null);
 
+  // Page-level "period has no data" statement (A-21 fix, item 4): both the
+  // ad-side and GA4-side row sets for the SELECTED range are empty — e.g. a
+  // custom date range before this client's data starts. Previously the
+  // client had to infer this from zeros scattered across 5 KPI cards; state
+  // it once, plainly, above the fold. Not shown on mock data (MockBanner
+  // already covers that) or when there's at least some real data for the
+  // period (a genuine measured zero on one metric is not this state).
+  const periodEmpty = !anyMock && adCur.length === 0 && gaCurRows.length === 0;
+  // Earliest date this client's data is actually known to start, so the
+  // banner can offer a concrete next step ("try from {date}") instead of a
+  // vague "pick another period" — adDates is already sorted ascending across
+  // the client's FULL ad history (not just the selected range).
+  const earliestAdDate = adDates[0];
+  const earliestGa4Month = ga4[0]?.yearMonth;
+  const sinceDate =
+    earliestAdDate ?? (earliestGa4Month ? `${earliestGa4Month}-01` : undefined);
+
+  // Item 8: viewer role hitting an editor-only settings surface used to be a
+  // silent, unexplained redirect back here (settings/targets, /members). The
+  // redirect now carries `?denied=targets|members` so the landing page can
+  // state what happened instead of leaving the client to wonder why their
+  // click/link did nothing.
+  const denied =
+    sp.denied === "targets" || sp.denied === "members" ? sp.denied : null;
+
   return (
     <div className="space-y-6">
       {/* C2-a: banners + page header + pacing alert are one tight cluster
@@ -582,6 +610,7 @@ export default async function Overview({
       <div className="space-y-3">
         <MockBanner isMock={anyMock} />
         <StaleDataBanner maxDate={adMaxDate} />
+        {denied && <PermissionDeniedNotice surface={denied} />}
         <FirstRunGuide />
         <PageHeader
           kicker="サマリー"
@@ -612,6 +641,16 @@ export default async function Overview({
             </>
           }
         />
+        {periodEmpty && (
+          <AbsenceNotice
+            compact
+            reason="no_data_period"
+            detail={{
+              periodLabel: `${rr.current.start} 〜 ${rr.current.end}`,
+              sinceDate,
+            }}
+          />
+        )}
         {source === "eccube" && hasEccube && (
           <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
             表示値: ECCUBE 購入実績（shop DB 直接）。データ開始日:
@@ -805,6 +844,7 @@ export default async function Overview({
             data={ga4Last12Months}
             defaultMetric="sessions"
             secondaryDefs={ga4SecondaryEventDefs(client)}
+            absenceReason={client.ga4PropertyId ? undefined : "not_configured"}
           />
         </CardContent>
       </Card>
@@ -821,6 +861,7 @@ export default async function Overview({
             defaultMetric="sessions"
             defaultGranularity="day"
             secondaryDefs={ga4SecondaryEventDefs(client)}
+            absenceReason={client.ga4PropertyId ? undefined : "not_configured"}
           />
         </CardContent>
       </Card>
@@ -832,7 +873,10 @@ export default async function Overview({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <NewVsRepeatChart data={newVsRepeat} />
+          <NewVsRepeatChart
+            data={newVsRepeat}
+            absenceReason={client.ga4PropertyId ? undefined : "not_configured"}
+          />
         </CardContent>
       </Card>
 
@@ -891,6 +935,16 @@ export default async function Overview({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {topChannels.length === 0 && (
+                    <AbsenceTableRow
+                      colSpan={6}
+                      reason="no_data_period"
+                      detail={{
+                        periodLabel: `${rr.current.start} 〜 ${rr.current.end}`,
+                        sinceDate,
+                      }}
+                    />
+                  )}
                   {topChannels.map((c) => {
                     const cvr = safeDiv(c.conversions, c.sessions);
                     return (
@@ -929,9 +983,43 @@ export default async function Overview({
             <CardTitle className="text-base">デバイス別</CardTitle>
           </CardHeader>
           <CardContent>
-            <DeviceBar rows={devices} />
+            <DeviceBar
+              rows={devices}
+              absenceReason={
+                client.ga4PropertyId ? undefined : "not_configured"
+              }
+            />
           </CardContent>
         </Card>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Item 8 fix: a viewer-role user hitting /settings/targets or
+ * /settings/members used to be silently redirected here with no
+ * explanation (settings/targets/page.tsx, settings/members/page.tsx — both
+ * already `redirect(`/dashboard/${slug}`)` on a failed `canInviteMembers`
+ * check). The redirect now carries `?denied=targets|members`; this renders
+ * the reason instead of leaving the navigation looking broken. Neutral tone
+ * (`permissionDeniedCopy`'s `tone: "neutral"`) — this is a designed access
+ * boundary, not an error.
+ */
+function PermissionDeniedNotice({
+  surface,
+}: {
+  surface: "targets" | "members";
+}) {
+  const copy = permissionDeniedCopy(surface);
+  return (
+    <div
+      role="status"
+      className="flex items-start gap-3 rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground"
+    >
+      <div>
+        <div className="font-semibold text-foreground">{copy.title}</div>
+        <div className="text-xs">{copy.body}</div>
       </div>
     </div>
   );

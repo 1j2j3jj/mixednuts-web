@@ -15,6 +15,11 @@ import ShareBar from "@/components/dashboard/ShareBar";
 import { cn, fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 import { computeShare } from "@/lib/share";
 import type { MetricSource } from "@/lib/source";
+import {
+  MATCH_STATUS_LABEL,
+  MATCH_STATUS_DESC,
+  matchBadgeClass,
+} from "@/lib/match-status";
 
 /**
  * Media × Campaign summary. Sits below the 媒体別サマリ table on the Ads
@@ -42,6 +47,10 @@ export interface MediaCampaignRow {
   conversionValue: number;
   /** GA4 purchase revenue joined. 0 if no match. */
   ga4Revenue: number;
+  /** Whether the GA4 join found a matching record for this campaign at all
+   *  (Phase D). `ga4Cv`/`ga4Revenue` stay `0` either way — see MediaRow's
+   *  identical field for the full rationale. */
+  ga4Matched?: boolean;
 }
 
 interface Props {
@@ -190,7 +199,24 @@ export default function MediaCampaignTable({
           {fmtPct(ctr, 2)}
         </TableCell>
         <TableCell className="text-right tabular-nums">{fmtJpy(cpc)}</TableCell>
-        <TableCell className="text-right tabular-nums">{fmtInt(cv)}</TableCell>
+        <TableCell className="text-right tabular-nums">
+          {/* Join-failure marker — same mechanism/vocabulary as MediaTable
+              (Phase D, reuses report tab's matched/unmapped badge). */}
+          <span className="inline-flex items-center justify-end gap-1">
+            {fmtInt(cv)}
+            {source === "ga4" && !isTotal && r.ga4Matched === false && (
+              <span
+                className={cn(
+                  "rounded px-1 py-0.5 text-xs leading-none",
+                  matchBadgeClass("unmapped"),
+                )}
+                title={MATCH_STATUS_DESC.unmapped}
+              >
+                {MATCH_STATUS_LABEL.unmapped}
+              </span>
+            )}
+          </span>
+        </TableCell>
         <TableCell className="text-right tabular-nums">
           {fmtPct(cvr, 2)}
         </TableCell>

@@ -29,8 +29,12 @@ export default async function TenantMembersPage({ params }: PageProps) {
   const client = await assertUserCanAccessClientBySlug(slug);
 
   // org内ロールで入場制御。編集者以上のみ入場（閲覧者はダッシュボードへ戻す）。
+  // Phase D item 8: previously a silent, unexplained redirect — the
+  // destination now carries `?denied=members` so Overview can render why the
+  // navigation didn't land here (see PermissionDeniedNotice in
+  // dashboard/[slug]/page.tsx).
   const orgRole = await getViewerOrgRole(slug);
-  if (!canInviteMembers(orgRole)) redirect(`/dashboard/${slug}`);
+  if (!canInviteMembers(orgRole)) redirect(`/dashboard/${slug}?denied=members`);
   const canInvite = true; // ここに到達できるのは編集者以上のみ
 
   let data;
