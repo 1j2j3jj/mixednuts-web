@@ -10,7 +10,13 @@ import { getBigQuery } from "@/lib/bigquery";
 import { writeAuditLog } from "@/lib/audit";
 import { fetchClientTargetsLong } from "@/lib/masters";
 import { lookupOrgRoleByEmail, canInviteMembers } from "@/lib/org-role";
-import { parseClientTargetsCsv, type UploadTargetsResult } from "./targets-schema";
+import {
+  parseClientTargetsCsv,
+  type ClientTargetRow,
+  type TargetRowError,
+  type UploadTargetsResult,
+} from "./targets-schema";
+import { parseClientTargetsMatrix } from "./targets-matrix";
 import {
   buildTargetPreviewMessage,
   buildTargetsMergeQuery,
@@ -88,7 +94,7 @@ async function assertCanEditTargets(
   const actorEmail =
     viewerKind === "admin"
       ? (adminEmails[0] ?? "admin@mixednuts-inc.com")
-      : (viewerEmail || `${slug}@client.mixednuts-inc.com`);
+      : viewerEmail || `${slug}@client.mixednuts-inc.com`;
 
   return { clientId: client.id, actorEmail };
 }
@@ -98,15 +104,34 @@ async function assertCanEditTargets(
  *
  * mode "preview" → パース + 検証 + 既存行との差分件数を返す（BQ には書かない）。
  * mode "commit"  → 単一 MERGE で明示削除 + 更新 + 挿入。CSV にないキーは温存する。
+ *
+ * format "long"（既定）→ 指標,チャネル,年月,値 の long CSV（ファイルアップロード）。
+ * format "matrix"      → スプレッドシートから貼り付けたマトリクス（新規 D5）。
+ *   パーサが違うだけで、それ以降（既存行取得・差分計算・プレビュー文言組立・
+ *   MERGE 実行・監査ログ）は 1 行も分岐しない — 両経路で完全に共有する。
  */
 export async function uploadClientTargets(
   slug: string,
-  csv: string,
+  text: string,
   mode: "preview" | "commit",
+  format: "long" | "matrix" = "long",
 ): Promise<UploadTargetsResult> {
   try {
     const { clientId, actorEmail } = await assertCanEditTargets(slug);
-    const { rows, errors } = parseClientTargetsCsv(csv);
+    let rows: ClientTargetRow[];
+    let errors: TargetRowError[];
+    let interpretation: string | undefined;
+    if (format === "matrix") {
+      const parsed = parseClientTargetsMatrix(text);
+      rows = parsed.rows;
+      errors = parsed.errors;
+      interpretation = parsed.interpretation;
+    } else {
+      const parsed = parseClientTargetsCsv(text);
+      rows = parsed.rows;
+      errors = parsed.errors;
+      interpretation = undefined;
+    }
 
     if (errors.length > 0) {
       return {
@@ -125,6 +150,7 @@ export async function uploadClientTargets(
         message: buildTargetPreviewMessage(preview),
         count: rows.length,
         preview,
+        interpretation,
       };
     }
 
@@ -175,6 +201,7 @@ export async function uploadClientTargets(
       message: `保存しました — ${buildTargetPreviewMessage(preview)}`,
       count: rows.length,
       preview,
+      interpretation,
     };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : String(e) };

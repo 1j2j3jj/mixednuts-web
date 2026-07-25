@@ -16,7 +16,12 @@ import { parseCsv } from "@/lib/master-csv";
  * テンプレ / アップロード CSV のヘッダ（client_id 列・kind 列は含めない）。
  * 実シートの「目標/実績」kind 列は自己アップロードでは持たせず、常に目標として扱う。
  */
-export const CLIENT_TARGETS_HEADER = ["指標", "チャネル", "年月", "値"] as const;
+export const CLIENT_TARGETS_HEADER = [
+  "指標",
+  "チャネル",
+  "年月",
+  "値",
+] as const;
 
 /**
  * 指標の推奨 enum。CEO シート準拠の 4 指標。UI 案内・テンプレ用であって、
@@ -57,10 +62,21 @@ export interface UploadTargetsResult {
   count?: number;
   preview?: import("./targets-write").TargetPreviewStats;
   rowErrors?: TargetRowError[];
+  /**
+   * マトリクス貼り付け経路のみ: パーサが読み取った軸・チャネル構成の要約
+   * （例:「検出: 年月=列 / 指標=行 / チャネル=organic, direct（2ブロック）/ 24件」）。
+   * 軸/チャネルブロックは推測で決まるため、確定前にユーザーが目視確認できる
+   * ようにする（サイレントな軸誤読で数値だけ違う結果になる事故を防ぐ）。
+   */
+  interpretation?: string;
 }
 
-/** 1 セルを数値化（カンマ / ¥ 除去、空 → null）。 */
-function parseNum(
+/**
+ * 1 セルを数値化（カンマ / ¥ 除去、空 → null）。
+ * targets-matrix.ts（マトリクス貼り付けパーサ）とセル単位の数値検証ルールを
+ * 共有するためエクスポートする（数値ルールの再実装を避ける）。
+ */
+export function parseNum(
   raw: string | undefined,
 ): { ok: true; value: number | null } | { ok: false } {
   const t = (raw ?? "").trim();
@@ -70,14 +86,41 @@ function parseNum(
   return { ok: true, value: n };
 }
 
-/** 年月ラベルを 'YYYY-MM-01' に正規化。認識できなければ "" を返す。 */
-function normaliseYm(raw: string): string {
+/**
+ * 年月ラベルを 'YYYY-MM-01' に正規化。認識できなければ "" を返す。
+ * targets-matrix.ts の軸検出（1行目/1列目が年月かどうかの判定）でも同じ
+ * ルールを使う必要があるためエクスポートする。
+ */
+export function normaliseYm(raw: string): string {
   const s = raw.trim();
   const md = s.match(YM_DASH_RE);
   if (md) return `${md[1]}-${md[2]}-01`;
   const ms = s.match(YM_SLASH_RE);
   if (ms) return `${ms[1]}-${ms[2]}-01`;
   return "";
+}
+
+/**
+ * (指標, チャネル, 年月) の一意性チェック用の共有ヘルパー。
+ * long-CSV パーサとマトリクス貼り付けパーサの両方が同じ重複判定ロジックを
+ * 使う（コピペでなく共有）。重複していなければ `seen` に登録して null を返す。
+ * 重複していればエラーメッセージを返す（seen は変更しない）。
+ */
+export function checkDuplicateTargetKey(
+  seen: Map<string, number>,
+  metric: string,
+  channel: string,
+  yearMonth: string,
+  yearMonthLabel: string,
+  lineNo: number,
+): string | null {
+  const key = `${metric}\u0000${channel}\u0000${yearMonth}`;
+  const prev = seen.get(key);
+  if (prev != null) {
+    return `(指標,チャネル,年月) が重複（${metric}/${channel}/${yearMonthLabel}）— ${prev} 行目と同一`;
+  }
+  seen.set(key, lineNo);
+  return null;
 }
 
 /**
@@ -176,15 +219,15 @@ export function parseClientTargetsCsv(text: string): {
 
     // 行一意性（指標・チャネル・年月がすべて有効なときのみ）
     if (metric !== "" && channel !== "" && yearMonth !== "") {
-      const key = `${metric}\u0000${channel}\u0000${yearMonth}`;
-      const prev = seen.get(key);
-      if (prev != null) {
-        rowErrors.push(
-          `(指標,チャネル,年月) が重複（${metric}/${channel}/${ymRaw}）— ${prev} 行目と同一`,
-        );
-      } else {
-        seen.set(key, lineNo);
-      }
+      const dupError = checkDuplicateTargetKey(
+        seen,
+        metric,
+        channel,
+        yearMonth,
+        ymRaw,
+        lineNo,
+      );
+      if (dupError) rowErrors.push(dupError);
     }
 
     if (rowErrors.length > 0) {
