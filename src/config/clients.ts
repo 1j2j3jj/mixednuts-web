@@ -60,6 +60,21 @@ export interface ClientConfig {
   /** GSC site URL (including trailing slash for URL-prefix properties). */
   gscSiteUrl?: string | null;
   currency: "JPY";
+  /**
+   * Whether this client can ever have monthly targets uploaded. Defaults to
+   * `true` (most clients just haven't uploaded THIS month's targets yet —
+   * that's the normal, temporary "未設定" empty state). Set `false` only
+   * for a client who structurally has no target-setting workflow (C3-f /
+   * A-18 follow-up: MSEC has no targets at all, permanently, not a data
+   * gap) — the Overview goal section is skipped entirely for them instead
+   * of showing a permanent dashed "目標未設定" box pointing at a settings
+   * screen they'll never use. There is no other signal in the data model
+   * that distinguishes "will never have targets" from "hasn't uploaded this
+   * month's yet" (both resolve to the same all-null MonthlyTargets — see
+   * src/lib/sources/target.ts), so this flag is the smallest addition that
+   * makes the distinction explicit rather than guessed.
+   */
+  hasTargets?: boolean;
 }
 
 export const INTERNAL_ADMIN_USER_IDS: string[] = [
@@ -175,6 +190,10 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
     // fall back to mock data (see src/lib/sources/gsc.ts error handler).
     gscSiteUrl: "sc-domain:markless.jp",
     currency: "JPY",
+    // C3-f: MSEC has no target-setting workflow at all (permanent, not a
+    // data gap) — Overview skips the goal section entirely instead of a
+    // permanent empty-state box. See ClientConfig.hasTargets doc.
+    hasTargets: false,
   },
   ogc: {
     id: "ogc",
@@ -229,4 +248,18 @@ export function getClientBySlug(slug: string): ClientConfig | null {
     if (CLIENTS[id].slug === slug) return CLIENTS[id];
   }
   return null;
+}
+
+/**
+ * C3-f (defect A-18 follow-up): whether a client's dashboard should render
+ * the Overview goal section at all — `false` only for a client who
+ * structurally has no target-setting workflow (see ClientConfig.hasTargets
+ * doc). Defaults to `true` (unset/undefined) so every existing client keeps
+ * today's behaviour (dashed empty-state box when this month's targets
+ * haven't been uploaded yet) unless explicitly opted out.
+ */
+export function clientHasTargets(
+  client: Pick<ClientConfig, "hasTargets">,
+): boolean {
+  return client.hasTargets !== false;
 }

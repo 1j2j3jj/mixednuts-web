@@ -1,4 +1,5 @@
 import { assertUserCanAccessClientBySlug } from "@/lib/access";
+import { clientHasTargets } from "@/config/clients";
 import { getDailyRows } from "@/lib/sources/raw";
 import {
   getGa4MonthlyChannels,
@@ -583,15 +584,16 @@ export default async function Overview({
         <StaleDataBanner maxDate={adMaxDate} />
         <FirstRunGuide />
         <PageHeader
-          kicker="Overview"
-          title={rr.presetLabel}
+          kicker="サマリー"
+          title={<>サマリー · {rr.presetLabel}</>}
           subtitle={
             <>
               {rr.current.start} 〜 {rr.current.end}
               {rr.previous && (
-                <span className="ml-2">
-                  · {rr.compareLabel}: {rr.previous.start} 〜 {rr.previous.end}
-                </span>
+                <>
+                  {" · "}
+                  {rr.compareLabel}: {rr.previous.start} 〜 {rr.previous.end}
+                </>
               )}
             </>
           }
@@ -615,10 +617,11 @@ export default async function Overview({
             表示値: ECCUBE 購入実績（shop DB 直接）。データ開始日:
             <span className="ml-1 font-mono">{eccube.rows[0].date}</span>
             {rr.current.start < eccube.rows[0].date && (
-              <span className="ml-2">
-                · この期間の一部は ECCUBE データ未取得のため売上・CV
+              <>
+                {" · "}
+                この期間の一部は ECCUBE データ未取得のため売上・CV
                 が過小表示されている可能性あり。
-              </span>
+              </>
             )}
           </div>
         )}
@@ -750,13 +753,14 @@ export default async function Overview({
       </div>
 
       {showGoals &&
+        clientHasTargets(client) &&
         (tgt.revenue != null ||
         tgt.conversions != null ||
         tgt.adSpendBudget != null ? (
           <div className="grid gap-5 sm:grid-cols-3">
             {tgt.revenue != null && (
               <GoalGauge
-                label="Revenue 達成"
+                label="売上達成"
                 actual={fmtJpy(effectiveRev)}
                 target={fmtJpy(tgt.revenue)}
                 ratio={effectiveRev / (tgt.revenue || 1)}
@@ -792,8 +796,8 @@ export default async function Overview({
             月次チャネル別（GA4 · 過去12ヶ月・参考）
           </CardTitle>
           <div className="mt-1 text-xs text-muted-foreground">
-            チャネル別内訳は GA4 のみ。売上・CV は GA4 `purchaseRevenue` /
-            `ecommercePurchases`（上の表示値トグルには非連動）
+            チャネル別内訳は GA4
+            のみで集計しています。売上・CVは常にGA4の購入実績を使用しており、上部の表示値トグルの選択には連動しません。
           </div>
         </CardHeader>
         <CardContent>
@@ -879,10 +883,10 @@ export default async function Overview({
                 <TableHeader>
                   <TableRow>
                     <TableHead>チャネル</TableHead>
-                    <TableHead className="text-right">Sessions</TableHead>
+                    <TableHead className="text-right">SESSION</TableHead>
                     <TableHead className="text-right">CV</TableHead>
                     <TableHead className="text-right">CVR</TableHead>
-                    <TableHead className="text-right">Revenue</TableHead>
+                    <TableHead className="text-right">売上</TableHead>
                     <TableHead className="text-right">売上比</TableHead>
                   </TableRow>
                 </TableHeader>

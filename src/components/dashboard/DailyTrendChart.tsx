@@ -70,7 +70,7 @@ export default function DailyTrendChart({ data }: Props) {
                 valueFormatter={(value, name) => {
                   const num = typeof value === "number" ? value : Number(value);
                   if (!Number.isFinite(num)) return String(value ?? "—");
-                  if (name === "Spend" || name.includes("CPA")) {
+                  if (name === "COST" || name.includes("CPA")) {
                     return `¥${Math.round(num).toLocaleString()}`;
                   }
                   return Math.round(num).toLocaleString();
@@ -86,7 +86,7 @@ export default function DailyTrendChart({ data }: Props) {
           <Bar
             yAxisId="left"
             dataKey="cost"
-            name="Spend"
+            name="COST"
             fill="var(--chart-1)"
             fillOpacity={0.35}
             radius={[2, 2, 0, 0]}

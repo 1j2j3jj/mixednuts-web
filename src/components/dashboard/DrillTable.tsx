@@ -1,4 +1,11 @@
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { detectAnomalies } from "@/lib/analysis";
 import type { MetricSource } from "@/lib/source";
 import { cn, fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
@@ -72,9 +79,14 @@ export default function DrillTable({
   // targetCpa props when targetsByMonth has no entry for that month (e.g.
   // level="bucket" rows, whose date is the raw bucket key, not necessarily
   // "YYYY-MM"-prefixed in a way targetsByMonth was populated for).
-  function targetsForRow(row: DrillRow): { roasPct: number | null; cpa: number | null } {
+  function targetsForRow(row: DrillRow): {
+    roasPct: number | null;
+    cpa: number | null;
+  } {
     const ym = row.date.slice(0, 7);
-    return targetsByMonth?.get(ym) ?? { roasPct: targetRoasPct, cpa: targetCpa };
+    return (
+      targetsByMonth?.get(ym) ?? { roasPct: targetRoasPct, cpa: targetCpa }
+    );
   }
 
   // Primary sort: date desc (latest first). Secondary: spend desc.
@@ -88,13 +100,20 @@ export default function DrillTable({
   const spendFlags = detectAnomalies(sorted.map((r) => r.spend));
   // CV flags use the currently-selected source's CV for consistency.
   const cvFlags = detectAnomalies(
-    sorted.map((r) => (source === "ga4" ? r.ga4Conversions ?? 0 : r.conversions))
+    sorted.map((r) =>
+      source === "ga4" ? (r.ga4Conversions ?? 0) : r.conversions,
+    ),
   );
 
   const showLabel = level === "campaign" || level === "adgroup";
-  const labelHeader = level === "campaign" ? "キャンペーン" : level === "adgroup" ? "広告グループ" : "";
-  const cvLabel = source === "ga4" ? "GA4 CV" : "媒体CV";
-  const revLabel = source === "ga4" ? "GA4 売上" : "媒体売上";
+  const labelHeader =
+    level === "campaign"
+      ? "キャンペーン"
+      : level === "adgroup"
+        ? "広告グループ"
+        : "";
+  const cvLabel = source === "ga4" ? "GA_CV" : "媒体CV";
+  const revLabel = source === "ga4" ? "GA売上" : "媒体売上";
   const colSpan = (showLabel ? 1 : 0) + 11;
 
   return (
@@ -105,7 +124,7 @@ export default function DrillTable({
             <TableHead>期間</TableHead>
             <TableHead>媒体</TableHead>
             {showLabel && <TableHead>{labelHeader}</TableHead>}
-            <TableHead className="text-right">Spend</TableHead>
+            <TableHead className="text-right">COST</TableHead>
             <TableHead className="text-right">Imp</TableHead>
             <TableHead className="text-right">Click</TableHead>
             <TableHead className="text-right">CTR</TableHead>
@@ -119,15 +138,20 @@ export default function DrillTable({
         <TableBody>
           {sorted.length === 0 && (
             <TableRow>
-              <TableCell colSpan={colSpan} className="text-center text-muted-foreground py-6">
+              <TableCell
+                colSpan={colSpan}
+                className="text-center text-muted-foreground py-6"
+              >
                 フィルタに合致するデータがありません
               </TableCell>
             </TableRow>
           )}
           {sorted.map((r, i) => {
             const ctr = safeDiv(r.clicks, r.impressions);
-            const cv = source === "ga4" ? r.ga4Conversions ?? 0 : r.conversions;
-            const rev = source === "ga4" ? r.ga4Revenue ?? 0 : r.conversionValue;
+            const cv =
+              source === "ga4" ? (r.ga4Conversions ?? 0) : r.conversions;
+            const rev =
+              source === "ga4" ? (r.ga4Revenue ?? 0) : r.conversionValue;
             const cpa = safeDiv(r.spend, cv);
             const roasPct = r.spend > 0 ? (rev / r.spend) * 100 : null;
             const rowTargets = targetsForRow(r);
@@ -136,18 +160,20 @@ export default function DrillTable({
             const hasAnomaly = spendFlag !== "normal" || cvFlag !== "normal";
             const anomalyLabel =
               spendFlag !== "normal" && cvFlag !== "normal"
-                ? "Spend+CV"
+                ? "COST+CV"
                 : spendFlag !== "normal"
-                ? "Spend"
-                : cvFlag !== "normal"
-                ? "CV"
-                : "";
+                  ? "COST"
+                  : cvFlag !== "normal"
+                    ? "CV"
+                    : "";
             return (
               <TableRow
                 key={`${r.date}:${r.key}:${i}`}
                 className={cn(hasAnomaly && "bg-amber-50/60")}
               >
-                <TableCell className="whitespace-nowrap font-mono text-xs">{r.date || "—"}</TableCell>
+                <TableCell className="whitespace-nowrap font-mono text-xs">
+                  {r.date || "—"}
+                </TableCell>
                 <TableCell>{r.media}</TableCell>
                 {showLabel && (
                   <TableCell className="font-medium">
@@ -155,7 +181,9 @@ export default function DrillTable({
                       {r.key}
                     </div>
                     {r.subKey && (
-                      <div className="text-[10px] font-mono text-muted-foreground">{r.subKey}</div>
+                      <div className="text-[10px] font-mono text-muted-foreground">
+                        {r.subKey}
+                      </div>
                     )}
                   </TableCell>
                 )}
@@ -163,28 +191,46 @@ export default function DrillTable({
                   className={cn(
                     "text-right tabular-nums",
                     spendFlag === "high" && "text-amber-700",
-                    spendFlag === "low" && "text-sky-700"
+                    spendFlag === "low" && "text-sky-700",
                   )}
                 >
                   {fmtJpy(r.spend)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">{fmtInt(r.impressions)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtInt(r.clicks)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtPct(ctr, 2)}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtInt(r.impressions)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtInt(r.clicks)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtPct(ctr, 2)}
+                </TableCell>
                 <TableCell
                   className={cn(
                     "text-right tabular-nums",
                     cvFlag === "high" && "text-emerald-700",
-                    cvFlag === "low" && "text-rose-700"
+                    cvFlag === "low" && "text-rose-700",
                   )}
                 >
                   {fmtInt(cv)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">{fmtJpy(rev)}</TableCell>
-                <TableCell className={cn("text-right tabular-nums", cpaClass(cpa, rowTargets.cpa))}>
+                <TableCell className="text-right tabular-nums">
+                  {fmtJpy(rev)}
+                </TableCell>
+                <TableCell
+                  className={cn(
+                    "text-right tabular-nums",
+                    cpaClass(cpa, rowTargets.cpa),
+                  )}
+                >
                   {fmtJpy(cpa)}
                 </TableCell>
-                <TableCell className={cn("text-right tabular-nums", roasClass(roasPct, rowTargets.roasPct))}>
+                <TableCell
+                  className={cn(
+                    "text-right tabular-nums",
+                    roasClass(roasPct, rowTargets.roasPct),
+                  )}
+                >
                   {fmtRatioPct(roasPct, 0)}
                 </TableCell>
                 <TableCell className="text-right">
@@ -200,7 +246,8 @@ export default function DrillTable({
         </TableBody>
       </Table>
       <div className="border-t bg-muted/20 p-2 text-[11px] text-muted-foreground">
-        異常 = ±2σ を超える行（Spend または CV 方向）。検出目安であって判定ではない。
+        異常 = ±2σ を超える行（COST または CV
+        方向）。検出目安であって判定ではない。
       </div>
     </div>
   );

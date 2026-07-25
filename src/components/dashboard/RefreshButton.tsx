@@ -35,7 +35,7 @@ export default function RefreshButton({ clientId }: Props) {
         variant="outline"
         onClick={onClick}
         disabled={isPending}
-        aria-label="Refresh"
+        aria-label="更新"
         className="transition-colors hover:border-brand hover:text-brand-ink"
       >
         <RefreshCw className={isPending ? "animate-spin" : ""} />

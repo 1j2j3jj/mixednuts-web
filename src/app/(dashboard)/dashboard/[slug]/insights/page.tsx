@@ -61,7 +61,7 @@ export default async function InsightsScreen({
     ],
   );
   const {
-    rows: { rows: products, revenueUnreliable, revenueBasis },
+    rows: { rows: products, revenueUnreliable, revenueBasis, dataQualityNote },
   } = productsResult;
   const { rows: landingPages } = landingPagesResult;
   const { rows: queries } = queriesResult;
@@ -78,6 +78,16 @@ export default async function InsightsScreen({
     unitPrice: p.unitPrice,
     perOrder: p.perOrder,
   }));
+  // Header text matches ProductRanking's own column headers exactly, same order.
+  const productCsvHeaders = [
+    "商品",
+    "商品ID",
+    "購入件数",
+    "点数",
+    "売上",
+    "単価",
+    "1件あたり",
+  ];
   const landingCsv = landingPages.map((r) => ({
     path: r.path,
     sessions: r.sessions,
@@ -85,6 +95,14 @@ export default async function InsightsScreen({
     cvr: r.sessions > 0 ? (r.conversions / r.sessions).toFixed(4) : "0",
     revenue: r.revenue,
   }));
+  // Header text matches LandingPageTable's own column headers exactly, same order.
+  const landingCsvHeaders = [
+    "ランディングページ",
+    "セッション",
+    "CV",
+    "CVR",
+    "売上",
+  ];
   const queryCsv = queries.map((r) => ({
     query: r.query,
     clicks: r.clicks,
@@ -92,6 +110,8 @@ export default async function InsightsScreen({
     ctr: r.ctr.toFixed(4),
     position: r.position.toFixed(2),
   }));
+  // Header text matches GscQueryTable's own column headers exactly, same order.
+  const queryCsvHeaders = ["検索クエリ", "クリック", "インプ", "CTR", "順位"];
 
   const periodLabel = `${period.start} 〜 ${period.end}`;
   const periodSlug = `${period.start}_${period.end}`;
@@ -101,7 +121,7 @@ export default async function InsightsScreen({
       <div className="space-y-3">
         <MockBanner isMock={anyMock} />
         <PageHeader
-          kicker="Insights"
+          kicker="商品・検索"
           title="商品・検索 詳細"
           subtitle={
             <>
@@ -120,12 +140,11 @@ export default async function InsightsScreen({
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-sm">
-            商品別売上 Top 30（GA4 items）
-          </CardTitle>
+          <CardTitle className="text-sm">商品別売上 Top 30（GA4）</CardTitle>
           <CsvExportButton
             filename={`products-${slug}-${periodSlug}.csv`}
             rows={productCsv}
+            headers={productCsvHeaders}
             label="CSV"
           />
         </CardHeader>
@@ -136,13 +155,17 @@ export default async function InsightsScreen({
             hideRevenue={revenueUnreliable}
           />
           <p className="mt-2 text-xs text-muted-foreground">
-            購入件数=その商品を含む注文数（purchase件数） / 点数=注文点数（GA4
-            itemsPurchased） /
+            購入件数=その商品を含む注文数 / 点数=商品の購入点数 /
             {revenueBasis === "order"
               ? "売上=その商品を含む注文のGA売上合計（複数商品の注文は各商品行に全額計上のため列合計はサイト全体と一致しない）"
-              : "売上=商品自身のGA売上（itemRevenue）"}{" "}
+              : "売上=商品自身のGA売上"}{" "}
             / 単価=売上÷点数 / 1件あたり=売上÷購入件数
           </p>
+          {dataQualityNote && (
+            <p className="mt-1 text-xs text-amber-800">
+              データ品質に関する注記: {dataQualityNote}
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -154,6 +177,7 @@ export default async function InsightsScreen({
           <CsvExportButton
             filename={`landing-${slug}-${periodSlug}.csv`}
             rows={landingCsv}
+            headers={landingCsvHeaders}
             label="CSV"
           />
         </CardHeader>
@@ -175,6 +199,7 @@ export default async function InsightsScreen({
           <CsvExportButton
             filename={`gsc-queries-${slug}-${periodSlug}.csv`}
             rows={queryCsv}
+            headers={queryCsvHeaders}
             label="CSV"
           />
         </CardHeader>

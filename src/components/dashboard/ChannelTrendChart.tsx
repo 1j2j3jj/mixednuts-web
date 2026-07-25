@@ -34,7 +34,7 @@ type Metric = BaseMetric | string;
 type Granularity = "day" | "week";
 
 const BASE_METRICS: Array<{ key: Metric; label: string }> = [
-  { key: "sessions", label: "Sessions" },
+  { key: "sessions", label: "SESSION" },
   { key: "conversions", label: "CV" },
   { key: "revenue", label: "売上" },
 ];
