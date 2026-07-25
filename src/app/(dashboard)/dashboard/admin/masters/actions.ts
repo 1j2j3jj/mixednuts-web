@@ -74,11 +74,19 @@ export async function uploadTargetsAction(
       return { ok: true, message: msg, preview: rows.length };
     }
 
-    const { affected } = await upsertTargets(rows, email);
+    const { affected, inserted, updated, unchanged } = await upsertTargets(
+      rows,
+      email,
+    );
     await writeAuditLog({
       actorEmail: email,
       action: "master.targets.upsert",
-      metadata: { rows_affected: affected },
+      metadata: {
+        rows_affected: affected,
+        rows_inserted: inserted,
+        rows_updated: updated,
+        rows_unchanged: unchanged,
+      },
     });
     revalidatePath("/dashboard/admin/masters/targets");
     revalidateTag("bq-targets", "default");

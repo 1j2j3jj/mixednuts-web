@@ -141,8 +141,15 @@ export async function fetchClientTargetsLong(
 export async function upsertTargets(
   rows: TargetRow[],
   uploadedBy: string,
-): Promise<{ affected: number }> {
-  if (rows.length === 0) return { affected: 0 };
+): Promise<{
+  affected: number;
+  inserted: number;
+  updated: number;
+  unchanged: number;
+}> {
+  if (rows.length === 0) {
+    return { affected: 0, inserted: 0, updated: 0, unchanged: 0 };
+  }
   const bq = getBigQuery();
   const table = `${PROJECT}.app_analytics.targets_monthly`;
 
@@ -184,7 +191,14 @@ export async function upsertTargets(
         ${using}
     ) S
     ON T.client_id = S.client_id AND T.year_month = S.year_month
-    WHEN MATCHED THEN UPDATE SET
+    WHEN MATCHED AND (
+      T.revenue_target IS DISTINCT FROM S.revenue_target OR
+      T.cv_target IS DISTINCT FROM S.cv_target OR
+      T.ad_spend_budget IS DISTINCT FROM S.ad_spend_budget OR
+      T.roas_target_pct IS DISTINCT FROM S.roas_target_pct OR
+      T.cpa_target IS DISTINCT FROM S.cpa_target OR
+      T.notes IS DISTINCT FROM S.notes
+    ) THEN UPDATE SET
       revenue_target = S.revenue_target,
       cv_target = S.cv_target,
       ad_spend_budget = S.ad_spend_budget,
@@ -211,11 +225,23 @@ export async function upsertTargets(
     types,
   });
   await job.getQueryResults();
-
-  // MERGE doesn't return per-statement row counts via getQueryResults; the
-  // number of source rows equals the number of (client_id, year_month) keys
-  // touched (CSV duplicates are rejected upstream), so it's a faithful count.
-  return { affected: rows.length };
+  let inserted = 0;
+  let updated = rows.length;
+  try {
+    const [metadata] = await job.getMetadata();
+    const dmlStats = metadata.statistics?.query?.dmlStats;
+    inserted = Number(dmlStats?.insertedRowCount ?? 0);
+    updated = Number(dmlStats?.updatedRowCount ?? rows.length);
+  } catch (error) {
+    console.warn("[masters] Could not read targets MERGE DML stats:", error);
+  }
+  const affected = inserted + updated;
+  return {
+    affected,
+    inserted,
+    updated,
+    unchanged: Math.max(0, rows.length - affected),
+  };
 }
 
 export async function replaceTargets(
