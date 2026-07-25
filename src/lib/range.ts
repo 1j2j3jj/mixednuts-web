@@ -66,6 +66,113 @@ export function rangeLength(r: DateRange): number {
   return Math.round((e - s) / 86_400_000) + 1;
 }
 
+function daysBetweenIso(earlier: string, later: string): number {
+  const a = parseIso(earlier).getTime();
+  const b = parseIso(later).getTime();
+  return Math.round((b - a) / 86_400_000);
+}
+
+/** UTC calendar date, or null if (year, monthIdx, day) overflowed into the
+ *  next month (e.g. Feb 30) — lets callers enumerate only valid dates. */
+function safeUtcIso(
+  year: number,
+  monthIdx: number,
+  day: number,
+): string | null {
+  const d = new Date(Date.UTC(year, monthIdx, day));
+  if (d.getUTCMonth() !== monthIdx) return null;
+  return toIso(d);
+}
+
+/**
+ * Exact (not approximate) worst-case lookback, in days, that
+ * `resolvePreset` + `resolveCompare` could ever need for a given
+ * preset/compare pair, for ANY possible anchor date — used only to decide
+ * whether a bounded/cached data window can safely answer a request (see
+ * raw.ts RAW_CACHE_LOOKBACK_DAYS / A-27 fix). It does NOT decide what is
+ * actually rendered; `resolveFromSearchParams(..., trueAnchor)` remains the
+ * single source of truth for that, unchanged.
+ *
+ * Presets built on calendar-month boundaries (thisMonth/lastMonth, and the
+ * addMonths() shifts in last3m/last6m/last12m/prevYear) need MORE lookback
+ * when the anchor falls near the end of a long month than near the start —
+ * so instead of guessing a single "representative" anchor, this evaluates
+ * every day-of-month across a leap year (2028, so Feb 29 is exercised) and
+ * takes the maximum. That makes the result a guaranteed upper bound for any
+ * real anchor, not a heuristic — verified by
+ * src/lib/__tests__/range.lookback.test.ts against thousands of real
+ * anchor dates.
+ *
+ * Memoized: the (preset, compare) space is small (<=24 combinations) and
+ * fixed, so this pays its brute-force cost at most once per pair per
+ * server lifetime.
+ */
+const worstCaseLookbackCache = new Map<string, number>();
+
+export function worstCaseLookbackDays(
+  preset: PresetKey,
+  compare: CompareKey,
+): number {
+  if (preset === "custom") {
+    // Custom ranges are absolute dates, not anchor-relative — callers must
+    // measure directly against `sp.start` (see neededLookbackDays below).
+    return Number.POSITIVE_INFINITY;
+  }
+  const key = `${preset}|${compare}`;
+  const cached = worstCaseLookbackCache.get(key);
+  if (cached != null) return cached;
+
+  let worst = 0;
+  for (let m = 0; m < 12; m++) {
+    for (let day = 1; day <= 31; day++) {
+      const probe = safeUtcIso(2028, m, day);
+      if (!probe) continue;
+      const cur = resolvePreset(preset, probe);
+      const prev = resolveCompare(compare, cur);
+      const earliest = prev ? prev.start : cur.start;
+      const span = daysBetweenIso(earliest, probe);
+      if (span > worst) worst = span;
+    }
+  }
+  worstCaseLookbackCache.set(key, worst);
+  return worst;
+}
+
+/**
+ * How many days before "today" a render for this (preset, compare)
+ * selection could possibly need — a safe (>=) estimate computed WITHOUT
+ * knowing the true data anchor, so it can run before any data is fetched.
+ * See `worstCaseLookbackDays` for the non-custom case; `custom` is measured
+ * directly since its bounds are absolute dates already. Used only to gate
+ * the A-27 bounded cache in raw.ts.
+ */
+export function neededLookbackDays(
+  sp: { preset?: string; cmp?: string; start?: string; end?: string },
+  defaults: { preset: PresetKey; compare: CompareKey },
+  todayIso: string,
+): number {
+  const preset = (PRESETS.find((p) => p.key === sp.preset)?.key ??
+    defaults.preset) as PresetKey;
+  const compare = (COMPARES.find((c) => c.key === sp.cmp)?.key ??
+    defaults.compare) as CompareKey;
+
+  if (preset === "custom") {
+    if (!sp.start || !sp.end) {
+      // resolvePreset's own custom fallback (missing endpoint -> last28).
+      return worstCaseLookbackDays("last28", compare);
+    }
+    const cur: DateRange = { start: sp.start, end: sp.end };
+    const prev = resolveCompare(compare, cur);
+    const earliest = prev ? prev.start : cur.start;
+    // `todayIso` is always >= the true anchor (data can't be from the
+    // future), so measuring against it can only overestimate, never
+    // underestimate, the true lookback need.
+    return daysBetweenIso(earliest, todayIso);
+  }
+
+  return worstCaseLookbackDays(preset, compare);
+}
+
 export function presetLabel(p: PresetKey): string {
   return PRESETS.find((x) => x.key === p)?.label ?? p;
 }
@@ -76,7 +183,11 @@ export function compareLabel(c: CompareKey): string {
 /** Resolve a preset into a concrete DateRange anchored at `anchor` (the
  *  latest data date). End is inclusive. For "custom" the caller must
  *  provide explicit start/end via the custom override. */
-export function resolvePreset(preset: PresetKey, anchor: string, custom?: DateRange): DateRange {
+export function resolvePreset(
+  preset: PresetKey,
+  anchor: string,
+  custom?: DateRange,
+): DateRange {
   switch (preset) {
     case "last7":
       return { start: addDays(anchor, -6), end: anchor };
@@ -102,7 +213,10 @@ export function resolvePreset(preset: PresetKey, anchor: string, custom?: DateRa
 }
 
 /** Resolve a comparison window relative to `cur`. */
-export function resolveCompare(compare: CompareKey, cur: DateRange): DateRange | null {
+export function resolveCompare(
+  compare: CompareKey,
+  cur: DateRange,
+): DateRange | null {
   if (compare === "none") return null;
   if (compare === "prev") {
     const len = rangeLength(cur);
@@ -130,12 +244,16 @@ export interface ResolvedRange {
 export function resolveFromSearchParams(
   sp: { preset?: string; cmp?: string; start?: string; end?: string },
   defaults: { preset: PresetKey; compare: CompareKey },
-  anchor: string
+  anchor: string,
 ): ResolvedRange {
-  const preset = (PRESETS.find((p) => p.key === sp.preset)?.key ?? defaults.preset) as PresetKey;
-  const compare = (COMPARES.find((c) => c.key === sp.cmp)?.key ?? defaults.compare) as CompareKey;
+  const preset = (PRESETS.find((p) => p.key === sp.preset)?.key ??
+    defaults.preset) as PresetKey;
+  const compare = (COMPARES.find((c) => c.key === sp.cmp)?.key ??
+    defaults.compare) as CompareKey;
   const custom =
-    preset === "custom" && sp.start && sp.end ? { start: sp.start, end: sp.end } : undefined;
+    preset === "custom" && sp.start && sp.end
+      ? { start: sp.start, end: sp.end }
+      : undefined;
   const current = resolvePreset(preset, anchor, custom);
   const previous = resolveCompare(compare, current);
   return {

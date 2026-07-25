@@ -40,7 +40,10 @@ export const dynamic = "force-dynamic";
 // BQ/GA4/Sheets fetches on cold cache — 監査#11). Within Hobby/Pro limits.
 export const maxDuration = 60;
 
-function bucketKey(date: string, granularity: "day" | "week" | "month"): string {
+function bucketKey(
+  date: string,
+  granularity: "day" | "week" | "month",
+): string {
   if (granularity === "day") return date;
   if (granularity === "month") return date.slice(0, 7);
   const d = new Date(`${date}T00:00:00Z`);
@@ -56,16 +59,25 @@ interface JoinKeys {
   /** Keyed "<identifier>|<bucket>" → per-bucket GA4 totals. The identifier
    *  depends on level: media name (for media level), campaign id (for
    *  campaign level), ADG id (for adgroup level). */
-  mediaByBucket: Map<string, { sessions: number; conversions: number; revenue: number }>;
-  campaignByBucket: Map<string, { sessions: number; conversions: number; revenue: number }>;
-  adgroupByBucket: Map<string, { sessions: number; conversions: number; revenue: number }>;
+  mediaByBucket: Map<
+    string,
+    { sessions: number; conversions: number; revenue: number }
+  >;
+  campaignByBucket: Map<
+    string,
+    { sessions: number; conversions: number; revenue: number }
+  >;
+  adgroupByBucket: Map<
+    string,
+    { sessions: number; conversions: number; revenue: number }
+  >;
 }
 
 function aggregate(
   rows: DailyRow[],
   granularity: "day" | "week" | "month",
   level: Level,
-  join: JoinKeys
+  join: JoinKeys,
 ): DrillRow[] {
   const map = new Map<string, DrillRow>();
   for (const r of rows) {
@@ -108,7 +120,8 @@ function aggregate(
   // Attach per-bucket GA4 totals. Key = "<identifier>|<bucket>" so the
   // JOIN is both by-identity and by-date — no more repeated window totals.
   for (const row of map.values()) {
-    let hit: { sessions: number; conversions: number; revenue: number } | undefined;
+    let hit:
+      { sessions: number; conversions: number; revenue: number } | undefined;
     if (level === "media") {
       hit = join.mediaByBucket.get(`${row.media}|${row.date}`);
     } else if (level === "campaign" && row.subKey) {
@@ -137,11 +150,19 @@ export default async function DrillScreen({
   const source = readSource(sp);
   const client = await assertUserCanAccessClientBySlug(slug);
 
-  const { rows, fetchedAt, isMock } = await getDailyRows(client);
+  const { rows, fetchedAt, isMock } = await getDailyRows(client, sp);
 
-  const allDates = rows.map((r) => r.date).filter(Boolean).sort();
-  const anchor = allDates[allDates.length - 1] ?? new Date().toISOString().slice(0, 10);
-  const rr = resolveFromSearchParams(sp, { preset: "thisMonth", compare: "none" }, anchor);
+  const allDates = rows
+    .map((r) => r.date)
+    .filter(Boolean)
+    .sort();
+  const anchor =
+    allDates[allDates.length - 1] ?? new Date().toISOString().slice(0, 10);
+  const rr = resolveFromSearchParams(
+    sp,
+    { preset: "thisMonth", compare: "none" },
+    anchor,
+  );
 
   const mediaFilter = sp.media ?? "";
   const campaignFilter = sp.campaign ?? "";
@@ -151,16 +172,18 @@ export default async function DrillScreen({
   // Apply range first, then facet filters.
   let filtered = filterByRange(rows, rr.current.start, rr.current.end);
   if (mediaFilter) filtered = filtered.filter((r) => r.media === mediaFilter);
-  if (campaignFilter) filtered = filtered.filter((r) => r.campaignId === campaignFilter);
-  if (adgroupFilter) filtered = filtered.filter((r) => r.adgroupId === adgroupFilter);
+  if (campaignFilter)
+    filtered = filtered.filter((r) => r.campaignId === campaignFilter);
+  if (adgroupFilter)
+    filtered = filtered.filter((r) => r.adgroupId === adgroupFilter);
 
   const level: Level = adgroupFilter
     ? "bucket"
     : campaignFilter
-    ? "adgroup"
-    : mediaFilter
-    ? "campaign"
-    : "media";
+      ? "adgroup"
+      : mediaFilter
+        ? "campaign"
+        : "media";
 
   // Build cascade scopes from the filtered sheet rows. The GA4 side is
   // scoped via (media, campaign matchKey, adgroup id) derived from the sheet
@@ -176,29 +199,51 @@ export default async function DrillScreen({
   const scopeCampaignKeys = new Set(
     filtered
       .map((r) =>
-        r.media === "Google" || r.media.toLowerCase() === "meta" ? r.campaignId : r.campaignName
+        r.media === "Google" || r.media.toLowerCase() === "meta"
+          ? r.campaignId
+          : r.campaignName,
       )
-      .filter(Boolean)
+      .filter(Boolean),
   );
-  const scopeAdgroupIds = new Set(filtered.map((r) => r.adgroupId).filter(Boolean));
+  const scopeAdgroupIds = new Set(
+    filtered.map((r) => r.adgroupId).filter(Boolean),
+  );
   const isGoogleOnlyScope = scopeMedia.size === 1 && scopeMedia.has("Google");
-  const needAdgroupData = level === "adgroup" || (!!adgroupFilter && isGoogleOnlyScope);
+  const needAdgroupData =
+    level === "adgroup" || (!!adgroupFilter && isGoogleOnlyScope);
 
   // Fetch GA4 data. Current + previous windows in parallel so KPI deltas are
   // real (prev was hardcoded 0 before, making GA4 deltas meaningless).
   // getGa4PaidCampaigns / getGa4GoogleAdgroups return a Ga4Result<T> envelope
   // ({rows, isMock, warnings}) — unwrap .rows for the array below.
-  const [ga4CampaignsRes, ga4AdgroupsRes, ga4CampaignsPrevRes, ga4AdgroupsPrevRes] = await Promise.all([
+  const [
+    ga4CampaignsRes,
+    ga4AdgroupsRes,
+    ga4CampaignsPrevRes,
+    ga4AdgroupsPrevRes,
+  ] = await Promise.all([
     getGa4PaidCampaigns(client, rr.current.start, rr.current.end),
     needAdgroupData
       ? getGa4GoogleAdgroups(client, rr.current.start, rr.current.end)
-      : Promise.resolve({ rows: [] as Ga4AdgroupRow[], isMock: false, warnings: [] }),
+      : Promise.resolve({
+          rows: [] as Ga4AdgroupRow[],
+          isMock: false,
+          warnings: [],
+        }),
     rr.previous
       ? getGa4PaidCampaigns(client, rr.previous.start, rr.previous.end)
-      : Promise.resolve({ rows: [] as Ga4CampaignRow[], isMock: false, warnings: [] }),
+      : Promise.resolve({
+          rows: [] as Ga4CampaignRow[],
+          isMock: false,
+          warnings: [],
+        }),
     rr.previous && needAdgroupData
       ? getGa4GoogleAdgroups(client, rr.previous.start, rr.previous.end)
-      : Promise.resolve({ rows: [] as Ga4AdgroupRow[], isMock: false, warnings: [] }),
+      : Promise.resolve({
+          rows: [] as Ga4AdgroupRow[],
+          isMock: false,
+          warnings: [],
+        }),
   ]);
   const ga4Campaigns = ga4CampaignsRes.rows;
   const ga4Adgroups = ga4AdgroupsRes.rows;
@@ -230,7 +275,7 @@ export default async function DrillScreen({
   function addTo(
     m: Map<string, { sessions: number; conversions: number; revenue: number }>,
     key: string,
-    d: { sessions: number; conversions: number; revenue: number }
+    d: { sessions: number; conversions: number; revenue: number },
   ) {
     const cur = m.get(key) ?? { sessions: 0, conversions: 0, revenue: 0 };
     cur.sessions += d.sessions;
@@ -266,24 +311,37 @@ export default async function DrillScreen({
   // targets_monthly) only; unset fields are null. A resolved target with
   // roasPct/cpa null or <=0 is treated as "no configured target for this
   // month" and gets no colour (see targetsForRow in DrillTable).
-  const rowMonths = Array.from(new Set(table.map((r) => r.date.slice(0, 7)).filter(Boolean)));
+  const rowMonths = Array.from(
+    new Set(table.map((r) => r.date.slice(0, 7)).filter(Boolean)),
+  );
   if (rowMonths.length === 0) rowMonths.push(anchor.slice(0, 7));
   const targetsEntries = await Promise.all(
-    rowMonths.map(async (ym): Promise<[string, MonthlyTargets]> => [ym, await getTargetsForMonth(client, ym)])
+    rowMonths.map(async (ym): Promise<[string, MonthlyTargets]> => [
+      ym,
+      await getTargetsForMonth(client, ym),
+    ]),
   );
   const targetsByMonth = new Map<string, MonthlyTargets>(targetsEntries);
-  const tgt = targetsByMonth.get(anchor.slice(0, 7)) ?? (await getTargetsForMonth(client, anchor.slice(0, 7)));
+  const tgt =
+    targetsByMonth.get(anchor.slice(0, 7)) ??
+    (await getTargetsForMonth(client, anchor.slice(0, 7)));
 
   // Period KPIs (reflect the filter: facet filters narrow, so KPIs change).
   const curTotals = sumRows(filtered);
-  const prevFilteredAll = rr.previous ? filterByRange(rows, rr.previous.start, rr.previous.end) : [];
+  const prevFilteredAll = rr.previous
+    ? filterByRange(rows, rr.previous.start, rr.previous.end)
+    : [];
   let prevFiltered = prevFilteredAll;
-  if (mediaFilter) prevFiltered = prevFiltered.filter((r) => r.media === mediaFilter);
-  if (campaignFilter) prevFiltered = prevFiltered.filter((r) => r.campaignId === campaignFilter);
-  if (adgroupFilter) prevFiltered = prevFiltered.filter((r) => r.adgroupId === adgroupFilter);
+  if (mediaFilter)
+    prevFiltered = prevFiltered.filter((r) => r.media === mediaFilter);
+  if (campaignFilter)
+    prevFiltered = prevFiltered.filter((r) => r.campaignId === campaignFilter);
+  if (adgroupFilter)
+    prevFiltered = prevFiltered.filter((r) => r.adgroupId === adgroupFilter);
   const prevTotals = sumRows(prevFiltered);
 
-  const pct = (a: number, b: number): number | null => (b === 0 ? null : (a - b) / b);
+  const pct = (a: number, b: number): number | null =>
+    b === 0 ? null : (a - b) / b;
 
   // GA4-side totals for the current/previous window, scoped by the cascade
   // filter. For Google + ADG filter we use the ADG-grained source
@@ -291,16 +349,24 @@ export default async function DrillScreen({
   // (media+campaign). For non-Google ADG filter the ADG-level GA4 number is
   // not retrievable (GA4 only exposes ADG for Google Ads), so we show the
   // campaign-level total — an honest upper bound — with a disclaimer.
-  function sumGa4Campaigns(list: Ga4CampaignRow[]): { conversions: number; revenue: number } {
-    let c = 0, r = 0;
+  function sumGa4Campaigns(list: Ga4CampaignRow[]): {
+    conversions: number;
+    revenue: number;
+  } {
+    let c = 0,
+      r = 0;
     for (const row of list) {
       c += row.conversions;
       r += row.revenue;
     }
     return { conversions: c, revenue: r };
   }
-  function sumGa4Adgroups(list: Ga4AdgroupRow[]): { conversions: number; revenue: number } {
-    let c = 0, r = 0;
+  function sumGa4Adgroups(list: Ga4AdgroupRow[]): {
+    conversions: number;
+    revenue: number;
+  } {
+    let c = 0,
+      r = 0;
     for (const row of list) {
       c += row.conversions;
       r += row.revenue;
@@ -315,13 +381,25 @@ export default async function DrillScreen({
   const prevGa4 = useAdgGa4
     ? sumGa4Adgroups(prevGa4AdgroupsScoped)
     : sumGa4Campaigns(prevGa4CampaignsScoped);
-  const curGa4RoasPct = curTotals.cost > 0 ? (curGa4.revenue / curTotals.cost) * 100 : null;
+  const curGa4RoasPct =
+    curTotals.cost > 0 ? (curGa4.revenue / curTotals.cost) * 100 : null;
   const prevGa4RoasPct =
-    rr.previous && prevTotals.cost > 0 ? (prevGa4.revenue / prevTotals.cost) * 100 : null;
+    rr.previous && prevTotals.cost > 0
+      ? (prevGa4.revenue / prevTotals.cost) * 100
+      : null;
 
   // Trend series — bucketed by the same granularity as the table, so the
   // chart and the table agree on their x-axis.
-  const trendMap = new Map<string, { date: string; cost: number; conversions: number; conversionValue: number; clicks: number }>();
+  const trendMap = new Map<
+    string,
+    {
+      date: string;
+      cost: number;
+      conversions: number;
+      conversionValue: number;
+      clicks: number;
+    }
+  >();
   for (const r of filtered) {
     const bucket = bucketKey(r.date, granularity);
     const cur = trendMap.get(bucket) ?? {
@@ -337,7 +415,9 @@ export default async function DrillScreen({
     cur.clicks += r.clicks;
     trendMap.set(bucket, cur);
   }
-  const series = Array.from(trendMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+  const series = Array.from(trendMap.values()).sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
 
   // Sparklines: daily, with dates for hover tooltip. CV/Revenue switch per
   // source so the sparkline matches the Big KPI card above it.
@@ -348,10 +428,15 @@ export default async function DrillScreen({
 
   // Build a GA4 daily totals map from the scoped data so the sparkline
   // respects the cascade filter exactly like the Big KPI card does.
-  const ga4DailyMap = new Map<string, { conversions: number; revenue: number }>();
-  const ga4DailySource: Array<{ date: string; conversions: number; revenue: number }> = useAdgGa4
-    ? curGa4AdgroupsScoped
-    : curGa4CampaignsScoped;
+  const ga4DailyMap = new Map<
+    string,
+    { conversions: number; revenue: number }
+  >();
+  const ga4DailySource: Array<{
+    date: string;
+    conversions: number;
+    revenue: number;
+  }> = useAdgGa4 ? curGa4AdgroupsScoped : curGa4CampaignsScoped;
   for (const g of ga4DailySource) {
     if (!g.date) continue;
     const cur = ga4DailyMap.get(g.date) ?? { conversions: 0, revenue: 0 };
@@ -360,22 +445,35 @@ export default async function DrillScreen({
     ga4DailyMap.set(g.date, cur);
   }
   const cv14 = daily14.map((d) =>
-    source === "ga4" ? ga4DailyMap.get(d.date)?.conversions ?? 0 : d.conversions
+    source === "ga4"
+      ? (ga4DailyMap.get(d.date)?.conversions ?? 0)
+      : d.conversions,
   );
   const rev14 = daily14.map((d) =>
-    source === "ga4" ? ga4DailyMap.get(d.date)?.revenue ?? 0 : d.conversionValue
+    source === "ga4"
+      ? (ga4DailyMap.get(d.date)?.revenue ?? 0)
+      : d.conversionValue,
   );
   const roas14 = daily14.map((d) => {
-    const rev = source === "ga4" ? ga4DailyMap.get(d.date)?.revenue ?? 0 : d.conversionValue;
+    const rev =
+      source === "ga4"
+        ? (ga4DailyMap.get(d.date)?.revenue ?? 0)
+        : d.conversionValue;
     return d.cost > 0 ? (rev / d.cost) * 100 : 0;
   });
 
   // Funnel respects the source toggle. Impressions/Clicks always come from
   // the ad platform (GA4 has no ad-side impression metric); CV and Revenue
   // switch per toggle. GA4 values use the same scoped totals as Big KPI.
-  const funnelCv = source === "ga4" ? curGa4.conversions : curTotals.conversions;
-  const funnelRevenue = source === "ga4" ? curGa4.revenue : curTotals.conversionValue;
-  const funnelStages: Array<{ label: string; value: number; format?: "int" | "jpy" }> = [
+  const funnelCv =
+    source === "ga4" ? curGa4.conversions : curTotals.conversions;
+  const funnelRevenue =
+    source === "ga4" ? curGa4.revenue : curTotals.conversionValue;
+  const funnelStages: Array<{
+    label: string;
+    value: number;
+    format?: "int" | "jpy";
+  }> = [
     { label: "Impressions", value: curTotals.impressions },
     { label: "Clicks", value: curTotals.clicks },
     { label: source === "ga4" ? "GA4 CV" : "媒体CV", value: funnelCv },
@@ -391,14 +489,22 @@ export default async function DrillScreen({
   const rangeRows = filterByRange(rows, rr.current.start, rr.current.end);
   const medias = Array.from(new Set(rangeRows.map((r) => r.media))).sort();
   const campaigns = Array.from(
-    new Map(rangeRows.map((r) => [r.campaignId, { id: r.campaignId, name: r.campaignName, media: r.media }])).values()
+    new Map(
+      rangeRows.map((r) => [
+        r.campaignId,
+        { id: r.campaignId, name: r.campaignName, media: r.media },
+      ]),
+    ).values(),
   ).sort((a, b) => a.name.localeCompare(b.name));
   const adgroups = Array.from(
     new Map(
       rangeRows
         .filter((r) => r.adgroupId)
-        .map((r) => [r.adgroupId, { id: r.adgroupId, name: r.adgroupName, campaignId: r.campaignId }])
-    ).values()
+        .map((r) => [
+          r.adgroupId,
+          { id: r.adgroupId, name: r.adgroupName, campaignId: r.campaignId },
+        ]),
+    ).values(),
   ).sort((a, b) => a.name.localeCompare(b.name));
 
   const csvRows = table.map((r) => ({
@@ -425,24 +531,31 @@ export default async function DrillScreen({
     level === "media"
       ? "媒体"
       : level === "campaign"
-      ? "キャンペーン"
-      : level === "adgroup"
-      ? "広告グループ"
-      : "期間のみ";
+        ? "キャンペーン"
+        : level === "adgroup"
+          ? "広告グループ"
+          : "期間のみ";
 
   return (
     <div className="space-y-6">
       <MockBanner isMock={isMock} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">Drilldown</div>
-          <h1 className="text-2xl font-semibold tracking-tight">フィルター詳細 · {rr.presetLabel}</h1>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">
+            Drilldown
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            フィルター詳細 · {rr.presetLabel}
+          </h1>
           <div className="mt-1 text-sm text-muted-foreground">
-            {rr.current.start} 〜 {rr.current.end} · 階層: 媒体 → キャンペーン → 広告グループ
+            {rr.current.start} 〜 {rr.current.end} · 階層: 媒体 → キャンペーン →
+            広告グループ
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-xs text-muted-foreground">最終取得 {fetchedAtLabel}</div>
+          <div className="text-xs text-muted-foreground">
+            最終取得 {fetchedAtLabel}
+          </div>
           <CsvExportButton
             filename={`drill-${slug}-${new Date().toISOString().slice(0, 10)}.csv`}
             rows={csvRows}
@@ -453,7 +566,12 @@ export default async function DrillScreen({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <DrillFilters slug={slug} medias={medias} campaigns={campaigns} adgroups={adgroups} />
+        <DrillFilters
+          slug={slug}
+          medias={medias}
+          campaigns={campaigns}
+          adgroups={adgroups}
+        />
         <SourceToggle />
       </div>
 
@@ -463,7 +581,16 @@ export default async function DrillScreen({
           label="Spend"
           value={fmtJpy(curTotals.cost)}
           lowerIsBetter
-          comparisons={rr.previous ? [{ label: rr.compareLabel, delta: pct(curTotals.cost, prevTotals.cost) }] : []}
+          comparisons={
+            rr.previous
+              ? [
+                  {
+                    label: rr.compareLabel,
+                    delta: pct(curTotals.cost, prevTotals.cost),
+                  },
+                ]
+              : []
+          }
           sparkline={spend14}
           sparkDates={sparkDates}
           sparkFormat="jpy"
@@ -471,15 +598,21 @@ export default async function DrillScreen({
         />
         <BigKpiCard
           label={source === "ga4" ? "GA4 CV" : "媒体CV"}
-          value={fmtInt(source === "ga4" ? curGa4.conversions : curTotals.conversions)}
+          value={fmtInt(
+            source === "ga4" ? curGa4.conversions : curTotals.conversions,
+          )}
           comparisons={
             rr.previous
               ? [
                   {
                     label: rr.compareLabel,
                     delta: pct(
-                      source === "ga4" ? curGa4.conversions : curTotals.conversions,
-                      source === "ga4" ? prevGa4.conversions : prevTotals.conversions
+                      source === "ga4"
+                        ? curGa4.conversions
+                        : curTotals.conversions,
+                      source === "ga4"
+                        ? prevGa4.conversions
+                        : prevTotals.conversions,
                     ),
                   },
                 ]
@@ -491,15 +624,21 @@ export default async function DrillScreen({
         />
         <BigKpiCard
           label={source === "ga4" ? "GA4 売上" : "媒体売上"}
-          value={fmtJpy(source === "ga4" ? curGa4.revenue : curTotals.conversionValue)}
+          value={fmtJpy(
+            source === "ga4" ? curGa4.revenue : curTotals.conversionValue,
+          )}
           comparisons={
             rr.previous
               ? [
                   {
                     label: rr.compareLabel,
                     delta: pct(
-                      source === "ga4" ? curGa4.revenue : curTotals.conversionValue,
-                      source === "ga4" ? prevGa4.revenue : prevTotals.conversionValue
+                      source === "ga4"
+                        ? curGa4.revenue
+                        : curTotals.conversionValue,
+                      source === "ga4"
+                        ? prevGa4.revenue
+                        : prevTotals.conversionValue,
                     ),
                   },
                 ]
@@ -511,16 +650,29 @@ export default async function DrillScreen({
         />
         <BigKpiCard
           label={source === "ga4" ? "GA4 ROAS" : "媒体ROAS"}
-          value={fmtRatioPct(source === "ga4" ? curGa4RoasPct : curTotals.roasPct, 0)}
+          value={fmtRatioPct(
+            source === "ga4" ? curGa4RoasPct : curTotals.roasPct,
+            0,
+          )}
           comparisons={
             rr.previous
               ? source === "ga4"
                 ? curGa4RoasPct != null && prevGa4RoasPct != null
-                  ? [{ label: rr.compareLabel, delta: pct(curGa4RoasPct, prevGa4RoasPct) }]
+                  ? [
+                      {
+                        label: rr.compareLabel,
+                        delta: pct(curGa4RoasPct, prevGa4RoasPct),
+                      },
+                    ]
                   : []
                 : curTotals.roasPct != null && prevTotals.roasPct != null
-                ? [{ label: rr.compareLabel, delta: pct(curTotals.roasPct, prevTotals.roasPct) }]
-                : []
+                  ? [
+                      {
+                        label: rr.compareLabel,
+                        delta: pct(curTotals.roasPct, prevTotals.roasPct),
+                      },
+                    ]
+                  : []
               : []
           }
           sparkline={roas14}
@@ -531,7 +683,8 @@ export default async function DrillScreen({
 
       {ga4ApproxNonGoogleAdg && source === "ga4" && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          注: GA4 は Google Ads 以外の ADG 粒度を提供しないため、GA4 CV / 売上 / ROAS は
+          注: GA4 は Google Ads 以外の ADG 粒度を提供しないため、GA4 CV / 売上 /
+          ROAS は
           キャンペーン単位の値（上限近似）を表示しています。媒体値は広告プラットフォーム実績ベース。
         </div>
       )}
@@ -539,7 +692,9 @@ export default async function DrillScreen({
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">ファネル（Imp → Click → CV → 売上）</CardTitle>
+            <CardTitle className="text-sm">
+              ファネル（Imp → Click → CV → 売上）
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <FunnelChart stages={funnelStages} />
@@ -548,7 +703,11 @@ export default async function DrillScreen({
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">
-              {granularity === "day" ? "日次" : granularity === "week" ? "週次" : "月次"}
+              {granularity === "day"
+                ? "日次"
+                : granularity === "week"
+                  ? "週次"
+                  : "月次"}
               推移（Spend / CV / CPA）
             </CardTitle>
           </CardHeader>
@@ -561,8 +720,15 @@ export default async function DrillScreen({
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">
-            {levelLabel} × {granularity === "day" ? "日" : granularity === "week" ? "週" : "月"}
-            <span className="ml-2 text-xs font-normal text-muted-foreground">{table.length} 件</span>
+            {levelLabel} ×{" "}
+            {granularity === "day"
+              ? "日"
+              : granularity === "week"
+                ? "週"
+                : "月"}
+            <span className="ml-2 text-xs font-normal text-muted-foreground">
+              {table.length} 件
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent>
