@@ -1,15 +1,21 @@
 "use server";
 
 import { headers } from "next/headers";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { organization as organizationTable } from "@/db/schema";
 import { getClientBySlug } from "@/config/clients";
 import { getBigQuery } from "@/lib/bigquery";
 import { writeAuditLog } from "@/lib/audit";
+import { fetchClientTargetsLong } from "@/lib/masters";
 import { lookupOrgRoleByEmail, canInviteMembers } from "@/lib/org-role";
 import { parseClientTargetsCsv, type UploadTargetsResult } from "./targets-schema";
+import {
+  buildTargetPreviewMessage,
+  buildTargetsMergeQuery,
+  classifyTargetChanges,
+} from "./targets-write";
 
 /**
  * Server actions for the tenant-side monthly-targets upload page.
@@ -19,7 +25,7 @@ import { parseClientTargetsCsv, type UploadTargetsResult } from "./targets-schem
  *   assertCanInvite と同じ判定（x-viewer-kind + x-viewer-email→org-role）。
  * - スコープ: 書き込む client_id は slug から導出した client.id に強制する。
  *   入力 CSV に client_id 列は存在せず、他クライアントの行は絶対に触らない
- *   （この client_id 限定の DELETE→INSERT。masters.ts の全 client MERGE は使わない）。
+ *   CSV に client_id は存在せず、MERGE source の client_id は認証済み slug から固定する。
  *
  * テンプレは long (tidy) 形式（client_id 列なし・4 列、2026-07-03 統一）:
  *   指標, チャネル, 年月, 値
@@ -30,13 +36,11 @@ import { parseClientTargetsCsv, type UploadTargetsResult } from "./targets-schem
  * （"use server" モジュールは async 関数以外を export できないため）。
  */
 
-const PROJECT = "ai-agent-mixednuts";
 const LOC = "asia-northeast1";
-const TABLE = `${PROJECT}.app_analytics.targets_long`;
 
 /**
  * 編集者以上ゲート + slug→client 解決。member(閲覧者)/未知の viewer は throw。
- * 戻り値の clientId は BigQuery targets_monthly の client_id（= client.id）。
+ * 戻り値の clientId は BigQuery targets_long の client_id（= client.id）。
  */
 async function assertCanEditTargets(
   slug: string,
@@ -89,21 +93,11 @@ async function assertCanEditTargets(
   return { clientId: client.id, actorEmail };
 }
 
-/** BigQuery NUMERIC は文字列で渡す（FLOAT 精度落ち回避）。 */
-function numStr(v: number | null): string | null {
-  return v == null ? null : String(v);
-}
-
 /**
  * クライアント自己アップロード。編集者以上のみ・自社 client_id にスコープ。
  *
- * mode "preview" → パース + 検証のみ（BQ には書かない）。件数 or エラーを返す。
- * mode "commit"  → 検証（エラーあれば拒否）→ この client_id の既存行のみ
- *                  DELETE → DML INSERT（他 client の行は触らない）。
- *
- * DELETE→INSERT で全月置換だが client_id で必ず絞る。INSERT は VALUES/SELECT の
- * DML（streaming buffer を経由しない）ため、DELETE 直後でも "DML over streaming
- * buffer" エラーにならない。
+ * mode "preview" → パース + 検証 + 既存行との差分件数を返す（BQ には書かない）。
+ * mode "commit"  → 単一 MERGE で明示削除 + 更新 + 挿入。CSV にないキーは温存する。
  */
 export async function uploadClientTargets(
   slug: string,
@@ -122,80 +116,65 @@ export async function uploadClientTargets(
       };
     }
 
+    const existingRows = await fetchClientTargetsLong(clientId);
+    const preview = classifyTargetChanges(rows, existingRows);
+
     if (mode === "preview") {
-      const msg =
-        rows.length === 0
-          ? "データ 0 行 — 確定するとこのクライアントの全目標が削除されます"
-          : `OK. ${rows.length} 行を投入予定（このクライアントの既存目標を全置換）`;
-      return { ok: true, message: msg, count: rows.length };
+      return {
+        ok: true,
+        message: buildTargetPreviewMessage(preview),
+        count: rows.length,
+        preview,
+      };
     }
 
-    const bq = getBigQuery();
-
-    // 1) この client_id の既存行のみ DELETE（他 client は絶対に触らない）。
-    await (
-      await bq.createQueryJob({
-        query: `DELETE FROM \`${TABLE}\` WHERE client_id = @cid`,
+    const merge = buildTargetsMergeQuery(rows, clientId, actorEmail);
+    let rowsUpserted = 0;
+    let rowsDeleted = 0;
+    if (merge) {
+      const bq = getBigQuery();
+      const [job] = await bq.createQueryJob({
+        query: merge.sql,
         location: LOC,
-        params: { cid: clientId },
-        types: { cid: "STRING" },
-      })
-    )[0].getQueryResults();
-
-    // 2) DML INSERT（VALUES を SELECT UNION ALL で構築）。streaming buffer 非経由。
-    // long 形式: 1 行 = (指標, チャネル, 年月, 値)。kind は常に '目標'。
-    if (rows.length > 0) {
-      const params: Record<string, string | number | null> = {
-        by: actorEmail,
-        cid: clientId,
-      };
-      const types: Record<string, string> = { by: "STRING", cid: "STRING" };
-
-      const selects = rows.map((r, i) => {
-        params[`m${i}`] = r.metric;
-        params[`ch${i}`] = r.channel;
-        params[`ym${i}`] = r.year_month;
-        params[`v${i}`] = numStr(r.value);
-
-        types[`m${i}`] = "STRING";
-        types[`ch${i}`] = "STRING";
-        types[`ym${i}`] = "STRING";
-        types[`v${i}`] = "NUMERIC";
-
-        // client_id は必ずバインド済みの @cid（入力由来ではない）を使う。
-        // kind は自己アップロードでは常に '目標' 固定。
-        return (
-          `SELECT @cid AS client_id, @m${i} AS metric, @ch${i} AS channel, ` +
-          `DATE(@ym${i}) AS year_month, @v${i} AS value, '目標' AS kind, ` +
-          `CURRENT_TIMESTAMP() AS updated_at, @by AS updated_by`
-        );
+        params: merge.params,
+        types: merge.types,
       });
-
-      const sql = `
-        INSERT INTO \`${TABLE}\` (
-          client_id, metric, channel, year_month, value, kind,
-          updated_at, updated_by
-        )
-        ${selects.join("\n        UNION ALL\n        ")}
-      `;
-
-      await (
-        await bq.createQueryJob({ query: sql, location: LOC, params, types })
-      )[0].getQueryResults();
+      await job.getQueryResults();
+      rowsUpserted = preview.newCount + preview.updatedCount;
+      rowsDeleted = preview.explicitDeleteCount;
+      try {
+        const [metadata] = await job.getMetadata();
+        const dmlStats = metadata.statistics?.query?.dmlStats;
+        rowsUpserted =
+          Number(dmlStats?.insertedRowCount ?? preview.newCount) +
+          Number(dmlStats?.updatedRowCount ?? preview.updatedCount);
+        rowsDeleted = Number(
+          dmlStats?.deletedRowCount ?? preview.explicitDeleteCount,
+        );
+      } catch (error) {
+        console.warn("[targets] Could not read MERGE DML stats:", error);
+      }
     }
 
     await writeAuditLog({
       actorEmail,
       targetOrgSlug: slug,
       action: "targets.uploaded",
-      metadata: { client_id: clientId, count: rows.length },
+      metadata: {
+        client_id: clientId,
+        rows_upserted: rowsUpserted,
+        rows_deleted: rowsDeleted,
+        rows_untouched: preview.untouchedCount,
+      },
     });
 
     revalidatePath(`/dashboard/${slug}/settings/targets`);
+    revalidateTag("bq-targets", "default");
     return {
       ok: true,
-      message: `${rows.length} 行を保存しました（このクライアントの目標を更新）`,
+      message: `保存しました — ${buildTargetPreviewMessage(preview)}`,
       count: rows.length,
+      preview,
     };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : String(e) };

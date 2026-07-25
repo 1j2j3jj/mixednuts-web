@@ -61,12 +61,8 @@ export default function TargetsClient({ slug, templateCsv, currentCsv }: Props) 
   }
 
   function doCommit() {
-    if (
-      !confirm(
-        "月次目標を保存します（このクライアントの既存目標を全置換します）。よろしいですか?",
-      )
-    )
-      return;
+    if (previewCount == null) return;
+    if (!confirm("プレビュー表示の差分を保存します。よろしいですか？")) return;
     reset();
     startTransition(async () => {
       const res = await uploadClientTargets(slug, csv, "commit");
@@ -117,7 +113,7 @@ export default function TargetsClient({ slug, templateCsv, currentCsv }: Props) 
 
       <div className="border-t pt-4">
         <label className="block text-sm font-medium">
-          ⬆ CSV をアップロード（このクライアントの目標を全置換）
+          ⬆ CSV をアップロード（指定したキーだけ更新）
         </label>
         <input
           type="file"
@@ -152,8 +148,7 @@ export default function TargetsClient({ slug, templateCsv, currentCsv }: Props) 
         {previewMsg && !error && (
           <p className="mt-3 rounded-md bg-emerald-50 p-2 text-sm text-emerald-900">
             ✓ {previewMsg}
-            {" — "}
-            「確定」を押すとこのクライアントの目標を全置換します
+            {" — 「確定」を押すと、この差分だけを保存します"}
           </p>
         )}
         {error && (
