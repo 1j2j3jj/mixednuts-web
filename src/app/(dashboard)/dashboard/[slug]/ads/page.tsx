@@ -8,6 +8,12 @@ import {
 } from "@/lib/sources/ga4";
 import { getTargetsForMonth } from "@/lib/sources/target";
 import { resolveFromSearchParams, type DateRange } from "@/lib/range";
+import {
+  Wallet,
+  Target as TargetIcon,
+  JapaneseYen,
+  TrendingUp,
+} from "lucide-react";
 import MediaTable, { type MediaRow } from "@/components/dashboard/MediaTable";
 import MediaCampaignTable, {
   type MediaCampaignRow,
@@ -71,6 +77,11 @@ function ga4DailyTotals(
 function pct(a: number, b: number): number | null {
   if (b === 0) return null;
   return (a - b) / b;
+}
+
+/** Achievement percentage for a "目標 X の Y%" KPI caption (Q1, spec §2.1). */
+function pctOfTarget(actual: number, target: number): number {
+  return target > 0 ? Math.round((actual / target) * 100) : 0;
 }
 
 /** Sum GA4 monthly rows whose yearMonth overlaps the [start, end] range. */
@@ -283,6 +294,13 @@ export default async function AdsScreen({
   const mediaCampaignRows = byMediaCampaign(cur);
 
   const tgt = await getTargetsForMonth(client, anchor.slice(0, 7));
+  // tgt is always resolved for the LATEST-data month (anchor), not
+  // necessarily the selected period — a target caption is only a true
+  // statement when the two coincide (mirrors Overview's showGoals gate on
+  // page.tsx, same reasoning: a target row from a different month than the
+  // period being displayed would misrepresent achievement).
+  const targetPeriodMatches =
+    rr.current.start.slice(0, 7) === anchor.slice(0, 7);
 
   const series = aggregateByDate(cur);
 
@@ -348,73 +366,112 @@ export default async function AdsScreen({
         <BigKpiCard
           label="Spend"
           value={fmtJpy(curTotals.cost)}
+          caption={
+            targetPeriodMatches &&
+            tgt.adSpendBudget != null &&
+            tgt.adSpendBudget > 0
+              ? `予算 ${fmtJpy(tgt.adSpendBudget)} の ${pctOfTarget(curTotals.cost, tgt.adSpendBudget)}%`
+              : rr.previous
+                ? `${rr.compareLabel} ${fmtJpy(prevTotals.cost)}`
+                : "比較対象なし"
+          }
           lowerIsBetter
-          comparisons={
+          comparison={
             rr.previous
-              ? [
-                  {
-                    label: rr.compareLabel,
-                    delta: pct(curTotals.cost, prevTotals.cost),
-                  },
-                ]
-              : []
+              ? {
+                  label: rr.compareLabel,
+                  delta: pct(curTotals.cost, prevTotals.cost),
+                }
+              : undefined
           }
           sparkline={spend14}
           sparkDates={dates14}
           sparkFormat="jpy"
           sparkTone="negative"
+          icon={Wallet}
+          hue="chart-5"
         />
         <BigKpiCard
           label={source === "ga4" ? "GA4 CV" : "媒体CV"}
           value={fmtInt(
             source === "ga4" ? curGa4.conversions : curTotals.conversions,
           )}
-          comparisons={
+          caption={
+            targetPeriodMatches &&
+            tgt.conversions != null &&
+            tgt.conversions > 0
+              ? `目標 ${fmtInt(tgt.conversions)} の ${pctOfTarget(
+                  source === "ga4" ? curGa4.conversions : curTotals.conversions,
+                  tgt.conversions,
+                )}%`
+              : rr.previous
+                ? `${rr.compareLabel} ${fmtInt(
+                    source === "ga4"
+                      ? prevGa4.conversions
+                      : prevTotals.conversions,
+                  )}`
+                : "比較対象なし"
+          }
+          comparison={
             rr.previous
-              ? [
-                  {
-                    label: rr.compareLabel,
-                    delta: pct(
-                      source === "ga4"
-                        ? curGa4.conversions
-                        : curTotals.conversions,
-                      source === "ga4"
-                        ? prevGa4.conversions
-                        : prevTotals.conversions,
-                    ),
-                  },
-                ]
-              : []
+              ? {
+                  label: rr.compareLabel,
+                  delta: pct(
+                    source === "ga4"
+                      ? curGa4.conversions
+                      : curTotals.conversions,
+                    source === "ga4"
+                      ? prevGa4.conversions
+                      : prevTotals.conversions,
+                  ),
+                }
+              : undefined
           }
           sparkline={cv14}
           sparkDates={dates14}
           sparkFormat="int"
+          icon={TargetIcon}
+          hue="chart-3"
         />
         <BigKpiCard
           label={source === "ga4" ? "GA4 売上" : "媒体売上"}
           value={fmtJpy(
             source === "ga4" ? curGa4.revenue : curTotals.conversionValue,
           )}
-          comparisons={
+          caption={
+            targetPeriodMatches && tgt.revenue != null && tgt.revenue > 0
+              ? `目標 ${fmtJpy(tgt.revenue)} の ${pctOfTarget(
+                  source === "ga4" ? curGa4.revenue : curTotals.conversionValue,
+                  tgt.revenue,
+                )}%`
+              : rr.previous
+                ? `${rr.compareLabel} ${fmtJpy(
+                    source === "ga4"
+                      ? prevGa4.revenue
+                      : prevTotals.conversionValue,
+                  )}`
+                : "比較対象なし"
+          }
+          comparison={
             rr.previous
-              ? [
-                  {
-                    label: rr.compareLabel,
-                    delta: pct(
-                      source === "ga4"
-                        ? curGa4.revenue
-                        : curTotals.conversionValue,
-                      source === "ga4"
-                        ? prevGa4.revenue
-                        : prevTotals.conversionValue,
-                    ),
-                  },
-                ]
-              : []
+              ? {
+                  label: rr.compareLabel,
+                  delta: pct(
+                    source === "ga4"
+                      ? curGa4.revenue
+                      : curTotals.conversionValue,
+                    source === "ga4"
+                      ? prevGa4.revenue
+                      : prevTotals.conversionValue,
+                  ),
+                }
+              : undefined
           }
           sparkline={rev14}
           sparkDates={dates14}
           sparkFormat="jpy"
+          icon={JapaneseYen}
+          hue="chart-1"
         />
         <BigKpiCard
           label={source === "ga4" ? "GA4 ROAS" : "媒体ROAS"}
@@ -422,27 +479,44 @@ export default async function AdsScreen({
             source === "ga4" ? curGa4RoasPct : curTotals.roasPct,
             0,
           )}
-          comparisons={
+          caption={(() => {
+            const curRoas =
+              source === "ga4" ? curGa4RoasPct : curTotals.roasPct;
+            const prevRoas =
+              source === "ga4" ? prevGa4RoasPct : prevTotals.roasPct;
+            if (
+              targetPeriodMatches &&
+              tgt.roasPct != null &&
+              tgt.roasPct > 0 &&
+              curRoas != null
+            ) {
+              return `目標 ${fmtRatioPct(tgt.roasPct, 0)} の ${pctOfTarget(curRoas, tgt.roasPct)}%`;
+            }
+            if (rr.previous && prevRoas != null) {
+              return `${rr.compareLabel} ${fmtRatioPct(prevRoas, 0)}`;
+            }
+            return "比較対象なし";
+          })()}
+          comparison={
             rr.previous
-              ? [
-                  {
-                    label: rr.compareLabel,
-                    delta:
-                      source === "ga4"
-                        ? curGa4RoasPct != null && prevGa4RoasPct != null
-                          ? pct(curGa4RoasPct, prevGa4RoasPct)
-                          : null
-                        : curTotals.roasPct != null &&
-                            prevTotals.roasPct != null
-                          ? pct(curTotals.roasPct, prevTotals.roasPct)
-                          : null,
-                  },
-                ]
-              : []
+              ? {
+                  label: rr.compareLabel,
+                  delta:
+                    source === "ga4"
+                      ? curGa4RoasPct != null && prevGa4RoasPct != null
+                        ? pct(curGa4RoasPct, prevGa4RoasPct)
+                        : null
+                      : curTotals.roasPct != null && prevTotals.roasPct != null
+                        ? pct(curTotals.roasPct, prevTotals.roasPct)
+                        : null,
+                }
+              : undefined
           }
           sparkline={roas14}
           sparkDates={dates14}
           sparkFormat="pct"
+          icon={TrendingUp}
+          hue="chart-4"
         />
       </div>
 

@@ -12,13 +12,23 @@ import { Skeleton } from "@/components/ui/skeleton";
  * aria-live so assistive tech announces the loading state.
  */
 
-/** Row of N big-KPI card placeholders (matches BigKpiCard shape). */
+/**
+ * Row of N big-KPI card placeholders — matches BigKpiCard's fixed 5-row
+ * shape (header+badge / caption / value / sparkline slot / comparison),
+ * kept in lockstep with BigKpiCard.tsx's structural invariant (2026-07-25:
+ * every card now always renders these 5 rows, never fewer, regardless of
+ * caller data) so the loading -> loaded transition doesn't visibly jump.
+ */
 export function KpiRowSkeleton({ count = 5 }: { count?: number }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="space-y-3 rounded-card border bg-card p-4">
-          <Skeleton className="h-3 w-16" />
+        <div key={i} className="space-y-2 rounded-card border bg-card p-4">
+          <div className="flex items-start justify-between gap-2">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-7 w-7 rounded-md" />
+          </div>
+          <Skeleton className="h-3 w-20" />
           <Skeleton className="h-7 w-24" />
           <Skeleton className="h-8 w-full" />
           <Skeleton className="h-3 w-20" />
