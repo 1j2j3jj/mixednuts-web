@@ -889,7 +889,15 @@ export default async function Overview({
             自動有効化する設計、2026-07-02 Codex監査で協議の上維持）。非対応クライアントは Top5 表示。 */}
         {channelTargetRows.length > 0 ? (
           <Card className="shadow-card">
-            <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+            {/* flex-wrap (Phase H): this header is a flex ROW holding a long
+                description block plus a shrink-0 StatusChip, with no wrapping
+                allowed — so on a 375px screen the two could not fit on one
+                ~295px line and the chip pushed the page 27px sideways on every
+                client that has channel targets configured (MSEC has none, so it
+                renders no chip and never showed the bug). Allowing the row to
+                wrap lets the chip drop to its own line instead of widening the
+                card. Same idiom PacingAlert already uses. */}
+            <CardHeader className="flex-row flex-wrap items-start justify-between gap-3 space-y-0">
               <div>
                 {/* 期間ラベルを動的化 — 固定「（当月）」だと 先月 選択時に実績と表示が矛盾する
                     （channelTargetRows は showGoals=thisMonth/lastMonth の時のみ populate、上参照）。 */}

@@ -49,6 +49,12 @@ export default function FirstRunGuide() {
   return (
     <div
       role="note"
+      // Phase H: this is onboarding help, not report content. It shows until
+      // dismissed — so on a new client or a new device it is on screen — and
+      // the Print button then put "はじめての方へ — このダッシュボードの見方"
+      // and the whole tab/permission explainer into the client's PDF. Verified
+      // present in printed output before this fix.
+      data-print-hide="true"
       className="relative rounded-card border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950"
     >
       <button

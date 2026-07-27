@@ -178,12 +178,18 @@ export default async function ReportScreen({
   if (!isRptSupported(client.id)) {
     return (
       <div className="space-y-6">
-        <div>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">
-            レポート
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight">レポート</h1>
-        </div>
+        {/* This early-return branch kept its own hand-rolled kicker + <h1>
+            when the other five tabs migrated to PageHeader (C2-a), so a
+            client who reaches /report on a non-RPT workspace got a header
+            styled unlike every other tab — and with the kicker and title
+            both reading the bare word "レポート". Same component, same
+            styling as the supported case below; the title now says what the
+            page actually is rather than repeating the kicker. */}
+        <PageHeader
+          kicker="レポート"
+          title="レポート（GA×広告 突合）"
+          subtitle="このワークスペースでは未対応です"
+        />
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             このワークスペースではレポート（GA×広告 突合ビュー）は未対応です。
