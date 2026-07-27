@@ -28,7 +28,9 @@ import {
   invitationTokenHashField,
   insertInvitationRow,
   markInvitationRevoked,
+  recordInvitationEmailResult,
 } from "@/db/phase-f-columns";
+import { sendInvitationEmail } from "@/lib/email";
 
 /**
  * Server actions for the Better Auth Organization invitation flow.
@@ -437,6 +439,16 @@ export interface CreateInviteResult {
   invitationId?: string;
   error?: string;
   /**
+   * Whether an invitation email was actually dispatched, and what the provider
+   * said. Mirrors the tenant-side path. Before 2026-07-27 this admin path
+   * created the invitation and returned a link WITHOUT ever calling
+   * sendInvitationEmail — so typing an address into the admin invite form
+   * silently sent nothing, and the 送信状況 column had no attempt to report.
+   * CEO hit this on MSEC (4 invites created, no mail).
+   */
+  emailSent?: boolean;
+  emailStatus?: "accepted" | "failed" | "not_configured";
+  /**
    * The raw (unhashed) invite token, returned ONLY in this one response —
    * never persisted, never logged. Exists so createInvites can build a
    * combined multi-org link (`?ids=...&tokens=...`, position-aligned)
@@ -555,7 +567,34 @@ export async function createInvite(
   console.info(
     `[invite] created clientId=${input.clientId} org=${org.name} email=${email} role=${input.role ?? "member"} id=${id}`,
   );
-  return { ok: true, link, invitationId: id, token: rawToken };
+
+  // Send the invitation email, same as the tenant-side path already did.
+  // The link is still returned regardless of the send outcome, so the
+  // 「リンクをコピー」 fallback keeps working when mail is unconfigured or
+  // the provider rejects the request.
+  const emailResult = await sendInvitationEmail({
+    to: email,
+    clientLabel: org.name,
+    roleLabel: (input.role ?? "member") === "editor" ? "編集者" : "閲覧者",
+    acceptUrl: link,
+  });
+  await recordInvitationEmailResult(id, {
+    emailStatus: emailResult.status,
+    emailProviderMessageId: emailResult.providerMessageId ?? null,
+    emailLastError: emailResult.reason ?? null,
+  });
+  console.info(
+    `[invite] email id=${id} status=${emailResult.status}${emailResult.reason ? ` reason=${emailResult.reason}` : ""}`,
+  );
+
+  return {
+    ok: true,
+    link,
+    invitationId: id,
+    token: rawToken,
+    emailSent: emailResult.sent,
+    emailStatus: emailResult.status,
+  };
 }
 
 /**
@@ -704,9 +743,13 @@ export async function revokeInvite(
  * usable link rather than to trigger an email send (admin-issued invites
  * are link-only by design — see the module doc comment above).
  */
-export async function reissueInviteLink(
-  id: string,
-): Promise<{ ok: boolean; link?: string; error?: string }> {
+export async function reissueInviteLink(id: string): Promise<{
+  ok: boolean;
+  link?: string;
+  error?: string;
+  emailSent?: boolean;
+  emailStatus?: "accepted" | "failed" | "not_configured";
+}> {
   await assertAdmin();
   // Explicit projection of only the base columns used below — a bare
   // `.select()` would reference every Phase F column too and 42703
@@ -777,7 +820,35 @@ export async function reissueInviteLink(
   console.info(
     `[invite] reissued org=${inv.organizationId} email=${inv.email} id=${newId}`,
   );
-  return { ok: true, link };
+
+  // Reissue had the same gap as createInvite: it minted a fresh link and
+  // returned it without ever attempting a send. That makes 再発行 the natural
+  // way to actually deliver mail for invites created before this fix.
+  const orgRows = await db
+    .select({ name: organization.name })
+    .from(organization)
+    .where(eq(organization.id, inv.organizationId));
+  const emailResult = await sendInvitationEmail({
+    to: inv.email,
+    clientLabel: orgRows[0]?.name ?? "",
+    roleLabel: inv.role === "editor" ? "編集者" : "閲覧者",
+    acceptUrl: link,
+  });
+  await recordInvitationEmailResult(newId, {
+    emailStatus: emailResult.status,
+    emailProviderMessageId: emailResult.providerMessageId ?? null,
+    emailLastError: emailResult.reason ?? null,
+  });
+  console.info(
+    `[invite] email id=${newId} status=${emailResult.status}${emailResult.reason ? ` reason=${emailResult.reason}` : ""}`,
+  );
+
+  return {
+    ok: true,
+    link,
+    emailSent: emailResult.sent,
+    emailStatus: emailResult.status,
+  };
 }
 
 // Suppress unused import warning — auth is reserved for the migration

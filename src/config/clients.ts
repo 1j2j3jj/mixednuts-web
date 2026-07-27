@@ -216,11 +216,16 @@ export const CLIENTS: Record<ClientId, ClientConfig> = {
       // No ECCUBE integration for MSEC Phase 1 — tracked for Phase 2.
     },
     ga4PropertyId: "283300882",
-    // ⚠ markless.jp is an sc-domain property; SA currently returns 403 because
-    // it has not been added as a siteRestrictedUser. Until CEO adds
-    // ai-agent@ai-agent-mixednuts.iam.gserviceaccount.com as "Restricted"
-    // to the markless.jp Search Console property, this field will silently
-    // fall back to mock data (see src/lib/sources/gsc.ts error handler).
+    // markless.jp is an sc-domain property and the service account is not a
+    // siteRestrictedUser on it, so the SA call returns 403.
+    //
+    // 2026-07-27 correction: this comment used to claim that therefore "this
+    // field will silently fall back to mock data". That is NOT what the code
+    // does — gsc.ts runs SA first and falls back to the shared OAuth client on
+    // 401/403/404, reverting to mock only when NEITHER credential is set. So
+    // with GOOGLE_OAUTH_TOKEN_JSON_BASE64 configured this property is served
+    // over OAuth, not mocked. Adding the SA as "Restricted" would remove the
+    // wasted 403 round-trip, but is not required for the data to appear.
     gscSiteUrl: "sc-domain:markless.jp",
     currency: "JPY",
     // C3-f: MSEC has no target-setting workflow at all (permanent, not a

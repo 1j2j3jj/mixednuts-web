@@ -6,6 +6,8 @@ import { getViewerOrgRole, canInviteMembers } from "@/lib/org-role";
 import { listTenantMembers } from "./actions";
 import MembersClient from "./MembersClient";
 import DeleteAccountSection from "./DeleteAccountSection";
+import PageHeader from "@/components/dashboard/PageHeader";
+import { Card, CardContent } from "@/components/ui/card";
 
 /**
  * /{org-slug}/settings/members  (served as /dashboard/{slug}/settings/members)
@@ -37,10 +39,35 @@ export default async function TenantMembersPage({ params }: PageProps) {
   if (!canInviteMembers(orgRole)) redirect(`/dashboard/${slug}?denied=members`);
   const canInvite = true; // ここに到達できるのは編集者以上のみ
 
+  // A bare `catch { notFound() }` used to turn EVERY failure here into a 404 —
+  // including the ordinary "this workspace has never had an invite issued, so
+  // no organization row exists yet" case, which is setup state, not a missing
+  // page. CEO hit exactly that on MSEC and reasonably read the 404 as a bug.
+  // Distinguish the two: org_not_found gets an honest, designed state (Q4
+  // vocabulary — 未設定 ≠ 取得失敗 ≠ 存在しない); anything else still 404s
+  // rather than silently rendering a half-empty page.
   let data;
   try {
     data = await listTenantMembers(slug);
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && err.message === "org_not_found") {
+      return (
+        <div className="mx-auto w-full max-w-3xl space-y-6">
+          <PageHeader
+            kicker="設定"
+            title="メンバー"
+            subtitle={`${client.label} · まだ設定されていません`}
+          />
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              このワークスペースではまだメンバー管理が開始されていません。
+              <br />
+              最初の招待を発行すると自動的に有効になります。
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
     notFound();
   }
 
