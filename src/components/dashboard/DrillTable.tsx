@@ -9,9 +9,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import TierGlyph from "@/components/dashboard/TierGlyph";
+import DrillPagination from "@/components/dashboard/DrillPagination";
 import { detectAnomalies } from "@/lib/analysis";
 import type { MetricSource } from "@/lib/source";
 import { higherIsBetterTier, lowerIsBetterTier } from "@/lib/tier";
+import { sortDrillRows } from "@/lib/dashboard/drill-shared";
 import { cn, fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 
 export interface DrillRow {
@@ -36,6 +38,9 @@ export interface DrillRow {
 }
 
 interface Props {
+  /** One PAGE of aggregated rows (see @/lib/dashboard/drill-shared's
+   *  DRILL_PAGE_SIZE / paginateDrillRows) — NOT necessarily the full
+   *  aggregated set. `totalCount` below carries the true full-set size. */
   rows: DrillRow[];
   /** Fallback target ROAS percentage (anchor month) — used only when
    *  targetsByMonth has no entry for a row's month. null = 未設定（色分けなし）. */
@@ -50,6 +55,24 @@ interface Props {
    *  own bucket month rather than a single anchor month. A month with no
    *  configured target (null / <=0) gets no colour on that metric. */
   targetsByMonth?: Map<string, { roasPct: number | null; cpa: number | null }>;
+  /**
+   * Windowing (G-3b, 2026-07-26): the full aggregated row count (across ALL
+   * pages), the 1-based inclusive range `rows` represents within that full
+   * set, and the pagination state needed to render Prev/Next. All five are
+   * required together — there is no meaningful default for "how many rows
+   * total" — but are optional at the type level so existing standalone
+   * renders/tests that pass a small, already-complete `rows` array (no
+   * pagination in play) don't have to invent values: omitted, the table
+   * falls back to treating `rows` as the whole set (totalCount =
+   * rows.length, one page).
+   */
+  totalCount?: number;
+  pageStart?: number;
+  pageEnd?: number;
+  currentPage?: number;
+  pageCount?: number;
+  /** Needed to build the Prev/Next href — only required when pageCount > 1. */
+  slug?: string;
 }
 
 /** Class strings per tier (thresholds now shared via @/lib/tier — see
@@ -82,6 +105,12 @@ export default function DrillTable({
   level = "campaign",
   source = "ga4",
   targetsByMonth,
+  totalCount,
+  pageStart,
+  pageEnd,
+  currentPage = 1,
+  pageCount = 1,
+  slug,
 }: Props) {
   // Resolve the ROAS/CPA target that applies to a given row, using its own
   // bucket month (P2-1) — falls back to the anchor-month targetRoasPct/
@@ -98,11 +127,25 @@ export default function DrillTable({
     );
   }
 
-  // Primary sort: date desc (latest first). Secondary: spend desc.
-  const sorted = [...rows].sort((a, b) => {
-    if (a.date !== b.date) return b.date.localeCompare(a.date);
-    return b.spend - a.spend;
-  });
+  // Windowing (G-3b): callers that paginate (drill/page.tsx) pass the true
+  // full-set totalCount/pageStart/pageEnd alongside a `rows` that is only
+  // ONE page of the full set. Callers that don't (none in this app today,
+  // but standalone renders/tests are free to) get sensible single-page
+  // fallbacks so the badge/caption still read correctly for a genuinely
+  // complete `rows` array.
+  const resolvedTotalCount = totalCount ?? rows.length;
+  const resolvedPageStart = pageStart ?? (rows.length > 0 ? 1 : 0);
+  const resolvedPageEnd = pageEnd ?? rows.length;
+
+  // Primary sort: date desc (latest first). Secondary: spend desc. Shared
+  // with page.tsx (@/lib/dashboard/drill-shared's sortDrillRows) so the
+  // authoritative full-set sort (applied there, BEFORE pagination slices
+  // the page this component actually receives) and this component's own
+  // rendering never risk drifting apart into two comparators. Re-sorting an
+  // already-sorted page slice here is a defensive no-op (see that
+  // function's doc comment) — it is what keeps this component correct even
+  // when handed a complete, unpaginated `rows` array directly.
+  const sorted = sortDrillRows(rows);
 
   // Anomaly detection on Spend (±2σ). Flagged rows get a subtle
   // coloured left border and a badge — no drama.
@@ -128,9 +171,16 @@ export default function DrillTable({
   return (
     <div className="rounded-md border">
       <Table>
+        {/* G-3b: names the true full-set total + the page range `rows`
+            represents, not just row count, so a screen-reader user landing
+            directly on the table (table-navigation commands bypass the
+            visible badge/pagination text entirely) still gets the "this is
+            a window, not everything" context. */}
         <TableCaption className="sr-only">
           ドリルダウン集計テーブル（
-          {level === "bucket" ? "期間別" : labelHeader}）
+          {level === "bucket" ? "期間別" : labelHeader}
+          ）。全{fmtInt(resolvedTotalCount)}件中{fmtInt(resolvedPageStart)}〜
+          {fmtInt(resolvedPageEnd)}件目を表示中。
         </TableCaption>
         <TableHeader>
           <TableRow>
@@ -308,9 +358,33 @@ export default function DrillTable({
           })}
         </TableBody>
       </Table>
-      <div className="border-t bg-muted/20 p-2 text-[11px] text-muted-foreground">
-        異常 = ±2σ を超える行（COST または CV
-        方向）。検出目安であって判定ではない。
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-muted/20 p-2 text-[11px] text-muted-foreground">
+        <span>
+          異常 = ±2σ を超える行（COST または CV
+          方向）。検出目安であって判定ではない。
+        </span>
+        <div className="flex items-center gap-3">
+          {/* G-3b: always the true full-set total + current window, never
+              pageRows.length — the on-screen badge must not silently start
+              reporting "how many loaded" once pagination exists.
+              aria-live so a Prev/Next click (a searchParams-driven
+              server-content update, not a full page reload) gets the
+              concrete new range announced on arrival — complementing
+              DrillPagination's own aria-live region below, which only ever
+              announces the transient "更新中…" pending state. */}
+          <span aria-live="polite" className="tabular-nums">
+            {resolvedTotalCount === 0
+              ? "0件"
+              : `${fmtInt(resolvedTotalCount)}件中 ${fmtInt(resolvedPageStart)}〜${fmtInt(resolvedPageEnd)}件目`}
+          </span>
+          {pageCount > 1 && slug && (
+            <DrillPagination
+              slug={slug}
+              currentPage={currentPage}
+              pageCount={pageCount}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
