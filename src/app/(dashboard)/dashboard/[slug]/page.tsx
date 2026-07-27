@@ -55,7 +55,9 @@ import {
 import { fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 import { computeShare } from "@/lib/share";
 import { achievementTone, sumAchievement } from "@/lib/chip";
-import { fmtJstTime } from "@/lib/datetime";
+import { fmtJstTime, jstDateString, jstYesterdayString } from "@/lib/datetime";
+import { getAdSyncStatus } from "@/lib/sources/sync-status";
+import { resolveDataTail, tailNotice } from "@/lib/data-tail";
 
 export const dynamic = "force-dynamic";
 // Allow up to 60s (Vercel default 30s was a timeout risk for the parallel
@@ -225,9 +227,25 @@ export default async function Overview({
     .map((r) => r.date)
     .filter(Boolean)
     .sort();
+  // 広告行が1件でもある場合のみ、末尾の解釈を通す（CEO 2026-07-27「昨日まで数値を
+  // 更新してほしい」。土日配信停止で Google Ads が行を返さず anchor が金曜で止まる
+  // 問題。詳細は `@/lib/data-tail`）。同期成功の証拠があるときだけ前日へ進める。
+  //
+  // 広告行がゼロのクライアント（chakin は広告シートがヘッダのみ）は**従来の GA4
+  // フォールバックをそのまま使う** — ここを前日に変えると、広告を出していない
+  // クライアントの期間計算まで動いてしまう。
+  const lastAdDate = adDates[adDates.length - 1] ?? null;
+  const adTail = lastAdDate
+    ? resolveDataTail({
+        lastAdDate,
+        yesterday: jstYesterdayString(),
+        adSyncOk: (await getAdSyncStatus(client.id)).ok,
+      })
+    : null;
   const anchor =
+    adTail?.anchor ??
     adDates[adDates.length - 1] ??
-    `${ga4[ga4.length - 1]?.yearMonth ?? new Date().toISOString().slice(0, 7)}-01`;
+    `${ga4[ga4.length - 1]?.yearMonth ?? jstDateString().slice(0, 7)}-01`;
 
   const rr = resolveFromSearchParams(
     sp,
@@ -608,6 +626,25 @@ export default async function Overview({
       <div className="space-y-3">
         <MockBanner isMock={anyMock} />
         <StaleDataBanner maxDate={adMaxDate} />
+        {/* 末尾の状態（配信なし / 未取得）を広告詳細タブと同一文言で出す。片方の
+            タブだけ日曜まで・もう片方は金曜までという不整合を作らないため。 */}
+        {adTail &&
+          (() => {
+            const msg = tailNotice(adTail);
+            if (!msg) return null;
+            return (
+              <div
+                role={adTail.state === "not_fetched" ? "alert" : "note"}
+                className={
+                  adTail.state === "not_fetched"
+                    ? "rounded-card border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-900"
+                    : "rounded-card border bg-muted px-3 py-2 text-xs text-muted-foreground"
+                }
+              >
+                {msg}
+              </div>
+            );
+          })()}
         {denied && <PermissionDeniedNotice surface={denied} />}
         <FirstRunGuide />
         <PageHeader

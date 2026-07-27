@@ -27,12 +27,14 @@ import SourceToggle from "@/components/dashboard/SourceToggle";
 import PageHeader from "@/components/dashboard/PageHeader";
 import StatusChip from "@/components/dashboard/StatusChip";
 import { readSource } from "@/lib/source";
+import { getAdSyncStatus } from "@/lib/sources/sync-status";
+import { resolveDataTail, fillZeroDays, tailNotice } from "@/lib/data-tail";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
 import { lastN } from "@/lib/analysis";
 import { fmtInt, fmtJpy, fmtRatioPct, safeDiv } from "@/lib/utils";
 import { computeWinRate, meetsRoasTarget, winRateTone } from "@/lib/chip";
-import { fmtJstTime } from "@/lib/datetime";
+import { fmtJstTime, jstYesterdayString } from "@/lib/datetime";
 
 /**
  * Screen 2 — Ads summary.
@@ -88,8 +90,6 @@ function pctOfTarget(actual: number, target: number): number {
   return target > 0 ? Math.round((actual / target) * 100) : 0;
 }
 
-
-
 export default async function AdsScreen({
   params,
   searchParams,
@@ -112,8 +112,19 @@ export default async function AdsScreen({
     .map((r) => r.date)
     .filter(Boolean)
     .sort();
-  const anchor =
-    allDates[allDates.length - 1] ?? new Date().toISOString().slice(0, 10);
+  // 末尾の解釈（CEO 2026-07-27）。MSEC は土日配信を止めており、Google Ads は指標
+  // ゼロの日を行として返さないため、月曜に見ると最終行が金曜になり anchor ごと金曜で
+  // 止まっていた。CEO 要件「昨日まで数値を更新してほしい」に対し、**同期が成功して
+  // いるという肯定的な証拠があるときだけ** anchor を前日へ進める（`@/lib/data-tail`）。
+  // 証拠が無い/失敗しているときに進めると、取得失敗を「配信なし」に見せてしまう。
+  const lastAdDate = allDates[allDates.length - 1] ?? null;
+  const adSync = await getAdSyncStatus(client.id);
+  const tail = resolveDataTail({
+    lastAdDate,
+    yesterday: jstYesterdayString(),
+    adSyncOk: adSync.ok,
+  });
+  const anchor = tail.anchor;
 
   const rr = resolveFromSearchParams(
     sp,
@@ -378,7 +389,22 @@ export default async function AdsScreen({
       : null;
   const mediaWinTone = winRateTone(mediaWinRate);
 
-  const series = aggregateByDate(cur);
+  // 日次系列だけを 0 で延長する（生の rows は触らない — プラットフォームが返した
+  // ままを保つ。埋めるのは表示用の集計だけ）。**`no_delivery` のときのみ**。未取得の
+  // 日を 0 にすると「配信したが成果ゼロ」と区別できなくなる。
+  // 延長先は選択期間の終端で打ち切る（先月を選んでいるのに今月まで伸ばさない）。
+  const seriesEnd = rr.current.end < tail.anchor ? rr.current.end : tail.anchor;
+  const series =
+    tail.state === "no_delivery"
+      ? fillZeroDays(aggregateByDate(cur), seriesEnd, (date) => ({
+          date,
+          cost: 0,
+          conversions: 0,
+          conversionValue: 0,
+          clicks: 0,
+        }))
+      : aggregateByDate(cur);
+  const tailMessage = tailNotice(tail);
 
   // Sparklines: last 14 buckets. Dates paired for tooltip.
   const series14 = lastN(series, 14);
@@ -409,6 +435,21 @@ export default async function AdsScreen({
     <div className="space-y-6">
       <div className="space-y-3">
         <MockBanner isMock={isMock || ga4AllIsMock || ga4CampaignsIsMock} />
+        {/* 末尾の状態を明示する。「配信なし」と「未取得」を同じ見た目にしないことが
+            この機能の目的（data-tail.ts の設計理由）。未取得は警告色、配信なしは
+            単なる補足として出す。 */}
+        {tailMessage && (
+          <div
+            role={tail.state === "not_fetched" ? "alert" : "note"}
+            className={
+              tail.state === "not_fetched"
+                ? "rounded-card border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-900"
+                : "rounded-card border bg-muted px-3 py-2 text-xs text-muted-foreground"
+            }
+          >
+            {tailMessage}
+          </div>
+        )}
         <PageHeader
           kicker="広告詳細"
           title={<>広告詳細 · {rr.presetLabel}</>}

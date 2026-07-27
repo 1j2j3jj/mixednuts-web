@@ -75,3 +75,26 @@ export function fmtJstMonthDayTime(v: DateInput): string {
 export function fmtJstDateTime(v: DateInput): string {
   return toDate(v).toLocaleString(LOCALE, { timeZone: APP_TIME_ZONE });
 }
+
+/**
+ * JST 基準の yyyy-mm-dd。データの日付軸は JST の暦日なので、`new Date()
+ * .toISOString().slice(0,10)` のような UTC 基準の「今日」を使うと、JST の
+ * 00:00〜09:00 に前日を指してしまう（本ファイル冒頭の欠陥と同根）。
+ */
+export function jstDateString(v: DateInput = new Date()): string {
+  // en-CA は yyyy-mm-dd を返すロケール。手で組むより取り違えが少ない。
+  return toDate(v).toLocaleDateString("en-CA", { timeZone: APP_TIME_ZONE });
+}
+
+/** JST 基準の前日 yyyy-mm-dd。日次データの「取得済みであるべき最終日」。 */
+export function jstYesterdayString(v: DateInput = new Date()): string {
+  const d = toDate(v);
+  return jstDateString(new Date(d.getTime() - 24 * 60 * 60 * 1000));
+}
+
+/** yyyy-mm-dd に日数を加算（UTC正午基準でDSTや境界の影響を避ける）。 */
+export function addDays(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const t = Date.UTC(y, m - 1, d, 12) + days * 24 * 60 * 60 * 1000;
+  return new Date(t).toISOString().slice(0, 10);
+}
