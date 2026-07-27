@@ -52,6 +52,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "^4.1.9",
+    "playwright": "^1.62.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vercel": "^51.8.0",

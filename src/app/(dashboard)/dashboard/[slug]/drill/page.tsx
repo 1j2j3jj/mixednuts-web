@@ -18,8 +18,17 @@ import {
   TrendingUp,
 } from "lucide-react";
 import DrillFilters from "@/components/dashboard/DrillFilters";
-import DrillTable, { type DrillRow } from "@/components/dashboard/DrillTable";
+import DrillTable from "@/components/dashboard/DrillTable";
 import CsvExportButton from "@/components/dashboard/CsvExportButton";
+import {
+  type Level,
+  bucketKey,
+  resolveDrillScope,
+  buildJoin,
+  aggregateDrillRows,
+  sortDrillRows,
+  paginateDrillRows,
+} from "@/lib/dashboard/drill-shared";
 import RefreshButton from "@/components/dashboard/RefreshButton";
 import PrintButton from "@/components/dashboard/PrintButton";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
@@ -47,103 +56,11 @@ export const dynamic = "force-dynamic";
 // BQ/GA4/Sheets fetches on cold cache — 監査#11). Within Hobby/Pro limits.
 export const maxDuration = 60;
 
-function bucketKey(
-  date: string,
-  granularity: "day" | "week" | "month",
-): string {
-  if (granularity === "day") return date;
-  if (granularity === "month") return date.slice(0, 7);
-  const d = new Date(`${date}T00:00:00Z`);
-  const day = d.getUTCDay();
-  const diff = (day + 6) % 7;
-  d.setUTCDate(d.getUTCDate() - diff);
-  return d.toISOString().slice(0, 10);
-}
-
-type Level = "media" | "campaign" | "adgroup" | "bucket";
-
-interface JoinKeys {
-  /** Keyed "<identifier>|<bucket>" → per-bucket GA4 totals. The identifier
-   *  depends on level: media name (for media level), campaign id (for
-   *  campaign level), ADG id (for adgroup level). */
-  mediaByBucket: Map<
-    string,
-    { sessions: number; conversions: number; revenue: number }
-  >;
-  campaignByBucket: Map<
-    string,
-    { sessions: number; conversions: number; revenue: number }
-  >;
-  adgroupByBucket: Map<
-    string,
-    { sessions: number; conversions: number; revenue: number }
-  >;
-}
-
-function aggregate(
-  rows: DailyRow[],
-  granularity: "day" | "week" | "month",
-  level: Level,
-  join: JoinKeys,
-): DrillRow[] {
-  const map = new Map<string, DrillRow>();
-  for (const r of rows) {
-    const bucket = bucketKey(r.date, granularity);
-    let key: string;
-    let subKey: string | undefined;
-    if (level === "media") {
-      key = r.media;
-    } else if (level === "campaign") {
-      key = r.campaignName || r.campaignId;
-      subKey = r.campaignId;
-    } else if (level === "adgroup") {
-      key = r.adgroupName || r.adgroupId || "(no adgroup)";
-      subKey = r.adgroupId;
-    } else {
-      key = bucket;
-    }
-    const id = `${level}|${key}|${bucket}`;
-    const cur = map.get(id) ?? {
-      key,
-      subKey,
-      date: bucket,
-      media: r.media,
-      spend: 0,
-      clicks: 0,
-      impressions: 0,
-      conversions: 0,
-      conversionValue: 0,
-      ga4Sessions: null as number | null,
-      ga4Conversions: null as number | null,
-      ga4Revenue: null as number | null,
-    };
-    cur.spend += r.cost;
-    cur.clicks += r.clicks;
-    cur.impressions += r.impressions;
-    cur.conversions += r.conversions;
-    cur.conversionValue += r.conversionValue;
-    map.set(id, cur);
-  }
-  // Attach per-bucket GA4 totals. Key = "<identifier>|<bucket>" so the
-  // JOIN is both by-identity and by-date — no more repeated window totals.
-  for (const row of map.values()) {
-    let hit:
-      { sessions: number; conversions: number; revenue: number } | undefined;
-    if (level === "media") {
-      hit = join.mediaByBucket.get(`${row.media}|${row.date}`);
-    } else if (level === "campaign" && row.subKey) {
-      hit = join.campaignByBucket.get(`${row.subKey}|${row.date}`);
-    } else if (level === "adgroup" && row.subKey) {
-      hit = join.adgroupByBucket.get(`${row.subKey}|${row.date}`);
-    }
-    if (hit) {
-      row.ga4Sessions = hit.sessions;
-      row.ga4Conversions = hit.conversions;
-      row.ga4Revenue = hit.revenue;
-    }
-  }
-  return Array.from(map.values());
-}
+// bucketKey / Level / JoinKeys / the aggregate() function moved to
+// @/lib/dashboard/drill-shared.ts (2026-07-26, G-3 payload fix) so the CSV
+// export route (drill/export/route.ts) can compute the identical `table`
+// via the identical functions, fed by an independently-fetched but
+// identically-shaped input. See that file's doc comment.
 
 export default async function DrillScreen({
   params,
@@ -171,53 +88,24 @@ export default async function DrillScreen({
     anchor,
   );
 
-  const mediaFilter = sp.media ?? "";
-  const campaignFilter = sp.campaign ?? "";
-  const adgroupFilter = sp.adgroup ?? "";
-  const granularity = (sp.g as "day" | "week" | "month" | undefined) ?? "day";
-
-  // Apply range first, then facet filters.
-  let filtered = filterByRange(rows, rr.current.start, rr.current.end);
-  if (mediaFilter) filtered = filtered.filter((r) => r.media === mediaFilter);
-  if (campaignFilter)
-    filtered = filtered.filter((r) => r.campaignId === campaignFilter);
-  if (adgroupFilter)
-    filtered = filtered.filter((r) => r.adgroupId === adgroupFilter);
-
-  const level: Level = adgroupFilter
-    ? "bucket"
-    : campaignFilter
-      ? "adgroup"
-      : mediaFilter
-        ? "campaign"
-        : "media";
-
-  // Build cascade scopes from the filtered sheet rows. The GA4 side is
-  // scoped via (media, campaign matchKey, adgroup id) derived from the sheet
-  // selection. This is what lets Big KPI cards stop leaking全paid revenue
-  // into a Yahoo指名 ADG view.
-  const scopeMedia = new Set(filtered.map((r) => r.media).filter(Boolean));
-  // sheetToGa4MatchKey mirrors ga4MatchKey in ga4.ts from the sheet side:
-  // Google auto-tag writes campaignId into GA4 sessionCampaignId (numeric),
-  // so matchKey=campaignId. Meta の入稿規約は utm_campaign={campaign_id} で
-  // GA4 sessionCampaignName に数値IDが入る（ga4MatchKey 2026-07-03 修正で
-  // name-first化）ため、ads側の campaignId がそのまま matchKey に一致する。
-  // Microsoft/Yahoo は campaignName（Yahoo は別途 trackingId JOIN）。
-  const scopeCampaignKeys = new Set(
-    filtered
-      .map((r) =>
-        r.media === "Google" || r.media.toLowerCase() === "meta"
-          ? r.campaignId
-          : r.campaignName,
-      )
-      .filter(Boolean),
-  );
-  const scopeAdgroupIds = new Set(
-    filtered.map((r) => r.adgroupId).filter(Boolean),
-  );
-  const isGoogleOnlyScope = scopeMedia.size === 1 && scopeMedia.has("Google");
-  const needAdgroupData =
-    level === "adgroup" || (!!adgroupFilter && isGoogleOnlyScope);
+  // Facet filters + cascade level + GA4 scope sets — shared with the CSV
+  // export route so both compute the identical scope from identical inputs
+  // (@/lib/dashboard/drill-shared.ts resolveDrillScope, moved verbatim from
+  // this file 2026-07-26).
+  const scope = resolveDrillScope(rows, rr, sp);
+  const {
+    filtered,
+    level,
+    granularity,
+    scopeMedia,
+    scopeCampaignKeys,
+    scopeAdgroupIds,
+    isGoogleOnlyScope,
+    needAdgroupData,
+  } = scope;
+  const mediaFilter = scope.mediaFilter;
+  const campaignFilter = scope.campaignFilter;
+  const adgroupFilter = scope.adgroupFilter;
 
   // Fetch GA4 data. Current + previous windows in parallel so KPI deltas are
   // real (prev was hardcoded 0 before, making GA4 deltas meaningless).
@@ -276,38 +164,26 @@ export default async function DrillScreen({
   const curGa4AdgroupsScoped = scopeGa4Adgroups(ga4Adgroups);
   const prevGa4AdgroupsScoped = scopeGa4Adgroups(ga4AdgroupsPrev);
 
-  // Bucket the GA4 daily rows into (identifier|bucket) → totals. For
-  // week/month granularity we re-bucket GA4 days into the same bucket key
-  // the ads side uses, so the two sides align exactly.
-  function addTo(
-    m: Map<string, { sessions: number; conversions: number; revenue: number }>,
-    key: string,
-    d: { sessions: number; conversions: number; revenue: number },
-  ) {
-    const cur = m.get(key) ?? { sessions: 0, conversions: 0, revenue: 0 };
-    cur.sessions += d.sessions;
-    cur.conversions += d.conversions;
-    cur.revenue += d.revenue;
-    m.set(key, cur);
-  }
-  const join: JoinKeys = {
-    mediaByBucket: new Map(),
-    campaignByBucket: new Map(),
-    adgroupByBucket: new Map(),
-  };
-  for (const g of ga4Campaigns) {
-    const bucket = g.date ? bucketKey(g.date, granularity) : "";
-    if (!bucket) continue;
-    addTo(join.mediaByBucket, `${g.media}|${bucket}`, g);
-    if (g.matchKey) addTo(join.campaignByBucket, `${g.matchKey}|${bucket}`, g);
-  }
-  for (const g of ga4Adgroups) {
-    const bucket = g.date ? bucketKey(g.date, granularity) : "";
-    if (!bucket) continue;
-    if (g.adgroupId) addTo(join.adgroupByBucket, `${g.adgroupId}|${bucket}`, g);
-  }
+  // Bucket the GA4 daily rows into (identifier|bucket) → totals, then
+  // aggregate the table — shared with the CSV export route (buildJoin /
+  // aggregateDrillRows in @/lib/dashboard/drill-shared.ts) so both compute
+  // the identical `table` via the identical functions.
+  const join = buildJoin(ga4Campaigns, ga4Adgroups, granularity);
+  const table = aggregateDrillRows(filtered, granularity, level, join);
 
-  const table = aggregate(filtered, granularity, level, join);
+  // Windowing (G-3b, 2026-07-26): `table` above is still the COMPLETE
+  // aggregated (entity × bucket) row set — CSV export, the row-count badge,
+  // and sort all still operate on every row. Only the ON-SCREEN render is
+  // bounded: the full set is sorted ONCE here (sortDrillRows — date desc,
+  // then spend desc), then sliced into one page (paginateDrillRows). This
+  // is what fixed drill's ~19MB HTML/RSC-payload at deep filters (measured:
+  // hs `?preset=last12m&media=Google`, 3,193 rows) without capping what a
+  // client can reach — every row is still one Prev/Next click away, and
+  // CsvExportButton's href (below) still exports every row regardless of
+  // which page is on screen. See @/lib/dashboard/drill-shared.ts's module
+  // doc and projects/mixednuts-web/_reports/
+  // 2026-07-26_dashboard-performance-budget.md.
+  const drillPage = paginateDrillRows(sortDrillRows(table), sp.dpage);
 
   // P2-1: colour-code ROAS/CPA against each row's own month, not a single
   // anchor-month target. week/month granularity buckets can straddle two
@@ -523,50 +399,23 @@ export default async function DrillScreen({
     ).values(),
   ).sort((a, b) => a.name.localeCompare(b.name));
 
-  const csvRows = table.map((r) => ({
-    date: r.date,
-    label: r.key,
-    subKey: r.subKey ?? "",
-    media: r.media,
-    spend: r.spend,
-    impressions: r.impressions,
-    clicks: r.clicks,
-    conversions: r.conversions,
-    conversionValue: r.conversionValue,
-    ga4Sessions: r.ga4Sessions ?? "",
-    ga4Conversions: r.ga4Conversions ?? "",
-    ga4Revenue: r.ga4Revenue ?? "",
-  }));
-  // Column labels mirror DrillTable's on-screen headers (期間/媒体/Imp/Click)
-  // plus the app-wide report vocabulary (COST/SESSION/GA_CV/GA売上/媒体CV/
-  // 媒体売上) for the fields DrillTable itself only shows one side of via the
-  // source toggle — the CSV always exports both ad-side and GA4-side columns,
-  // so both get their proper vocabulary label rather than a toggle-dependent
-  // single name. "label"'s header follows the same level→text mapping the
-  // page already uses for the section heading (see levelLabel) so a bucket-
-  // level export (no entity grouping) still reads as the date it duplicates.
-  const csvLabelHeader =
-    level === "media"
-      ? "媒体"
-      : level === "campaign"
-        ? "キャンペーン"
-        : level === "adgroup"
-          ? "広告グループ"
-          : "期間";
-  const csvHeaders = [
-    "期間",
-    csvLabelHeader,
-    "ID",
-    "媒体",
-    "COST",
-    "Imp",
-    "Click",
-    "媒体CV",
-    "媒体売上",
-    "SESSION",
-    "GA_CV",
-    "GA売上",
-  ];
+  // CSV export (G-3 payload fix, 2026-07-26): the export button no longer
+  // receives `table` as a client-component prop — the full row set used to
+  // be re-serialized whole into the page's RSC hydration payload here
+  // (verified up to 19.9MB HTML at deep drill/long-period filters, see
+  // _reports/2026-07-24_dashboard-phaseA-defect-ledger.md G-3 measurement).
+  // CsvExportButton now links to a route handler
+  // (drill/export/route.ts) that recomputes the exact same `table` from the
+  // same searchParams via the shared functions in
+  // @/lib/dashboard/drill-shared.ts and streams the CSV directly — nothing
+  // client-side needs the row data at all. Forward every search param the
+  // page itself resolved from (facet filters, granularity, preset/cmp/
+  // start/end) so the export matches what's on screen exactly.
+  const exportParams = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) {
+    if (v !== undefined) exportParams.set(k, v);
+  }
+  const exportHref = `/dashboard/${slug}/drill/export?${exportParams.toString()}`;
 
   const fetchedAtLabel = new Date(fetchedAt).toLocaleTimeString("ja-JP", {
     hour: "2-digit",
@@ -602,8 +451,7 @@ export default async function DrillScreen({
               </div>
               <CsvExportButton
                 filename={`drill-${slug}-${new Date().toISOString().slice(0, 10)}.csv`}
-                rows={csvRows}
-                headers={csvHeaders}
+                href={exportHref}
               />
               <PrintButton />
               <RefreshButton clientId={client.id} />
