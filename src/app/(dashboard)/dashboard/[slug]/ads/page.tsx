@@ -7,7 +7,7 @@ import {
   type Ga4CampaignRow,
 } from "@/lib/sources/ga4";
 import { getTargetsForMonth } from "@/lib/sources/target";
-import { resolveFromSearchParams, type DateRange } from "@/lib/range";
+import { resolveFromSearchParams } from "@/lib/range";
 import {
   Wallet,
   Target as TargetIcon,
@@ -88,31 +88,7 @@ function pctOfTarget(actual: number, target: number): number {
   return target > 0 ? Math.round((actual / target) * 100) : 0;
 }
 
-/** Sum GA4 monthly rows whose yearMonth overlaps the [start, end] range. */
-function filterGa4ByRange<T extends { yearMonth: string }>(
-  rows: T[],
-  r: DateRange,
-): T[] {
-  return rows.filter((x) => {
-    const monthStart = `${x.yearMonth}-01`;
-    const [y, m] = x.yearMonth.split("-").map(Number);
-    const monthEnd = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
-    return monthStart <= r.end && monthEnd >= r.start;
-  });
-}
 
-function ga4RevenueAndCv(
-  rows: Array<{ yearMonth: string; revenue: number; conversions: number }>,
-  range: DateRange,
-): { revenue: number; conversions: number } {
-  let revenue = 0;
-  let conversions = 0;
-  for (const r of filterGa4ByRange(rows, range)) {
-    revenue += r.revenue;
-    conversions += r.conversions;
-  }
-  return { revenue, conversions };
-}
 
 export default async function AdsScreen({
   params,
@@ -160,21 +136,12 @@ export default async function AdsScreen({
   const curTotals = sumRows(cur);
   const prevTotals = sumRows(prev);
 
-  // Top-level KPIs prefer GA4 for Revenue / ROAS (site-side truth). The
-  // media table stays ad-platform side because only that source breaks out
-  // per-media. Differences between the two are expected (attribution).
-  const { rows: ga4All, isMock: ga4AllIsMock } =
-    await getGa4MonthlyChannels(client);
-  const curGa4 = ga4RevenueAndCv(ga4All, rr.current);
-  const prevGa4 = rr.previous
-    ? ga4RevenueAndCv(ga4All, rr.previous)
-    : { revenue: 0, conversions: 0 };
-  const curGa4RoasPct =
-    curTotals.cost > 0 ? (curGa4.revenue / curTotals.cost) * 100 : null;
-  const prevGa4RoasPct =
-    rr.previous && prevTotals.cost > 0
-      ? (prevGa4.revenue / prevTotals.cost) * 100
-      : null;
+  // This tab's KPIs are ALL ad-attributed now (see ga4AttributedRevCur /
+  // ga4AttributedCvCur below), so the site-wide monthly-channel rows are no
+  // longer aggregated here — only their isMock flag is still needed, to feed
+  // the MockBanner for this source. The call itself stays (it's cached and
+  // shared with the サマリー tab, which legitimately IS site-wide).
+  const { isMock: ga4AllIsMock } = await getGa4MonthlyChannels(client);
 
   // Pull GA4 paid-campaign data for the same window so the media table can
   // JOIN real GA4 CV / Revenue per media (not a fake 0.9x multiplier).
@@ -330,12 +297,28 @@ export default async function AdsScreen({
   // rather than presenting the total as complete.
   const ga4AttributedCvCur = mediaRows.reduce((s, r) => s + r.ga4Cv, 0);
 
+  // 2026-07-27 (CEO): the 売上 / ROAS cards were the remaining half of the
+  // C3-g split above. CEO observed it directly — "媒体をクリックすると広告媒体
+  // の売上になるけど、GA売上は全売上のような気がする" — and it was worse than
+  // the CV case: the headline number was SITE-WIDE while *its own sparkline
+  // directly underneath* (ga4DailyTot, from getGa4PaidCampaigns) was already
+  // ad-attributed, as was the 媒体別サマリ table below. One card contradicted
+  // itself. ROAS compounded it: site-wide GA revenue ÷ AD cost, while the ROAS
+  // *target* (tgt.roasPct) is derived from 広告-channel adRevenue/adSpend —
+  // so actual and target were on different bases too.
+  // Same construction as ga4AttributedCvCur: literally the table's own total.
+  const ga4AttributedRevCur = mediaRows.reduce(
+    (s, r) => s + (r.ga4Revenue ?? 0),
+    0,
+  );
+
   // Previous-period comparison needs its own ad-attributed fetch — prevGa4
   // (still used by the untouched Revenue/ROAS cards) is site-wide, so
   // reusing it here would silently compare an ad-attributed current value
   // against a site-wide previous value (a subtler bug than the one being
   // fixed). Same per-media join as mediaRows, just for rr.previous's window.
   let ga4AttributedCvPrev = 0;
+  let ga4AttributedRevPrev = 0;
   if (rr.previous) {
     const { rows: ga4CampaignsPrev } = await getGa4PaidCampaigns(
       client,
@@ -345,9 +328,25 @@ export default async function AdsScreen({
     const ga4MediaTotPrev = ga4TotalsByMedia(ga4CampaignsPrev);
     for (const media of new Set(prev.map((r) => r.media))) {
       const g = ga4MediaTotPrev.get(media);
-      if (g) ga4AttributedCvPrev += Math.round(g.conversions);
+      if (g) {
+        ga4AttributedCvPrev += Math.round(g.conversions);
+        // Revenue needs the same ad-attributed previous window — reusing the
+        // site-wide prevGa4.revenue here would compare an ad-attributed
+        // current against a site-wide previous (the subtler bug C3 called out).
+        ga4AttributedRevPrev += g.revenue;
+      }
     }
   }
+
+  // Both sides of the ratio are now ad-scoped: ad-attributed GA revenue over
+  // ad spend. This also puts it on the same basis as its own target
+  // (tgt.roasPct, derived from 広告-channel adRevenue/adSpend in target.ts).
+  const curGa4RoasPct =
+    curTotals.cost > 0 ? (ga4AttributedRevCur / curTotals.cost) * 100 : null;
+  const prevGa4RoasPct =
+    rr.previous && prevTotals.cost > 0
+      ? (ga4AttributedRevPrev / prevTotals.cost) * 100
+      : null;
   // -----------------------------------------------------------------------
 
   const tgt = await getTargetsForMonth(client, anchor.slice(0, 7));
@@ -467,7 +466,7 @@ export default async function AdsScreen({
           hue="chart-5"
         />
         <BigKpiCard
-          label={source === "ga4" ? "GA_CV" : "媒体CV"}
+          label={source === "ga4" ? "GA_CV(広告帰属)" : "媒体CV"}
           value={fmtInt(
             // C3-g: ad-attributed (agrees with 媒体別サマリ below), not
             // site-wide curGa4.conversions — see block comment above.
@@ -511,20 +510,32 @@ export default async function AdsScreen({
           hue="chart-3"
         />
         <BigKpiCard
-          label={source === "ga4" ? "GA売上" : "媒体売上"}
+          // (広告帰属) mirrors the vocabulary the report tab already uses to
+          // distinguish these two populations ("GA_CV(広告帰属)" vs
+          // "GA_CV(サイト全体·購入)"). Not a rename of the CEO-chosen GA売上 —
+          // a qualifier, so this tab can't be read as the サマリー tab's
+          // site-wide figure. 媒体 source is ad-platform data, inherently
+          // ad-scoped, so it needs no qualifier.
+          label={source === "ga4" ? "GA売上(広告帰属)" : "媒体売上"}
           value={fmtJpy(
-            source === "ga4" ? curGa4.revenue : curTotals.conversionValue,
+            source === "ga4" ? ga4AttributedRevCur : curTotals.conversionValue,
           )}
           caption={
-            targetPeriodMatches && tgt.revenue != null && tgt.revenue > 0
-              ? `目標 ${fmtJpy(tgt.revenue)} の ${pctOfTarget(
-                  source === "ga4" ? curGa4.revenue : curTotals.conversionValue,
-                  tgt.revenue,
+            // Compare against the 広告-channel target, not the all-channel
+            // one: an ad-attributed actual over a site-wide target understates
+            // achievement. null (client has no 広告 target rows) => fall
+            // through to the period comparison rather than invent a ratio.
+            targetPeriodMatches && tgt.adRevenue != null && tgt.adRevenue > 0
+              ? `広告目標 ${fmtJpy(tgt.adRevenue)} の ${pctOfTarget(
+                  source === "ga4"
+                    ? ga4AttributedRevCur
+                    : curTotals.conversionValue,
+                  tgt.adRevenue,
                 )}%`
               : rr.previous
                 ? `${rr.compareLabel} ${fmtJpy(
                     source === "ga4"
-                      ? prevGa4.revenue
+                      ? ga4AttributedRevPrev
                       : prevTotals.conversionValue,
                   )}`
                 : "比較対象なし"
@@ -535,10 +546,10 @@ export default async function AdsScreen({
                   label: rr.compareLabel,
                   delta: pct(
                     source === "ga4"
-                      ? curGa4.revenue
+                      ? ga4AttributedRevCur
                       : curTotals.conversionValue,
                     source === "ga4"
-                      ? prevGa4.revenue
+                      ? ga4AttributedRevPrev
                       : prevTotals.conversionValue,
                   ),
                 }
@@ -551,7 +562,7 @@ export default async function AdsScreen({
           hue="chart-1"
         />
         <BigKpiCard
-          label={source === "ga4" ? "GA_ROAS" : "媒体ROAS"}
+          label={source === "ga4" ? "GA_ROAS(広告帰属)" : "媒体ROAS"}
           value={fmtRatioPct(
             source === "ga4" ? curGa4RoasPct : curTotals.roasPct,
             0,

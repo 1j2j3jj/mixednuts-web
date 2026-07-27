@@ -43,6 +43,18 @@ export interface MonthlyTargets {
   roasPct: number | null;
   /** Target blended CPA in JPY (cost / CV incl. organic). */
   cpa: number | null;
+  /**
+   * AD-CHANNEL-ONLY targets (channel='広告'), as opposed to `revenue` /
+   * `conversions` above which are all-channel sums.
+   *
+   * The targets query already computed these to derive roasPct/cpa but threw
+   * them away, so the Ads tab had no ad-scoped target to compare its
+   * ad-attributed actuals against — it was showing 広告経由の実績 ÷ 全体目標,
+   * which understates achievement. Surfaced so like is compared with like.
+   * null when the client's plan sheet has no 広告 channel rows.
+   */
+  adRevenue: number | null;
+  adCv: number | null;
 }
 
 export interface ClientConfig {

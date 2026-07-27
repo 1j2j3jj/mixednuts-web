@@ -61,7 +61,15 @@ function numOrNull(v: unknown): number | null {
 
 /** All-null targets — "目標未設定". Fresh object per call (callers may spread). */
 export function emptyTargets(): MonthlyTargets {
-  return { revenue: null, conversions: null, adSpendBudget: null, roasPct: null, cpa: null };
+  return {
+    revenue: null,
+    conversions: null,
+    adSpendBudget: null,
+    roasPct: null,
+    cpa: null,
+    adRevenue: null,
+    adCv: null,
+  };
 }
 
 /**
@@ -84,7 +92,10 @@ export function emptyTargets(): MonthlyTargets {
  * その SUM（0 でも）を採用、行が皆無なら null にしてフォールスルー。
  */
 const _bqTargetsCached = unstable_cache(
-  async (clientId: string, yearMonth: string): Promise<Partial<MonthlyTargets> | null> => {
+  async (
+    clientId: string,
+    yearMonth: string,
+  ): Promise<Partial<MonthlyTargets> | null> => {
     try {
       const bq = getBigQuery();
       const [job] = await bq.createQueryJob({
@@ -135,6 +146,11 @@ const _bqTargetsCached = unstable_cache(
       if (revenue != null) out.revenue = revenue;
       if (conversions != null) out.conversions = conversions;
       if (adSpendBudget != null) out.adSpendBudget = adSpendBudget;
+      // 広告チャネル内訳そのものも返す。従来は roasPct/cpa を導出したあと
+      // 捨てていたため、広告詳細タブが広告帰属の実績を「全体目標」と比べる
+      // しかなかった（達成率が過小に出る）。
+      if (adRevenue != null) out.adRevenue = adRevenue;
+      if (adCv != null) out.adCv = adCv;
       // roasPct / cpa は「広告」チャネル内訳から導出。内訳が無ければ下位へ委ねる。
       if (adSpend != null && adSpend > 0 && adRevenue != null) {
         out.roasPct = Math.round((adRevenue / adSpend) * 100);
@@ -189,7 +205,9 @@ const _bqChannelTargetsLongCached = unstable_cache(
           revenue: numOrNull(r.revenue) ?? 0,
           conversions: numOrNull(r.conversions) ?? 0,
         }))
-        .filter((r) => r.channel !== "" && (r.revenue !== 0 || r.conversions !== 0));
+        .filter(
+          (r) => r.channel !== "" && (r.revenue !== 0 || r.conversions !== 0),
+        );
     } catch (err) {
       console.error("[target] BQ channel targets_long fetch failed:", err);
       return [];
@@ -217,7 +235,7 @@ export interface ChannelTarget {
  */
 export async function getChannelTargetsForMonth(
   client: ClientConfig,
-  yearMonth: string
+  yearMonth: string,
 ): Promise<ChannelTarget[]> {
   const longRows = await _bqChannelTargetsLongCached(client.id, yearMonth);
   return longRows.map((r) => ({
@@ -235,7 +253,10 @@ export async function getChannelTargetsForMonth(
  * fallback while long adoption spreads.
  */
 const _bqMonthlyWideCached = unstable_cache(
-  async (clientId: string, yearMonth: string): Promise<Partial<MonthlyTargets> | null> => {
+  async (
+    clientId: string,
+    yearMonth: string,
+  ): Promise<Partial<MonthlyTargets> | null> => {
     try {
       const bq = getBigQuery();
       const [job] = await bq.createQueryJob({
@@ -265,7 +286,10 @@ const _bqMonthlyWideCached = unstable_cache(
       if (cpa != null) out.cpa = cpa;
       return out;
     } catch (err) {
-      console.error("[target] BQ targets_monthly (fallback) fetch failed:", err);
+      console.error(
+        "[target] BQ targets_monthly (fallback) fetch failed:",
+        err,
+      );
       return null;
     }
   },
@@ -284,7 +308,7 @@ const _bqMonthlyWideCached = unstable_cache(
  */
 export async function getTargetsForMonth(
   client: ClientConfig,
-  yearMonth: string
+  yearMonth: string,
 ): Promise<MonthlyTargets> {
   const [longRow, wide] = await Promise.all([
     _bqTargetsCached(client.id, yearMonth),
@@ -297,5 +321,10 @@ export async function getTargetsForMonth(
     adSpendBudget: longRow?.adSpendBudget ?? wide?.adSpendBudget ?? null,
     roasPct: longRow?.roasPct ?? wide?.roasPct ?? null,
     cpa: longRow?.cpa ?? wide?.cpa ?? null,
+    // 広告チャネル限定の目標。wide フォールバック（admin 一括アップロード）は
+    // チャネル内訳を持たないため long 形式のみが供給源で、無ければ null＝
+    // 「広告目標は未設定」。UI 側は null なら達成率を出さない（0 と混同しない）。
+    adRevenue: longRow?.adRevenue ?? null,
+    adCv: longRow?.adCv ?? null,
   };
 }
