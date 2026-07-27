@@ -5,6 +5,7 @@ import DashboardTabs from "@/components/dashboard/Tabs";
 import DataUpdatedFooter from "@/components/dashboard/DataUpdatedFooter";
 import { getViewerOrgRole, canInviteMembers } from "@/lib/org-role";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
+import { fmtJstTime } from "@/lib/datetime";
 
 /**
  * Per-client layout. Resolves the slug (404 on unknown / unauthorised) and
@@ -34,10 +35,7 @@ export default async function ClientLayout({
   // internal context that's not relevant to them.
   const subtitle =
     viewerKind === "admin" || viewerKind === null ? client.subtitle : null;
-  const renderedAtLabel = new Date().toLocaleTimeString("ja-JP", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const renderedAtLabel = fmtJstTime(new Date());
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-4">

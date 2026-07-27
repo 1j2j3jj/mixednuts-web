@@ -36,6 +36,7 @@ import RefreshButton from "@/components/dashboard/RefreshButton";
 import PageHeader from "@/components/dashboard/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fmtInt, fmtJpy, fmtRatioPct } from "@/lib/utils";
+import { fmtJstTime } from "@/lib/datetime";
 
 /**
  * Screen — レポート (BQ rpt_* views).
@@ -606,10 +607,7 @@ export default async function ReportScreen({
     "全体売上",
   ];
 
-  const fetchedAtLabel = new Date(fetchedAt).toLocaleTimeString("ja-JP", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const fetchedAtLabel = fmtJstTime(fetchedAt);
   const viewLabel = REPORT_VIEWS.find((v) => v.key === view)?.label ?? view;
 
   return (

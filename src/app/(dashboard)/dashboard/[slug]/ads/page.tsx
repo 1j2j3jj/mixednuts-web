@@ -32,6 +32,7 @@ import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
 import { lastN } from "@/lib/analysis";
 import { fmtInt, fmtJpy, fmtRatioPct, safeDiv } from "@/lib/utils";
 import { computeWinRate, meetsRoasTarget, winRateTone } from "@/lib/chip";
+import { fmtJstTime } from "@/lib/datetime";
 
 /**
  * Screen 2 — Ads summary.
@@ -403,10 +404,7 @@ export default async function AdsScreen({
     return d.cost > 0 ? (rev / d.cost) * 100 : 0;
   });
 
-  const fetchedAtLabel = new Date(fetchedAt).toLocaleTimeString("ja-JP", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const fetchedAtLabel = fmtJstTime(fetchedAt);
 
   return (
     <div className="space-y-6">

@@ -55,6 +55,7 @@ import {
 import { fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 import { computeShare } from "@/lib/share";
 import { achievementTone, sumAchievement } from "@/lib/chip";
+import { fmtJstTime } from "@/lib/datetime";
 
 export const dynamic = "force-dynamic";
 // Allow up to 60s (Vercel default 30s was a timeout risk for the parallel
@@ -553,10 +554,7 @@ export default async function Overview({
     return conv > 0 ? d.cost / conv : 0;
   });
 
-  const fetchedAtLabel = new Date(fetchedAt).toLocaleTimeString("ja-JP", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const fetchedAtLabel = fmtJstTime(fetchedAt);
 
   // Any upstream source running on mock fallback should surface the banner —
   // previously only the ad-sheet isMock was wired in, so a client with a

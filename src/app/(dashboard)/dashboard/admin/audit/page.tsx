@@ -4,6 +4,7 @@ import Link from "next/link";
 import { db } from "@/db/client";
 import { auditLog } from "@/db/schema";
 import { desc } from "drizzle-orm";
+import { fmtJstDateTimeSeconds } from "@/lib/datetime";
 
 /**
  * /admin/audit — immutable audit log viewer (admin only).
@@ -131,14 +132,7 @@ export default async function AuditLogPage() {
                 return (
                   <tr key={row.id} className="hover:bg-neutral-50">
                     <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-neutral-500">
-                      {row.createdAt.toLocaleString("ja-JP", {
-                        year: "numeric",
-                        month: "2-digit",
-                        day: "2-digit",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit",
-                      })}
+                      {fmtJstDateTimeSeconds(row.createdAt)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-2.5">
                       <span

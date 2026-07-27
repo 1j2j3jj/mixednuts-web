@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { TenantMember, PendingInvite } from "./actions";
+import { fmtJstDate, fmtJstMonthDayTime } from "@/lib/datetime";
 
 /**
  * Honest email-send status label (F-2, 2026-07-25). Prior copy said
@@ -28,12 +29,7 @@ import type { TenantMember, PendingInvite } from "./actions";
  */
 function emailStatusLabel(inv: PendingInvite): React.ReactNode {
   const when = inv.emailLastAttemptAt
-    ? new Date(inv.emailLastAttemptAt).toLocaleString("ja-JP", {
-        month: "numeric",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
+    ? fmtJstMonthDayTime(inv.emailLastAttemptAt)
     : null;
   const withWhen = (label: string) => (
     <>
@@ -339,7 +335,7 @@ export default function MembersClient({
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-neutral-500">
-                      {new Date(m.joinedAt).toLocaleDateString("ja-JP")}
+                      {fmtJstDate(m.joinedAt)}
                     </TableCell>
                   </TableRow>
                 ))
@@ -406,7 +402,7 @@ export default function MembersClient({
                         {emailStatusLabel(inv)}
                       </TableCell>
                       <TableCell className="text-xs text-neutral-500">
-                        {new Date(inv.expiresAt).toLocaleDateString("ja-JP")}
+                        {fmtJstDate(inv.expiresAt)}
                       </TableCell>
                       <TableCell>
                         {link ? (

@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CLIENTS, CLIENT_IDS } from "@/config/clients";
+import { fmtJstDate } from "@/lib/datetime";
 import InviteForm, {
   RevokeButton,
   CopyLinkButton,
@@ -186,7 +187,7 @@ export default async function InvitesPage() {
                       {p.role === "member" ? "閲覧者" : "編集者"}
                     </TableCell>
                     <TableCell className="text-xs text-neutral-500">
-                      {p.expiresAt.toLocaleDateString("ja-JP")}
+                      {fmtJstDate(p.expiresAt)}
                     </TableCell>
                     <TableCell>
                       {p.link ? (

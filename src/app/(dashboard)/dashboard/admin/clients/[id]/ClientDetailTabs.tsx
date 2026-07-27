@@ -22,6 +22,7 @@ import {
 } from "./credentials-actions";
 import type { OrgQuota } from "../../actions";
 import HealthCheckButton from "../../HealthCheckButton";
+import { fmtJstDate, fmtJstDateTime } from "@/lib/datetime";
 
 type Tab = "access" | "datasources" | "danger";
 
@@ -286,7 +287,7 @@ function AccessTab({
                   {inv.role === "member" ? "閲覧者" : "編集者"}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  {inv.expiresAt.toLocaleDateString("ja-JP")} まで
+                  {fmtJstDate(inv.expiresAt)} まで
                 </span>
                 <div className="flex items-center gap-2">
                   {inv.link ? (
@@ -372,19 +373,19 @@ function AccessTab({
                   </select>
                 )}
                 <span className="text-xs text-muted-foreground">
-                  {m.joinedAt.toLocaleDateString("ja-JP")} 参加
+                  {fmtJstDate(m.joinedAt)} 参加
                 </span>
                 {m.blockedAt && (
                   <span
                     className="rounded-md bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800"
-                    title={`${m.blockedAt.toLocaleDateString("ja-JP")} ブロック (6 ヶ月以上未ログイン)`}
+                    title={`${fmtJstDate(m.blockedAt)} ブロック (6 ヶ月以上未ログイン)`}
                   >
                     ブロック中
                   </span>
                 )}
                 {m.lastLoginAt && (
                   <span className="text-xs text-muted-foreground">
-                    最終 {m.lastLoginAt.toLocaleDateString("ja-JP")}
+                    最終 {fmtJstDate(m.lastLoginAt)}
                   </span>
                 )}
                 {m.blockedAt && (
@@ -719,7 +720,7 @@ function CredentialsTab({
                 </div>
                 {credInfo.updatedAt && (
                   <div className="text-[11px] text-neutral-500">
-                    {new Date(credInfo.updatedAt).toLocaleString("ja-JP")} 更新
+                    {fmtJstDateTime(credInfo.updatedAt)} 更新
                     {credInfo.rotatedBy && <> / {credInfo.rotatedBy}</>}
                   </div>
                 )}
