@@ -309,13 +309,13 @@ async function _runDashboardQuery(
     ),
     cv AS (
       SELECT
-        ${mediaExpr} AS media,
+        -- media IS NULL も「媒体不明」行として含める（KPI広告CVとの合計一致、監修3巡目P0-1）
+        COALESCE(${mediaExpr}, '媒体不明') AS media,
         COUNTIF(is_valid) AS valid_cv,
         AVG(IF(is_valid, CAST(monthly_premium AS FLOAT64), NULL)) AS avg_monthly_premium
       FROM ${ds}.graphene_cv
       WHERE date BETWEEN @start AND @end
         AND channel_group = '広告'
-        AND media IS NOT NULL
       GROUP BY 1
     ),
     ga AS (

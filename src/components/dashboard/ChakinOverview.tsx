@@ -194,7 +194,7 @@ export default async function ChakinOverview({
     cost: allChannels.reduce((sum, row) => sum + row.cost, 0),
   };
 
-  const campaignRows = currentData.campaignRows.slice(0, 30);
+  const campaignRows = currentKpiData.campaignRows.slice(0, 30);
 
   const failureMessage = hasWarnReason(current.warnings, "permission")
     ? "データ連携の権限エラーにより、この期間の実績を表示できません。管理者に連絡してください。"
@@ -443,14 +443,14 @@ export default async function ChakinOverview({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {currentData.mediaRows.length === 0 && (
+                    {currentKpiData.mediaRows.length === 0 && (
                       <AbsenceTableRow
                         colSpan={7}
                         reason="no_data_period"
                         detail={{ periodLabel: `${rr.current.start} 〜 ${rr.current.end}` }}
                       />
                     )}
-                    {currentData.mediaRows.map((row) => {
+                    {currentKpiData.mediaRows.map((row) => {
                       const cv = cvForMediaRow(source, row);
                       const cpa = cpaForDisplay(row.cost, cv);
                       const cvr = safeDiv(cv, row.clicks);
@@ -466,10 +466,10 @@ export default async function ChakinOverview({
                         </TableRow>
                       );
                     })}
-                    {currentData.mediaRows.length > 0 && (() => {
-                      const totalCost = currentData.mediaRows.reduce((sum, row) => sum + row.cost, 0);
-                      const totalClicks = currentData.mediaRows.reduce((sum, row) => sum + row.clicks, 0);
-                      const totalCv = currentData.mediaRows.reduce(
+                    {currentKpiData.mediaRows.length > 0 && (() => {
+                      const totalCost = currentKpiData.mediaRows.reduce((sum, row) => sum + row.cost, 0);
+                      const totalClicks = currentKpiData.mediaRows.reduce((sum, row) => sum + row.clicks, 0);
+                      const totalCv = currentKpiData.mediaRows.reduce(
                         (sum, row) => sum + cvForMediaRow(source, row),
                         0,
                       );
