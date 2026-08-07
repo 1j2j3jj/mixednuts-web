@@ -74,6 +74,7 @@ export default async function ClientLayout({
           <DashboardTabs
             slug={slug}
             showReport={isRptSupported(client.id)}
+            showInsights={client.hasEcommerce !== false}
             showMembers={canInviteMembers(orgRole)}
           />
         </div>

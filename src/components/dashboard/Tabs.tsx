@@ -14,12 +14,16 @@ interface Props {
    *  canInviteMembers で決定（2026-07-03）。目標設定も同じ編集者ゲート
    *  （閲覧者=member はタブ非表示・直URLはリダイレクト・操作はサーバ拒否）。 */
   showMembers?: boolean;
+  /** Show the 商品・検索 タブ — EC商材のクライアントのみ（hasEcommerce）。
+   *  保険等の非EC（chakin）は商品・検索クエリ軸が存在しないため非表示。 */
+  showInsights?: boolean;
 }
 
 export default function DashboardTabs({
   slug,
   showReport = false,
   showMembers = true,
+  showInsights = true,
 }: Props) {
   const pathname = usePathname() || "";
   // Carry the active date-range selection (?preset/?cmp/?start/?end, managed by
@@ -35,7 +39,9 @@ export default function DashboardTabs({
     ...(showReport
       ? [{ href: `/dashboard/${slug}/report`, label: "レポート" }]
       : []),
-    { href: `/dashboard/${slug}/insights`, label: "商品・検索" },
+    ...(showInsights
+      ? [{ href: `/dashboard/${slug}/insights`, label: "商品・検索" }]
+      : []),
     // メンバー = Org 内のユーザー招待・管理。org内ロール member には非表示
     //（直URLも members/page.tsx がリダイレクト、操作は actions.ts が拒否）。
     ...(showMembers
@@ -52,7 +58,7 @@ export default function DashboardTabs({
     // border-b lives on the parent row (see [slug]/layout.tsx, C2-a) so it
     // spans the whole client-name+tabs+date-picker band, not just this
     // shrink-to-fit <nav>'s own width.
-    <nav className="flex gap-1">
+    <nav className="flex gap-1 overflow-x-auto whitespace-nowrap">  {/* モバイルでタブ名が語中改行しないよう nowrap + 横スクロール（A-2 類型1） */}
       {tabs.map((t) => {
         const isActive =
           t.href === `/dashboard/${slug}`

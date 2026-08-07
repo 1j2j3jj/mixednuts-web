@@ -40,6 +40,7 @@ import FirstRunGuide from "@/components/dashboard/FirstRunGuide";
 import PageHeader from "@/components/dashboard/PageHeader";
 import ShareBar from "@/components/dashboard/ShareBar";
 import StatusChip from "@/components/dashboard/StatusChip";
+import ChakinOverview from "@/components/dashboard/ChakinOverview";
 import AbsenceNotice from "@/components/dashboard/AbsenceNotice";
 import AbsenceTableRow from "@/components/dashboard/AbsenceTableRow";
 import { permissionDeniedCopy } from "@/lib/absence";
@@ -212,6 +213,10 @@ export default async function Overview({
   const sp = await searchParams;
   const source = readSource(sp);
   const client = await assertUserCanAccessClientBySlug(slug);
+
+  if (client.id === "chakin") {
+    return <ChakinOverview client={client} slug={slug} searchParams={sp} />;
+  }
 
   const { rows: adRows, fetchedAt, isMock } = await getDailyRows(client, sp);
   const [ga4Result, ga4DailyResult, eccube] = await Promise.all([
