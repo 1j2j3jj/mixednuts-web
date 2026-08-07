@@ -20,6 +20,14 @@ import {
   TOTAL_ROW_CLASS,
 } from "@/components/ui/table";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
+import {
+  CircleDollarSign,
+  FileCheck2,
+  Target,
+  MousePointerClick,
+  Coins,
+  Percent,
+} from "lucide-react";
 import PageHeader from "@/components/dashboard/PageHeader";
 import RefreshButton from "@/components/dashboard/RefreshButton";
 import PrintButton from "@/components/dashboard/PrintButton";
@@ -247,6 +255,7 @@ export default async function ChakinOverview({
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
             <BigKpiCard
               label="COST"
+              icon={CircleDollarSign}
               value={fmtJpy(currentData.adCost)}
               caption={
                 previousData ? `${rr.compareLabel} ${fmtJpy(previousData.adCost)}` : "比較対象なし"
@@ -264,10 +273,11 @@ export default async function ChakinOverview({
             />
             <BigKpiCard
               label="CV"
+              icon={FileCheck2}
               value={fmtInt(cvCurrent)}
               caption={
                 source === "graphene"
-                  ? "グラフェンCV（申込完了・有効）"
+                  ? "申込完了・有効（基幹）"
                   : source === "ga4"
                     ? "GA4の申込完了イベント"
                     : "媒体計上CV"
@@ -284,6 +294,7 @@ export default async function ChakinOverview({
             />
             <BigKpiCard
               label="CPA"
+              icon={Target}
               value={fmtJpy(cpaCurrent)}
               caption={
                 source === "graphene"
@@ -305,6 +316,7 @@ export default async function ChakinOverview({
             />
             <BigKpiCard
               label="CLICK"
+              icon={MousePointerClick}
               value={fmtInt(currentData.adClicks)}
               caption={
                 previousData
@@ -323,6 +335,7 @@ export default async function ChakinOverview({
             />
             <BigKpiCard
               label="CPC"
+              icon={Coins}
               value={fmtJpy(cpcCurrent)}
               caption={cpcPrevious != null ? `${rr.compareLabel} ${fmtJpy(cpcPrevious)}` : "比較対象なし"}
               lowerIsBetter
@@ -338,6 +351,7 @@ export default async function ChakinOverview({
             />
             <BigKpiCard
               label="CVR"
+              icon={Percent}
               value={fmtPct(cvrCurrent, 2)}
               caption={cvrPrevious != null ? `${rr.compareLabel} ${fmtPct(cvrPrevious, 2)}` : "比較対象なし"}
               comparison={
@@ -362,6 +376,9 @@ export default async function ChakinOverview({
                   : " 媒体CV"}
               {" / "}
               CVR = 同CV ÷ クリック数（共通確定日まで）
+            </div>
+            <div>
+              CVソースは数え方が異なるため件数の水準も異なります（媒体CVは各媒体管理画面の計上で入口指標や重複を含み、GA4CVはサイト上の完了イベント、グラフェンCVは基幹システムの成立ベース）。件数の大小はデータ不良ではありません。
             </div>
             <div>
               ソース別最新日: 媒体費 {sourceLatest.ads ?? "—"} / グラフェンCV{" "}

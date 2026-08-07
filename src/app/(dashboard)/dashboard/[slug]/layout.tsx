@@ -47,7 +47,7 @@ export default async function ClientLayout({
           rule that used to live on <nav> (see Tabs.tsx) moved to this
           wrapper so it still spans the full row, not just the tab links. */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-0">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-3">  {/* min-w-0: 内包する nav の min-content でモバイル幅を突き破らない（A-2） */}
           {/* C3-a (defect A-22): this is tenant-identity CHROME shared by
               every tab, not page content — it must not be a heading at all.
               It used to be an <h2>, which put a level-2 heading in the DOM

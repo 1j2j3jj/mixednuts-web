@@ -58,7 +58,7 @@ export default function DashboardTabs({
     // border-b lives on the parent row (see [slug]/layout.tsx, C2-a) so it
     // spans the whole client-name+tabs+date-picker band, not just this
     // shrink-to-fit <nav>'s own width.
-    <nav className="flex gap-1 overflow-x-auto whitespace-nowrap">  {/* モバイルでタブ名が語中改行しないよう nowrap + 横スクロール（A-2 類型1） */}
+    <nav className="flex min-w-0 max-w-full gap-1 overflow-x-auto whitespace-nowrap">  {/* モバイルでタブ名が語中改行しないよう nowrap + 横スクロール（A-2 類型1） */}
       {tabs.map((t) => {
         const isActive =
           t.href === `/dashboard/${slug}`
