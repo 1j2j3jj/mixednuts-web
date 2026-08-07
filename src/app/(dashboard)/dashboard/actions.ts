@@ -4,6 +4,7 @@ import { revalidateTag } from "next/cache";
 import { getClient } from "@/config/clients";
 import { sheetCacheTag } from "@/lib/sheets";
 import { BQ_RPT_CACHE_TAG, isRptSupported } from "@/lib/sources/bq-rpt";
+import { BQ_CHAKIN_CACHE_TAG } from "@/lib/sources/bq-chakin";
 
 /**
  * Manual-refresh server action. Purges every unstable_cache entry that feeds
@@ -42,6 +43,9 @@ export async function refreshClientData(clientId: string): Promise<{ ok: boolean
   // BQ raw daily rows — global tag, so purge unconditionally (no-op for
   // clients not reading via BQ_SOURCE_RAW).
   revalidateTag("bq-raw", "default");
+  // Chakin-specific mart cache (graphene_cv / v_ads_daily_unified /
+  // ga4_ad_daily joins). Global tag; no-op for non-chakin clients.
+  revalidateTag(BQ_CHAKIN_CACHE_TAG, "default");
 
   // BQ rpt_* cache for clients with reporting marts, so the レポート screen's
   // refresh button re-reads BigQuery. Additive: the tag is only used by
