@@ -195,6 +195,15 @@
   margin-bottom: 1rem;
 }
 
+@media (min-width: 64rem) {
+  .dashboard-scope .ads-kpi-grid {
+    grid-template-columns: repeat(
+      var(--ads-kpi-card-count),
+      minmax(0, 1fr)
+    );
+  }
+}
+
 .dashboard-scope .big-kpi-card__value-block {
   margin-top: auto;
 }

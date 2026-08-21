@@ -13,11 +13,11 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 
 /**
- * Row of N big-KPI card placeholders — matches BigKpiCard's fixed 5-row
- * shape (header+badge / caption / value / sparkline slot / comparison),
- * kept in lockstep with BigKpiCard.tsx's structural invariant (2026-07-25:
- * every card now always renders these 5 rows, never fewer, regardless of
- * caller data) so the loading -> loaded transition doesn't visibly jump.
+ * Row of N big-KPI card placeholders. Callers whose loaded card count is a
+ * page invariant pass the shared count constant (ads uses
+ * ADS_KPI_CARD_COUNT) so loading -> loaded does not add or remove a column.
+ * The internal blocks approximate the densest BigKpiCard; equal outer height
+ * remains the invariant even when optional sparkline/comparison rows vanish.
  */
 export function KpiRowSkeleton({ count = 5 }: { count?: number }) {
   return (

@@ -94,7 +94,16 @@ export default function BigKpiCard({
     !!sparkline &&
     sparkline.length > 1 &&
     sparkline.some((point) => point > 0);
-  const showComparison = !unavailableMessage && comparison != null;
+  const comparisonUnavailable =
+    comparison != null &&
+    (comparison.delta == null || !Number.isFinite(comparison.delta));
+  const showComparison =
+    !unavailableMessage && comparison != null && !comparisonUnavailable;
+  const displayedCaption = unavailableMessage
+    ? unavailableMessage
+    : comparisonUnavailable
+      ? `${caption}（${comparison.label}は比較できません）`
+      : caption;
 
   return (
     <Card
@@ -113,10 +122,13 @@ export default function BigKpiCard({
 
       <div
         data-kpi-row="caption"
-        className="big-kpi-card__caption mt-1 min-h-4 truncate text-xs leading-tight text-muted-foreground"
-        title={unavailableMessage ?? caption}
+        className={cn(
+          "big-kpi-card__caption mt-1 text-xs leading-tight text-muted-foreground",
+          unavailableMessage ? "min-h-8 line-clamp-2" : "min-h-4 truncate",
+        )}
+        title={displayedCaption}
       >
-        {unavailableMessage ?? caption}
+        {displayedCaption}
       </div>
 
       <div className="big-kpi-card__value-block mt-auto flex flex-col">

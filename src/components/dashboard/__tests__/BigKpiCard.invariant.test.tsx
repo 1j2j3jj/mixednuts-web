@@ -77,13 +77,13 @@ describe("BigKpiCard visual invariant", () => {
     expect(html).toContain("比較対象なし");
   });
 
-  it("keeps a real comparison label when only its delta is incalculable", () => {
+  it("moves an incalculable comparison into the caption", () => {
     const html = renderCard({
       comparison: { label: "前期間", delta: null },
     });
-    expect(rowCount(html, "comparison")).toBe(1);
-    expect(html).toContain("前期間");
-    expect(html).toContain("比較不能");
+    expect(rowCount(html, "comparison")).toBe(0);
+    expect(html).not.toContain("— —");
+    expect(html).toContain("前期間は比較できません");
   });
 
   it.each([
@@ -116,6 +116,8 @@ describe("BigKpiCard visual invariant", () => {
 
     expect(html).toContain("未取得");
     expect(html).toContain(message);
+    expect(html).toContain("line-clamp-2");
+    expect(html).not.toContain("min-h-4 truncate");
     expect(html).not.toContain("¥123");
     expect(rowCount(html, "sparkline")).toBe(0);
     expect(rowCount(html, "comparison")).toBe(0);

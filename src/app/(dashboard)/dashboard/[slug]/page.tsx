@@ -62,6 +62,7 @@ import {
 import { fmtJstTime, jstDateString, jstYesterdayString } from "@/lib/datetime";
 import { getAdSyncStatus } from "@/lib/sources/sync-status";
 import { resolveDataTail, tailNotice } from "@/lib/data-tail";
+import { inProgressMonthlyKey } from "@/lib/in-progress-period";
 
 export const dynamic = "force-dynamic";
 // Allow up to 60s (Vercel default 30s was a timeout risk for the parallel
@@ -897,6 +898,10 @@ export default async function Overview({
         <CardContent>
           <ChannelStackedBar
             data={ga4Last12Months}
+            inProgressMonth={inProgressMonthlyKey(
+              ga4Last12Months[ga4Last12Months.length - 1]?.yearMonth,
+              jstDateString(),
+            )}
             defaultMetric="sessions"
             secondaryDefs={ga4SecondaryEventDefs(client)}
             absenceReason={client.ga4PropertyId ? undefined : "not_configured"}

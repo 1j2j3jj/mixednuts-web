@@ -46,6 +46,10 @@ await build({
       export { default as ChannelTargetTable } from "./src/components/dashboard/ChannelTargetTable.tsx";
       export { default as GoalGauge } from "./src/components/dashboard/GoalGauge.tsx";
       export { default as DeviceBar } from "./src/components/dashboard/DeviceBar.tsx";
+      export { default as DailyTrendChart } from "./src/components/dashboard/DailyTrendChart.tsx";
+      export { default as ChannelStackedBar } from "./src/components/dashboard/ChannelStackedBar.tsx";
+      export { default as MediaCampaignTable } from "./src/components/dashboard/MediaCampaignTable.tsx";
+      export { default as MediaTable } from "./src/components/dashboard/MediaTable.tsx";
     `,
     loader: "tsx",
     resolveDir: root,
@@ -108,9 +112,16 @@ await build({
   outfile: bundleFile,
   tsconfig: path.join(root, "tsconfig.json"),
 });
-const { BigKpiCard, ChannelTargetTable, GoalGauge, DeviceBar } = await import(
-  `${pathToFileURL(bundleFile).href}?v=${Date.now()}`
-);
+const {
+  BigKpiCard,
+  ChannelTargetTable,
+  GoalGauge,
+  DeviceBar,
+  DailyTrendChart,
+  ChannelStackedBar,
+  MediaCampaignTable,
+  MediaTable,
+} = await import(`${pathToFileURL(bundleFile).href}?v=${Date.now()}`);
 fs.rmSync(bundleFile);
 
 const h = React.createElement;
@@ -207,6 +218,58 @@ const kpiCards = [
   }),
 ];
 
+const dailyTrendRows = Array.from({ length: 21 }, (_, index) => {
+  const date = new Date(Date.UTC(2026, 7, index + 1));
+  return {
+    date: date.toISOString().slice(0, 10),
+    cost: 520_000 + index * 31_500,
+    conversions: 18 + (index % 7) * 3,
+    conversionValue: 1_900_000 + index * 82_000,
+    clicks: 2_800 + index * 120,
+  };
+});
+
+const monthlyChannels = ["Paid Search", "Organic Search", "Direct"];
+const monthlyRows = Array.from({ length: 12 }, (_, monthIndex) => {
+  const month = ((monthIndex + 8) % 12) + 1;
+  const year = monthIndex < 4 ? 2025 : 2026;
+  const yearMonth = `${year}-${String(month).padStart(2, "0")}`;
+  return monthlyChannels.map((channel, channelIndex) => ({
+    yearMonth,
+    channel,
+    sessions: 18_000 + monthIndex * 1_200 + channelIndex * 5_500,
+    conversions: 210 + monthIndex * 11 + channelIndex * 48,
+    revenue: 4_100_000 + monthIndex * 240_000 + channelIndex * 1_250_000,
+    secondary: {},
+    newUsers: 0,
+    returningUsers: 0,
+  }));
+}).flat();
+
+const campaignRows = Array.from({ length: 13 }, (_, index) => ({
+  media: index % 3 === 0 ? "Google" : index % 3 === 1 ? "Yahoo" : "meta",
+  campaignId: `campaign-${index + 1}`,
+  campaignName: `2026_${String(index + 1).padStart(2, "0")}_獲得キャンペーン`,
+  spend: 1_850_000 - index * 87_000,
+  impressions: 820_000 - index * 21_000,
+  clicks: 16_400 - index * 430,
+  adsCv: 190 - index * 5,
+  ga4Cv: 0,
+  conversionValue: 6_300_000 - index * 120_000,
+  ga4Revenue: 0,
+  ga4Matched: false,
+}));
+
+const oversizedRoasRow = {
+  ...campaignRows[0],
+  campaignId: "roas-17756",
+  campaignName: "ROAS表記確認 17,756%",
+  spend: 10_000,
+  adsCv: 12,
+  conversionValue: 1_775_600,
+  ga4Matched: true,
+};
+
 const app = h(
   "div",
   { className: "dashboard-scope" },
@@ -288,6 +351,60 @@ const app = h(
             revenue: 48_490,
           },
         ],
+      }),
+    ),
+    h(
+      "section",
+      { className: "rounded-card border bg-card p-4 shadow-card" },
+      h("h2", { className: "mb-3 text-sm font-semibold" }, "日次推移（最終日は進行中）"),
+      h(DailyTrendChart, {
+        data: dailyTrendRows,
+        inProgressDate: "2026-08-21",
+        width: 1120,
+        height: 288,
+        title: "日次推移（21日）",
+      }),
+    ),
+    h(
+      "section",
+      { className: "rounded-card border bg-card p-4 shadow-card" },
+      h("h2", { className: "mb-3 text-sm font-semibold" }, "月次スタックバー（最終月は進行中）"),
+      h(ChannelStackedBar, {
+        data: monthlyRows,
+        inProgressMonth: "2026-08",
+        width: 1120,
+        height: 288,
+        title: "月次チャネル別（12ヶ月）",
+      }),
+    ),
+    h(
+      "section",
+      { className: "rounded-card border bg-card p-4 shadow-card" },
+      h("h2", { className: "mb-3 text-sm font-semibold" }, "媒体別キャンペーン（13行・空6列を自動非表示）"),
+      h(MediaCampaignTable, {
+        rows: campaignRows,
+        targetRoasPct: 1_300,
+        source: "ga4",
+      }),
+    ),
+    h(
+      "section",
+      { className: "rounded-card border bg-card p-4 shadow-card" },
+      h("h2", { className: "mb-3 text-sm font-semibold" }, "ROAS 17,756% 表記確認"),
+      h(MediaTable, {
+        rows: [{
+          media: oversizedRoasRow.media,
+          spend: oversizedRoasRow.spend,
+          impressions: oversizedRoasRow.impressions,
+          clicks: oversizedRoasRow.clicks,
+          adsCv: oversizedRoasRow.adsCv,
+          ga4Cv: 0,
+          conversionValue: oversizedRoasRow.conversionValue,
+          ga4Revenue: 0,
+          ga4Matched: true,
+        }],
+        targetRoasPct: 1_300,
+        source: "media",
       }),
     ),
   ),

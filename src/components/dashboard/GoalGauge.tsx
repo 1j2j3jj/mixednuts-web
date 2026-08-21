@@ -59,21 +59,19 @@ export default function GoalGauge({
             ? "やや未達"
             : "未達";
   /**
-   * E-1 contrast fix (2026-07-25): the fill was -500 against a -100 track —
-   * measured (oklch->sRGB, WCAG formula): emerald-500 vs emerald-100 2.17:1,
-   * amber-500 vs amber-100 1.93:1, rose-500 vs rose-100 3.12:1 — all below
-   * (or barely at) the 3:1 non-text-UI floor (SC 1.4.11), meaning the filled
-   * portion of the meter did not read as a distinct object from its own
-   * track for a low-vision viewer. Bumped fill to -700, which clears with
-   * real margin against the SAME -100 track (emerald-700/emerald-100
-   * 4.72:1, amber-700/amber-100 4.52:1, rose-700/rose-100 5.02:1) — track
-   * colour is unchanged, only the fill got darker.
+   * E-1 / N-2 contrast fix (updated 2026-08-21): good and bad retain the
+   * validated -700/-100 pairs (emerald 4.72:1, rose 5.02:1). Warning no
+   * longer uses amber-700: rendered beside the other gauges it read as brown,
+   * contradicting the approved "黄は明るいまま" palette. The warning fill
+   * is yellow-400 on a neutral slate-700 track, measured at 6.76:1 with the
+   * WCAG relative-luminance formula — comfortably above
+   * the 3:1 non-text UI boundary in SC 1.4.11 without darkening the yellow.
    */
   const tone =
     tier === "good"
       ? { fill: "bg-emerald-700", track: "bg-emerald-100" }
       : tier === "warning"
-        ? { fill: "bg-amber-700", track: "bg-amber-100" }
+        ? { fill: "bg-yellow-400", track: "bg-slate-700" }
         : { fill: "bg-rose-700", track: "bg-rose-100" };
   return (
     <Card className="shadow-card">
@@ -83,9 +81,11 @@ export default function GoalGauge({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex items-baseline justify-between">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
           <span className="text-lg font-semibold tabular-nums">{actual}</span>
-          <span className="text-xs text-muted-foreground">目標 {target}</span>
+          <span className="ml-auto text-xs text-muted-foreground">
+            目標 {target}
+          </span>
         </div>
         {/* E-4: percentage is the accessible value (aria-valuenow/min/max)
             for a screen reader; the visible bar stays purely visual. */}

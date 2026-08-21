@@ -34,7 +34,8 @@ import PageHeader from "@/components/dashboard/PageHeader";
 import { readSource } from "@/lib/source";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fmtInt, fmtJpy, fmtRatioPct } from "@/lib/utils";
-import { fmtJstTime } from "@/lib/datetime";
+import { fmtJstTime, jstDateString } from "@/lib/datetime";
+import { inProgressDailyKey } from "@/lib/in-progress-period";
 
 /**
  * Screen 3 — Drilldown. Cascade: 媒体 → キャンペーン → 広告グループ. Aggregation
@@ -651,6 +652,14 @@ export default async function DrillScreen({
           <CardContent>
             <DailyTrendChart
               data={series}
+              inProgressDate={
+                granularity === "day"
+                  ? inProgressDailyKey(
+                      series[series.length - 1]?.date,
+                      jstDateString(),
+                    )
+                  : null
+              }
               absenceDetail={{
                 periodLabel: `${rr.current.start} 〜 ${rr.current.end}`,
               }}

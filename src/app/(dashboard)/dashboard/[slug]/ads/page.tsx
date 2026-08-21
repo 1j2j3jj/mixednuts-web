@@ -29,7 +29,13 @@ import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
 import { lastN } from "@/lib/analysis";
 import { fmtInt, fmtJpy, fmtRatioPct, safeDiv } from "@/lib/utils";
 import { computeWinRate, meetsRoasTarget, winRateTone } from "@/lib/chip";
-import { fmtJstTime, jstYesterdayString } from "@/lib/datetime";
+import {
+  fmtJstTime,
+  jstDateString,
+  jstYesterdayString,
+} from "@/lib/datetime";
+import { ADS_KPI_CARD_COUNT } from "@/lib/dashboard-layout";
+import { inProgressDailyKey } from "@/lib/in-progress-period";
 
 /**
  * Screen 2 — Ads summary.
@@ -402,6 +408,15 @@ export default async function AdsScreen({
         }))
       : aggregateByDate(cur);
   const tailMessage = tailNotice(tail);
+  // C-3 is period completeness, not source freshness. `resolveDataTail`
+  // proves whether missing ad rows may be zero-filled; sourceLatestDates /
+  // commonConfirmedEnd prove cross-source KPI comparability. Neither means a
+  // calendar day has finished, so the chart marks JST today only when it is
+  // actually the final rendered bucket.
+  const inProgressDate = inProgressDailyKey(
+    series[series.length - 1]?.date,
+    jstDateString(),
+  );
 
   // Sparklines: last 14 buckets. Dates paired for tooltip.
   const series14 = lastN(series, 14);
@@ -474,7 +489,12 @@ export default async function AdsScreen({
       </div>
 
       {/* Period KPIs with comparison + sparkline */}
-      <div className="kpi-card-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div
+        className="ads-kpi-grid kpi-card-grid grid gap-4 sm:grid-cols-2"
+        style={
+          { "--ads-kpi-card-count": ADS_KPI_CARD_COUNT } as CSSProperties
+        }
+      >
         <BigKpiCard
           label={chakinCost?.label ?? "COST"}
           value={fmtJpy(curTotals.cost)}
@@ -702,6 +722,7 @@ export default async function AdsScreen({
         <CardContent>
           <DailyTrendChart
             data={series}
+            inProgressDate={inProgressDate}
             absenceDetail={{
               periodLabel: `${rr.current.start} 〜 ${rr.current.end}`,
             }}
@@ -712,3 +733,4 @@ export default async function AdsScreen({
     </div>
   );
 }
+import type { CSSProperties } from "react";
