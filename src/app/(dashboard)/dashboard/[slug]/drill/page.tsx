@@ -11,12 +11,6 @@ import type { MonthlyTargets } from "@/config/clients";
 import { resolveFromSearchParams } from "@/lib/range";
 import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
 import { lastN } from "@/lib/analysis";
-import {
-  Wallet,
-  Target as TargetIcon,
-  JapaneseYen,
-  TrendingUp,
-} from "lucide-react";
 import DrillFilters from "@/components/dashboard/DrillFilters";
 import DrillTable from "@/components/dashboard/DrillTable";
 import CsvExportButton from "@/components/dashboard/CsvExportButton";
@@ -469,7 +463,7 @@ export default async function DrillScreen({
       </div>
 
       {/* Period KPIs with 4 sparklines + hover date tooltip */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="kpi-card-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <BigKpiCard
           label="COST"
           value={fmtJpy(curTotals.cost)}
@@ -495,8 +489,6 @@ export default async function DrillScreen({
           sparkDates={sparkDates}
           sparkFormat="jpy"
           sparkTone="negative"
-          icon={Wallet}
-          hue="chart-5"
         />
         <BigKpiCard
           label={source === "ga4" ? "GA_CV" : "媒体CV"}
@@ -537,8 +529,6 @@ export default async function DrillScreen({
           sparkline={cv14}
           sparkDates={sparkDates}
           sparkFormat="int"
-          icon={TargetIcon}
-          hue="chart-3"
         />
         <BigKpiCard
           label={source === "ga4" ? "GA売上" : "媒体売上"}
@@ -577,8 +567,6 @@ export default async function DrillScreen({
           sparkline={rev14}
           sparkDates={sparkDates}
           sparkFormat="jpy"
-          icon={JapaneseYen}
-          hue="chart-1"
         />
         <BigKpiCard
           label={source === "ga4" ? "GA_ROAS" : "媒体ROAS"}
@@ -622,8 +610,6 @@ export default async function DrillScreen({
           sparkline={roas14}
           sparkDates={sparkDates}
           sparkFormat="pct"
-          icon={TrendingUp}
-          hue="chart-4"
         />
       </div>
 

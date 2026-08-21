@@ -24,12 +24,6 @@ import ReportTable, {
   type ReportTableRow,
 } from "@/components/dashboard/ReportTable";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
-import {
-  Wallet,
-  Target as TargetIcon,
-  ShoppingCart,
-  Layers,
-} from "lucide-react";
 import CsvExportButton from "@/components/dashboard/CsvExportButton";
 import PrintButton from "@/components/dashboard/PrintButton";
 import RefreshButton from "@/components/dashboard/RefreshButton";
@@ -651,35 +645,27 @@ export default async function ReportScreen({
           it renders a reserved "—"/"—" placeholder row rather than
           vanishing), so captions here are definitional rather than
           "vs last period" / "of target". */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="kpi-card-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <BigKpiCard
           label="COST"
           value={fmtJpy(kpi.cost)}
           caption="全媒体COST合算"
           lowerIsBetter
-          icon={Wallet}
-          hue="chart-5"
         />
         <BigKpiCard
           label="媒体CV"
           value={fmtInt(kpi.mediaCv)}
           caption="広告プラットフォーム計測"
-          icon={TargetIcon}
-          hue="chart-3"
         />
         <BigKpiCard
           label="GA_CV(サイト全体·購入)"
           value={fmtInt(kpiSiteGaCv)}
           caption="GA4 サイト全体の購入イベント"
-          icon={ShoppingCart}
-          hue="chart-7"
         />
         <BigKpiCard
           label={overallCvLabelFull}
           value={fmtInt(kpiOverallCv)}
           caption={`計測経路: ${meta.overallCvSourceName ?? "全体CV"}`}
-          icon={Layers}
-          hue="chart-2"
         />
       </div>
       <div className="text-xs text-muted-foreground">

@@ -180,6 +180,48 @@
   color: var(--foreground);
 }
 
+/* KPI rows align through subgrid without drawing empty caption/chart/delta
+   placeholders. Browsers without subgrid keep equal-height cards through the
+   grid's stretch behaviour, then bottom-align the value block with flex. */
+.dashboard-scope .kpi-card-grid {
+  margin-bottom: -1rem;
+  row-gap: 0;
+}
+
+.dashboard-scope .kpi-card-grid > .big-kpi-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  margin-bottom: 1rem;
+}
+
+.dashboard-scope .big-kpi-card__value-block {
+  margin-top: auto;
+}
+
+@supports (grid-template-rows: subgrid) {
+  .dashboard-scope .kpi-card-grid > .big-kpi-card {
+    display: grid;
+    grid-row: span 3;
+    grid-template-rows: subgrid;
+    row-gap: 0;
+  }
+
+  .dashboard-scope .big-kpi-card__label {
+    grid-row: 1;
+  }
+
+  .dashboard-scope .big-kpi-card__caption {
+    grid-row: 2;
+  }
+
+  .dashboard-scope .big-kpi-card__value-block {
+    align-self: end;
+    grid-row: 3;
+    margin-top: 0;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

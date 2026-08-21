@@ -20,7 +20,6 @@ import { resolveFromSearchParams, type DateRange } from "@/lib/range";
 import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
 import { analysePacing, lastN } from "@/lib/analysis";
 import { readSource, type MetricSource } from "@/lib/source";
-import { JapaneseYen, Target, Users, Receipt, TrendingUp } from "lucide-react";
 import SourceToggle from "@/components/dashboard/SourceToggle";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
 import ChannelStackedBar from "@/components/dashboard/ChannelStackedBar";
@@ -737,7 +736,7 @@ export default async function Overview({
       </div>
 
       {/* 5 big KPI with sparklines */}
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="kpi-card-grid grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
         <BigKpiCard
           label={KPI_LABELS[source].revenue}
           value={fmtJpy(effectiveRev)}
@@ -759,8 +758,6 @@ export default async function Overview({
           sparkline={revSpark}
           sparkDates={sparkDates}
           sparkFormat="jpy"
-          icon={JapaneseYen}
-          hue="chart-1"
         />
         <BigKpiCard
           label={KPI_LABELS[source].cv}
@@ -783,8 +780,6 @@ export default async function Overview({
           sparkline={cvSpark}
           sparkDates={sparkDates}
           sparkFormat="int"
-          icon={Target}
-          hue="chart-3"
         />
         <BigKpiCard
           label="SESSION (GA4)"
@@ -805,8 +800,6 @@ export default async function Overview({
           sparkline={sessionsSpark}
           sparkDates={sparkDates}
           sparkFormat="int"
-          icon={Users}
-          hue="chart-7"
         />
         <BigKpiCard
           label={KPI_LABELS[source].cpa}
@@ -827,8 +820,6 @@ export default async function Overview({
           sparkline={cpaSpark}
           sparkDates={sparkDates}
           sparkFormat="jpy"
-          icon={Receipt}
-          hue="chart-6"
         />
         <BigKpiCard
           label={KPI_LABELS[source].roas}
@@ -848,8 +839,6 @@ export default async function Overview({
           sparkline={roasSpark}
           sparkDates={sparkDates}
           sparkFormat="pct"
-          icon={TrendingUp}
-          hue="chart-4"
         />
       </div>
 

@@ -8,12 +8,6 @@ import {
 } from "@/lib/sources/ga4";
 import { getTargetsForMonth } from "@/lib/sources/target";
 import { resolveFromSearchParams } from "@/lib/range";
-import {
-  Wallet,
-  Target as TargetIcon,
-  JapaneseYen,
-  TrendingUp,
-} from "lucide-react";
 import MediaTable, { type MediaRow } from "@/components/dashboard/MediaTable";
 import MediaCampaignTable, {
   type MediaCampaignRow,
@@ -480,7 +474,7 @@ export default async function AdsScreen({
       </div>
 
       {/* Period KPIs with comparison + sparkline */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="kpi-card-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <BigKpiCard
           label={chakinCost?.label ?? "COST"}
           value={fmtJpy(curTotals.cost)}
@@ -506,8 +500,6 @@ export default async function AdsScreen({
           sparkDates={dates14}
           sparkFormat="jpy"
           sparkTone="negative"
-          icon={Wallet}
-          hue="chart-5"
         />
         <BigKpiCard
           label={source === "ga4" ? "GA_CV(広告帰属)" : "媒体CV"}
@@ -550,8 +542,6 @@ export default async function AdsScreen({
           sparkline={cv14}
           sparkDates={dates14}
           sparkFormat="int"
-          icon={TargetIcon}
-          hue="chart-3"
         />
         <BigKpiCard
           // (広告帰属) mirrors the vocabulary the report tab already uses to
@@ -602,8 +592,6 @@ export default async function AdsScreen({
           sparkline={rev14}
           sparkDates={dates14}
           sparkFormat="jpy"
-          icon={JapaneseYen}
-          hue="chart-1"
         />
         <BigKpiCard
           label={source === "ga4" ? "GA_ROAS(広告帰属)" : "媒体ROAS"}
@@ -647,8 +635,6 @@ export default async function AdsScreen({
           sparkline={roas14}
           sparkDates={dates14}
           sparkFormat="pct"
-          icon={TrendingUp}
-          hue="chart-4"
         />
       </div>
 
