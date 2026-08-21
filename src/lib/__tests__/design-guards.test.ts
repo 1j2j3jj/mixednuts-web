@@ -5,6 +5,7 @@ import {
   findBrandCyanViolations,
   findHardcodedColorLiterals,
   findDarkFillToggleViolations,
+  findChartTokenViolations,
   findSubReadablePxFontSizes,
   type ColorLiteralAllowEntry,
 } from "@/lib/design-guards";
@@ -358,7 +359,64 @@ describe("findDarkFillToggleViolations", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Guard 4 — font sizes below 12px on user-readable content
+// Guard 4 — categorical series tokens stay inside chart files
+// ---------------------------------------------------------------------------
+
+describe("findChartTokenViolations", () => {
+  it("CATCHES a chart token string literal in a non-chart dashboard file", () => {
+    const fixture = `const colour = "var(--chart-2)";`;
+    expect(
+      findChartTokenViolations(
+        fixture,
+        "src/components/dashboard/BigKpiCard.tsx",
+      ),
+    ).toEqual([{ line: 1, match: '"var(--chart-2)"' }]);
+  });
+
+  it("allows categorical tokens inside named chart implementations", () => {
+    const fixture = `const colour = "var(--chart-2)";`;
+    expect(
+      findChartTokenViolations(
+        fixture,
+        "src/components/dashboard/ChannelTrendChart.tsx",
+      ),
+    ).toEqual([]);
+  });
+
+  it("does not treat a lowercase keyword hidden inside a non-chart name as chart scope", () => {
+    const fixture = `const colour = "var(--chart-1)";`;
+    expect(
+      findChartTokenViolations(
+        fixture,
+        "src/components/dashboard/BaselineCard.tsx",
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("does not flag chart-token prose in comments", () => {
+    const fixture = `// --chart-2 is categorical only`;
+    expect(
+      findChartTokenViolations(
+        fixture,
+        "src/components/dashboard/BigKpiCard.tsx",
+      ),
+    ).toEqual([]);
+  });
+
+  it("real dashboard scope contains zero chart tokens outside chart files", () => {
+    const allViolations = DASHBOARD_FILES.flatMap((file) => {
+      const source = fs.readFileSync(file, "utf-8");
+      return findChartTokenViolations(source, relPath(file)).map((v) => ({
+        file: relPath(file),
+        ...v,
+      }));
+    });
+    expect(allViolations).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Guard 5 — font sizes below 12px on user-readable content
 // ---------------------------------------------------------------------------
 
 describe("findSubReadablePxFontSizes", () => {

@@ -225,7 +225,62 @@ export function findDarkFillToggleViolations(source: string): Violation[] {
 }
 
 /* ------------------------------------------------------------------------
- * Guard 4 — font sizes below 12px on user-readable content.
+ * Guard 4 — categorical chart tokens stay inside chart implementations.
+ *
+ * --chart-1..7 encode categorical series. Reusing them for KPI decoration,
+ * icons, badges, or other non-series UI gives one colour multiple meanings.
+ * A file is chart-scoped only when its name contains Chart, Bar, Line, Pie,
+ * Area, or Trend. Deliberate exceptions must be listed below with a reason.
+ * ---------------------------------------------------------------------- */
+export interface ChartTokenAllowEntry {
+  /** Workspace-relative dashboard TSX path. */
+  file: string;
+  /** Why this non-chart file must reference a categorical series token. */
+  reason: string;
+}
+
+// Empty by design. Add exceptions one per line with an adjacent reason.
+export const CHART_TOKEN_ALLOWLIST: readonly ChartTokenAllowEntry[] = [];
+
+const CHART_FILE_NAME_PARTS = ["Chart", "Bar", "Line", "Pie", "Area", "Trend"];
+const CHART_TOKEN_RE = /--chart-/g;
+
+export function findChartTokenViolations(
+  source: string,
+  file: string,
+  allowlist: readonly ChartTokenAllowEntry[] = CHART_TOKEN_ALLOWLIST,
+): Violation[] {
+  const normalizedFile = file.replaceAll("\\", "/");
+  const fileName = normalizedFile.split("/").at(-1) ?? normalizedFile;
+  const lowerFileName = fileName.toLowerCase();
+  const isChartFile = CHART_FILE_NAME_PARTS.some(
+    (part) =>
+      fileName.includes(part) || lowerFileName.startsWith(part.toLowerCase()),
+  );
+  if (isChartFile) return [];
+  if (allowlist.some((entry) => entry.file === normalizedFile)) return [];
+
+  const violations: Violation[] = [];
+  const stringRe = new RegExp(
+    STRING_LITERAL_RE.source,
+    STRING_LITERAL_RE.flags,
+  );
+  let stringMatch: RegExpExecArray | null;
+  while ((stringMatch = stringRe.exec(source))) {
+    const tokenRe = new RegExp(CHART_TOKEN_RE.source, CHART_TOKEN_RE.flags);
+    let tokenMatch: RegExpExecArray | null;
+    while ((tokenMatch = tokenRe.exec(stringMatch[0]))) {
+      violations.push({
+        line: lineAt(source, stringMatch.index + tokenMatch.index),
+        match: stringMatch[0],
+      });
+    }
+  }
+  return violations;
+}
+
+/* ------------------------------------------------------------------------
+ * Guard 5 — font sizes below 12px on user-readable content.
  *
  * typography-spacing audit lane: text-[10px] (18 sites) / text-[11px] (13
  * sites) are load-bearing information in several places (DrillTable's
