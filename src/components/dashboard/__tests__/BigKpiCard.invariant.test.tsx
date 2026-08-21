@@ -112,6 +112,7 @@ function renderCard(props: {
   sparkline: number[] | undefined;
   icon: typeof JapaneseYen | undefined;
   hue: KpiHue | undefined;
+  lowerIsBetter?: boolean;
 }) {
   return renderToStaticMarkup(
     React.createElement(BigKpiCard, {
@@ -123,6 +124,7 @@ function renderCard(props: {
       sparkDates: props.sparkline?.map((_, i) => `2026-07-${10 + i}`),
       icon: props.icon,
       hue: props.hue,
+      lowerIsBetter: props.lowerIsBetter,
     }),
   );
 }
@@ -238,4 +240,51 @@ describe("BigKpiCard structural invariant (A-7 / A-16)", () => {
     // unrelated lucide <svg>).
     expect(extractRowInner(html, "badge")).not.toContain("<svg");
   });
+
+  it.each([
+    {
+      lowerIsBetter: false,
+      delta: 0.054,
+      arrowClass: "lucide-arrow-up-right",
+      signedValue: "+5.4%",
+      ariaLabel: "前期間比 5.4% 増加（改善）",
+    },
+    {
+      lowerIsBetter: false,
+      delta: -0.054,
+      arrowClass: "lucide-arrow-down-right",
+      signedValue: "-5.4%",
+      ariaLabel: "前期間比 5.4% 減少（悪化）",
+    },
+    {
+      lowerIsBetter: true,
+      delta: 0.054,
+      arrowClass: "lucide-arrow-up-right",
+      signedValue: "+5.4%",
+      ariaLabel: "前期間比 5.4% 増加（悪化）",
+    },
+    {
+      lowerIsBetter: true,
+      delta: -0.054,
+      arrowClass: "lucide-arrow-down-right",
+      signedValue: "-5.4%",
+      ariaLabel: "前期間比 5.4% 減少（改善）",
+    },
+  ])(
+    "uses the delta sign for direction and lowerIsBetter only for evaluation ($lowerIsBetter, $delta)",
+    ({ lowerIsBetter, delta, arrowClass, signedValue, ariaLabel }) => {
+      const html = renderCard({
+        caption: "x",
+        comparison: { label: "前期間比", delta },
+        sparkline: undefined,
+        icon: undefined,
+        hue: undefined,
+        lowerIsBetter,
+      });
+
+      expect(html).toContain(arrowClass);
+      expect(html).toContain(signedValue);
+      expect(html).toContain(`aria-label="${ariaLabel}"`);
+    },
+  );
 });

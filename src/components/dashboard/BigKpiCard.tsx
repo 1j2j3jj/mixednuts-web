@@ -115,20 +115,47 @@ interface Props {
   hue?: KpiHue;
 }
 
-function Arrow({
-  delta,
-  lowerIsBetter,
-}: {
-  delta: number | null;
-  lowerIsBetter?: boolean;
-}) {
+function Arrow({ delta }: { delta: number | null }) {
   if (delta == null || !Number.isFinite(delta))
     return <Minus className="h-3 w-3" />;
-  const positive = lowerIsBetter ? delta < 0 : delta > 0;
-  const negative = lowerIsBetter ? delta > 0 : delta < 0;
-  if (positive) return <ArrowUpRight className="h-3 w-3 text-emerald-600" />;
-  if (negative) return <ArrowDownRight className="h-3 w-3 text-rose-600" />;
+  // Direction and evaluation are separate signals: the glyph follows the
+  // measured sign only, while the comparison row colour below expresses
+  // whether that movement is favourable for this KPI. Mixing those two
+  // responsibilities previously reversed every lower-is-better arrow.
+  if (delta > 0) return <ArrowUpRight className="h-3 w-3" />;
+  if (delta < 0) return <ArrowDownRight className="h-3 w-3" />;
   return <Minus className="h-3 w-3" />;
+}
+
+function comparisonAriaLabel(
+  comparison: Comparison,
+  lowerIsBetter?: boolean,
+): string {
+  if (comparison.delta == null || !Number.isFinite(comparison.delta)) {
+    return `${comparison.label} 比較不能`;
+  }
+
+  const direction =
+    comparison.delta > 0
+      ? "増加"
+      : comparison.delta < 0
+        ? "減少"
+        : "変化なし";
+  const favourable = lowerIsBetter
+    ? comparison.delta < 0
+    : comparison.delta > 0;
+  const unfavourable = lowerIsBetter
+    ? comparison.delta > 0
+    : comparison.delta < 0;
+  const evaluation = favourable ? "改善" : unfavourable ? "悪化" : "横ばい";
+
+  return `${comparison.label} ${fmtPct(Math.abs(comparison.delta), 1)} ${direction}（${evaluation}）`;
+}
+
+function signedDelta(delta: number): string {
+  if (delta > 0) return `+${fmtPct(delta, 1)}`;
+  if (delta < 0) return `-${fmtPct(Math.abs(delta), 1)}`;
+  return fmtPct(delta, 1);
 }
 
 /** Reserved-slot placeholder — used whenever a caller has no comparison to
@@ -234,9 +261,14 @@ export default function BigKpiCard({
             )}
           >
             <span className="text-muted-foreground">{cmp.label}</span>
-            <span className="flex items-center gap-1 tabular-nums">
-              <Arrow delta={cmp.delta} lowerIsBetter={lowerIsBetter} />
-              {cmp.delta == null ? "—" : fmtPct(Math.abs(cmp.delta), 1)}
+            <span
+              className="flex items-center gap-1 tabular-nums"
+              aria-label={comparisonAriaLabel(cmp, lowerIsBetter)}
+            >
+              <Arrow delta={cmp.delta} />
+              {cmp.delta == null || !Number.isFinite(cmp.delta)
+                ? "—"
+                : signedDelta(cmp.delta)}
             </span>
           </div>
         </div>
