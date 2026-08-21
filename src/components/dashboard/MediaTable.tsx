@@ -10,10 +10,11 @@ import {
 } from "@/components/ui/table";
 import ShareBar from "@/components/dashboard/ShareBar";
 import TierGlyph from "@/components/dashboard/TierGlyph";
-import { cn, fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
+import { cn, fmtInt, fmtJpy, fmtPct, safeDiv } from "@/lib/utils";
 import { computeShare } from "@/lib/share";
 import type { MetricSource } from "@/lib/source";
 import { higherIsBetterTier } from "@/lib/tier";
+import { formatRoas } from "@/lib/roas-format";
 import {
   MATCH_STATUS_LABEL,
   MATCH_STATUS_DESC,
@@ -200,7 +201,7 @@ export default function MediaTable({ rows, targetRoasPct, source }: Props) {
               colour, so the judgement survives without colour perception. */}
           <span className="inline-flex items-center justify-end gap-1">
             {roasTier && <TierGlyph tier={roasTier} />}
-            {fmtRatioPct(roasPct, 0)}
+            {formatRoas(roasPct)}
           </span>
         </TableCell>
       </TableRow>

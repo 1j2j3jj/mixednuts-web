@@ -91,4 +91,27 @@ describe("MediaCampaignTable — join-failure badge", () => {
     );
     expect(html).toContain("未突合");
   });
+
+  it("defaults to the seven requested metrics and auto-hides six empty GA columns", () => {
+    const html = renderToStaticMarkup(
+      <MediaCampaignTable
+        rows={[CAMPAIGN_UNMATCHED]}
+        targetRoasPct={null}
+        source="ga4"
+      />,
+    );
+    const header = html.slice(html.indexOf("<thead"), html.indexOf("</thead>"));
+
+    for (const label of ["COST", "IMP", "CLICK", "CTR", "CPC"]) {
+      expect(header).toContain(label);
+    }
+    for (const label of ["GA_CV", "CVR", "GA_CPA", "GA売上", "商品単価", "GA_ROAS"]) {
+      expect(header).not.toContain(label);
+    }
+    expect(html).toContain(
+      "全行が0または—のため非表示: GA_CV / CVR / GA_CPA / GA売上 / 商品単価 / GA_ROAS",
+    );
+    expect(html).toContain("sticky left-0");
+    expect(html).toContain("after:bg-gradient-to-l");
+  });
 });

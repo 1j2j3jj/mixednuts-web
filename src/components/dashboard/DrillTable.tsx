@@ -14,7 +14,8 @@ import { detectAnomalies } from "@/lib/analysis";
 import type { MetricSource } from "@/lib/source";
 import { higherIsBetterTier, lowerIsBetterTier } from "@/lib/tier";
 import { sortDrillRows } from "@/lib/dashboard/drill-shared";
-import { cn, fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
+import { cn, fmtInt, fmtJpy, fmtPct, safeDiv } from "@/lib/utils";
+import { formatRoas } from "@/lib/roas-format";
 
 export interface DrillRow {
   /** Grouping key displayed in the first column. */
@@ -343,7 +344,7 @@ export default function DrillTable({
                 >
                   <span className="inline-flex items-center justify-end gap-1">
                     {roasTier && <TierGlyph tier={roasTier} />}
-                    {fmtRatioPct(roasPct, 0)}
+                    {formatRoas(roasPct)}
                   </span>
                 </TableCell>
                 <TableCell className="text-right">

@@ -14,26 +14,12 @@ import {
 } from "@/components/ui/table";
 import ShareBar from "@/components/dashboard/ShareBar";
 import TierGlyph from "@/components/dashboard/TierGlyph";
-import { cn, fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
+import { cn, fmtInt, fmtJpy, fmtPct, safeDiv } from "@/lib/utils";
 import { computeShare } from "@/lib/share";
 import type { MetricSource } from "@/lib/source";
 import { higherIsBetterTier } from "@/lib/tier";
-import {
-  MATCH_STATUS_LABEL,
-  MATCH_STATUS_DESC,
-  matchBadgeClass,
-} from "@/lib/match-status";
-
-/**
- * Media × Campaign summary. Sits below the 媒体別サマリ table on the Ads
- * screen and lets the viewer quickly compare campaigns across (or within)
- * a selected media. Source toggle (GA4 / 媒体) cascades from the parent
- * page so CV / CPA / 売上 / ROAS columns flip together with the top KPIs.
- *
- * Interaction is entirely client-side: media filter is local state, no URL
- * round-trip, so the page doesn't refetch. Rows are sorted by Spend desc
- * within the filtered set.
- */
+import { MATCH_STATUS_DESC } from "@/lib/match-status";
+import { formatRoas } from "@/lib/roas-format";
 
 export interface MediaCampaignRow {
   media: string;
@@ -42,27 +28,50 @@ export interface MediaCampaignRow {
   spend: number;
   impressions: number;
   clicks: number;
-  /** Ad-platform reported conversions. */
   adsCv: number;
-  /** GA4 purchase conversions joined by (media, matchKey). */
   ga4Cv: number;
-  /** Ad-platform reported conversion value (JPY). */
   conversionValue: number;
-  /** GA4 purchase revenue joined. 0 if no match. */
   ga4Revenue: number;
-  /** Whether the GA4 join found a matching record for this campaign at all
-   *  (Phase D). `ga4Cv`/`ga4Revenue` stay `0` either way — see MediaRow's
-   *  identical field for the full rationale. */
   ga4Matched?: boolean;
 }
 
 interface Props {
   rows: MediaCampaignRow[];
-  /** Target ROAS (percentage) used to color ROAS cells. null = 未設定（色分けなし）. */
   targetRoasPct: number | null;
-  /** Inherited from parent. "ga4" (default) = GA4 CV/売上/ROAS; "media" = ad-platform. */
   source: MetricSource;
 }
+
+type MetricColumn =
+  | "cost"
+  | "costShare"
+  | "impressions"
+  | "clicks"
+  | "ctr"
+  | "cpc"
+  | "cv"
+  | "cvr"
+  | "cpa"
+  | "revenue"
+  | "unitPrice"
+  | "roas";
+
+const DEFAULT_COLUMNS: MetricColumn[] = [
+  "cost",
+  "impressions",
+  "clicks",
+  "ctr",
+  "cpc",
+  "cv",
+  "cpa",
+];
+const OPTIONAL_COLUMNS: MetricColumn[] = [
+  "costShare",
+  "cvr",
+  "revenue",
+  "unitPrice",
+  "roas",
+];
+const ALL = "__all__";
 
 const MEDIA_BADGE: Record<string, string> = {
   Google: "bg-blue-100 text-blue-800",
@@ -72,15 +81,10 @@ const MEDIA_BADGE: Record<string, string> = {
   LinkedIn: "bg-indigo-100 text-indigo-800",
 };
 
-function mediaBadge(m: string): string {
-  // 未突合媒体のフォールバック。text-muted-foreground を opaque な bg-muted に
-  // 乗せると 4.35:1 で AA(4.5:1)未達になるため、SegmentedControl と同じ
-  // control-idle-foreground（bg-muted 上で 5.04:1）を使う。
-  return MEDIA_BADGE[m] ?? "bg-muted text-control-idle-foreground";
+function mediaBadge(media: string): string {
+  return MEDIA_BADGE[media] ?? "bg-muted text-control-idle-foreground";
 }
 
-/** See MediaTable.tsx's identical constant for the rationale — threshold
- *  logic lives once in @/lib/tier, only the class strings are per-table. */
 const ROAS_TIER_CLASS: Record<string, string> = {
   good: "text-emerald-700 font-semibold",
   warning: "text-amber-700",
@@ -92,185 +96,247 @@ function roasClass(actualPct: number | null, targetPct: number | null): string {
   return tier ? ROAS_TIER_CLASS[tier] : "";
 }
 
-const ALL = "__all__";
+function columnLabel(column: MetricColumn, source: MetricSource): string {
+  const sourceLabels =
+    source === "ga4"
+      ? { cv: "GA_CV", cpa: "GA_CPA", revenue: "GA売上", roas: "GA_ROAS" }
+      : { cv: "媒体CV", cpa: "媒体CPA", revenue: "媒体売上", roas: "媒体ROAS" };
+  return (
+    {
+      cost: "COST",
+      costShare: "COST比",
+      impressions: "IMP",
+      clicks: "CLICK",
+      ctr: "CTR",
+      cpc: "CPC",
+      cv: sourceLabels.cv,
+      cvr: "CVR",
+      cpa: sourceLabels.cpa,
+      revenue: sourceLabels.revenue,
+      unitPrice: "商品単価",
+      roas: sourceLabels.roas,
+    } satisfies Record<MetricColumn, string>
+  )[column];
+}
+
+function rowMetrics(row: MediaCampaignRow, source: MetricSource) {
+  const cv = source === "ga4" ? row.ga4Cv : row.adsCv;
+  const revenue = source === "ga4" ? row.ga4Revenue : row.conversionValue;
+  return {
+    cost: row.spend,
+    impressions: row.impressions,
+    clicks: row.clicks,
+    ctr: safeDiv(row.clicks, row.impressions),
+    cpc: safeDiv(row.spend, row.clicks),
+    cv,
+    cvr: safeDiv(cv, row.clicks),
+    cpa: safeDiv(row.spend, cv),
+    revenue,
+    unitPrice: safeDiv(revenue, cv),
+    roas: row.spend > 0 ? (revenue / row.spend) * 100 : null,
+  };
+}
 
 export default function MediaCampaignTable({
   rows,
   targetRoasPct,
   source,
 }: Props) {
-  // Distinct media present in the data — drives the filter pill set.
   const mediaList = useMemo(() => {
-    const s = new Set<string>();
-    for (const r of rows) if (r.media) s.add(r.media);
-    // Stable order: Google → Yahoo → Microsoft → meta → LinkedIn → others
     const priority = ["Google", "Yahoo", "Microsoft", "meta", "LinkedIn"];
-    const out = Array.from(s);
-    out.sort((a, b) => {
-      const ia = priority.indexOf(a);
-      const ib = priority.indexOf(b);
-      if (ia === -1 && ib === -1) return a.localeCompare(b);
-      if (ia === -1) return 1;
-      if (ib === -1) return -1;
-      return ia - ib;
-    });
-    return out;
-  }, [rows]);
-
-  const [selected, setSelected] = useState<string>(ALL);
-
-  const filtered = useMemo(() => {
-    const list =
-      selected === ALL ? rows : rows.filter((r) => r.media === selected);
-    return [...list].sort((a, b) => b.spend - a.spend);
-  }, [rows, selected]);
-
-  const tot = useMemo<MediaCampaignRow>(() => {
-    return filtered.reduce<MediaCampaignRow>(
-      (s, r) => ({
-        media: selected === ALL ? "合計 (全媒体)" : `合計 (${selected})`,
-        campaignId: "",
-        campaignName: "",
-        spend: s.spend + r.spend,
-        impressions: s.impressions + r.impressions,
-        clicks: s.clicks + r.clicks,
-        adsCv: s.adsCv + r.adsCv,
-        ga4Cv: s.ga4Cv + r.ga4Cv,
-        conversionValue: s.conversionValue + r.conversionValue,
-        ga4Revenue: s.ga4Revenue + r.ga4Revenue,
-      }),
-      {
-        media: selected === ALL ? "合計 (全媒体)" : `合計 (${selected})`,
-        campaignId: "",
-        campaignName: "",
-        spend: 0,
-        impressions: 0,
-        clicks: 0,
-        adsCv: 0,
-        ga4Cv: 0,
-        conversionValue: 0,
-        ga4Revenue: 0,
+    return Array.from(new Set(rows.map((row) => row.media).filter(Boolean))).sort(
+      (a, b) => {
+        const ai = priority.indexOf(a);
+        const bi = priority.indexOf(b);
+        if (ai === -1 && bi === -1) return a.localeCompare(b);
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
       },
     );
-  }, [filtered, selected]);
+  }, [rows]);
+  const [selected, setSelected] = useState(ALL);
+  const [addedColumns, setAddedColumns] = useState<MetricColumn[]>([]);
 
-  const cvLabel = source === "ga4" ? "GA_CV" : "媒体CV";
-  const revLabel = source === "ga4" ? "GA売上" : "媒体売上";
-  const cpaLabel = source === "ga4" ? "GA_CPA" : "媒体CPA";
-  const roasLabel = source === "ga4" ? "GA_ROAS" : "媒体ROAS";
+  const filtered = useMemo(() => {
+    const selectedRows =
+      selected === ALL ? rows : rows.filter((row) => row.media === selected);
+    return [...selectedRows].sort((a, b) => b.spend - a.spend);
+  }, [rows, selected]);
 
-  function renderRow(r: MediaCampaignRow, isTotal = false) {
-    const ctr = safeDiv(r.clicks, r.impressions);
-    const cpc = safeDiv(r.spend, r.clicks);
-    const cv = source === "ga4" ? r.ga4Cv : r.adsCv;
-    const rev = source === "ga4" ? r.ga4Revenue : r.conversionValue;
-    const cvr = safeDiv(cv, r.clicks);
-    const cpa = safeDiv(r.spend, cv);
-    const roasPct = r.spend > 0 ? (rev / r.spend) * 100 : null;
-    const roasTier = isTotal
-      ? null
-      : higherIsBetterTier(roasPct, targetRoasPct);
-    const rowKey = isTotal
-      ? "__total__"
-      : `${r.media}|${r.campaignId}|${r.campaignName}`;
+  const total = useMemo(
+    () =>
+      filtered.reduce<MediaCampaignRow>(
+        (sum, row) => ({
+          ...sum,
+          spend: sum.spend + row.spend,
+          impressions: sum.impressions + row.impressions,
+          clicks: sum.clicks + row.clicks,
+          adsCv: sum.adsCv + row.adsCv,
+          ga4Cv: sum.ga4Cv + row.ga4Cv,
+          conversionValue: sum.conversionValue + row.conversionValue,
+          ga4Revenue: sum.ga4Revenue + row.ga4Revenue,
+        }),
+        {
+          media: selected === ALL ? "合計 (全媒体)" : `合計 (${selected})`,
+          campaignId: "",
+          campaignName: "",
+          spend: 0,
+          impressions: 0,
+          clicks: 0,
+          adsCv: 0,
+          ga4Cv: 0,
+          conversionValue: 0,
+          ga4Revenue: 0,
+        },
+      ),
+    [filtered, selected],
+  );
+
+  // C-7 uses the complete result set, not the active media pill, so columns
+  // do not appear/disappear while the reader filters rows. A column is empty
+  // only when every row resolves to null/— or numeric zero.
+  const autoHidden = useMemo(() => {
+    const hidden = new Set<MetricColumn>();
+    const candidates: Array<Exclude<MetricColumn, "costShare">> = [
+      "cost",
+      "impressions",
+      "clicks",
+      "ctr",
+      "cpc",
+      "cv",
+      "cvr",
+      "cpa",
+      "revenue",
+      "unitPrice",
+      "roas",
+    ];
+    for (const column of candidates) {
+      const empty = rows.every((row) => {
+        const value = rowMetrics(row, source)[column];
+        return value == null || value === 0;
+      });
+      if (empty) hidden.add(column);
+    }
+    return hidden;
+  }, [rows, source]);
+
+  const visibleColumns = [...DEFAULT_COLUMNS, ...addedColumns].filter(
+    (column, index, columns) =>
+      columns.indexOf(column) === index && !autoHidden.has(column),
+  );
+  const unmatchedCount = filtered.filter(
+    (row) => source === "ga4" && row.ga4Matched === false,
+  ).length;
+
+  function renderMetricCell(
+    row: MediaCampaignRow,
+    column: MetricColumn,
+    isTotal: boolean,
+  ) {
+    const value = rowMetrics(row, source);
+    if (column === "cost") return fmtJpy(value.cost);
+    if (column === "costShare") {
+      return <ShareBar ratio={computeShare(row.spend, total.spend)} />;
+    }
+    if (column === "impressions") return fmtInt(value.impressions);
+    if (column === "clicks") return fmtInt(value.clicks);
+    if (column === "ctr") return fmtPct(value.ctr, 2);
+    if (column === "cpc") return fmtJpy(value.cpc);
+    if (column === "cv") {
+      return (
+        <span className="inline-flex items-center justify-end gap-1.5">
+          {fmtInt(value.cv)}
+          {source === "ga4" && !isTotal && row.ga4Matched === false && (
+            <span
+              aria-label="未突合"
+              className="h-1.5 w-1.5 rounded-full bg-amber-500"
+              title={MATCH_STATUS_DESC.unmapped}
+            />
+          )}
+        </span>
+      );
+    }
+    if (column === "cvr") return fmtPct(value.cvr, 2);
+    if (column === "cpa") return fmtJpy(value.cpa);
+    if (column === "revenue") return fmtJpy(value.revenue);
+    if (column === "unitPrice") return fmtJpy(value.unitPrice);
+    const tier = isTotal ? null : higherIsBetterTier(value.roas, targetRoasPct);
     return (
-      <TableRow key={rowKey} className={cn(isTotal && TOTAL_ROW_CLASS)}>
+      <span className="inline-flex items-center justify-end gap-1">
+        {tier && <TierGlyph tier={tier} />}
+        {formatRoas(value.roas)}
+      </span>
+    );
+  }
+
+  function renderRow(row: MediaCampaignRow, isTotal = false) {
+    return (
+      <TableRow
+        key={
+          isTotal
+            ? "__total__"
+            : `${row.media}|${row.campaignId}|${row.campaignName}`
+        }
+        className={cn(isTotal && TOTAL_ROW_CLASS)}
+      >
         <TableCell
           scope={isTotal ? "row" : undefined}
-          className="whitespace-nowrap"
+          className={cn(
+            "sticky left-0 z-10 whitespace-nowrap border-r bg-card",
+            isTotal && "bg-muted",
+          )}
         >
           {isTotal ? (
-            <span>{r.media}</span>
+            row.media
           ) : (
             <span
-              className={`inline-flex rounded-md px-2 py-0.5 text-xs ${mediaBadge(r.media)}`}
+              className={cn(
+                "inline-flex rounded-md px-2 py-0.5 text-xs",
+                mediaBadge(row.media),
+              )}
             >
-              {r.media}
+              {row.media}
             </span>
           )}
         </TableCell>
-        <TableCell className="max-w-[320px] truncate" title={r.campaignName}>
+        <TableCell className="max-w-[320px] truncate" title={row.campaignName}>
           {isTotal
             ? ""
-            : r.campaignName || (
+            : row.campaignName || (
                 <span className="text-muted-foreground">(no name)</span>
               )}
         </TableCell>
-        <TableCell className="text-right tabular-nums">
-          {fmtJpy(r.spend)}
-        </TableCell>
-        <TableCell>
-          {/* C2-b share-of-total column, scoped to the CURRENTLY FILTERED
-              set (tot already re-sums per media-pill selection above) so
-              the share reads correctly whether "全媒体" or a single medium
-              is selected. */}
-          <ShareBar ratio={computeShare(r.spend, tot.spend)} />
-        </TableCell>
-        <TableCell className="text-right tabular-nums">
-          {fmtInt(r.impressions)}
-        </TableCell>
-        <TableCell className="text-right tabular-nums">
-          {fmtInt(r.clicks)}
-        </TableCell>
-        <TableCell className="text-right tabular-nums">
-          {fmtPct(ctr, 2)}
-        </TableCell>
-        <TableCell className="text-right tabular-nums">{fmtJpy(cpc)}</TableCell>
-        <TableCell className="text-right tabular-nums">
-          {/* Join-failure marker — same mechanism/vocabulary as MediaTable
-              (Phase D, reuses report tab's matched/unmapped badge). */}
-          <span className="inline-flex items-center justify-end gap-1">
-            {fmtInt(cv)}
-            {source === "ga4" && !isTotal && r.ga4Matched === false && (
-              <span
-                className={cn(
-                  "rounded px-1 py-0.5 text-xs leading-none",
-                  matchBadgeClass("unmapped"),
-                )}
-                title={MATCH_STATUS_DESC.unmapped}
-              >
-                {MATCH_STATUS_LABEL.unmapped}
-              </span>
+        {visibleColumns.map((column) => (
+          <TableCell
+            key={column}
+            className={cn(
+              "whitespace-nowrap text-right tabular-nums",
+              column === "costShare" && "min-w-28",
+              column === "roas" &&
+                !isTotal &&
+                roasClass(rowMetrics(row, source).roas, targetRoasPct),
             )}
-          </span>
-        </TableCell>
-        <TableCell className="text-right tabular-nums">
-          {fmtPct(cvr, 2)}
-        </TableCell>
-        <TableCell className="text-right tabular-nums">{fmtJpy(cpa)}</TableCell>
-        <TableCell className="text-right tabular-nums">{fmtJpy(rev)}</TableCell>
-        <TableCell
-          className={cn(
-            "text-right tabular-nums",
-            !isTotal && roasClass(roasPct, targetRoasPct),
-          )}
-        >
-          {/* E-3: non-colour carrier — see MediaTable.tsx's identical fix. */}
-          <span className="inline-flex items-center justify-end gap-1">
-            {roasTier && <TierGlyph tier={roasTier} />}
-            {fmtRatioPct(roasPct, 0)}
-          </span>
-        </TableCell>
+          >
+            {renderMetricCell(row, column, isTotal)}
+          </TableCell>
+        ))}
       </TableRow>
     );
   }
 
+  const hiddenLabels = Array.from(autoHidden).map((column) =>
+    columnLabel(column, source),
+  );
+
   return (
     <div className="space-y-3">
-      {/* Media filter pills */}
       <div className="flex flex-wrap items-center gap-2">
         <SegmentedControl
           value={selected}
           options={[
             { value: ALL, label: "全媒体" },
-            // Media pills stay text-only when unselected: their old badge
-            // fills (bg-blue-100 等) sat *darker* than the selected state's
-            // bg-brand/14, inverting which pill reads as active. The media's
-            // identity colour still lives on the badge inside each table row.
-            ...mediaList.map((media) => ({
-              value: media,
-              label: media,
-            })),
+            ...mediaList.map((media) => ({ value: media, label: media })),
           ]}
           onValueChange={setSelected}
           ariaLabel="媒体フィルター"
@@ -281,49 +347,84 @@ export default function MediaCampaignTable({
         <span className="ml-2 text-xs text-muted-foreground">
           {filtered.length} キャンペーン
         </span>
+        <details className="relative ml-auto">
+          <summary className="cursor-pointer rounded-md border px-3 py-1.5 text-xs font-medium marker:content-none">
+            列を追加
+          </summary>
+          <div className="absolute right-0 z-30 mt-2 min-w-44 space-y-2 rounded-md border bg-popover p-3 shadow-card">
+            {OPTIONAL_COLUMNS.map((column) => (
+              <label key={column} className="flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={addedColumns.includes(column)}
+                  disabled={autoHidden.has(column)}
+                  onChange={(event) =>
+                    setAddedColumns((current) =>
+                      event.target.checked
+                        ? [...current, column]
+                        : current.filter((item) => item !== column),
+                    )
+                  }
+                />
+                {columnLabel(column, source)}
+              </label>
+            ))}
+          </div>
+        </details>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
+      {unmatchedCount > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {filtered.length}件中{unmatchedCount}件が未突合
+        </p>
+      )}
+
+      <div className="relative overflow-hidden rounded-md border after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:z-20 after:w-8 after:bg-gradient-to-l after:from-background after:to-transparent">
+        <Table className="min-w-max">
           <TableCaption className="sr-only">
             媒体 × キャンペーン別サマリテーブル
           </TableCaption>
           <TableHeader>
             <TableRow>
-              <TableHead>媒体</TableHead>
+              <TableHead className="sticky left-0 z-20 border-r bg-card">
+                媒体
+              </TableHead>
               <TableHead>キャンペーン</TableHead>
-              <TableHead className="text-right">COST</TableHead>
-              <TableHead className="text-right">COST比</TableHead>
-              <TableHead className="text-right">Imp</TableHead>
-              <TableHead className="text-right">Click</TableHead>
-              <TableHead className="text-right">CTR</TableHead>
-              <TableHead className="text-right">CPC</TableHead>
-              <TableHead className="text-right">{cvLabel}</TableHead>
-              <TableHead className="text-right">CVR</TableHead>
-              <TableHead className="text-right">{cpaLabel}</TableHead>
-              <TableHead className="text-right">{revLabel}</TableHead>
-              <TableHead className="text-right">{roasLabel}</TableHead>
+              {visibleColumns.map((column) => (
+                <TableHead
+                  key={column}
+                  className="whitespace-nowrap text-right"
+                >
+                  {columnLabel(column, source)}
+                </TableHead>
+              ))}
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={13}
-                  className="text-center text-sm text-muted-foreground py-8"
+                  colSpan={visibleColumns.length + 2}
+                  className="py-8 text-center text-sm text-muted-foreground"
                 >
                   該当キャンペーンなし
                 </TableCell>
               </TableRow>
             ) : (
               <>
-                {filtered.map((r) => renderRow(r))}
-                {renderRow(tot, true)}
+                {filtered.map((row) => renderRow(row))}
+                {renderRow(total, true)}
               </>
             )}
           </TableBody>
         </Table>
       </div>
+
+      {hiddenLabels.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          全行が0または—のため非表示: {hiddenLabels.join(" / ")}
+        </p>
+      )}
     </div>
   );
 }
