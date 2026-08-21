@@ -76,9 +76,9 @@ function PreviewApp() {
       <main className="min-h-screen space-y-6 bg-background p-6">
         <section className="space-y-3">
           <h1 className="text-xl font-bold">Dashboard P1 Preview</h1>
-          <div className="kpi-card-grid grid grid-cols-6 gap-4">
+          <div className="kpi-card-grid grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
             <BigKpiCard
-              label="広告費"
+              label="広告費（媒体計上）"
               value="¥21,962,887"
               caption="前期間 ¥19,560,165"
               comparison={{ label: "前期間比", delta: 0.123 }}
@@ -88,10 +88,11 @@ function PreviewApp() {
               sparkTone="negative"
             />
             <BigKpiCard
-              label="広告費（申込ベース・広告チャネル）"
+              label="広告費（申込ベース）"
               value="¥19,560,165"
               caption="広告チャネル集計"
               comparison={{ label: "前期間比", delta: -0.054 }}
+              lowerIsBetter
               sparkline={[2_488_441, 2_760_810, 2_935_207, 2_681_144, 2_894_563]}
               sparkFormat="jpy"
             />
@@ -129,7 +130,7 @@ function PreviewApp() {
           <ChannelTargetTable rows={channelRows} expectedProgress={expectedProgress} progressNote="経過20日/31日（65%）" />
         </section>
 
-        <section className="grid grid-cols-3 gap-4">
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <GoalGauge label="売上達成" actual="¥19,148,350" target="¥36,375,000" ratio={19_148_350 / 36_375_000} expectedProgress={expectedProgress} />
           <GoalGauge label="CV達成" actual="1,284" target="2,853" ratio={1_284 / 2_853} expectedProgress={expectedProgress} />
           <GoalGauge label="広告予算消化" actual="¥21,962,887" target="¥38,531,381" ratio={21_962_887 / 38_531_381} expectedProgress={expectedProgress} budgetPacing />

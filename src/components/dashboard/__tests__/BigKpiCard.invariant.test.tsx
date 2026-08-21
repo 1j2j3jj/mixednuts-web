@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import BigKpiCard, {
@@ -11,9 +12,8 @@ import BigKpiCard, {
  * This test intentionally replaced the former "every optional row must exist"
  * assertion. That assertion preserved equal card height by drawing empty DOM
  * slots, which is the behaviour P1 removes. The real invariant is that sibling
- * cards share a row height: `.kpi-card-grid` stretches every card, subgrid
- * aligns the label/caption/value tracks, and the flex fallback keeps the value
- * block bottom-aligned when subgrid is unavailable. Optional rows must now be
+ * cards share label/caption/value/sparkline/comparison tracks through subgrid,
+ * while the flex fallback keeps content top-aligned. Optional rows must remain
  * absent from the markup when they have no information to show.
  */
 
@@ -42,32 +42,73 @@ function rowCount(html: string, row: string): number {
 }
 
 describe("BigKpiCard visual invariant", () => {
-  it("keeps sparse and dense sibling cards on the same layout contract", () => {
+  it("assigns six mixed cards to the same five-track layout contract", () => {
     const html = renderToStaticMarkup(
-      <div className="kpi-card-grid grid grid-cols-2">
+      <div className="kpi-card-grid grid grid-cols-6">
         <BigKpiCard
-          label="DENSE"
+          label="DENSE_A"
           value="¥123"
           caption="前期間 ¥100"
           comparison={{ label: "前期間", delta: 0.23 }}
           sparkline={[1, 2, 3]}
         />
         <BigKpiCard
+          label="DENSE_B"
+          value="¥456"
+          caption="前期間 ¥500"
+          comparison={{ label: "前期間", delta: -0.08 }}
+        />
+        <BigKpiCard
+          label="SPARK_ONLY"
+          value="789"
+          caption="比較対象なし"
+          sparkline={[3, 2, 4]}
+        />
+        <BigKpiCard
           label="SPARSE"
           value="¥0"
           caption="比較対象なし"
         />
+        <BigKpiCard
+          label="UNAVAILABLE"
+          value="0"
+          caption="比較対象なし"
+          unavailableMessage="CVソース最新 2026-07-06"
+        />
+        <BigKpiCard
+          label="INCALCULABLE"
+          value="0"
+          caption="前期間 0"
+          comparison={{ label: "前期間比", delta: null }}
+          sparkline={[0, 0, 0]}
+        />
       </div>,
     );
 
-    expect(rowCount(html, "label")).toBe(2);
-    expect(rowCount(html, "caption")).toBe(2);
-    expect(rowCount(html, "value")).toBe(2);
+    expect(rowCount(html, "label")).toBe(6);
+    expect(rowCount(html, "caption")).toBe(6);
+    expect(rowCount(html, "value")).toBe(6);
     expect(
       html.match(/data-kpi-layout="subgrid-flex-fallback"/g),
-    ).toHaveLength(2);
-    expect(html.match(/big-kpi-card h-full/g)).toHaveLength(2);
-    expect(html.match(/big-kpi-card__value-block mt-auto/g)).toHaveLength(2);
+    ).toHaveLength(6);
+    expect(html.match(/big-kpi-card h-full/g)).toHaveLength(6);
+    expect(html).not.toContain("mt-auto");
+
+    // Static rendering has no layout engine, so this test does not verify
+    // geometry. It proves that every value is a direct named row and that the
+    // shared stylesheet maps all five rows onto a real subgrid.
+    const css = readFileSync("src/app/globals.css", "utf8");
+    expect(css).toMatch(/grid-row:\s*span 5/);
+    expect(css).toMatch(/grid-template-rows:\s*subgrid/);
+    expect(css).toMatch(
+      /\.big-kpi-card__value\s*\{[\s\S]*?grid-row:\s*3/,
+    );
+    expect(css).toMatch(
+      /\.big-kpi-card__sparkline\s*\{[\s\S]*?grid-row:\s*4/,
+    );
+    expect(css).toMatch(
+      /\.big-kpi-card__comparison\s*\{[\s\S]*?grid-row:\s*5/,
+    );
   });
 
   it("omits the comparison row when comparison is unavailable", () => {
@@ -77,13 +118,15 @@ describe("BigKpiCard visual invariant", () => {
     expect(html).toContain("比較対象なし");
   });
 
-  it("moves an incalculable comparison into the caption", () => {
+  it("keeps an incalculable comparison out of the one-line caption", () => {
     const html = renderCard({
+      caption: "前期間 0",
       comparison: { label: "前期間", delta: null },
     });
     expect(rowCount(html, "comparison")).toBe(0);
     expect(html).not.toContain("— —");
-    expect(html).toContain("前期間は比較できません");
+    expect(html).toContain("前期間 0");
+    expect(html).not.toContain("比較できません");
   });
 
   it.each([

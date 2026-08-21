@@ -640,11 +640,10 @@ export default async function ReportScreen({
       </div>
 
       {/* Period KPIs — window totals independent of the granularity tab. No
-          prior-period or target value is computed anywhere on this tab (see
-          BigKpiCard.tsx module doc for why `comparison` is safe to omit —
-          it renders a reserved "—"/"—" placeholder row rather than
-          vanishing), so captions here are definitional rather than
-          "vs last period" / "of target". */}
+          prior-period or target value is computed anywhere on this tab, so
+          `comparison` is omitted and captions stay definitional rather than
+          claiming "vs last period" / "of target". BigKpiCard's shared
+          subgrid keeps the remaining rows aligned without placeholder DOM. */}
       <div className="kpi-card-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <BigKpiCard
           label="広告費"

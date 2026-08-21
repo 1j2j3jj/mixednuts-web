@@ -181,8 +181,9 @@
 }
 
 /* KPI rows align through subgrid without drawing empty caption/chart/delta
-   placeholders. Browsers without subgrid keep equal-height cards through the
-   grid's stretch behaviour, then bottom-align the value block with flex. */
+   placeholders. Each visible content type owns one shared track, so a sparse
+   card cannot push its value lower than a dense sibling. Browsers without
+   subgrid keep the same content order top-aligned and leave spare room below. */
 .dashboard-scope .kpi-card-grid {
   margin-bottom: -1rem;
   row-gap: 0;
@@ -204,14 +205,10 @@
   }
 }
 
-.dashboard-scope .big-kpi-card__value-block {
-  margin-top: auto;
-}
-
 @supports (grid-template-rows: subgrid) {
   .dashboard-scope .kpi-card-grid > .big-kpi-card {
     display: grid;
-    grid-row: span 3;
+    grid-row: span 5;
     grid-template-rows: subgrid;
     row-gap: 0;
   }
@@ -224,10 +221,16 @@
     grid-row: 2;
   }
 
-  .dashboard-scope .big-kpi-card__value-block {
-    align-self: end;
+  .dashboard-scope .big-kpi-card__value {
     grid-row: 3;
-    margin-top: 0;
+  }
+
+  .dashboard-scope .big-kpi-card__sparkline {
+    grid-row: 4;
+  }
+
+  .dashboard-scope .big-kpi-card__comparison {
+    grid-row: 5;
   }
 }
 

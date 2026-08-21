@@ -101,9 +101,7 @@ export default function BigKpiCard({
     !unavailableMessage && comparison != null && !comparisonUnavailable;
   const displayedCaption = unavailableMessage
     ? unavailableMessage
-    : comparisonUnavailable
-      ? `${caption}（${comparison.label}は比較できません）`
-      : caption;
+    : caption;
 
   return (
     <Card
@@ -132,71 +130,74 @@ export default function BigKpiCard({
         {displayedCaption}
       </div>
 
-      <div className="big-kpi-card__value-block mt-auto flex flex-col">
-        <div
-          data-kpi-row="value"
-          data-kpi-unavailable-primary={unavailableMessage ? "true" : undefined}
-          className={cn(
-            "mt-2 leading-none tracking-tight",
-            unavailableMessage
-              ? "text-base font-semibold text-amber-800"
-              : "font-display text-2xl font-extrabold tabular-nums md:text-[1.75rem]",
-          )}
-          aria-label={
-            unavailableMessage
-              ? `確定データ未着: ${unavailableMessage}`
-              : undefined
-          }
-        >
-          {unavailableMessage ? "確定データ未着" : value}
-        </div>
-
-        {showSparkline && (
-          <div data-kpi-row="sparkline" className="mt-2 h-8">
-            <Sparkline
-              values={sparkline}
-              dates={sparkDates}
-              tone={sparkTone}
-              height={32}
-              format={sparkFormat}
-              title={`${label} の推移`}
-            />
-          </div>
+      <div
+        data-kpi-row="value"
+        data-kpi-unavailable-primary={unavailableMessage ? "true" : undefined}
+        className={cn(
+          "big-kpi-card__value mt-2 leading-none tracking-tight",
+          unavailableMessage
+            ? "text-base font-semibold text-amber-800"
+            : "font-display text-2xl font-extrabold tabular-nums md:text-[1.75rem]",
         )}
-
-        {showComparison && (
-          <div data-kpi-row="comparison" className="mt-2 text-xs">
-            <div
-              className={cn(
-                "flex items-center justify-between gap-2",
-                comparison.delta == null
-                  ? "text-muted-foreground"
-                  : (lowerIsBetter
-                        ? comparison.delta < 0
-                        : comparison.delta > 0)
-                    ? "text-emerald-700"
-                    : (lowerIsBetter
-                          ? comparison.delta > 0
-                          : comparison.delta < 0)
-                      ? "text-rose-700"
-                      : "text-muted-foreground",
-              )}
-            >
-              <span className="text-muted-foreground">{comparison.label}</span>
-              <span
-                className="flex items-center gap-1 tabular-nums"
-                aria-label={comparisonAriaLabel(comparison, lowerIsBetter)}
-              >
-                <Arrow delta={comparison.delta} />
-                {comparison.delta == null ||
-                !Number.isFinite(comparison.delta)
-                  ? "—"
-                  : signedDelta(comparison.delta)}
-              </span>
-            </div>
-          </div>
-        )}
+        aria-label={
+          unavailableMessage
+            ? `確定データ未着: ${unavailableMessage}`
+            : undefined
+        }
+      >
+        {unavailableMessage ? "確定データ未着" : value}
       </div>
+
+      {showSparkline && (
+        <div
+          data-kpi-row="sparkline"
+          className="big-kpi-card__sparkline mt-2 h-8"
+        >
+          <Sparkline
+            values={sparkline}
+            dates={sparkDates}
+            tone={sparkTone}
+            height={32}
+            format={sparkFormat}
+            title={`${label} の推移`}
+          />
+        </div>
+      )}
+
+      {showComparison && (
+        <div
+          data-kpi-row="comparison"
+          className="big-kpi-card__comparison mt-2 text-xs"
+        >
+          <div
+            className={cn(
+              "flex items-center justify-between gap-2",
+              comparison.delta == null
+                ? "text-muted-foreground"
+                : (lowerIsBetter
+                      ? comparison.delta < 0
+                      : comparison.delta > 0)
+                  ? "text-emerald-700"
+                  : (lowerIsBetter
+                        ? comparison.delta > 0
+                        : comparison.delta < 0)
+                    ? "text-rose-700"
+                    : "text-muted-foreground",
+            )}
+          >
+            <span className="text-muted-foreground">{comparison.label}</span>
+            <span
+              className="flex items-center gap-1 tabular-nums"
+              aria-label={comparisonAriaLabel(comparison, lowerIsBetter)}
+            >
+              <Arrow delta={comparison.delta} />
+              {comparison.delta == null || !Number.isFinite(comparison.delta)
+                ? "—"
+                : signedDelta(comparison.delta)}
+            </span>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

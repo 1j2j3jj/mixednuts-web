@@ -9,8 +9,9 @@ describe("Chakin cost presentation", () => {
     expect(summary.label).not.toBe(ads.label);
     expect(summary.note).toContain(ads.label);
     expect(ads.note).toContain(summary.label);
-    expect(summary.label).toContain("広告チャネル");
+    expect(summary.label).toBe("広告費（申込ベース）");
     expect(summary.label).toContain("申込ベース");
+    expect(summary.note).toContain("広告チャネル別");
     expect(summary.note).not.toContain("マート");
     expect(ads.label).toContain("媒体計上");
   });
