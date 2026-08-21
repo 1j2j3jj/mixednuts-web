@@ -15,6 +15,9 @@ import ChartTooltip from "@/components/dashboard/ChartTooltip";
 import AbsenceNotice from "@/components/dashboard/AbsenceNotice";
 import type { AbsenceReason, NoDataPeriodDetail } from "@/lib/absence";
 import { usePrefersReducedMotion } from "@/lib/use-reduced-motion";
+import { formatCompactAxis } from "@/lib/chart-format";
+
+const MONTHLY_BAR_SIZE = 28;
 
 interface Point {
   yearMonth: string;
@@ -65,6 +68,7 @@ export default function NewVsRepeatChart({
           title={title}
           desc="月別の新規ユーザー数とリピートユーザー数を積み上げ棒グラフで表示"
           margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
+          barCategoryGap="20%"
         >
           {/* E-3: 新規/リピート is exactly the "won/lost pair" case — hue is
               the ONLY thing distinguishing the two stacked segments inside
@@ -102,7 +106,7 @@ export default function NewVsRepeatChart({
           <YAxis
             fontSize={11}
             stroke="var(--muted-foreground)"
-            tickFormatter={(v) => `${Math.round(v / 1000)}k`}
+            tickFormatter={(v) => formatCompactAxis(v)}
             domain={[0, "auto"]}
           />
           <Tooltip
@@ -121,7 +125,7 @@ export default function NewVsRepeatChart({
             fill="var(--chart-1)"
             stroke="var(--card)"
             strokeWidth={2}
-            maxBarSize={24}
+            barSize={MONTHLY_BAR_SIZE}
             radius={[0, 0, 0, 0]}
             isAnimationActive={!reducedMotion}
           />
@@ -132,7 +136,7 @@ export default function NewVsRepeatChart({
             fill={`url(#${hatchId})`}
             stroke="var(--card)"
             strokeWidth={2}
-            maxBarSize={24}
+            barSize={MONTHLY_BAR_SIZE}
             radius={[4, 4, 0, 0]}
             isAnimationActive={!reducedMotion}
           />

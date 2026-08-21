@@ -21,6 +21,10 @@ import type {
 } from "@/lib/sources/ga4";
 import type { AbsenceReason, NoDataPeriodDetail } from "@/lib/absence";
 import { usePrefersReducedMotion } from "@/lib/use-reduced-motion";
+import {
+  formatCompactAxis,
+  formatCompactRevenueAxis,
+} from "@/lib/chart-format";
 
 interface Props {
   data: ChannelDay[];
@@ -166,10 +170,10 @@ export default function ChannelTrendChart({
 
   const yTickFormat =
     metric === "revenue"
-      ? (v: number) => `¥${Math.round(v / 1_000_000).toLocaleString()}M`
+      ? formatCompactRevenueAxis
       : !BASE_METRIC_KEYS.has(metric)
         ? (v: number) => Math.round(v).toLocaleString()
-        : (v: number) => `${Math.round(v / 1000).toLocaleString()}k`;
+        : (v: number) => formatCompactAxis(v);
 
   const tooltipValueFormatter = (value: unknown): string => {
     const n = typeof value === "number" ? value : Number(value);
@@ -200,7 +204,7 @@ export default function ChannelTrendChart({
             data={wide}
             title={title}
             desc={`${granularity === "week" ? "週別" : "日別"}のチャネル別${METRICS.find((m) => m.key === metric)?.label ?? metric}を積み上げ棒グラフで表示`}
-            margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
+            margin={{ top: 8, right: 32, left: 8, bottom: 8 }}
           >
             <CartesianGrid vertical={false} stroke="var(--border)" />
             <XAxis
@@ -209,6 +213,8 @@ export default function ChannelTrendChart({
               tickMargin={6}
               stroke="var(--muted-foreground)"
               interval="preserveStartEnd"
+              minTickGap={32}
+              tickFormatter={(value) => String(value).slice(5)}
             />
             <YAxis
               fontSize={11}
