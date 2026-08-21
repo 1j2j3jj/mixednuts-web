@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import TierGlyph from "@/components/dashboard/TierGlyph";
 import type { Tier } from "@/lib/tier";
+import { goalProgressTier } from "@/lib/goal-progress";
 import { cn, fmtInt, fmtJpy, fmtRatioPct, safeDiv } from "@/lib/utils";
 
 export interface ChannelTargetRow {
@@ -22,6 +23,8 @@ export interface ChannelTargetRow {
 
 interface Props {
   rows: ChannelTargetRow[];
+  /** Expected share of the monthly target by the selected range's end. */
+  expectedProgress?: number;
   /** "経過X日/Y日（Z%）" progress-through-month note shown under the table. */
   progressNote?: string;
 }
@@ -38,20 +41,16 @@ interface Props {
  * rose-700 6.03:1) — this was simply the one place that got the wrong shade
  * step. Bumped to match, closing both the AA failure and the inconsistency.
  */
-function achievementColour(ratio: number | null): string {
-  if (ratio == null) return "text-muted-foreground";
-  if (ratio >= 1) return "text-emerald-700";
-  if (ratio >= 0.8) return "text-amber-700";
+function achievementColour(tier: Tier | null): string {
+  if (tier == null) return "text-muted-foreground";
+  if (tier === "good") return "text-emerald-700";
+  if (tier === "warning") return "text-amber-700";
   return "text-rose-700";
 }
 
-/** Same thresholds as achievementColour, expressed as a Tier for TierGlyph
- *  (E-3: the colour above was the ONLY signal for pass/near-miss/fail). */
-function achievementTier(ratio: number | null): Tier | null {
-  if (ratio == null) return null;
-  if (ratio >= 1) return "good";
-  if (ratio >= 0.8) return "warning";
-  return "bad";
+function paceTitle(ratio: number | null, expectedProgress: number): string {
+  const actual = ratio == null ? "—" : fmtRatioPct(ratio * 100, 0);
+  return `対ペース: 期待 ${fmtRatioPct(expectedProgress * 100, 0)} / 実績 ${actual}`;
 }
 
 /** Channel-level target vs. actual table (revenue & conversions), replacing
@@ -59,7 +58,11 @@ function achievementTier(ratio: number | null): Tier | null {
  * per-channel targets for the current month (today: HS only — see
  * getChannelTargetsForMonth). Rows without a sheet-side target (e.g. an
  * unmapped GA4 channel bucketed into "その他") show actuals only. */
-export default function ChannelTargetTable({ rows, progressNote }: Props) {
+export default function ChannelTargetTable({
+  rows,
+  expectedProgress = 1,
+  progressNote,
+}: Props) {
   const totals = rows.reduce(
     (acc, r) => {
       acc.revenue += r.revenue;
@@ -90,18 +93,18 @@ export default function ChannelTargetTable({ rows, progressNote }: Props) {
             <TableHead>チャネル</TableHead>
             <TableHead className="text-right">売上実績</TableHead>
             <TableHead className="text-right">売上目標</TableHead>
-            <TableHead className="text-right">達成率</TableHead>
+            <TableHead className="text-right">達成率（対月次目標）</TableHead>
             <TableHead className="text-right">CV実績</TableHead>
             <TableHead className="text-right">CV目標</TableHead>
-            <TableHead className="text-right">達成率</TableHead>
+            <TableHead className="text-right">達成率（対月次目標）</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((r) => {
             const revRatio = safeDiv(r.revenue, r.revenueTarget);
             const cvRatio = safeDiv(r.conversions, r.conversionsTarget);
-            const revTier = achievementTier(revRatio);
-            const cvTier = achievementTier(cvRatio);
+            const revTier = goalProgressTier(revRatio, expectedProgress);
+            const cvTier = goalProgressTier(cvRatio, expectedProgress);
             return (
               <TableRow key={r.channel}>
                 <TableCell className="font-medium">{r.channel}</TableCell>
@@ -114,12 +117,15 @@ export default function ChannelTargetTable({ rows, progressNote }: Props) {
                 <TableCell
                   className={cn(
                     "text-right tabular-nums font-medium",
-                    achievementColour(revRatio),
+                    achievementColour(revTier),
                   )}
                 >
                   {/* E-3: achievementColour's colour was the only signal for
                       hit/near-miss/missed — TierGlyph adds a shape. */}
-                  <span className="inline-flex items-center justify-end gap-1">
+                  <span
+                    className="inline-flex items-center justify-end gap-1"
+                    title={paceTitle(revRatio, expectedProgress)}
+                  >
                     {revTier && <TierGlyph tier={revTier} />}
                     {revRatio != null ? fmtRatioPct(revRatio * 100, 0) : "—"}
                   </span>
@@ -135,10 +141,13 @@ export default function ChannelTargetTable({ rows, progressNote }: Props) {
                 <TableCell
                   className={cn(
                     "text-right tabular-nums font-medium",
-                    achievementColour(cvRatio),
+                    achievementColour(cvTier),
                   )}
                 >
-                  <span className="inline-flex items-center justify-end gap-1">
+                  <span
+                    className="inline-flex items-center justify-end gap-1"
+                    title={paceTitle(cvRatio, expectedProgress)}
+                  >
                     {cvTier && <TierGlyph tier={cvTier} />}
                     {cvRatio != null ? fmtRatioPct(cvRatio * 100, 0) : "—"}
                   </span>
@@ -157,12 +166,19 @@ export default function ChannelTargetTable({ rows, progressNote }: Props) {
             <TableCell
               className={cn(
                 "text-right tabular-nums",
-                achievementColour(totalRevenueRatio),
+                achievementColour(
+                  goalProgressTier(totalRevenueRatio, expectedProgress),
+                ),
               )}
             >
-              <span className="inline-flex items-center justify-end gap-1">
-                {achievementTier(totalRevenueRatio) && (
-                  <TierGlyph tier={achievementTier(totalRevenueRatio)!} />
+              <span
+                className="inline-flex items-center justify-end gap-1"
+                title={paceTitle(totalRevenueRatio, expectedProgress)}
+              >
+                {goalProgressTier(totalRevenueRatio, expectedProgress) && (
+                  <TierGlyph
+                    tier={goalProgressTier(totalRevenueRatio, expectedProgress)!}
+                  />
                 )}
                 {totalRevenueRatio != null
                   ? fmtRatioPct(totalRevenueRatio * 100, 0)
@@ -180,12 +196,19 @@ export default function ChannelTargetTable({ rows, progressNote }: Props) {
             <TableCell
               className={cn(
                 "text-right tabular-nums",
-                achievementColour(totalCvRatio),
+                achievementColour(
+                  goalProgressTier(totalCvRatio, expectedProgress),
+                ),
               )}
             >
-              <span className="inline-flex items-center justify-end gap-1">
-                {achievementTier(totalCvRatio) && (
-                  <TierGlyph tier={achievementTier(totalCvRatio)!} />
+              <span
+                className="inline-flex items-center justify-end gap-1"
+                title={paceTitle(totalCvRatio, expectedProgress)}
+              >
+                {goalProgressTier(totalCvRatio, expectedProgress) && (
+                  <TierGlyph
+                    tier={goalProgressTier(totalCvRatio, expectedProgress)!}
+                  />
                 )}
                 {totalCvRatio != null
                   ? fmtRatioPct(totalCvRatio * 100, 0)

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import TierGlyph from "@/components/dashboard/TierGlyph";
 import type { Tier } from "@/lib/tier";
+import { budgetProgressTier, goalProgressTier } from "@/lib/goal-progress";
 import { cn, fmtRatioPct } from "@/lib/utils";
 
 interface Props {
@@ -9,15 +10,13 @@ interface Props {
   target: string;
   /** Achievement ratio: actual / target. */
   ratio: number;
+  /** Expected share of the monthly target by the selected range end. */
+  expectedProgress?: number;
+  /** Budget consumption is judged as pace, not as target achievement. */
+  budgetPacing?: boolean;
   /** Supporting hint (e.g. "月内残り 9日"). */
   hint?: string;
 }
-
-const TIER_LABEL: Record<Tier, string> = {
-  good: "達成",
-  warning: "やや未達",
-  bad: "未達",
-};
 
 /** Simple horizontal progress bar with colour bands keyed to achievement.
  *  Status (good/warning/critical) is a fixed, non-themed scale — kept
@@ -31,10 +30,34 @@ export default function GoalGauge({
   actual,
   target,
   ratio,
+  expectedProgress = 1,
+  budgetPacing = false,
   hint,
 }: Props) {
   const pct = Math.max(0, Math.min(1.5, ratio)); // cap at 150% for the bar
-  const tier: Tier = ratio >= 1 ? "good" : ratio >= 0.8 ? "warning" : "bad";
+  const tier: Tier =
+    budgetPacing
+      ? budgetProgressTier(ratio, expectedProgress)
+      : (goalProgressTier(ratio, expectedProgress) ?? "bad");
+  const paceRatio = expectedProgress > 0 ? ratio / expectedProgress : 0;
+  const statusLabel =
+    budgetPacing
+      ? paceRatio > 1.1
+        ? "速いペース"
+        : paceRatio < 0.9
+          ? "遅いペース"
+          : "適正ペース"
+      : expectedProgress < 1
+        ? tier === "good"
+          ? "ペース先行"
+          : tier === "warning"
+            ? "概ねペース内"
+            : "ペース遅れ"
+        : tier === "good"
+          ? "達成"
+          : tier === "warning"
+            ? "やや未達"
+            : "未達";
   /**
    * E-1 contrast fix (2026-07-25): the fill was -500 against a -100 track —
    * measured (oklch->sRGB, WCAG formula): emerald-500 vs emerald-100 2.17:1,
@@ -68,7 +91,7 @@ export default function GoalGauge({
             for a screen reader; the visible bar stays purely visual. */}
         <div
           role="progressbar"
-          aria-label={`${label}の達成率`}
+          aria-label={`${label}の月次目標比`}
           aria-valuenow={Math.round(ratio * 100)}
           aria-valuemin={0}
           aria-valuemax={150}
@@ -93,10 +116,15 @@ export default function GoalGauge({
             <TierGlyph tier={tier} />
             {fmtRatioPct(ratio * 100, 0)}
             <span className="font-normal text-muted-foreground">
-              （{TIER_LABEL[tier]}）
+              （{statusLabel}）
             </span>
           </span>
-          {hint && <span className="text-muted-foreground">{hint}</span>}
+          <span
+            className="text-muted-foreground"
+            title={`対ペース: 期待 ${fmtRatioPct(expectedProgress * 100, 0)} / 実績 ${fmtRatioPct(ratio * 100, 0)}`}
+          >
+            {hint ?? `期待 ${fmtRatioPct(expectedProgress * 100, 0)}`}
+          </span>
         </div>
       </CardContent>
     </Card>

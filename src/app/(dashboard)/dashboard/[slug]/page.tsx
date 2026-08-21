@@ -56,6 +56,10 @@ import {
 import { fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 import { computeShare } from "@/lib/share";
 import { achievementTone, sumAchievement } from "@/lib/chip";
+import {
+  goalProgressTier,
+  monthProgressFromIsoDate,
+} from "@/lib/goal-progress";
 import { fmtJstTime, jstDateString, jstYesterdayString } from "@/lib/datetime";
 import { getAdSyncStatus } from "@/lib/sources/sync-status";
 import { resolveDataTail, tailNotice } from "@/lib/data-tail";
@@ -396,6 +400,12 @@ export default async function Overview({
   const showPacing = rr.preset === "thisMonth";
 
   const showGoals = rr.preset === "thisMonth" || rr.preset === "lastMonth";
+  // Actuals stop at the resolved data-tail anchor, not at the viewer's wall
+  // clock. Using that same date for elapsed-month expectation keeps the
+  // numerator and pace denominator aligned when yesterday is the latest
+  // confirmed day (or when a sync is stale). Completed months stay at 100%.
+  const expectedGoalProgress =
+    rr.preset === "thisMonth" ? monthProgressFromIsoDate(anchor) : 1;
   // Target month follows the *selected* period, not always the anchor's
   // month — previously this was hardcoded to anchor.slice(0,7), so picking
   // "先月" (lastMonth) still queried the current month's row in the 計画
@@ -491,7 +501,19 @@ export default async function Overview({
       target: r.revenueTarget,
     })),
   );
-  const channelAchievementTone = achievementTone(channelAchievement.ratio);
+  const channelAchievementTier = goalProgressTier(
+    channelAchievement.ratio,
+    expectedGoalProgress,
+  );
+  const channelAchievementTone = channelAchievementTier
+    ? achievementTone(
+        channelAchievementTier === "good"
+          ? 1
+          : channelAchievementTier === "warning"
+            ? 0.8
+            : 0,
+      )
+    : null;
 
   const monthProgressNote = (() => {
     if (channelTargetRows.length === 0) return undefined;
@@ -843,6 +865,7 @@ export default async function Overview({
                 actual={fmtJpy(effectiveRev)}
                 target={fmtJpy(tgt.revenue)}
                 ratio={effectiveRev / (tgt.revenue || 1)}
+                expectedProgress={expectedGoalProgress}
               />
             )}
             {tgt.conversions != null && (
@@ -851,6 +874,7 @@ export default async function Overview({
                 actual={fmtInt(effectiveCv)}
                 target={fmtInt(tgt.conversions)}
                 ratio={effectiveCv / (tgt.conversions || 1)}
+                expectedProgress={expectedGoalProgress}
               />
             )}
             {tgt.adSpendBudget != null && (
@@ -859,6 +883,8 @@ export default async function Overview({
                 actual={fmtJpy(costCur)}
                 target={fmtJpy(tgt.adSpendBudget)}
                 ratio={costCur / (tgt.adSpendBudget || 1)}
+                expectedProgress={expectedGoalProgress}
+                budgetPacing
                 hint={costCur > tgt.adSpendBudget ? "予算超過" : undefined}
               />
             )}
@@ -962,16 +988,18 @@ export default async function Overview({
                       whether this percentage was on-track — a qualifier
                       word makes that explicit in text too when it's not a
                       clean pass. */}
-                  {channelAchievementTone !== "positive" &&
-                    (channelAchievementTone === "warning"
-                      ? "（未達）"
-                      : "（大幅未達）")}
+                  {channelAchievementTier === "good"
+                    ? "（ペース先行）"
+                    : channelAchievementTier === "warning"
+                      ? "（概ねペース内）"
+                      : "（ペース遅れ）"}
                 </StatusChip>
               )}
             </CardHeader>
             <CardContent>
               <ChannelTargetTable
                 rows={channelTargetRows}
+                expectedProgress={expectedGoalProgress}
                 progressNote={monthProgressNote}
               />
             </CardContent>
