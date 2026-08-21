@@ -38,6 +38,7 @@ import ChakinDetailTabs, {
 import ChakinCvSourceToggle from "@/components/dashboard/ChakinCvSourceToggle";
 import { readChakinCvSource, type ChakinCvSource } from "@/lib/chakin-cv-source";
 import { hasWarnReason } from "@/lib/fetch-warnings";
+import { chakinCostPresentation } from "@/lib/chakin-cost-presentation";
 
 interface Props {
   client: ClientConfig;
@@ -124,6 +125,7 @@ export default async function ChakinOverview({
   searchParams,
 }: Props) {
   const source = readChakinCvSource(searchParams);
+  const costPresentation = chakinCostPresentation("summary");
   const anchorResult = await getChakinAnchorDate(client.id);
   const anchor = anchorResult.anchorDate ?? jstDateString();
   const rr = resolveFromSearchParams(
@@ -275,7 +277,7 @@ export default async function ChakinOverview({
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
             <BigKpiCard
-              label="COST"
+              label={costPresentation.label}
               icon={CircleDollarSign}
               value={fmtJpy(currentKpiData.adCost)}
               unavailableMessage={kpiUnavailableMessage}
@@ -396,6 +398,10 @@ export default async function ChakinOverview({
               }
               hue="chart-4"
             />
+          </div>
+
+          <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            {costPresentation.note}
           </div>
 
           <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">

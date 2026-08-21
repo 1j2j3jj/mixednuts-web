@@ -29,6 +29,7 @@ import StatusChip from "@/components/dashboard/StatusChip";
 import { readSource } from "@/lib/source";
 import { getAdSyncStatus } from "@/lib/sources/sync-status";
 import { resolveDataTail, fillZeroDays, tailNotice } from "@/lib/data-tail";
+import { chakinCostPresentation } from "@/lib/chakin-cost-presentation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
 import { lastN } from "@/lib/analysis";
@@ -101,6 +102,8 @@ export default async function AdsScreen({
   const sp = await searchParams;
   const source = readSource(sp);
   const client = await assertUserCanAccessClientBySlug(slug);
+  const chakinCost =
+    client.id === "chakin" ? chakinCostPresentation("ads") : null;
 
   const { rows: rawRows, fetchedAt, isMock } = await getDailyRows(client, sp);
   // BQ_SOURCE_RAW path (bq-raw.ts) attaches trackingId (Yahoo only, see
@@ -479,7 +482,7 @@ export default async function AdsScreen({
       {/* Period KPIs with comparison + sparkline */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <BigKpiCard
-          label="COST"
+          label={chakinCost?.label ?? "COST"}
           value={fmtJpy(curTotals.cost)}
           caption={
             targetPeriodMatches &&
@@ -648,6 +651,12 @@ export default async function AdsScreen({
           hue="chart-4"
         />
       </div>
+
+      {chakinCost && (
+        <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          {chakinCost.note}
+        </div>
+      )}
 
       {/* C3-g caveat: GA4 CV above is now a sum of per-media GA4 figures
           joined against this ad platform's own media names for the window —
