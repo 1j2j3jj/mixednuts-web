@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  /** Small uppercase label above the title, e.g. "Overview" / "Ads". */
+  /** Small section label above the title, e.g. "サマリー" / "広告詳細". */
   kicker: ReactNode;
   /** Main page title, e.g. the resolved period label. */
   title: ReactNode;
@@ -44,7 +44,7 @@ export default function PageHeader({
     >
       <div>
         <div className="flex flex-wrap items-baseline gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-brand-ink">
+          <span className="text-xs font-semibold text-brand-ink">
             {kicker}
           </span>
           <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>

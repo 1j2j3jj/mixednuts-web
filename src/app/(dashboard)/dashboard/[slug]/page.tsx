@@ -188,7 +188,12 @@ const KPI_LABELS: Record<
   MetricSource,
   { revenue: string; cv: string; cpa: string; roas: string }
 > = {
-  ga4: { revenue: "GA売上", cv: "GA_CV", cpa: "GA_CPA", roas: "GA_ROAS" },
+  ga4: {
+    revenue: "売上（広告経由）",
+    cv: "コンバージョン（広告経由）",
+    cpa: "CPA（広告経由）",
+    roas: "ROAS（広告経由）",
+  },
   media: {
     revenue: "媒体売上",
     cv: "媒体CV",
@@ -204,7 +209,7 @@ const KPI_LABELS: Record<
 };
 /** CPA/ROAS's cost side is always 全媒体COST合算 regardless of which
  *  revenue/CV source is toggled; surfaced explicitly so it isn't lost. */
-const KPI_COST_NOTE = "COST=全媒体合算";
+const KPI_COST_NOTE = "広告費=全媒体合算";
 
 export default async function Overview({
   params,
@@ -696,7 +701,7 @@ export default async function Overview({
                 }
               />
               <div className="text-xs text-muted-foreground">
-                最終取得 {fetchedAtLabel}
+                データ最終取得 {fetchedAtLabel}
               </div>
               <PrintButton />
               <RefreshButton clientId={client.id} />
@@ -783,7 +788,7 @@ export default async function Overview({
           sparkFormat="int"
         />
         <BigKpiCard
-          label="SESSION (GA4)"
+          label="セッション"
           value={fmtInt(gaCur.sessions)}
           caption={
             rr.previous
@@ -1008,7 +1013,7 @@ export default async function Overview({
                 <TableHeader>
                   <TableRow>
                     <TableHead>チャネル</TableHead>
-                    <TableHead className="text-right">SESSION</TableHead>
+                    <TableHead className="text-right">セッション</TableHead>
                     <TableHead className="text-right">CV</TableHead>
                     <TableHead className="text-right">CVR</TableHead>
                     <TableHead className="text-right">売上</TableHead>

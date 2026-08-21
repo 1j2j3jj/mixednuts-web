@@ -105,8 +105,7 @@ describe("BigKpiCard visual invariant", () => {
   });
 
   it("renders unavailable data as explicit copy without optional rows", () => {
-    const message =
-      "この期間の確定データはまだ届いていません（CVソース最新: 2026-07-06）";
+    const message = "CVソース最新 2026-07-06";
     const html = renderCard({
       caption: "前期間 ¥100",
       comparison: { label: "前期間", delta: -1 },
@@ -114,10 +113,9 @@ describe("BigKpiCard visual invariant", () => {
       unavailableMessage: message,
     });
 
-    expect(html).toContain("未取得");
+    expect(html).toContain("確定データ未着");
     expect(html).toContain(message);
-    expect(html).toContain("line-clamp-2");
-    expect(html).not.toContain("min-h-4 truncate");
+    expect(html).toContain("min-h-4 truncate");
     expect(html).not.toContain("¥123");
     expect(rowCount(html, "sparkline")).toBe(0);
     expect(rowCount(html, "comparison")).toBe(0);

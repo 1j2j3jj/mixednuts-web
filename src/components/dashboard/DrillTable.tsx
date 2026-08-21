@@ -165,8 +165,8 @@ export default function DrillTable({
       : level === "adgroup"
         ? "広告グループ"
         : "";
-  const cvLabel = source === "ga4" ? "GA_CV" : "媒体CV";
-  const revLabel = source === "ga4" ? "GA売上" : "媒体売上";
+  const cvLabel = source === "ga4" ? "コンバージョン（広告経由）" : "媒体CV";
+  const revLabel = source === "ga4" ? "売上（広告経由）" : "媒体売上";
   const colSpan = (showLabel ? 1 : 0) + 11;
 
   return (
@@ -188,7 +188,7 @@ export default function DrillTable({
             <TableHead>期間</TableHead>
             <TableHead>媒体</TableHead>
             {showLabel && <TableHead>{labelHeader}</TableHead>}
-            <TableHead className="text-right">COST</TableHead>
+            <TableHead className="text-right">広告費</TableHead>
             <TableHead className="text-right">Imp</TableHead>
             <TableHead className="text-right">Click</TableHead>
             <TableHead className="text-right">CTR</TableHead>
@@ -233,9 +233,9 @@ export default function DrillTable({
             const cvDir = cvFlag === "high" ? "↑" : cvFlag === "low" ? "↓" : "";
             const anomalyLabel =
               spendFlag !== "normal" && cvFlag !== "normal"
-                ? `COST${spendDir}+CV${cvDir}`
+                ? `広告費${spendDir}+CV${cvDir}`
                 : spendFlag !== "normal"
-                  ? `COST${spendDir}`
+                  ? `広告費${spendDir}`
                   : cvFlag !== "normal"
                     ? `CV${cvDir}`
                     : "";
@@ -361,7 +361,7 @@ export default function DrillTable({
       </Table>
       <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-muted/20 p-2 text-[11px] text-muted-foreground">
         <span>
-          異常 = ±2σ を超える行（COST または CV
+          異常 = ±2σ を超える行（広告費または CV
           方向）。検出目安であって判定ではない。
         </span>
         <div className="flex items-center gap-3">

@@ -212,7 +212,7 @@ export default async function ChakinOverview({
 
   const kpiUnavailableMessage =
     currentKpiRange == null && sourceCvLatest
-      ? `この期間の確定データはまだ届いていません（CVソース最新: ${sourceCvLatest}）`
+      ? `CVソース最新 ${sourceCvLatest}`
       : undefined;
 
   const cpaTarget = targets.cpa ?? CHAKIN_CPA_TARGET_FALLBACK;
@@ -265,7 +265,7 @@ export default async function ChakinOverview({
                   {sourceLabel}: 最新 {sourceCvLatest ?? "—"}
                 </div>
               </div>
-              <div className="text-xs text-muted-foreground">画面更新日時 {fetchedAtLabel}</div>
+              <div className="text-xs text-muted-foreground">画面表示 {fetchedAtLabel}</div>
               <PrintButton />
               <RefreshButton clientId={client.id} />
             </>
@@ -422,7 +422,7 @@ export default async function ChakinOverview({
                   <TableRow>
                     <TableHead>チャネル</TableHead>
                     <TableHead className="text-right">CV</TableHead>
-                    <TableHead className="text-right">COST</TableHead>
+                    <TableHead className="text-right">広告費</TableHead>
                     <TableHead className="text-right">CPA</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -461,7 +461,7 @@ export default async function ChakinOverview({
               <div>
                 <div className="text-sm font-semibold">媒体別・キャンペーン別（広告チャネル）</div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  CV・CPA・CVR は上部の CV ソース切替に連動します。COST・CLICK・CPC は共通です。
+                  CV・CPA・CVR は上部の CV ソース切替に連動します。広告費・CLICK・CPC は共通です。
                 </div>
               </div>
               <ChakinDetailTabs slug={slug} active={detailView} />
@@ -472,7 +472,7 @@ export default async function ChakinOverview({
                   <TableHeader>
                     <TableRow>
                       <TableHead>媒体</TableHead>
-                      <TableHead className="text-right">COST</TableHead>
+                      <TableHead className="text-right">広告費</TableHead>
                       <TableHead className="text-right">CLICK</TableHead>
                       <TableHead className="text-right">CPC</TableHead>
                       <TableHead className="text-right">CV</TableHead>
@@ -532,7 +532,7 @@ export default async function ChakinOverview({
                     <TableRow>
                       <TableHead>媒体</TableHead>
                       <TableHead>キャンペーン</TableHead>
-                      <TableHead className="text-right">COST</TableHead>
+                      <TableHead className="text-right">広告費</TableHead>
                       <TableHead className="text-right">CLICK</TableHead>
                       <TableHead className="text-right">CPC</TableHead>
                       <TableHead className="text-right">CV</TableHead>

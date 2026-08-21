@@ -14,7 +14,7 @@ interface Props {
   value: string;
   /** Optional interactive definition shown beside the KPI label. */
   labelInfo?: ReactNode;
-  /** Explicit data-absence state; never presented as a measured zero. */
+  /** One-line detail for an unavailable value; never presented as measured zero. */
   unavailableMessage?: string;
   /**
    * Unified one-line takeaway. Callers put comparison absence here rather
@@ -114,7 +114,7 @@ export default function BigKpiCard({
         data-kpi-row="label"
         className="big-kpi-card__label flex min-w-0 items-center gap-1.5"
       >
-        <CardTitle className="truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <CardTitle className="truncate text-xs font-medium text-muted-foreground">
           {label}
         </CardTitle>
         {labelInfo}
@@ -122,9 +122,10 @@ export default function BigKpiCard({
 
       <div
         data-kpi-row="caption"
+        data-kpi-unavailable-detail={unavailableMessage ? "true" : undefined}
         className={cn(
           "big-kpi-card__caption mt-1 text-xs leading-tight text-muted-foreground",
-          unavailableMessage ? "min-h-8 line-clamp-2" : "min-h-4 truncate",
+          "min-h-4 truncate",
         )}
         title={displayedCaption}
       >
@@ -134,6 +135,7 @@ export default function BigKpiCard({
       <div className="big-kpi-card__value-block mt-auto flex flex-col">
         <div
           data-kpi-row="value"
+          data-kpi-unavailable-primary={unavailableMessage ? "true" : undefined}
           className={cn(
             "mt-2 leading-none tracking-tight",
             unavailableMessage
@@ -141,10 +143,12 @@ export default function BigKpiCard({
               : "font-display text-2xl font-extrabold tabular-nums md:text-[1.75rem]",
           )}
           aria-label={
-            unavailableMessage ? `未取得: ${unavailableMessage}` : undefined
+            unavailableMessage
+              ? `確定データ未着: ${unavailableMessage}`
+              : undefined
           }
         >
-          {unavailableMessage ? "未取得" : value}
+          {unavailableMessage ? "確定データ未着" : value}
         </div>
 
         {showSparkline && (

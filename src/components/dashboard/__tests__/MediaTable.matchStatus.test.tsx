@@ -102,16 +102,27 @@ describe("MediaCampaignTable — join-failure badge", () => {
     );
     const header = html.slice(html.indexOf("<thead"), html.indexOf("</thead>"));
 
-    for (const label of ["COST", "IMP", "CLICK", "CTR", "CPC"]) {
+    for (const label of ["広告費", "IMP", "CLICK", "CTR", "CPC"]) {
       expect(header).toContain(label);
     }
-    for (const label of ["GA_CV", "CVR", "GA_CPA", "GA売上", "商品単価", "GA_ROAS"]) {
+    for (const label of [
+      "コンバージョン（広告経由）",
+      "CVR",
+      "CPA（広告経由）",
+      "売上（広告経由）",
+      "商品単価",
+      "ROAS（広告経由）",
+    ]) {
       expect(header).not.toContain(label);
     }
     expect(html).toContain(
-      "全行が0または—のため非表示: GA_CV / CVR / GA_CPA / GA売上 / 商品単価 / GA_ROAS",
+      "全行が0または—のため非表示: コンバージョン（広告経由） / CVR / CPA（広告経由） / 売上（広告経由） / 商品単価 / ROAS（広告経由）",
     );
     expect(html).toContain("sticky left-0");
     expect(html).toContain("after:bg-gradient-to-l");
+    expect(html).toContain("横にスクロールできます");
+    expect(html).toContain("data-campaign-table-frame");
+    expect(html).toContain("after:w-12");
+    expect(html).toContain("after:from-35%");
   });
 });

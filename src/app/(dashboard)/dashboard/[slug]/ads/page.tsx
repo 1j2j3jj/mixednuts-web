@@ -479,7 +479,7 @@ export default async function AdsScreen({
           controls={
             <>
               <div className="text-xs text-muted-foreground">
-                最終取得 {fetchedAtLabel}
+                データ最終取得 {fetchedAtLabel}
               </div>
               <PrintButton />
               <RefreshButton clientId={client.id} />
@@ -496,7 +496,7 @@ export default async function AdsScreen({
         }
       >
         <BigKpiCard
-          label={chakinCost?.label ?? "COST"}
+          label={chakinCost?.label ?? "広告費"}
           value={fmtJpy(curTotals.cost)}
           caption={
             targetPeriodMatches &&
@@ -522,7 +522,7 @@ export default async function AdsScreen({
           sparkTone="negative"
         />
         <BigKpiCard
-          label={source === "ga4" ? "GA_CV(広告帰属)" : "媒体CV"}
+          label={source === "ga4" ? "コンバージョン（広告経由）" : "媒体CV"}
           value={fmtInt(
             // C3-g: ad-attributed (agrees with 媒体別サマリ below), not
             // site-wide curGa4.conversions — see block comment above.
@@ -570,7 +570,7 @@ export default async function AdsScreen({
           // a qualifier, so this tab can't be read as the サマリー tab's
           // site-wide figure. 媒体 source is ad-platform data, inherently
           // ad-scoped, so it needs no qualifier.
-          label={source === "ga4" ? "GA売上(広告帰属)" : "媒体売上"}
+          label={source === "ga4" ? "売上（広告経由）" : "媒体売上"}
           value={fmtJpy(
             source === "ga4" ? ga4AttributedRevCur : curTotals.conversionValue,
           )}
@@ -614,7 +614,7 @@ export default async function AdsScreen({
           sparkFormat="jpy"
         />
         <BigKpiCard
-          label={source === "ga4" ? "GA_ROAS(広告帰属)" : "媒体ROAS"}
+          label={source === "ga4" ? "ROAS（広告経由）" : "媒体ROAS"}
           value={fmtRatioPct(
             source === "ga4" ? curGa4RoasPct : curTotals.roasPct,
             0,
@@ -672,7 +672,7 @@ export default async function AdsScreen({
           showing the GA4-sourced number. */}
       {source === "ga4" && (
         <div className="text-xs text-muted-foreground">
-          GA_CV は広告キャンペーンに帰属した GA4
+          コンバージョン（広告経由）は広告キャンペーンに帰属した GA4
           計測分の合計です（媒体別サマリの合計行と一致）。媒体名が一致しない場合、その媒体分は含まれません。
         </div>
       )}
@@ -716,7 +716,7 @@ export default async function AdsScreen({
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">
-            日次推移（COST / 媒体CV / 媒体CPA）
+            日次推移（広告費 / 媒体CV / 媒体CPA）
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -726,7 +726,7 @@ export default async function AdsScreen({
             absenceDetail={{
               periodLabel: `${rr.current.start} 〜 ${rr.current.end}`,
             }}
-            title="日次推移（COST / 媒体CV / 媒体CPA）"
+            title="日次推移（広告費 / 媒体CV / 媒体CPA）"
           />
         </CardContent>
       </Card>

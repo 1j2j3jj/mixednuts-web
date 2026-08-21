@@ -364,9 +364,9 @@ export default async function DrillScreen({
   }> = [
     { label: "Impressions", value: curTotals.impressions },
     { label: "Clicks", value: curTotals.clicks },
-    { label: source === "ga4" ? "GA_CV" : "媒体CV", value: funnelCv },
+    { label: source === "ga4" ? "コンバージョン（広告経由）" : "媒体CV", value: funnelCv },
     {
-      label: source === "ga4" ? "GA売上" : "媒体売上",
+      label: source === "ga4" ? "売上（広告経由）" : "媒体売上",
       value: funnelRevenue,
       format: "jpy",
     },
@@ -440,7 +440,7 @@ export default async function DrillScreen({
           controls={
             <>
               <div className="text-xs text-muted-foreground">
-                最終取得 {fetchedAtLabel}
+                データ最終取得 {fetchedAtLabel}
               </div>
               <CsvExportButton
                 filename={`drill-${slug}-${new Date().toISOString().slice(0, 10)}.csv`}
@@ -466,7 +466,7 @@ export default async function DrillScreen({
       {/* Period KPIs with 4 sparklines + hover date tooltip */}
       <div className="kpi-card-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <BigKpiCard
-          label="COST"
+          label="広告費"
           value={fmtJpy(curTotals.cost)}
           caption={
             targetPeriodMatches &&
@@ -492,7 +492,7 @@ export default async function DrillScreen({
           sparkTone="negative"
         />
         <BigKpiCard
-          label={source === "ga4" ? "GA_CV" : "媒体CV"}
+          label={source === "ga4" ? "コンバージョン（広告経由）" : "媒体CV"}
           value={fmtInt(
             source === "ga4" ? curGa4.conversions : curTotals.conversions,
           )}
@@ -532,7 +532,7 @@ export default async function DrillScreen({
           sparkFormat="int"
         />
         <BigKpiCard
-          label={source === "ga4" ? "GA売上" : "媒体売上"}
+          label={source === "ga4" ? "売上（広告経由）" : "媒体売上"}
           value={fmtJpy(
             source === "ga4" ? curGa4.revenue : curTotals.conversionValue,
           )}
@@ -570,7 +570,7 @@ export default async function DrillScreen({
           sparkFormat="jpy"
         />
         <BigKpiCard
-          label={source === "ga4" ? "GA_ROAS" : "媒体ROAS"}
+          label={source === "ga4" ? "ROAS（広告経由）" : "媒体ROAS"}
           value={fmtRatioPct(
             source === "ga4" ? curGa4RoasPct : curTotals.roasPct,
             0,
@@ -616,8 +616,8 @@ export default async function DrillScreen({
 
       {ga4ApproxNonGoogleAdg && source === "ga4" && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          注: GA4 は Google Ads 以外の ADG 粒度を提供しないため、GA_CV / GA売上
-          / GA_ROAS は
+          注: GA4 は Google Ads 以外の ADG 粒度を提供しないため、コンバージョン / 売上
+          / ROAS（広告経由）は
           キャンペーン単位の値（上限近似）を表示しています。媒体値は広告プラットフォーム実績ベース。
         </div>
       )}
@@ -646,7 +646,7 @@ export default async function DrillScreen({
                 : granularity === "week"
                   ? "週次"
                   : "月次"}
-              推移（COST / CV / CPA）
+              推移（広告費 / CV / CPA）
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -669,7 +669,7 @@ export default async function DrillScreen({
                   : granularity === "week"
                     ? "週次"
                     : "月次"
-              }推移（COST / CV / CPA）`}
+              }推移（広告費 / CV / CPA）`}
             />
           </CardContent>
         </Card>

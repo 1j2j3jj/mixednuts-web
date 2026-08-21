@@ -136,7 +136,7 @@ describe("tailNotice — 状態ごとに別の文言を出す", () => {
     expect(tailNotice({ ...base, state: "current" })).toBeNull();
   });
 
-  it("配信なしは COST 0 として集計した旨を述べる", () => {
+  it("配信なしは広告費0として集計した旨を述べる", () => {
     const s = tailNotice(base)!;
     expect(s).toContain("広告配信がありません");
     expect(s).toContain("2026-07-25 〜 2026-07-26");

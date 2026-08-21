@@ -317,14 +317,14 @@ export function buildDrillCsvHeaders(level: Level): string[] {
     csvLabelHeaderForLevel(level),
     "ID",
     "媒体",
-    "COST",
+    "広告費",
     "Imp",
     "Click",
     "媒体CV",
     "媒体売上",
-    "SESSION",
-    "GA_CV",
-    "GA売上",
+    "セッション",
+    "コンバージョン（広告経由）",
+    "売上（広告経由）",
   ];
 }
 

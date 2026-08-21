@@ -176,8 +176,8 @@ export default async function InsightsScreen({
           <p className="mt-2 text-xs text-muted-foreground">
             購入件数=その商品を含む注文数 / 点数=商品の購入点数 /
             {revenueBasis === "order"
-              ? "売上=その商品を含む注文のGA売上合計（複数商品の注文は各商品行に全額計上のため列合計はサイト全体と一致しない）"
-              : "売上=商品自身のGA売上"}{" "}
+              ? "売上=その商品を含む注文のGA4計測売上合計（複数商品の注文は各商品行に全額計上のため列合計はサイト全体と一致しない）"
+              : "売上=商品自身のGA4計測売上"}{" "}
             / 単価=売上÷点数 / 1件あたり=売上÷購入件数
           </p>
           {dataQualityNote && (
