@@ -20,14 +20,7 @@ import {
   TOTAL_ROW_CLASS,
 } from "@/components/ui/table";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
-import {
-  CircleDollarSign,
-  FileCheck2,
-  Target,
-  MousePointerClick,
-  Coins,
-  Percent,
-} from "lucide-react";
+import KpiInfoPopover from "@/components/dashboard/KpiInfoPopover";
 import PageHeader from "@/components/dashboard/PageHeader";
 import RefreshButton from "@/components/dashboard/RefreshButton";
 import PrintButton from "@/components/dashboard/PrintButton";
@@ -169,6 +162,12 @@ export default async function ChakinOverview({
       : source === "ga4"
         ? sourceLatest.ga4
         : sourceLatest.ads;
+  const sourceLabel =
+    source === "graphene"
+      ? "グラフェンCV"
+      : source === "ga4"
+        ? "GA4CV"
+        : "媒体CV";
   const commonConfirmedEnd =
     sourceLatest.ads && sourceCvLatest ? minDate(sourceLatest.ads, sourceCvLatest) : null;
   const currentKpiRange = resolveConfirmedKpiRange(
@@ -260,7 +259,12 @@ export default async function ChakinOverview({
           }
           controls={
             <>
-              <ChakinCvSourceToggle />
+              <div className="flex flex-col items-start gap-1">
+                <ChakinCvSourceToggle />
+                <div className="text-xs text-muted-foreground">
+                  {sourceLabel}: 最新 {sourceCvLatest ?? "—"}
+                </div>
+              </div>
               <div className="text-xs text-muted-foreground">画面更新日時 {fetchedAtLabel}</div>
               <PrintButton />
               <RefreshButton clientId={client.id} />
@@ -275,10 +279,14 @@ export default async function ChakinOverview({
         </div>
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+          <div className="kpi-card-grid grid gap-4 md:grid-cols-2 xl:grid-cols-6">
             <BigKpiCard
               label={costPresentation.label}
-              icon={CircleDollarSign}
+              labelInfo={
+                <KpiInfoPopover label={costPresentation.label}>
+                  {costPresentation.note}
+                </KpiInfoPopover>
+              }
               value={fmtJpy(currentKpiData.adCost)}
               unavailableMessage={kpiUnavailableMessage}
               caption={
@@ -295,11 +303,14 @@ export default async function ChakinOverview({
                     }
                   : undefined
               }
-              hue="chart-5"
             />
             <BigKpiCard
               label="CV"
-              icon={FileCheck2}
+              labelInfo={
+                <KpiInfoPopover label="CV">
+                  媒体CVは各媒体管理画面の計上で入口指標や重複を含み、GA4CVはサイト上の完了イベント、グラフェンCVは基幹システムの成立ベースです。数え方が異なるため、件数の大小だけではデータ不良を意味しません。
+                </KpiInfoPopover>
+              }
               value={fmtInt(cvCurrent)}
               unavailableMessage={kpiUnavailableMessage}
               caption={
@@ -317,11 +328,14 @@ export default async function ChakinOverview({
                     }
                   : undefined
               }
-              hue="chart-3"
             />
             <BigKpiCard
               label="CPA"
-              icon={Target}
+              labelInfo={
+                <KpiInfoPopover label="CPA">
+                  CPA = 広告費 ÷ {sourceLabel}（共通確定日まで）
+                </KpiInfoPopover>
+              }
               value={fmtJpy(cpaCurrent)}
               unavailableMessage={kpiUnavailableMessage}
               caption={
@@ -340,11 +354,9 @@ export default async function ChakinOverview({
                     }
                   : undefined
               }
-              hue="chart-2"
             />
             <BigKpiCard
               label="CLICK"
-              icon={MousePointerClick}
               value={fmtInt(currentKpiData.adClicks)}
               unavailableMessage={kpiUnavailableMessage}
               caption={
@@ -363,11 +375,9 @@ export default async function ChakinOverview({
                     }
                   : undefined
               }
-              hue="chart-6"
             />
             <BigKpiCard
               label="CPC"
-              icon={Coins}
               value={fmtJpy(cpcCurrent)}
               unavailableMessage={kpiUnavailableMessage}
               caption={cpcPrevious != null ? `${rr.compareLabel} ${fmtJpy(cpcPrevious)}` : "比較対象なし"}
@@ -380,11 +390,14 @@ export default async function ChakinOverview({
                     }
                   : undefined
               }
-              hue="chart-1"
             />
             <BigKpiCard
               label="CVR"
-              icon={Percent}
+              labelInfo={
+                <KpiInfoPopover label="CVR">
+                  CVR = {sourceLabel} ÷ クリック数（共通確定日まで）
+                </KpiInfoPopover>
+              }
               value={fmtPct(cvrCurrent, 2)}
               unavailableMessage={kpiUnavailableMessage}
               caption={cvrPrevious != null ? `${rr.compareLabel} ${fmtPct(cvrPrevious, 2)}` : "比較対象なし"}
@@ -396,37 +409,7 @@ export default async function ChakinOverview({
                     }
                   : undefined
               }
-              hue="chart-4"
             />
-          </div>
-
-          <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-            {costPresentation.note}
-          </div>
-
-          <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-            <div>
-              定義: CPA = 広告費 ÷
-              {source === "graphene"
-                ? " グラフェンCV(広告)"
-                : source === "ga4"
-                  ? " GA4 CV"
-                  : " 媒体CV"}
-              {" / "}
-              CVR = 同CV ÷ クリック数（共通確定日まで）
-            </div>
-            <div>
-              CVソースは数え方が異なるため件数の水準も異なります（媒体CVは各媒体管理画面の計上で入口指標や重複を含み、GA4CVはサイト上の完了イベント、グラフェンCVは基幹システムの成立ベース）。件数の大小はデータ不良ではありません。
-            </div>
-            <div>
-              ソース別最新日: 媒体費 {sourceLatest.ads ?? "—"} / グラフェンCV{" "}
-              {sourceLatest.graphene ?? "—"} / GA4CV {sourceLatest.ga4 ?? "—"}
-              {commonConfirmedEnd ? ` / 共通確定日 ${commonConfirmedEnd}` : ""}
-            </div>
-          </div>
-
-          <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-            チャネル区分テーブルは、チャネル情報がグラフェンCVにのみ存在するためグラフェン基準で固定表示です。
           </div>
 
           <div className="rounded-md border">
