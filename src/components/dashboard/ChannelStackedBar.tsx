@@ -52,7 +52,7 @@ interface Props {
   title?: string;
   /** Final monthly bucket that is still in progress (normally current JST month). */
   inProgressMonth?: string | null;
-  /** Static preview only: explicit Recharts dimensions for SSR output. */
+  /** Optional fixed dimensions for embedded browser previews. */
   width?: number;
   height?: number;
 }
@@ -61,7 +61,7 @@ type BaseMetric = "sessions" | "conversions" | "revenue";
 type Metric = BaseMetric | string;
 
 const BASE_METRICS: Array<{ key: Metric; label: string }> = [
-  { key: "sessions", label: "SESSION" },
+  { key: "sessions", label: "セッション" },
   { key: "conversions", label: "CV" },
   { key: "revenue", label: "売上" },
 ];
@@ -176,90 +176,6 @@ export default function ChannelStackedBar({
           detail={absenceDetail}
           className="h-72"
         />
-      </div>
-    );
-  }
-
-  if (width && height) {
-    const plot = { left: 58, right: 24, top: 12, bottom: 42 };
-    const plotWidth = width - plot.left - plot.right;
-    const plotHeight = height - plot.top - plot.bottom;
-    const totals = wide.map((point) =>
-      channels.reduce(
-        (sum, channel) => sum + Number(point[channel] ?? 0),
-        0,
-      ),
-    );
-    const maxTotal = Math.max(...totals, 1);
-    const slot = plotWidth / wide.length;
-    const barWidth = Math.max(20, Math.min(44, slot * 0.72));
-    return (
-      <div className="space-y-3">
-        <SegmentedControl
-          value={metric}
-          options={METRICS.map((item) => ({ value: item.key, label: item.label }))}
-          onValueChange={setMetric}
-          ariaLabel="グラフ指標"
-        />
-        <svg
-          width={width}
-          height={height}
-          viewBox={`0 0 ${width} ${height}`}
-          role="img"
-          aria-label={title}
-        >
-          <defs>
-            {channels.map((channel, index) => (
-              <pattern
-                key={channel}
-                id={`${inProgressPatternBase}-${index}`}
-                patternUnits="userSpaceOnUse"
-                width="6"
-                height="6"
-                patternTransform="rotate(45)"
-              >
-                <rect width="6" height="6" fill={CHANNEL_COLOURS[channel]} opacity="0.45" />
-                <line x1="0" y1="0" x2="0" y2="6" stroke={CHANNEL_COLOURS[channel]} strokeWidth="2" />
-              </pattern>
-            ))}
-          </defs>
-          <line x1={plot.left} y1={plot.top + plotHeight} x2={width - plot.right} y2={plot.top + plotHeight} stroke="var(--border)" />
-          <text x={4} y={plot.top + 10} fontSize="11" fill="var(--muted-foreground)">{yTickFormat(maxTotal)}</text>
-          {wide.map((point, pointIndex) => {
-            let cumulative = 0;
-            return (
-              <g key={String(point.yearMonth)}>
-                {channels.map((channel, channelIndex) => {
-                  const value = Number(point[channel] ?? 0);
-                  const segmentHeight = plotHeight * (value / maxTotal);
-                  cumulative += segmentHeight;
-                  return (
-                    <rect
-                      key={channel}
-                      x={plot.left + slot * pointIndex + (slot - barWidth) / 2}
-                      y={plot.top + plotHeight - cumulative}
-                      width={barWidth}
-                      height={segmentHeight}
-                      fill={point.yearMonth === inProgressMonth ? `url(#${inProgressPatternBase}-${channelIndex})` : CHANNEL_COLOURS[channel]}
-                    />
-                  );
-                })}
-                <text
-                  x={plot.left + slot * pointIndex + slot / 2}
-                  y={plot.top + plotHeight + 16}
-                  textAnchor="middle"
-                  fontSize="10"
-                  fill="var(--muted-foreground)"
-                >
-                  {String(point.yearMonth).slice(5)}
-                </text>
-              </g>
-            );
-          })}
-          <text x={plot.left} y={height - 8} fontSize="11" fill="var(--muted-foreground)">
-            {channels.join("　")}{inProgressMonth ? "　縞: 進行中" : ""}
-          </text>
-        </svg>
       </div>
     );
   }

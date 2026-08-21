@@ -1,56 +1,27 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { renderToStaticMarkup } from "react-dom/server";
-import DailyTrendChart from "@/components/dashboard/DailyTrendChart";
-import ChannelStackedBar from "@/components/dashboard/ChannelStackedBar";
+
+function source(file: string): string {
+  return fs.readFileSync(path.join(process.cwd(), file), "utf-8");
+}
 
 describe("in-progress chart rendering", () => {
-  it("renders the final daily bucket with a hatch in the static preview path", () => {
-    const html = renderToStaticMarkup(
-      <DailyTrendChart
-        data={[
-          { date: "2026-08-20", cost: 1000, conversions: 1, conversionValue: 0, clicks: 10 },
-          { date: "2026-08-21", cost: 1200, conversions: 2, conversionValue: 0, clicks: 12 },
-        ]}
-        inProgressDate="2026-08-21"
-        width={640}
-        height={240}
-      />,
-    );
-    expect(html).toContain("<pattern");
-    expect(html).toContain("縞: 進行中");
+  it("keeps DailyTrendChart on one Recharts path with one hatch definition", () => {
+    const code = source("src/components/dashboard/DailyTrendChart.tsx");
+
+    expect(code).not.toContain("if (width && height)");
+    expect(code).not.toContain("<svg");
+    expect(code.match(/<pattern/g)).toHaveLength(1);
+    expect(code).toContain("url(#${inProgressPatternId})");
   });
 
-  it("renders the current month with per-series hatch patterns", () => {
-    const html = renderToStaticMarkup(
-      <ChannelStackedBar
-        data={[
-          {
-            yearMonth: "2026-07",
-            channel: "Paid Search",
-            sessions: 100,
-            conversions: 2,
-            revenue: 1000,
-            secondary: {},
-            newUsers: 0,
-            returningUsers: 0,
-          },
-          {
-            yearMonth: "2026-08",
-            channel: "Paid Search",
-            sessions: 80,
-            conversions: 1,
-            revenue: 800,
-            secondary: {},
-            newUsers: 0,
-            returningUsers: 0,
-          },
-        ]}
-        inProgressMonth="2026-08"
-        width={640}
-        height={240}
-      />,
-    );
-    expect(html).toContain("<pattern");
-    expect(html).toContain("縞: 進行中");
+  it("keeps ChannelStackedBar on one Recharts path with per-series hatches", () => {
+    const code = source("src/components/dashboard/ChannelStackedBar.tsx");
+
+    expect(code).not.toContain("if (width && height)");
+    expect(code).not.toContain("<svg");
+    expect(code.match(/<pattern/g)).toHaveLength(1);
+    expect(code).toContain("url(#${inProgressPatternBase}-${idx})");
   });
 });
