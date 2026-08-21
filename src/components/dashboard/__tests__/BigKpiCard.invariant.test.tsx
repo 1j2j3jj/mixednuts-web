@@ -113,6 +113,7 @@ function renderCard(props: {
   icon: typeof JapaneseYen | undefined;
   hue: KpiHue | undefined;
   lowerIsBetter?: boolean;
+  unavailableMessage?: string;
 }) {
   return renderToStaticMarkup(
     React.createElement(BigKpiCard, {
@@ -125,6 +126,7 @@ function renderCard(props: {
       icon: props.icon,
       hue: props.hue,
       lowerIsBetter: props.lowerIsBetter,
+      unavailableMessage: props.unavailableMessage,
     }),
   );
 }
@@ -239,6 +241,32 @@ describe("BigKpiCard structural invariant (A-7 / A-16)", () => {
     // to the badge row — the comparison row's Arrow always renders an
     // unrelated lucide <svg>).
     expect(extractRowInner(html, "badge")).not.toContain("<svg");
+  });
+
+  it("keeps every reserved row while rendering unavailable data as explicit non-numeric copy", () => {
+    const message =
+      "この期間の確定データはまだ届いていません（CVソース最新: 2026-07-06）";
+    const html = renderCard({
+      caption: "前期間 ¥100",
+      comparison: { label: "前期間", delta: -1 },
+      sparkline: [0, 0, 0],
+      icon: undefined,
+      hue: undefined,
+      unavailableMessage: message,
+    });
+
+    expect(rowCounts(html)).toEqual({
+      label: 1,
+      badge: 1,
+      caption: 1,
+      value: 1,
+      sparkline: 1,
+      comparison: 1,
+    });
+    expect(html).toContain("未取得");
+    expect(html).toContain(message);
+    expect(html).not.toContain("¥123");
+    expect(extractRowInner(html, "sparkline")).not.toContain("<svg");
   });
 
   it.each([

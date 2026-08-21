@@ -56,6 +56,19 @@ function minDate(a: string, b: string): string {
   return a <= b ? a : b;
 }
 
+export function resolveConfirmedKpiRange(
+  range: { start: string; end: string },
+  commonConfirmedEnd: string | null,
+): { start: string; end: string } | null {
+  if (commonConfirmedEnd == null) return range;
+  // Date strings are YYYY-MM-DD throughout the dashboard range layer, so a
+  // lexical comparison is the same as chronological ordering. Returning
+  // null here prevents an inverted range from being queried and, crucially,
+  // distinguishes "no confirmed overlap" from a real zero-row response.
+  if (range.start > commonConfirmedEnd) return null;
+  return { start: range.start, end: minDate(range.end, commonConfirmedEnd) };
+}
+
 function cpaForDisplay(cost: number, cv: number): number | null {
   if (cv <= 0) return null;
   if (cost <= 0) return null;
@@ -156,16 +169,18 @@ export default async function ChakinOverview({
         : sourceLatest.ads;
   const commonConfirmedEnd =
     sourceLatest.ads && sourceCvLatest ? minDate(sourceLatest.ads, sourceCvLatest) : null;
-  const currentKpiRange =
-    commonConfirmedEnd != null
-      ? { start: rr.current.start, end: minDate(rr.current.end, commonConfirmedEnd) }
-      : rr.current;
+  const currentKpiRange = resolveConfirmedKpiRange(
+    rr.current,
+    commonConfirmedEnd,
+  );
   const previousKpiRange =
-    rr.previous && commonConfirmedEnd != null
-      ? { start: rr.previous.start, end: minDate(rr.previous.end, commonConfirmedEnd) }
-      : rr.previous;
+    rr.previous != null
+      ? resolveConfirmedKpiRange(rr.previous, commonConfirmedEnd)
+      : null;
   const [currentKpi, previousKpi] = await Promise.all([
-    getChakinDashboardData(client.id, currentKpiRange),
+    currentKpiRange
+      ? getChakinDashboardData(client.id, currentKpiRange)
+      : Promise.resolve(null),
     previousKpiRange
       ? getChakinDashboardData(client.id, previousKpiRange)
       : Promise.resolve(null),
@@ -173,7 +188,8 @@ export default async function ChakinOverview({
 
   const currentData = current.data;
   const previousData = !previousFetchFailed ? (previous?.data ?? null) : null;
-  const currentKpiData = !currentFetchFailed ? currentKpi.data : currentData;
+  const currentKpiData =
+    !currentFetchFailed && currentKpi != null ? currentKpi.data : currentData;
   const previousKpiData =
     !previousFetchFailed && previousKpi != null ? previousKpi.data : previousData;
 
@@ -188,10 +204,15 @@ export default async function ChakinOverview({
   const cvrPrevious = previousKpiData
     ? safeDiv(cvForSummary(source, previousKpiData), previousKpiData.adClicks)
     : null;
-  const cpcCurrent = safeDiv(currentData.adCost, currentData.adClicks);
-  const cpcPrevious = previousData
-    ? safeDiv(previousData.adCost, previousData.adClicks)
+  const cpcCurrent = safeDiv(currentKpiData.adCost, currentKpiData.adClicks);
+  const cpcPrevious = previousKpiData
+    ? safeDiv(previousKpiData.adCost, previousKpiData.adClicks)
     : null;
+
+  const kpiUnavailableMessage =
+    currentKpiRange == null && sourceCvLatest
+      ? `この期間の確定データはまだ届いていません（CVソース最新: ${sourceCvLatest}）`
+      : undefined;
 
   const cpaTarget = targets.cpa ?? CHAKIN_CPA_TARGET_FALLBACK;
 
@@ -256,16 +277,19 @@ export default async function ChakinOverview({
             <BigKpiCard
               label="COST"
               icon={CircleDollarSign}
-              value={fmtJpy(currentData.adCost)}
+              value={fmtJpy(currentKpiData.adCost)}
+              unavailableMessage={kpiUnavailableMessage}
               caption={
-                previousData ? `${rr.compareLabel} ${fmtJpy(previousData.adCost)}` : "比較対象なし"
+                previousKpiData
+                  ? `${rr.compareLabel} ${fmtJpy(previousKpiData.adCost)}`
+                  : "比較対象なし"
               }
               lowerIsBetter
               comparison={
-                previousData
+                previousKpiData
                   ? {
                       label: rr.compareLabel,
-                      delta: pct(currentData.adCost, previousData.adCost),
+                      delta: pct(currentKpiData.adCost, previousKpiData.adCost),
                     }
                   : undefined
               }
@@ -275,6 +299,7 @@ export default async function ChakinOverview({
               label="CV"
               icon={FileCheck2}
               value={fmtInt(cvCurrent)}
+              unavailableMessage={kpiUnavailableMessage}
               caption={
                 source === "graphene"
                   ? "申込完了・有効（基幹）"
@@ -296,6 +321,7 @@ export default async function ChakinOverview({
               label="CPA"
               icon={Target}
               value={fmtJpy(cpaCurrent)}
+              unavailableMessage={kpiUnavailableMessage}
               caption={
                 source === "graphene"
                   ? targets.cpa != null
@@ -317,17 +343,21 @@ export default async function ChakinOverview({
             <BigKpiCard
               label="CLICK"
               icon={MousePointerClick}
-              value={fmtInt(currentData.adClicks)}
+              value={fmtInt(currentKpiData.adClicks)}
+              unavailableMessage={kpiUnavailableMessage}
               caption={
-                previousData
-                  ? `${rr.compareLabel} ${fmtInt(previousData.adClicks)}`
+                previousKpiData
+                  ? `${rr.compareLabel} ${fmtInt(previousKpiData.adClicks)}`
                   : "比較対象なし"
               }
               comparison={
-                previousData
+                previousKpiData
                   ? {
                       label: rr.compareLabel,
-                      delta: pct(currentData.adClicks, previousData.adClicks),
+                      delta: pct(
+                        currentKpiData.adClicks,
+                        previousKpiData.adClicks,
+                      ),
                     }
                   : undefined
               }
@@ -337,6 +367,7 @@ export default async function ChakinOverview({
               label="CPC"
               icon={Coins}
               value={fmtJpy(cpcCurrent)}
+              unavailableMessage={kpiUnavailableMessage}
               caption={cpcPrevious != null ? `${rr.compareLabel} ${fmtJpy(cpcPrevious)}` : "比較対象なし"}
               lowerIsBetter
               comparison={
@@ -353,6 +384,7 @@ export default async function ChakinOverview({
               label="CVR"
               icon={Percent}
               value={fmtPct(cvrCurrent, 2)}
+              unavailableMessage={kpiUnavailableMessage}
               caption={cvrPrevious != null ? `${rr.compareLabel} ${fmtPct(cvrPrevious, 2)}` : "比較対象なし"}
               comparison={
                 cvrPrevious != null

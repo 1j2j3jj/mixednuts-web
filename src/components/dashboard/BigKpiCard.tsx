@@ -57,6 +57,12 @@ interface Props {
   label: string;
   value: string;
   /**
+   * Explicit data-absence state. The card keeps every A-7/A-16 reserved row,
+   * but replaces the numeric value/caption/comparison with visibly distinct
+   * copy so a missing measurement can never read as a measured zero.
+   */
+  unavailableMessage?: string;
+  /**
    * Unified one-line takeaway — cost-scope caveat, prior-period comparison,
    * or target-progress sentence. ALWAYS rendered in a fixed-height row.
    *
@@ -166,6 +172,7 @@ const PLACEHOLDER_COMPARISON: Comparison = { label: "—", delta: null };
 export default function BigKpiCard({
   label,
   value,
+  unavailableMessage,
   caption,
   comparison,
   lowerIsBetter,
@@ -176,7 +183,9 @@ export default function BigKpiCard({
   icon: Icon,
   hue = "chart-1",
 }: Props) {
-  const cmp = comparison ?? PLACEHOLDER_COMPARISON;
+  const cmp = unavailableMessage
+    ? PLACEHOLDER_COMPARISON
+    : (comparison ?? PLACEHOLDER_COMPARISON);
   const showSparkline = !!sparkline && sparkline.length > 1;
 
   return (
@@ -214,22 +223,30 @@ export default function BigKpiCard({
         <div
           data-kpi-row="caption"
           className="min-h-[1rem] truncate text-xs leading-tight text-muted-foreground"
-          title={caption}
+          title={unavailableMessage ?? caption}
         >
-          {caption}
+          {unavailableMessage ?? caption}
         </div>
         <div
           data-kpi-row="value"
-          className="mt-1 font-display text-2xl font-extrabold leading-none tracking-tight tabular-nums md:text-[1.75rem]"
+          className={cn(
+            "mt-1 leading-none tracking-tight",
+            unavailableMessage
+              ? "text-base font-semibold text-amber-800"
+              : "font-display text-2xl font-extrabold tabular-nums md:text-[1.75rem]",
+          )}
+          aria-label={
+            unavailableMessage ? `未取得: ${unavailableMessage}` : undefined
+          }
         >
-          {value}
+          {unavailableMessage ? "未取得" : value}
         </div>
         {/* Sparkline row — ALWAYS reserved at a fixed height (A-7 fix, the
             general form: this used to be `{sparkline && ... && <div>}`,
             present only on Overview's cards). Empty when no series is
             provided, but the slot's height never disappears. */}
         <div data-kpi-row="sparkline" className="mt-2 h-8">
-          {showSparkline && (
+          {!unavailableMessage && showSparkline && (
             <Sparkline
               values={sparkline!}
               dates={sparkDates}
