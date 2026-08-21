@@ -18,13 +18,9 @@ interface Props {
   hint?: string;
 }
 
-/** Simple horizontal progress bar with colour bands keyed to achievement.
- *  Status (good/warning/critical) is a fixed, non-themed scale — kept
- *  separate from the brand cyan accent so a status colour never impersonates
- *  the brand thread (dataviz color-formula.md "status is fixed"). Track is a
- *  lighter step of the same ramp as its fill (the "Meter" contract in
- *  marks-and-anatomy.md) so achievement state reads across the whole bar,
- *  not just the filled portion. */
+/** Simple horizontal progress bar. Achievement status is carried by the
+ *  adjacent glyph, percentage, and status word; the meter itself intentionally
+ *  uses one brand fill and one neutral track for every tier. */
 export default function GoalGauge({
   label,
   actual,
@@ -59,24 +55,16 @@ export default function GoalGauge({
             ? "やや未達"
             : "未達";
   /**
-   * E-1 / N-2 contrast fix (updated 2026-08-21): good and bad retain the
-   * validated -700/-100 pairs (emerald 4.72:1, rose 5.02:1). Warning no
-   * longer uses amber-700: rendered beside the other gauges it read as brown,
-   * contradicting the approved "黄は明るいまま" palette. The warning fill
-   * is yellow-400 on a neutral slate-700 track, measured at 6.76:1 with the
-   * WCAG relative-luminance formula — comfortably above
-   * the 3:1 non-text UI boundary in SC 1.4.11 without darkening the yellow.
+   * E-1 / E-3 / E-4 (updated 2026-08-21): all tiers share bg-brand on
+   * bg-muted, measured at 3.35:1 from the rendered brand/muted token pair with
+   * the WCAG relative-luminance formula. The meter therefore clears the
+   * 3:1 non-text boundary without making colour carry status; TierGlyph plus
+   * the percentage/status text remains the accessible achievement signal.
    */
-  const tone =
-    tier === "good"
-      ? { fill: "bg-emerald-700", track: "bg-emerald-100" }
-      : tier === "warning"
-        ? { fill: "bg-yellow-400", track: "bg-slate-700" }
-        : { fill: "bg-rose-700", track: "bg-rose-100" };
   return (
     <Card className="shadow-card">
       <CardHeader className="pb-2">
-        <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <CardTitle className="text-xs font-medium text-muted-foreground">
           {label}
         </CardTitle>
       </CardHeader>
@@ -96,22 +84,19 @@ export default function GoalGauge({
           aria-valuemin={0}
           aria-valuemax={150}
           className={cn(
-            "mt-2 h-2 w-full overflow-hidden rounded-full",
-            tone.track,
+            "mt-2 h-2 w-full overflow-hidden rounded-full bg-muted",
           )}
         >
           <div
             className={cn(
-              "h-full rounded-full transition-all motion-reduce:transition-none",
-              tone.fill,
+              "h-full rounded-full bg-brand transition-all motion-reduce:transition-none",
             )}
             style={{ width: `${Math.min(100, (pct / 1.5) * 100)}%` }}
           />
         </div>
         <div className="mt-1 flex items-center justify-between text-xs">
-          {/* E-3: the bar's colour band was the only carrier of which tier
-              (達成 / やや未達 / 未達) this percentage falls in — glyph + word
-              adds a non-colour carrier next to the number itself. */}
+          {/* E-3: glyph + percentage + word are the only tier carriers; the
+              meter colour is deliberately identical for every status. */}
           <span className="inline-flex items-center gap-1 font-medium tabular-nums">
             <TierGlyph tier={tier} />
             {fmtRatioPct(ratio * 100, 0)}

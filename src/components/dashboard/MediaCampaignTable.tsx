@@ -99,12 +99,17 @@ function roasClass(actualPct: number | null, targetPct: number | null): string {
 function columnLabel(column: MetricColumn, source: MetricSource): string {
   const sourceLabels =
     source === "ga4"
-      ? { cv: "GA_CV", cpa: "GA_CPA", revenue: "GA売上", roas: "GA_ROAS" }
+      ? {
+          cv: "コンバージョン（広告経由）",
+          cpa: "CPA（広告経由）",
+          revenue: "売上（広告経由）",
+          roas: "ROAS（広告経由）",
+        }
       : { cv: "媒体CV", cpa: "媒体CPA", revenue: "媒体売上", roas: "媒体ROAS" };
   return (
     {
-      cost: "COST",
-      costShare: "COST比",
+      cost: "広告費",
+      costShare: "広告費比",
       impressions: "IMP",
       clicks: "CLICK",
       ctr: "CTR",
@@ -379,7 +384,13 @@ export default function MediaCampaignTable({
         </p>
       )}
 
-      <div className="relative overflow-hidden rounded-md border after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:z-20 after:w-8 after:bg-gradient-to-l after:from-background after:to-transparent">
+      <p className="text-right text-xs text-muted-foreground">
+        横にスクロールできます →
+      </p>
+      <div
+        data-campaign-table-frame
+        className="relative overflow-hidden rounded-md border after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:z-20 after:w-12 after:bg-gradient-to-l after:from-background after:from-35% after:via-background/90 after:to-transparent"
+      >
         <Table className="min-w-max">
           <TableCaption className="sr-only">
             媒体 × キャンペーン別サマリテーブル

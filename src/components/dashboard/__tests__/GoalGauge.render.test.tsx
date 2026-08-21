@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import GoalGauge from "@/components/dashboard/GoalGauge";
 
-describe("GoalGauge warning presentation", () => {
-  it("uses bright yellow on a contrasting neutral track and keeps header spacing", () => {
+describe("GoalGauge presentation", () => {
+  it("uses the same brand meter and neutral track for every tier", () => {
     const html = renderToStaticMarkup(
       <GoalGauge
         label="売上達成"
@@ -13,8 +13,11 @@ describe("GoalGauge warning presentation", () => {
         expectedProgress={0.65}
       />,
     );
-    expect(html).toContain("bg-yellow-400");
-    expect(html).toContain("bg-slate-700");
+    expect(html).toContain("bg-brand");
+    expect(html).toContain("bg-muted");
+    expect(html).not.toContain("bg-yellow-400");
+    expect(html).not.toContain("bg-emerald-700");
+    expect(html).not.toContain("bg-rose-700");
     expect(html).toContain("gap-x-2");
     expect(html).toContain("flex-wrap");
   });
