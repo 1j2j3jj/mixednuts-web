@@ -7,6 +7,8 @@ import {
   findDarkFillToggleViolations,
   findChartTokenViolations,
   findSubReadablePxFontSizes,
+  findAccentHueViolations,
+  MAX_ACCENT_HUES,
   type ColorLiteralAllowEntry,
 } from "@/lib/design-guards";
 
@@ -407,6 +409,63 @@ describe("findChartTokenViolations", () => {
     const allViolations = DASHBOARD_FILES.flatMap((file) => {
       const source = fs.readFileSync(file, "utf-8");
       return findChartTokenViolations(source, relPath(file)).map((v) => ({
+        file: relPath(file),
+        ...v,
+      }));
+    });
+    expect(allViolations).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Guard 7 — saturated accent hues per file
+// ---------------------------------------------------------------------------
+
+describe("findAccentHueViolations", () => {
+  it("allows a file at the cap (the status triad)", () => {
+    const fixture = `<i className="text-emerald-700" /><i className="text-rose-700" /><i className="text-amber-700" />`;
+    expect(
+      findAccentHueViolations(fixture, "src/components/dashboard/X.tsx"),
+    ).toEqual([]);
+  });
+
+  it("CATCHES a file one hue over the cap and names the hues", () => {
+    const fixture = `<i className="text-emerald-700 text-rose-700 text-amber-700 text-indigo-500" />`;
+    const [violation] = findAccentHueViolations(
+      fixture,
+      "src/components/dashboard/X.tsx",
+    );
+    expect(violation.match).toContain(`max ${MAX_ACCENT_HUES}`);
+    expect(violation.match).toContain("indigo");
+  });
+
+  it("does not count neutral ramps as accents", () => {
+    const fixture = `<i className="bg-slate-700 bg-gray-500 bg-zinc-400 bg-neutral-600 bg-stone-300 text-emerald-700" />`;
+    expect(
+      findAccentHueViolations(fixture, "src/components/dashboard/X.tsx"),
+    ).toEqual([]);
+  });
+
+  it("skips shades outside 300-800 (surface tints, not accents)", () => {
+    const fixture = `<i className="bg-red-50 bg-blue-100 bg-green-900 bg-purple-950 text-emerald-700" />`;
+    expect(
+      findAccentHueViolations(fixture, "src/components/dashboard/X.tsx"),
+    ).toEqual([]);
+  });
+
+  it("skips a file recorded in the allowlist", () => {
+    const fixture = `<i className="text-emerald-700 text-rose-700 text-amber-700 text-indigo-500 text-sky-500" />`;
+    expect(
+      findAccentHueViolations(fixture, "src/components/dashboard/Debt.tsx", [
+        { file: "src/components/dashboard/Debt.tsx", reason: "measured debt" },
+      ]),
+    ).toEqual([]);
+  });
+
+  it("real dashboard scope has no accent-hue violations outside the recorded debt", () => {
+    const allViolations = DASHBOARD_FILES.flatMap((file) => {
+      const source = fs.readFileSync(file, "utf-8");
+      return findAccentHueViolations(source, relPath(file)).map((v) => ({
         file: relPath(file),
         ...v,
       }));
