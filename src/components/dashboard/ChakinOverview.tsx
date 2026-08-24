@@ -20,7 +20,7 @@ import {
   TOTAL_ROW_CLASS,
 } from "@/components/ui/table";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
-import KpiInfoPopover from "@/components/dashboard/KpiInfoPopover";
+import InfoHint from "@/components/dashboard/InfoHint";
 import PageHeader from "@/components/dashboard/PageHeader";
 import RefreshButton from "@/components/dashboard/RefreshButton";
 import PrintButton from "@/components/dashboard/PrintButton";
@@ -283,9 +283,9 @@ export default async function ChakinOverview({
             <BigKpiCard
               label={costPresentation.label}
               labelInfo={
-                <KpiInfoPopover label={costPresentation.label}>
+                <InfoHint label={costPresentation.label}>
                   {costPresentation.note}
-                </KpiInfoPopover>
+                </InfoHint>
               }
               value={fmtJpy(currentKpiData.adCost)}
               unavailableMessage={kpiUnavailableMessage}
@@ -307,9 +307,9 @@ export default async function ChakinOverview({
             <BigKpiCard
               label="CV"
               labelInfo={
-                <KpiInfoPopover label="CV">
+                <InfoHint label="CV">
                   媒体CVは各媒体管理画面の計上で入口指標や重複を含み、GA4CVはサイト上の完了イベント、グラフェンCVは基幹システムの成立ベースです。数え方が異なるため、件数の大小だけではデータ不良を意味しません。
-                </KpiInfoPopover>
+                </InfoHint>
               }
               value={fmtInt(cvCurrent)}
               unavailableMessage={kpiUnavailableMessage}
@@ -332,9 +332,9 @@ export default async function ChakinOverview({
             <BigKpiCard
               label="CPA"
               labelInfo={
-                <KpiInfoPopover label="CPA">
+                <InfoHint label="CPA">
                   CPA = 広告費 ÷ {sourceLabel}（共通確定日まで）
-                </KpiInfoPopover>
+                </InfoHint>
               }
               value={fmtJpy(cpaCurrent)}
               unavailableMessage={kpiUnavailableMessage}
@@ -394,9 +394,9 @@ export default async function ChakinOverview({
             <BigKpiCard
               label="CVR"
               labelInfo={
-                <KpiInfoPopover label="CVR">
+                <InfoHint label="CVR">
                   CVR = {sourceLabel} ÷ クリック数（共通確定日まで）
-                </KpiInfoPopover>
+                </InfoHint>
               }
               value={fmtPct(cvrCurrent, 2)}
               unavailableMessage={kpiUnavailableMessage}
@@ -413,8 +413,9 @@ export default async function ChakinOverview({
           </div>
 
           <div className="rounded-md border">
-            <div className="border-b px-4 py-3">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b px-4 py-3">
               <div className="text-sm font-semibold">チャネル区分（グラフェンCV固定）</div>
+              <div className="text-xs text-amber-800">広告の貢献は保守的に表示</div>
             </div>
             <div className="p-4">
               <Table>
@@ -429,7 +430,16 @@ export default async function ChakinOverview({
                 <TableBody>
                   {primaryChannels.map((row) => (
                     <TableRow key={row.channelGroup}>
-                      <TableCell className="font-medium whitespace-nowrap">{row.channelGroup}</TableCell>
+                      <TableCell className="font-medium whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5">
+                          {row.channelGroup}
+                          {row.channelGroup === "非広告" && (
+                            <InfoHint label="非広告">
+                              広告クリック後にパラメータを失い、流入元を判別できなかった申込を含みます。そのため広告の実際の貢献は、この区分表示では小さめに見える場合があります。
+                            </InfoHint>
+                          )}
+                        </span>
+                      </TableCell>
                       <TableCell className="text-right whitespace-nowrap">{fmtInt(row.validCv)}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">{fmtJpy(row.cost)}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">{fmtJpy(row.cpa)}</TableCell>
@@ -449,20 +459,16 @@ export default async function ChakinOverview({
                   </TableRow>
                 </TableBody>
               </Table>
-              <div className="mt-3 text-xs text-muted-foreground">
-                「非広告」には、広告クリック後にパラメータを失って流入元を判別できなかった申込が含まれます。
-                そのため広告の実際の貢献は、この区分表示では保守的（小さめ）に見える場合があります。
-              </div>
             </div>
           </div>
 
           <div className="rounded-md border">
             <div className="flex flex-row flex-wrap items-start justify-between gap-3 border-b px-4 py-3">
-              <div>
+              <div className="inline-flex items-center gap-1.5">
                 <div className="text-sm font-semibold">媒体別・キャンペーン別（広告チャネル）</div>
-                <div className="mt-1 text-xs text-muted-foreground">
+                <InfoHint label="媒体別・キャンペーン別">
                   CV・CPA・CVR は上部の CV ソース切替に連動します。広告費・CLICK・CPC は共通です。
-                </div>
+                </InfoHint>
               </div>
               <ChakinDetailTabs slug={slug} active={detailView} />
             </div>
