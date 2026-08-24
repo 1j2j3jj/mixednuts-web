@@ -280,6 +280,98 @@ export function findChartTokenViolations(
 }
 
 /* ------------------------------------------------------------------------
+ * Guard 7 — saturated accent hues per file.
+ *
+ * visual-aesthetic-review.md §4 item 3: a screen carries at most three
+ * saturated accent hues. ui-design-baseline's "5 colours" is the total
+ * including greys and the main colour; three is how many of those may be
+ * saturated. A file is the closest static proxy for a screen we can check
+ * without rendering.
+ *
+ * Neutral ramps (slate/gray/zinc/neutral/stone) are not accents and are not
+ * counted. Shades outside 300-800 are near-white or near-black tints used
+ * for surfaces rather than as accents, so they are also skipped.
+ *
+ * The allowlist below is NOT a set of approved exceptions - it is measured
+ * debt, recorded so the guard can stop NEW violations today instead of
+ * waiting for the cleanup. MediaTable/MediaCampaignTable paint per-media
+ * badges (Google / meta / Yahoo / Microsoft ...) from raw Tailwind hues
+ * rather than the validated --chart-N categorical palette, which is why
+ * Guard 4 never saw them. Consolidating those onto --chart-N is the fix;
+ * until then each entry says what it is.
+ * ---------------------------------------------------------------------- */
+export interface AccentHueAllowEntry {
+  /** Workspace-relative dashboard TSX path. */
+  file: string;
+  /** Why this file currently exceeds the cap, and what would resolve it. */
+  reason: string;
+}
+
+export const ACCENT_HUE_ALLOWLIST: readonly AccentHueAllowEntry[] = [
+  {
+    file: "src/components/dashboard/MediaTable.tsx",
+    reason:
+      "known debt: per-media badge hues are raw Tailwind colours; move them onto the --chart-N categorical palette",
+  },
+  {
+    file: "src/components/dashboard/MediaCampaignTable.tsx",
+    reason:
+      "known debt: same per-media badge palette as MediaTable.tsx",
+  },
+  {
+    file: "src/app/(dashboard)/dashboard/admin/audit/page.tsx",
+    reason:
+      "known debt: admin-only audit log severity colours; not client-facing, lower priority",
+  },
+  {
+    file: "src/components/dashboard/DrillTable.tsx",
+    reason: "known debt: status triad plus a sky accent for the match column",
+  },
+  {
+    file: "src/app/(dashboard)/dashboard/admin/clients/[id]/ClientDetailTabs.tsx",
+    reason: "known debt: admin-only tab states; not client-facing",
+  },
+];
+
+export const MAX_ACCENT_HUES = 3;
+
+const SATURATED_HUES =
+  "red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose";
+const ACCENT_UTILITY_RE = new RegExp(
+  String.raw`\b(?:bg|text|border|fill|stroke|ring|from|via|to)-(` +
+    SATURATED_HUES +
+    String.raw`)-(\d{3})\b`,
+  "g",
+);
+
+export function findAccentHueViolations(
+  source: string,
+  file: string,
+  allowlist: readonly AccentHueAllowEntry[] = ACCENT_HUE_ALLOWLIST,
+): Violation[] {
+  const normalizedFile = file.replaceAll("\\", "/");
+  if (allowlist.some((entry) => entry.file === normalizedFile)) return [];
+
+  const hues = new Map<string, number>();
+  const re = new RegExp(ACCENT_UTILITY_RE.source, ACCENT_UTILITY_RE.flags);
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(source))) {
+    const shade = Number(m[2]);
+    if (shade < 300 || shade > 800) continue;
+    if (!hues.has(m[1])) hues.set(m[1], lineAt(source, m.index));
+  }
+  if (hues.size <= MAX_ACCENT_HUES) return [];
+
+  const names = [...hues.keys()].sort();
+  return [
+    {
+      line: Math.min(...hues.values()),
+      match: `${hues.size} saturated accent hues (max ${MAX_ACCENT_HUES}): ${names.join(", ")}`,
+    },
+  ];
+}
+
+/* ------------------------------------------------------------------------
  * Guard 5 — font sizes below 12px on user-readable content.
  *
  * typography-spacing audit lane: text-[10px] (18 sites) / text-[11px] (13

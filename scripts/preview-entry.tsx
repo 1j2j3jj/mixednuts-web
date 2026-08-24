@@ -1,6 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
+import InfoHint from "@/components/dashboard/InfoHint";
 import ChannelTargetTable from "@/components/dashboard/ChannelTargetTable";
 import GoalGauge from "@/components/dashboard/GoalGauge";
 import DeviceBar from "@/components/dashboard/DeviceBar";
@@ -122,6 +123,30 @@ function PreviewApp() {
               comparison={{ label: "前期間比", delta: null }}
               sparkline={[0, 0, 0, 0, 0]}
             />
+          </div>
+        </section>
+
+        <section className="rounded-card border bg-card p-4 shadow-card">
+          <h2 className="mb-3 text-sm font-semibold">InfoHint interaction</h2>
+          <div className="flex flex-wrap items-center gap-x-12 gap-y-8 py-4">
+            <div className="inline-flex items-center gap-1.5 text-sm font-semibold">
+              月次チャネル別
+              <InfoHint label="月次チャネル別">
+                売上・CVはGA4の購入実績を使用し、表示値トグルには連動しません。
+              </InfoHint>
+            </div>
+            <div className="inline-flex items-center gap-1.5 text-sm font-semibold">
+              コンバージョン（広告経由）
+              <InfoHint label="コンバージョン（広告経由）" align="center">
+                広告キャンペーンに帰属したGA4計測分の合計です。媒体名が一致しない媒体分は含みません。
+              </InfoHint>
+            </div>
+            <div className="inline-flex items-center gap-1.5 text-sm font-semibold">
+              右端配置
+              <InfoHint label="右端配置" align="end">
+                ホバー、クリックでのピン留め、Tab・Enter・Space・Esc、外側クリックを確認します。
+              </InfoHint>
+            </div>
           </div>
         </section>
 

@@ -17,6 +17,7 @@ import RefreshButton from "@/components/dashboard/RefreshButton";
 import PrintButton from "@/components/dashboard/PrintButton";
 import MockBanner from "@/components/dashboard/MockBanner";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
+import InfoHint from "@/components/dashboard/InfoHint";
 import SourceToggle from "@/components/dashboard/SourceToggle";
 import PageHeader from "@/components/dashboard/PageHeader";
 import StatusChip from "@/components/dashboard/StatusChip";
@@ -497,6 +498,11 @@ export default async function AdsScreen({
       >
         <BigKpiCard
           label={chakinCost?.label ?? "広告費"}
+          labelInfo={
+            chakinCost ? (
+              <InfoHint label={chakinCost.label}>{chakinCost.note}</InfoHint>
+            ) : undefined
+          }
           value={fmtJpy(curTotals.cost)}
           caption={
             targetPeriodMatches &&
@@ -523,6 +529,13 @@ export default async function AdsScreen({
         />
         <BigKpiCard
           label={source === "ga4" ? "コンバージョン（広告経由）" : "媒体CV"}
+          labelInfo={
+            source === "ga4" ? (
+              <InfoHint label="コンバージョン（広告経由）">
+                広告キャンペーンに帰属した GA4 計測分の合計です（媒体別サマリの合計行と一致）。媒体名が一致しない場合、その媒体分は含まれません。
+              </InfoHint>
+            ) : undefined
+          }
           value={fmtInt(
             // C3-g: ad-attributed (agrees with 媒体別サマリ below), not
             // site-wide curGa4.conversions — see block comment above.
@@ -658,25 +671,12 @@ export default async function AdsScreen({
         />
       </div>
 
-      {chakinCost && (
-        <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-          {chakinCost.note}
-        </div>
-      )}
-
       {/* C3-g caveat: GA4 CV above is now a sum of per-media GA4 figures
           joined against this ad platform's own media names for the window —
           a media whose name doesn't match contributes 0, same as the table
           below already does silently. Disclosed here rather than presented
           as a complete total. Only relevant when the KPI is actually
           showing the GA4-sourced number. */}
-      {source === "ga4" && (
-        <div className="text-xs text-muted-foreground">
-          コンバージョン（広告経由）は広告キャンペーンに帰属した GA4
-          計測分の合計です（媒体別サマリの合計行と一致）。媒体名が一致しない場合、その媒体分は含まれません。
-        </div>
-      )}
-
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold">媒体別サマリ</h2>
@@ -698,12 +698,12 @@ export default async function AdsScreen({
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <div>
+          <div className="inline-flex items-center gap-1.5">
             <h2 className="text-sm font-semibold">媒体別キャンペーンサマリ</h2>
-            <p className="text-xs text-muted-foreground">
+            <InfoHint label="媒体別キャンペーンサマリ">
               媒体 × CPN 単位で横比較。ボタンで媒体を絞り込み。KPI は上部の{" "}
               {source === "ga4" ? "GA4" : "媒体"} ソース切替と連動
-            </p>
+            </InfoHint>
           </div>
         </div>
         <MediaCampaignTable

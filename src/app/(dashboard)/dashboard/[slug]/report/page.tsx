@@ -28,6 +28,7 @@ import CsvExportButton from "@/components/dashboard/CsvExportButton";
 import PrintButton from "@/components/dashboard/PrintButton";
 import RefreshButton from "@/components/dashboard/RefreshButton";
 import PageHeader from "@/components/dashboard/PageHeader";
+import InfoHint from "@/components/dashboard/InfoHint";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fmtInt, fmtJpy, fmtRatioPct } from "@/lib/utils";
 import { fmtJstTime } from "@/lib/datetime";
@@ -673,32 +674,51 @@ export default async function ReportScreen({
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold">
-            {viewLabel} 粒度
+          <h2 className="inline-flex flex-wrap items-center gap-1.5 text-sm font-semibold">
+            <span>{viewLabel} 粒度</span>
             <span className="ml-2 text-xs font-normal text-muted-foreground">
               {rows.length} 件
             </span>
+            <span className="rounded-full border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              集計: {view === "daily" || view === "monthly" ? "サイト全体" : "広告経由"}
+            </span>
+            <InfoHint label={`${viewLabel} 粒度`}>
+              <span className="space-y-1">
+                <span className="block">
+                  ROAS は売上 ÷ 広告費の%表示で、期間合計から再計算します（日次比率の平均ではありません）。
+                </span>
+                <span className="block">
+                  CSVは合計行を含み、表の既定順で出力します。画面上の並び替えはCSVへ反映されません。
+                </span>
+                <span className="block">
+                  {gaCvLabel} は GA4 の購入（コンバージョン）イベント基準です。
+                  {meta.secondaryEvents.length > 0 && (
+                    <> {meta.secondaryEvents.map((event) => event.label).join(" / ")} は別列で参考表示します。</>
+                  )}
+                </span>
+                {view === "daily" || view === "monthly" ? (
+                  <span className="block">
+                    GA列はサイト全体（全チャネル）の実測です。{gaCvLabel} はサイト全体の購入件数、コンバージョン（広告経由）は広告エンティティに帰属した参考値で、直接流入などを含むサイト全体とは一致しません。
+                  </span>
+                ) : view === "weekly" ? (
+                  <span className="block">
+                    GA列は広告エンティティに帰属した GA4 計測分の週次集計です。サイト全体の数値と目標比較は月次タブで確認できます。
+                  </span>
+                ) : (
+                  <span className="block">
+                    GA列は広告エンティティに帰属した GA4 計測分です。matched は広告費とGA計測の突合済み、unmapped は対応広告費の未着、ad_only は広告費のみを示します。matched と unmapped が混在する行は「+未突合分」を表示します。
+                  </span>
+                )}
+                {view === "adg" && (
+                  <span className="block">
+                    PMax は媒体仕様上 ADG 粒度がないため、該当行を CPN 粒度へ折り返して表示します。
+                  </span>
+                )}
+              </span>
+            </InfoHint>
           </h2>
           <ReportViewTabs slug={slug} active={view} />
         </div>
-        {/* GA_CV の定義がタブで切替わる（サイト全体 ⇄ 広告帰属）ことを常時明示。
-            サイト全体は広告以外の流入も含むため広告帰属より大きく出る（誤読防止・監査P1-4）。 */}
-        {(() => {
-          const siteWide = view === "daily" || view === "monthly";
-          return (
-            <div
-              className={`rounded-md border px-3 py-2 text-xs ${
-                siteWide
-                  ? "border-sky-200 bg-sky-50 text-sky-900"
-                  : "border-amber-200 bg-amber-50 text-amber-900"
-              }`}
-            >
-              {siteWide
-                ? "このタブのコンバージョン / 売上は「サイト全体」のGA4計測です（広告以外の流入も含むため広告経由より大きく出ます）。広告経由の購入CVは別列で表示します。"
-                : "このタブのコンバージョン / 売上は「広告経由」のGA4計測です。サイト全体の数値は日次 / 月次タブで確認できます。"}
-            </div>
-          );
-        })()}
         <ReportTable
           rows={tableRows}
           labelHeader={labelHeader}
@@ -812,57 +832,11 @@ export default async function ReportScreen({
               </table>
             </div>
           )}
-        <div className="space-y-1 text-[11px] text-muted-foreground">
-          <div>
-            ROAS = 売上 ÷ 広告費の%表示（例 1677% =
-            16.77倍）。比率は期間合計から再計算（日次比率の平均ではない）。
+        {showOverall && (
+          <div className="text-[11px] text-muted-foreground">
+            {overallCvLabelFull} の「—」は連携未取得
           </div>
-          <div>
-            CSVは合計行を含み、表の既定ソート順（並び替え前の順序）で出力されます。テーブル上でソートを変更してもCSVの行順には反映されません。
-          </div>
-          <div>
-            {gaCvLabel} は GA4
-            の購入（コンバージョン）イベント基準です（以前はGA4の主要イベントすべてを合算していましたが、購入基準に変更しました）。
-            {meta.secondaryEvents.length > 0 && (
-              <>
-                {" "}
-                {meta.secondaryEvents.map((ev) => ev.label).join(" / ")}{" "}
-                は別列で参考表示。
-              </>
-            )}
-          </div>
-          {view === "daily" || view === "monthly" ? (
-            <div>
-              GA列はサイト全体（全チャネル）の GA4 実測（返品は0フロア済）。
-              {gaCvLabel} はサイト全体の購入件数、コンバージョン（広告経由）
-              は広告エンティティに帰属した参考値（媒体別/CPN/ADGタブの
-              コンバージョン（購入）
-              と同一系列）——両者は一致しない（未計測トラフィックや直接流入分だけサイト全体側が上回るため）。
-              {overallCvLabelFull}
-              は連携未取得の期間は「—」表示。
-            </div>
-          ) : view === "weekly" ? (
-            <div>
-              GA列は広告エンティティに帰属した GA4
-              計測分の週次集計。全体CV（サイト全体・目標比較）は月次タブを参照。
-            </div>
-          ) : (
-            <div>
-              GA列は広告エンティティに帰属した GA4 計測分。バッジ:
-              matched=広告費とGA計測が突合済み /
-              unmapped=GA計測はあるが対応広告費が未着（1日遅れで翌日回収）/
-              ad_only=広告費のみでGA計測なし。同一キャンペーン・広告グループ配下に
-              matched と unmapped
-              が混在する場合は1行に統合し「+未突合分」バッジを付与。
-            </div>
-          )}
-          {view === "adg" && (
-            <div>
-              PMax は媒体仕様上 ADG 粒度が存在しないため、該当行は CPN
-              粒度に折返して表示（grain_level=campaign のバッジ行）。
-            </div>
-          )}
-        </div>
+        )}
       </section>
 
       {rows.length === 0 &&

@@ -42,6 +42,7 @@ import StatusChip from "@/components/dashboard/StatusChip";
 import ChakinOverview from "@/components/dashboard/ChakinOverview";
 import AbsenceNotice from "@/components/dashboard/AbsenceNotice";
 import AbsenceTableRow from "@/components/dashboard/AbsenceTableRow";
+import InfoHint from "@/components/dashboard/InfoHint";
 import { permissionDeniedCopy } from "@/lib/absence";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -892,13 +893,12 @@ export default async function Overview({
 
       <Card className="shadow-card">
         <CardHeader>
-          <CardTitle className="text-base">
+          <CardTitle className="inline-flex items-center gap-1.5 text-base">
             月次チャネル別（GA4 · 過去12ヶ月・参考）
+            <InfoHint label="月次チャネル別">
+              チャネル別内訳は GA4 のみで集計しています。売上・CVは常にGA4の購入実績を使用しており、上部の表示値トグルの選択には連動しません。
+            </InfoHint>
           </CardTitle>
-          <div className="mt-1 text-xs text-muted-foreground">
-            チャネル別内訳は GA4
-            のみで集計しています。売上・CVは常にGA4の購入実績を使用しており、上部の表示値トグルの選択には連動しません。
-          </div>
         </CardHeader>
         <CardContent>
           <ChannelStackedBar
@@ -966,13 +966,12 @@ export default async function Overview({
               <div>
                 {/* 期間ラベルを動的化 — 固定「（当月）」だと 先月 選択時に実績と表示が矛盾する
                     （channelTargetRows は showGoals=thisMonth/lastMonth の時のみ populate、上参照）。 */}
-                <CardTitle className="text-base">
+                <CardTitle className="inline-flex items-center gap-1.5 text-base">
                   チャネル別 目標vs実績（{rr.presetLabel}）
+                  <InfoHint label="チャネル別 目標vs実績">
+                    実績は GA4 チャネル別（{rr.presetLabel}）を計画シートのチャネル区分（organic/direct/mail/referral/広告）へ集約しています。目標欄が「—」の行は、計画シートに対応区分がないため実績のみ表示します。
+                  </InfoHint>
                 </CardTitle>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  実績は GA4 チャネル別（{rr.presetLabel}
-                  ）を計画シートのチャネル区分（organic/direct/mail/referral/広告）へ集約。目標欄が「—」の行は計画シートに対応する区分がないチャネル（実績のみ表示）
-                </div>
               </div>
               {/* C2-d: card-level chip, reusing the exact ratio the table
                   below already colours per-cell — see channelAchievement /

@@ -23,6 +23,35 @@
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+.info-hint__content {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transform: translateY(-2px) scale(0.98);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease,
+    visibility 0s linear 120ms;
+}
+
+.info-hint__content[data-state="open"] {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+  transition-delay: 0s;
+}
+
+.info-hint__print-note {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .info-hint__content {
+    transition: none;
+  }
+}
 /* ITEM 2 fix (2026-07-25 Phase E audit, SC 1.4.11 non-text contrast): the
    impersonation banner's exit link sits on bg-amber-500; outline-offset's
    2px gap exposes that backdrop, and the base rule's var(--ring) (=--brand,
@@ -66,6 +95,21 @@
   .dashboard-scope nav,
   .dashboard-scope [data-print-hide="true"] {
     display: none !important;
+  }
+  .info-hint__trigger,
+  .info-hint__content {
+    display: none !important;
+  }
+  .info-hint,
+  .info-hint__print-note {
+    display: inline !important;
+  }
+  .info-hint__print-note {
+    margin-left: 0.35rem;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.45;
+    color: #475569;
   }
   .dashboard-scope {
     background: white !important;
