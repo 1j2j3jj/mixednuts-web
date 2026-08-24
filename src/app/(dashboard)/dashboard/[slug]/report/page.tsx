@@ -24,12 +24,6 @@ import ReportTable, {
   type ReportTableRow,
 } from "@/components/dashboard/ReportTable";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
-import {
-  Wallet,
-  Target as TargetIcon,
-  ShoppingCart,
-  Layers,
-} from "lucide-react";
 import CsvExportButton from "@/components/dashboard/CsvExportButton";
 import PrintButton from "@/components/dashboard/PrintButton";
 import RefreshButton from "@/components/dashboard/RefreshButton";
@@ -267,7 +261,7 @@ export default async function ReportScreen({
   // GA_CV / GA売上 / GA_ROAS / GA_CPA / 媒体CV / EC-CUBE_CV / EC-CUBE売上 /
   // EC-CUBE_ROAS, CEO decision 2026-07-24) used on every tab, not a bare
   // snake_case DB column name.
-  let gaCvLabel = "GA_CV(購入)";
+  let gaCvLabel = "コンバージョン（購入）";
   // Monthly tab only: achievement-rate column (全体売上 ÷ 目標). Rendered
   // as a lightweight table below the main ReportTable rather than wired
   // into ReportTable's generic column set (target/achievement is a
@@ -317,7 +311,7 @@ export default async function ReportScreen({
     showOverallValue = meta.hasOverallValue;
     showAdCvPurchase = true;
     gaGroupLabel = "GA（サイト全体）";
-    gaCvLabel = "GA_CV(サイト全体·購入)";
+    gaCvLabel = "コンバージョン（サイト全体・購入）";
   } else if (view === "weekly") {
     // Ads-side rollup only (rpt_daily grouped by ISO week) — same shape as
     // the ads block on the Daily tab, no site-wide GA/overall join (that
@@ -422,7 +416,7 @@ export default async function ReportScreen({
     showOverallValue = meta.hasOverallValue;
     showAdCvPurchase = true;
     gaGroupLabel = "GA（サイト全体・月次）";
-    gaCvLabel = "GA_CV(サイト全体·購入)";
+    gaCvLabel = "コンバージョン（サイト全体・購入）";
   } else if (view === "media") {
     const res = await getRptMedia(client.id);
     warnings.push(...res.warnings);
@@ -593,16 +587,16 @@ export default async function ReportScreen({
     "粒度",
     "突合状況",
     "未突合分",
-    "COST",
+    "広告費",
     "Imp",
     "Click",
     "媒体CV",
     "媒体売上",
-    "SESSION",
+    "セッション",
     gaCvLabel,
-    ...(showAdCvPurchase ? ["GA_CV(広告帰属)"] : []),
+    ...(showAdCvPurchase ? ["コンバージョン（広告経由）"] : []),
     ...meta.secondaryEvents.map((ev) => ev.label),
-    "GA売上",
+    "売上（GA4計測）",
     meta.overallCvLabel,
     "全体売上",
   ];
@@ -619,14 +613,14 @@ export default async function ReportScreen({
           title={<>レポート（GA×広告 突合） · {rr.presetLabel}</>}
           subtitle={
             <>
-              {start} 〜 {end} · CV3層: 媒体CV / GA_CV(購入) /{" "}
+              {start} 〜 {end} · CV3層: 媒体CV / コンバージョン（購入） /{" "}
               {overallCvLabelFull}
             </>
           }
           controls={
             <>
               <div className="text-xs text-muted-foreground">
-                最終取得 {fetchedAtLabel}
+                データ最終取得 {fetchedAtLabel}
               </div>
               <CsvExportButton
                 filename={`report-${view}-${slug}-${new Date().toISOString().slice(0, 10)}.csv`}
@@ -646,44 +640,35 @@ export default async function ReportScreen({
       </div>
 
       {/* Period KPIs — window totals independent of the granularity tab. No
-          prior-period or target value is computed anywhere on this tab (see
-          BigKpiCard.tsx module doc for why `comparison` is safe to omit —
-          it renders a reserved "—"/"—" placeholder row rather than
-          vanishing), so captions here are definitional rather than
-          "vs last period" / "of target". */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          prior-period or target value is computed anywhere on this tab, so
+          `comparison` is omitted and captions stay definitional rather than
+          claiming "vs last period" / "of target". BigKpiCard's shared
+          subgrid keeps the remaining rows aligned without placeholder DOM. */}
+      <div className="kpi-card-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <BigKpiCard
-          label="COST"
+          label="広告費"
           value={fmtJpy(kpi.cost)}
-          caption="全媒体COST合算"
+          caption="全媒体の広告費合算"
           lowerIsBetter
-          icon={Wallet}
-          hue="chart-5"
         />
         <BigKpiCard
           label="媒体CV"
           value={fmtInt(kpi.mediaCv)}
           caption="広告プラットフォーム計測"
-          icon={TargetIcon}
-          hue="chart-3"
         />
         <BigKpiCard
-          label="GA_CV(サイト全体·購入)"
+          label="コンバージョン（サイト全体・購入）"
           value={fmtInt(kpiSiteGaCv)}
           caption="GA4 サイト全体の購入イベント"
-          icon={ShoppingCart}
-          hue="chart-7"
         />
         <BigKpiCard
           label={overallCvLabelFull}
           value={fmtInt(kpiOverallCv)}
           caption={`計測経路: ${meta.overallCvSourceName ?? "全体CV"}`}
-          icon={Layers}
-          hue="chart-2"
         />
       </div>
       <div className="text-xs text-muted-foreground">
-        期間 GA_ROAS（サイト全体GA売上 ÷ COST）: {fmtRatioPct(kpiGaRoasPct, 0)}
+        期間 ROAS（サイト全体のGA4売上 ÷ 広告費）: {fmtRatioPct(kpiGaRoasPct, 0)}
       </div>
 
       <section className="space-y-3">
@@ -709,8 +694,8 @@ export default async function ReportScreen({
               }`}
             >
               {siteWide
-                ? "このタブの GA_CV / GA売上 は「サイト全体」の GA4 計測です（広告以外の流入も含むため広告帰属より大きく出ます）。広告経由の購入CVは「GA_CV(購入)」列で別掲。"
-                : "このタブの GA_CV / GA売上 は「広告帰属」（この広告経由の GA4 計測のみ）です。サイト全体の数値は 日次 / 月次 タブで確認できます。"}
+                ? "このタブのコンバージョン / 売上は「サイト全体」のGA4計測です（広告以外の流入も含むため広告経由より大きく出ます）。広告経由の購入CVは別列で表示します。"
+                : "このタブのコンバージョン / 売上は「広告経由」のGA4計測です。サイト全体の数値は日次 / 月次タブで確認できます。"}
             </div>
           );
         })()}
@@ -829,7 +814,7 @@ export default async function ReportScreen({
           )}
         <div className="space-y-1 text-[11px] text-muted-foreground">
           <div>
-            ROAS = 売上 ÷ COST の%表示（例 1677% =
+            ROAS = 売上 ÷ 広告費の%表示（例 1677% =
             16.77倍）。比率は期間合計から再計算（日次比率の平均ではない）。
           </div>
           <div>
@@ -849,9 +834,9 @@ export default async function ReportScreen({
           {view === "daily" || view === "monthly" ? (
             <div>
               GA列はサイト全体（全チャネル）の GA4 実測（返品は0フロア済）。
-              {gaCvLabel} はサイト全体の購入件数、GA_CV(広告帰属)
+              {gaCvLabel} はサイト全体の購入件数、コンバージョン（広告経由）
               は広告エンティティに帰属した参考値（媒体別/CPN/ADGタブの
-              GA_CV(購入)
+              コンバージョン（購入）
               と同一系列）——両者は一致しない（未計測トラフィックや直接流入分だけサイト全体側が上回るため）。
               {overallCvLabelFull}
               は連携未取得の期間は「—」表示。

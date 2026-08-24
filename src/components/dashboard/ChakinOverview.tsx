@@ -20,14 +20,7 @@ import {
   TOTAL_ROW_CLASS,
 } from "@/components/ui/table";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
-import {
-  CircleDollarSign,
-  FileCheck2,
-  Target,
-  MousePointerClick,
-  Coins,
-  Percent,
-} from "lucide-react";
+import KpiInfoPopover from "@/components/dashboard/KpiInfoPopover";
 import PageHeader from "@/components/dashboard/PageHeader";
 import RefreshButton from "@/components/dashboard/RefreshButton";
 import PrintButton from "@/components/dashboard/PrintButton";
@@ -38,6 +31,7 @@ import ChakinDetailTabs, {
 import ChakinCvSourceToggle from "@/components/dashboard/ChakinCvSourceToggle";
 import { readChakinCvSource, type ChakinCvSource } from "@/lib/chakin-cv-source";
 import { hasWarnReason } from "@/lib/fetch-warnings";
+import { chakinCostPresentation } from "@/lib/chakin-cost-presentation";
 
 interface Props {
   client: ClientConfig;
@@ -54,6 +48,19 @@ function pct(a: number | null, b: number | null): number | null {
 
 function minDate(a: string, b: string): string {
   return a <= b ? a : b;
+}
+
+export function resolveConfirmedKpiRange(
+  range: { start: string; end: string },
+  commonConfirmedEnd: string | null,
+): { start: string; end: string } | null {
+  if (commonConfirmedEnd == null) return range;
+  // Date strings are YYYY-MM-DD throughout the dashboard range layer, so a
+  // lexical comparison is the same as chronological ordering. Returning
+  // null here prevents an inverted range from being queried and, crucially,
+  // distinguishes "no confirmed overlap" from a real zero-row response.
+  if (range.start > commonConfirmedEnd) return null;
+  return { start: range.start, end: minDate(range.end, commonConfirmedEnd) };
 }
 
 function cpaForDisplay(cost: number, cv: number): number | null {
@@ -111,6 +118,7 @@ export default async function ChakinOverview({
   searchParams,
 }: Props) {
   const source = readChakinCvSource(searchParams);
+  const costPresentation = chakinCostPresentation("summary");
   const anchorResult = await getChakinAnchorDate(client.id);
   const anchor = anchorResult.anchorDate ?? jstDateString();
   const rr = resolveFromSearchParams(
@@ -154,18 +162,26 @@ export default async function ChakinOverview({
       : source === "ga4"
         ? sourceLatest.ga4
         : sourceLatest.ads;
+  const sourceLabel =
+    source === "graphene"
+      ? "グラフェンCV"
+      : source === "ga4"
+        ? "GA4CV"
+        : "媒体CV";
   const commonConfirmedEnd =
     sourceLatest.ads && sourceCvLatest ? minDate(sourceLatest.ads, sourceCvLatest) : null;
-  const currentKpiRange =
-    commonConfirmedEnd != null
-      ? { start: rr.current.start, end: minDate(rr.current.end, commonConfirmedEnd) }
-      : rr.current;
+  const currentKpiRange = resolveConfirmedKpiRange(
+    rr.current,
+    commonConfirmedEnd,
+  );
   const previousKpiRange =
-    rr.previous && commonConfirmedEnd != null
-      ? { start: rr.previous.start, end: minDate(rr.previous.end, commonConfirmedEnd) }
-      : rr.previous;
+    rr.previous != null
+      ? resolveConfirmedKpiRange(rr.previous, commonConfirmedEnd)
+      : null;
   const [currentKpi, previousKpi] = await Promise.all([
-    getChakinDashboardData(client.id, currentKpiRange),
+    currentKpiRange
+      ? getChakinDashboardData(client.id, currentKpiRange)
+      : Promise.resolve(null),
     previousKpiRange
       ? getChakinDashboardData(client.id, previousKpiRange)
       : Promise.resolve(null),
@@ -173,7 +189,8 @@ export default async function ChakinOverview({
 
   const currentData = current.data;
   const previousData = !previousFetchFailed ? (previous?.data ?? null) : null;
-  const currentKpiData = !currentFetchFailed ? currentKpi.data : currentData;
+  const currentKpiData =
+    !currentFetchFailed && currentKpi != null ? currentKpi.data : currentData;
   const previousKpiData =
     !previousFetchFailed && previousKpi != null ? previousKpi.data : previousData;
 
@@ -188,10 +205,15 @@ export default async function ChakinOverview({
   const cvrPrevious = previousKpiData
     ? safeDiv(cvForSummary(source, previousKpiData), previousKpiData.adClicks)
     : null;
-  const cpcCurrent = safeDiv(currentData.adCost, currentData.adClicks);
-  const cpcPrevious = previousData
-    ? safeDiv(previousData.adCost, previousData.adClicks)
+  const cpcCurrent = safeDiv(currentKpiData.adCost, currentKpiData.adClicks);
+  const cpcPrevious = previousKpiData
+    ? safeDiv(previousKpiData.adCost, previousKpiData.adClicks)
     : null;
+
+  const kpiUnavailableMessage =
+    currentKpiRange == null && sourceCvLatest
+      ? `CVソース最新 ${sourceCvLatest}`
+      : undefined;
 
   const cpaTarget = targets.cpa ?? CHAKIN_CPA_TARGET_FALLBACK;
 
@@ -237,8 +259,13 @@ export default async function ChakinOverview({
           }
           controls={
             <>
-              <ChakinCvSourceToggle />
-              <div className="text-xs text-muted-foreground">画面更新日時 {fetchedAtLabel}</div>
+              <div className="flex flex-col items-start gap-1">
+                <ChakinCvSourceToggle />
+                <div className="text-xs text-muted-foreground">
+                  {sourceLabel}: 最新 {sourceCvLatest ?? "—"}
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground">画面表示 {fetchedAtLabel}</div>
               <PrintButton />
               <RefreshButton clientId={client.id} />
             </>
@@ -252,29 +279,40 @@ export default async function ChakinOverview({
         </div>
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+          <div className="kpi-card-grid grid gap-4 md:grid-cols-2 xl:grid-cols-6">
             <BigKpiCard
-              label="COST"
-              icon={CircleDollarSign}
-              value={fmtJpy(currentData.adCost)}
+              label={costPresentation.label}
+              labelInfo={
+                <KpiInfoPopover label={costPresentation.label}>
+                  {costPresentation.note}
+                </KpiInfoPopover>
+              }
+              value={fmtJpy(currentKpiData.adCost)}
+              unavailableMessage={kpiUnavailableMessage}
               caption={
-                previousData ? `${rr.compareLabel} ${fmtJpy(previousData.adCost)}` : "比較対象なし"
+                previousKpiData
+                  ? `${rr.compareLabel} ${fmtJpy(previousKpiData.adCost)}`
+                  : "比較対象なし"
               }
               lowerIsBetter
               comparison={
-                previousData
+                previousKpiData
                   ? {
                       label: rr.compareLabel,
-                      delta: pct(currentData.adCost, previousData.adCost),
+                      delta: pct(currentKpiData.adCost, previousKpiData.adCost),
                     }
                   : undefined
               }
-              hue="chart-5"
             />
             <BigKpiCard
               label="CV"
-              icon={FileCheck2}
+              labelInfo={
+                <KpiInfoPopover label="CV">
+                  媒体CVは各媒体管理画面の計上で入口指標や重複を含み、GA4CVはサイト上の完了イベント、グラフェンCVは基幹システムの成立ベースです。数え方が異なるため、件数の大小だけではデータ不良を意味しません。
+                </KpiInfoPopover>
+              }
               value={fmtInt(cvCurrent)}
+              unavailableMessage={kpiUnavailableMessage}
               caption={
                 source === "graphene"
                   ? "申込完了・有効（基幹）"
@@ -290,12 +328,16 @@ export default async function ChakinOverview({
                     }
                   : undefined
               }
-              hue="chart-3"
             />
             <BigKpiCard
               label="CPA"
-              icon={Target}
+              labelInfo={
+                <KpiInfoPopover label="CPA">
+                  CPA = 広告費 ÷ {sourceLabel}（共通確定日まで）
+                </KpiInfoPopover>
+              }
               value={fmtJpy(cpaCurrent)}
+              unavailableMessage={kpiUnavailableMessage}
               caption={
                 source === "graphene"
                   ? targets.cpa != null
@@ -312,31 +354,32 @@ export default async function ChakinOverview({
                     }
                   : undefined
               }
-              hue="chart-2"
             />
             <BigKpiCard
               label="CLICK"
-              icon={MousePointerClick}
-              value={fmtInt(currentData.adClicks)}
+              value={fmtInt(currentKpiData.adClicks)}
+              unavailableMessage={kpiUnavailableMessage}
               caption={
-                previousData
-                  ? `${rr.compareLabel} ${fmtInt(previousData.adClicks)}`
+                previousKpiData
+                  ? `${rr.compareLabel} ${fmtInt(previousKpiData.adClicks)}`
                   : "比較対象なし"
               }
               comparison={
-                previousData
+                previousKpiData
                   ? {
                       label: rr.compareLabel,
-                      delta: pct(currentData.adClicks, previousData.adClicks),
+                      delta: pct(
+                        currentKpiData.adClicks,
+                        previousKpiData.adClicks,
+                      ),
                     }
                   : undefined
               }
-              hue="chart-6"
             />
             <BigKpiCard
               label="CPC"
-              icon={Coins}
               value={fmtJpy(cpcCurrent)}
+              unavailableMessage={kpiUnavailableMessage}
               caption={cpcPrevious != null ? `${rr.compareLabel} ${fmtJpy(cpcPrevious)}` : "比較対象なし"}
               lowerIsBetter
               comparison={
@@ -347,12 +390,16 @@ export default async function ChakinOverview({
                     }
                   : undefined
               }
-              hue="chart-1"
             />
             <BigKpiCard
               label="CVR"
-              icon={Percent}
+              labelInfo={
+                <KpiInfoPopover label="CVR">
+                  CVR = {sourceLabel} ÷ クリック数（共通確定日まで）
+                </KpiInfoPopover>
+              }
               value={fmtPct(cvrCurrent, 2)}
+              unavailableMessage={kpiUnavailableMessage}
               caption={cvrPrevious != null ? `${rr.compareLabel} ${fmtPct(cvrPrevious, 2)}` : "比較対象なし"}
               comparison={
                 cvrPrevious != null
@@ -362,33 +409,7 @@ export default async function ChakinOverview({
                     }
                   : undefined
               }
-              hue="chart-4"
             />
-          </div>
-
-          <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-            <div>
-              定義: CPA = 広告費 ÷
-              {source === "graphene"
-                ? " グラフェンCV(広告)"
-                : source === "ga4"
-                  ? " GA4 CV"
-                  : " 媒体CV"}
-              {" / "}
-              CVR = 同CV ÷ クリック数（共通確定日まで）
-            </div>
-            <div>
-              CVソースは数え方が異なるため件数の水準も異なります（媒体CVは各媒体管理画面の計上で入口指標や重複を含み、GA4CVはサイト上の完了イベント、グラフェンCVは基幹システムの成立ベース）。件数の大小はデータ不良ではありません。
-            </div>
-            <div>
-              ソース別最新日: 媒体費 {sourceLatest.ads ?? "—"} / グラフェンCV{" "}
-              {sourceLatest.graphene ?? "—"} / GA4CV {sourceLatest.ga4 ?? "—"}
-              {commonConfirmedEnd ? ` / 共通確定日 ${commonConfirmedEnd}` : ""}
-            </div>
-          </div>
-
-          <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-            チャネル区分テーブルは、チャネル情報がグラフェンCVにのみ存在するためグラフェン基準で固定表示です。
           </div>
 
           <div className="rounded-md border">
@@ -401,7 +422,7 @@ export default async function ChakinOverview({
                   <TableRow>
                     <TableHead>チャネル</TableHead>
                     <TableHead className="text-right">CV</TableHead>
-                    <TableHead className="text-right">COST</TableHead>
+                    <TableHead className="text-right">広告費</TableHead>
                     <TableHead className="text-right">CPA</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -440,7 +461,7 @@ export default async function ChakinOverview({
               <div>
                 <div className="text-sm font-semibold">媒体別・キャンペーン別（広告チャネル）</div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  CV・CPA・CVR は上部の CV ソース切替に連動します。COST・CLICK・CPC は共通です。
+                  CV・CPA・CVR は上部の CV ソース切替に連動します。広告費・CLICK・CPC は共通です。
                 </div>
               </div>
               <ChakinDetailTabs slug={slug} active={detailView} />
@@ -451,7 +472,7 @@ export default async function ChakinOverview({
                   <TableHeader>
                     <TableRow>
                       <TableHead>媒体</TableHead>
-                      <TableHead className="text-right">COST</TableHead>
+                      <TableHead className="text-right">広告費</TableHead>
                       <TableHead className="text-right">CLICK</TableHead>
                       <TableHead className="text-right">CPC</TableHead>
                       <TableHead className="text-right">CV</TableHead>
@@ -511,7 +532,7 @@ export default async function ChakinOverview({
                     <TableRow>
                       <TableHead>媒体</TableHead>
                       <TableHead>キャンペーン</TableHead>
-                      <TableHead className="text-right">COST</TableHead>
+                      <TableHead className="text-right">広告費</TableHead>
                       <TableHead className="text-right">CLICK</TableHead>
                       <TableHead className="text-right">CPC</TableHead>
                       <TableHead className="text-right">CV</TableHead>

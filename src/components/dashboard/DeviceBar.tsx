@@ -20,12 +20,6 @@ const LABEL: Record<string, string> = {
   tablet: "タブレット",
 };
 
-const COLOUR: Record<string, string> = {
-  mobile: "var(--chart-1)",
-  desktop: "var(--chart-2)",
-  tablet: "var(--chart-4)",
-};
-
 export default function DeviceBar({
   rows,
   absenceReason,
@@ -46,6 +40,17 @@ export default function DeviceBar({
       {rows.map((r) => {
         const share = safeDiv(r.sessions, totalSessions) ?? 0;
         const cvr = safeDiv(r.conversions, r.sessions);
+        if (r.sessions === 0) {
+          return (
+            <div
+              key={r.device}
+              className="flex items-baseline justify-between text-xs"
+            >
+              <span className="font-medium">{LABEL[r.device] ?? r.device}</span>
+              <span className="text-muted-foreground">データなし</span>
+            </div>
+          );
+        }
         return (
           <div key={r.device}>
             <div className="flex items-baseline justify-between text-xs">
@@ -57,10 +62,9 @@ export default function DeviceBar({
             </div>
             <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full"
+                className="h-full rounded-full bg-brand"
                 style={{
-                  width: `${Math.round(share * 100)}%`,
-                  background: COLOUR[r.device] ?? "var(--chart-1)",
+                  width: `${share * 100}%`,
                 }}
               />
             </div>

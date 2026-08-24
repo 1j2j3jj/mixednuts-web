@@ -8,12 +8,6 @@ import {
 } from "@/lib/sources/ga4";
 import { getTargetsForMonth } from "@/lib/sources/target";
 import { resolveFromSearchParams } from "@/lib/range";
-import {
-  Wallet,
-  Target as TargetIcon,
-  JapaneseYen,
-  TrendingUp,
-} from "lucide-react";
 import MediaTable, { type MediaRow } from "@/components/dashboard/MediaTable";
 import MediaCampaignTable, {
   type MediaCampaignRow,
@@ -29,12 +23,19 @@ import StatusChip from "@/components/dashboard/StatusChip";
 import { readSource } from "@/lib/source";
 import { getAdSyncStatus } from "@/lib/sources/sync-status";
 import { resolveDataTail, fillZeroDays, tailNotice } from "@/lib/data-tail";
+import { chakinCostPresentation } from "@/lib/chakin-cost-presentation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
 import { lastN } from "@/lib/analysis";
 import { fmtInt, fmtJpy, fmtRatioPct, safeDiv } from "@/lib/utils";
 import { computeWinRate, meetsRoasTarget, winRateTone } from "@/lib/chip";
-import { fmtJstTime, jstYesterdayString } from "@/lib/datetime";
+import {
+  fmtJstTime,
+  jstDateString,
+  jstYesterdayString,
+} from "@/lib/datetime";
+import { ADS_KPI_CARD_COUNT } from "@/lib/dashboard-layout";
+import { inProgressDailyKey } from "@/lib/in-progress-period";
 
 /**
  * Screen 2 — Ads summary.
@@ -101,6 +102,8 @@ export default async function AdsScreen({
   const sp = await searchParams;
   const source = readSource(sp);
   const client = await assertUserCanAccessClientBySlug(slug);
+  const chakinCost =
+    client.id === "chakin" ? chakinCostPresentation("ads") : null;
 
   const { rows: rawRows, fetchedAt, isMock } = await getDailyRows(client, sp);
   // BQ_SOURCE_RAW path (bq-raw.ts) attaches trackingId (Yahoo only, see
@@ -405,6 +408,15 @@ export default async function AdsScreen({
         }))
       : aggregateByDate(cur);
   const tailMessage = tailNotice(tail);
+  // C-3 is period completeness, not source freshness. `resolveDataTail`
+  // proves whether missing ad rows may be zero-filled; sourceLatestDates /
+  // commonConfirmedEnd prove cross-source KPI comparability. Neither means a
+  // calendar day has finished, so the chart marks JST today only when it is
+  // actually the final rendered bucket.
+  const inProgressDate = inProgressDailyKey(
+    series[series.length - 1]?.date,
+    jstDateString(),
+  );
 
   // Sparklines: last 14 buckets. Dates paired for tooltip.
   const series14 = lastN(series, 14);
@@ -467,7 +479,7 @@ export default async function AdsScreen({
           controls={
             <>
               <div className="text-xs text-muted-foreground">
-                最終取得 {fetchedAtLabel}
+                データ最終取得 {fetchedAtLabel}
               </div>
               <PrintButton />
               <RefreshButton clientId={client.id} />
@@ -477,9 +489,14 @@ export default async function AdsScreen({
       </div>
 
       {/* Period KPIs with comparison + sparkline */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div
+        className="ads-kpi-grid kpi-card-grid grid gap-4 sm:grid-cols-2"
+        style={
+          { "--ads-kpi-card-count": ADS_KPI_CARD_COUNT } as CSSProperties
+        }
+      >
         <BigKpiCard
-          label="COST"
+          label={chakinCost?.label ?? "広告費"}
           value={fmtJpy(curTotals.cost)}
           caption={
             targetPeriodMatches &&
@@ -503,11 +520,9 @@ export default async function AdsScreen({
           sparkDates={dates14}
           sparkFormat="jpy"
           sparkTone="negative"
-          icon={Wallet}
-          hue="chart-5"
         />
         <BigKpiCard
-          label={source === "ga4" ? "GA_CV(広告帰属)" : "媒体CV"}
+          label={source === "ga4" ? "コンバージョン（広告経由）" : "媒体CV"}
           value={fmtInt(
             // C3-g: ad-attributed (agrees with 媒体別サマリ below), not
             // site-wide curGa4.conversions — see block comment above.
@@ -547,8 +562,6 @@ export default async function AdsScreen({
           sparkline={cv14}
           sparkDates={dates14}
           sparkFormat="int"
-          icon={TargetIcon}
-          hue="chart-3"
         />
         <BigKpiCard
           // (広告帰属) mirrors the vocabulary the report tab already uses to
@@ -557,7 +570,7 @@ export default async function AdsScreen({
           // a qualifier, so this tab can't be read as the サマリー tab's
           // site-wide figure. 媒体 source is ad-platform data, inherently
           // ad-scoped, so it needs no qualifier.
-          label={source === "ga4" ? "GA売上(広告帰属)" : "媒体売上"}
+          label={source === "ga4" ? "売上（広告経由）" : "媒体売上"}
           value={fmtJpy(
             source === "ga4" ? ga4AttributedRevCur : curTotals.conversionValue,
           )}
@@ -599,11 +612,9 @@ export default async function AdsScreen({
           sparkline={rev14}
           sparkDates={dates14}
           sparkFormat="jpy"
-          icon={JapaneseYen}
-          hue="chart-1"
         />
         <BigKpiCard
-          label={source === "ga4" ? "GA_ROAS(広告帰属)" : "媒体ROAS"}
+          label={source === "ga4" ? "ROAS（広告経由）" : "媒体ROAS"}
           value={fmtRatioPct(
             source === "ga4" ? curGa4RoasPct : curTotals.roasPct,
             0,
@@ -644,10 +655,14 @@ export default async function AdsScreen({
           sparkline={roas14}
           sparkDates={dates14}
           sparkFormat="pct"
-          icon={TrendingUp}
-          hue="chart-4"
         />
       </div>
+
+      {chakinCost && (
+        <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          {chakinCost.note}
+        </div>
+      )}
 
       {/* C3-g caveat: GA4 CV above is now a sum of per-media GA4 figures
           joined against this ad platform's own media names for the window —
@@ -657,7 +672,7 @@ export default async function AdsScreen({
           showing the GA4-sourced number. */}
       {source === "ga4" && (
         <div className="text-xs text-muted-foreground">
-          GA_CV は広告キャンペーンに帰属した GA4
+          コンバージョン（広告経由）は広告キャンペーンに帰属した GA4
           計測分の合計です（媒体別サマリの合計行と一致）。媒体名が一致しない場合、その媒体分は含まれません。
         </div>
       )}
@@ -701,19 +716,21 @@ export default async function AdsScreen({
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">
-            日次推移（COST / 媒体CV / 媒体CPA）
+            日次推移（広告費 / 媒体CV / 媒体CPA）
           </CardTitle>
         </CardHeader>
         <CardContent>
           <DailyTrendChart
             data={series}
+            inProgressDate={inProgressDate}
             absenceDetail={{
               periodLabel: `${rr.current.start} 〜 ${rr.current.end}`,
             }}
-            title="日次推移（COST / 媒体CV / 媒体CPA）"
+            title="日次推移（広告費 / 媒体CV / 媒体CPA）"
           />
         </CardContent>
       </Card>
     </div>
   );
 }
+import type { CSSProperties } from "react";

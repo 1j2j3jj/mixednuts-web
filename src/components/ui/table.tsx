@@ -82,12 +82,9 @@ const TableRow = React.forwardRef<
 ));
 TableRow.displayName = "TableRow";
 
-/** Table standard (C2-b, 2026-07-25): headers are UPPERCASE / letter-spaced /
- *  small(text-xs=12px, the design-guard floor) / grey — was normal-case with
- *  no tracking. Single fix here cascades to every table in dashboard scope
- *  (see the survey note on ReportTable's own group-header row, which already
- *  hand-rolled this look one level up — its explicit className wins over
- *  this default via cn()'s last-write-wins merge, so it does not double up). */
+/** Table standard (updated 2026-08-21): headers remain small, semibold, and
+ *  muted, but preserve authored casing so client-facing Japanese labels and
+ *  common metric abbreviations are not forced into an internal-system style. */
 /** `scope="col"` default (E-4, 2026-07-25): every one of the 126 `<TableHead>`
  *  call sites across the dashboard was rendering a bare `<th>` with no
  *  `scope`, so a screen reader's cell-navigation commands never announced
@@ -108,7 +105,7 @@ const TableHead = React.forwardRef<
     ref={ref}
     scope={scope}
     className={cn(
-      "h-10 px-2 text-left align-middle text-xs font-semibold uppercase tracking-wide text-muted-foreground [&:has([role=checkbox])]:pr-0",
+      "h-10 px-2 text-left align-middle text-xs font-semibold text-muted-foreground [&:has([role=checkbox])]:pr-0",
       className,
     )}
     {...props}

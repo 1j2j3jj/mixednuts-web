@@ -143,7 +143,7 @@ export function tailNotice(t: DataTail): string | null {
   switch (t.state) {
     case "no_delivery":
       return range
-        ? `${range} は広告配信がありません（COST 0 として集計）`
+        ? `${range} は広告配信がありません（広告費0として集計）`
         : "対象期間に広告配信がありません";
     case "not_fetched":
       return range

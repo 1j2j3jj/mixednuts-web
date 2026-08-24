@@ -180,6 +180,60 @@
   color: var(--foreground);
 }
 
+/* KPI rows align through subgrid without drawing empty caption/chart/delta
+   placeholders. Each visible content type owns one shared track, so a sparse
+   card cannot push its value lower than a dense sibling. Browsers without
+   subgrid keep the same content order top-aligned and leave spare room below. */
+.dashboard-scope .kpi-card-grid {
+  margin-bottom: -1rem;
+  row-gap: 0;
+}
+
+.dashboard-scope .kpi-card-grid > .big-kpi-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 64rem) {
+  .dashboard-scope .ads-kpi-grid {
+    grid-template-columns: repeat(
+      var(--ads-kpi-card-count),
+      minmax(0, 1fr)
+    );
+  }
+}
+
+@supports (grid-template-rows: subgrid) {
+  .dashboard-scope .kpi-card-grid > .big-kpi-card {
+    display: grid;
+    grid-row: span 5;
+    grid-template-rows: subgrid;
+    row-gap: 0;
+  }
+
+  .dashboard-scope .big-kpi-card__label {
+    grid-row: 1;
+  }
+
+  .dashboard-scope .big-kpi-card__caption {
+    grid-row: 2;
+  }
+
+  .dashboard-scope .big-kpi-card__value {
+    grid-row: 3;
+  }
+
+  .dashboard-scope .big-kpi-card__sparkline {
+    grid-row: 4;
+  }
+
+  .dashboard-scope .big-kpi-card__comparison {
+    grid-row: 5;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

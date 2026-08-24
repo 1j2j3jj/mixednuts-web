@@ -4,6 +4,7 @@ import {
   TableSkeleton,
   ToolbarSkeleton,
 } from "@/components/dashboard/skeletons";
+import { ADS_KPI_CARD_COUNT } from "@/lib/dashboard-layout";
 
 /**
  * Loading skeleton for 広告詳細. Shown while the tab's parallel fetches
@@ -14,7 +15,7 @@ export default function AdsLoading() {
   return (
     <div className="space-y-6" aria-busy="true" aria-live="polite">
       <ToolbarSkeleton />
-      <KpiRowSkeleton count={5} />
+      <KpiRowSkeleton count={ADS_KPI_CARD_COUNT} />
       <ChartSkeleton />
       <TableSkeleton rows={8} />
     </div>

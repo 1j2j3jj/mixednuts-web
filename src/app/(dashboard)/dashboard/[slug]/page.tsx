@@ -20,7 +20,6 @@ import { resolveFromSearchParams, type DateRange } from "@/lib/range";
 import { aggregateByDate, filterByRange, sumRows } from "@/lib/metrics";
 import { analysePacing, lastN } from "@/lib/analysis";
 import { readSource, type MetricSource } from "@/lib/source";
-import { JapaneseYen, Target, Users, Receipt, TrendingUp } from "lucide-react";
 import SourceToggle from "@/components/dashboard/SourceToggle";
 import BigKpiCard from "@/components/dashboard/BigKpiCard";
 import ChannelStackedBar from "@/components/dashboard/ChannelStackedBar";
@@ -56,9 +55,14 @@ import {
 import { fmtInt, fmtJpy, fmtPct, fmtRatioPct, safeDiv } from "@/lib/utils";
 import { computeShare } from "@/lib/share";
 import { achievementTone, sumAchievement } from "@/lib/chip";
+import {
+  goalProgressTier,
+  monthProgressFromIsoDate,
+} from "@/lib/goal-progress";
 import { fmtJstTime, jstDateString, jstYesterdayString } from "@/lib/datetime";
 import { getAdSyncStatus } from "@/lib/sources/sync-status";
 import { resolveDataTail, tailNotice } from "@/lib/data-tail";
+import { inProgressMonthlyKey } from "@/lib/in-progress-period";
 
 export const dynamic = "force-dynamic";
 // Allow up to 60s (Vercel default 30s was a timeout risk for the parallel
@@ -184,7 +188,12 @@ const KPI_LABELS: Record<
   MetricSource,
   { revenue: string; cv: string; cpa: string; roas: string }
 > = {
-  ga4: { revenue: "GA売上", cv: "GA_CV", cpa: "GA_CPA", roas: "GA_ROAS" },
+  ga4: {
+    revenue: "売上（広告経由）",
+    cv: "コンバージョン（広告経由）",
+    cpa: "CPA（広告経由）",
+    roas: "ROAS（広告経由）",
+  },
   media: {
     revenue: "媒体売上",
     cv: "媒体CV",
@@ -200,7 +209,7 @@ const KPI_LABELS: Record<
 };
 /** CPA/ROAS's cost side is always 全媒体COST合算 regardless of which
  *  revenue/CV source is toggled; surfaced explicitly so it isn't lost. */
-const KPI_COST_NOTE = "COST=全媒体合算";
+const KPI_COST_NOTE = "広告費=全媒体合算";
 
 export default async function Overview({
   params,
@@ -396,6 +405,12 @@ export default async function Overview({
   const showPacing = rr.preset === "thisMonth";
 
   const showGoals = rr.preset === "thisMonth" || rr.preset === "lastMonth";
+  // Actuals stop at the resolved data-tail anchor, not at the viewer's wall
+  // clock. Using that same date for elapsed-month expectation keeps the
+  // numerator and pace denominator aligned when yesterday is the latest
+  // confirmed day (or when a sync is stale). Completed months stay at 100%.
+  const expectedGoalProgress =
+    rr.preset === "thisMonth" ? monthProgressFromIsoDate(anchor) : 1;
   // Target month follows the *selected* period, not always the anchor's
   // month — previously this was hardcoded to anchor.slice(0,7), so picking
   // "先月" (lastMonth) still queried the current month's row in the 計画
@@ -491,7 +506,19 @@ export default async function Overview({
       target: r.revenueTarget,
     })),
   );
-  const channelAchievementTone = achievementTone(channelAchievement.ratio);
+  const channelAchievementTier = goalProgressTier(
+    channelAchievement.ratio,
+    expectedGoalProgress,
+  );
+  const channelAchievementTone = channelAchievementTier
+    ? achievementTone(
+        channelAchievementTier === "good"
+          ? 1
+          : channelAchievementTier === "warning"
+            ? 0.8
+            : 0,
+      )
+    : null;
 
   const monthProgressNote = (() => {
     if (channelTargetRows.length === 0) return undefined;
@@ -674,7 +701,7 @@ export default async function Overview({
                 }
               />
               <div className="text-xs text-muted-foreground">
-                最終取得 {fetchedAtLabel}
+                データ最終取得 {fetchedAtLabel}
               </div>
               <PrintButton />
               <RefreshButton clientId={client.id} />
@@ -715,7 +742,7 @@ export default async function Overview({
       </div>
 
       {/* 5 big KPI with sparklines */}
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="kpi-card-grid grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
         <BigKpiCard
           label={KPI_LABELS[source].revenue}
           value={fmtJpy(effectiveRev)}
@@ -737,8 +764,6 @@ export default async function Overview({
           sparkline={revSpark}
           sparkDates={sparkDates}
           sparkFormat="jpy"
-          icon={JapaneseYen}
-          hue="chart-1"
         />
         <BigKpiCard
           label={KPI_LABELS[source].cv}
@@ -761,11 +786,9 @@ export default async function Overview({
           sparkline={cvSpark}
           sparkDates={sparkDates}
           sparkFormat="int"
-          icon={Target}
-          hue="chart-3"
         />
         <BigKpiCard
-          label="SESSION (GA4)"
+          label="セッション"
           value={fmtInt(gaCur.sessions)}
           caption={
             rr.previous
@@ -783,8 +806,6 @@ export default async function Overview({
           sparkline={sessionsSpark}
           sparkDates={sparkDates}
           sparkFormat="int"
-          icon={Users}
-          hue="chart-7"
         />
         <BigKpiCard
           label={KPI_LABELS[source].cpa}
@@ -805,8 +826,6 @@ export default async function Overview({
           sparkline={cpaSpark}
           sparkDates={sparkDates}
           sparkFormat="jpy"
-          icon={Receipt}
-          hue="chart-6"
         />
         <BigKpiCard
           label={KPI_LABELS[source].roas}
@@ -826,8 +845,6 @@ export default async function Overview({
           sparkline={roasSpark}
           sparkDates={sparkDates}
           sparkFormat="pct"
-          icon={TrendingUp}
-          hue="chart-4"
         />
       </div>
 
@@ -843,6 +860,7 @@ export default async function Overview({
                 actual={fmtJpy(effectiveRev)}
                 target={fmtJpy(tgt.revenue)}
                 ratio={effectiveRev / (tgt.revenue || 1)}
+                expectedProgress={expectedGoalProgress}
               />
             )}
             {tgt.conversions != null && (
@@ -851,6 +869,7 @@ export default async function Overview({
                 actual={fmtInt(effectiveCv)}
                 target={fmtInt(tgt.conversions)}
                 ratio={effectiveCv / (tgt.conversions || 1)}
+                expectedProgress={expectedGoalProgress}
               />
             )}
             {tgt.adSpendBudget != null && (
@@ -859,6 +878,8 @@ export default async function Overview({
                 actual={fmtJpy(costCur)}
                 target={fmtJpy(tgt.adSpendBudget)}
                 ratio={costCur / (tgt.adSpendBudget || 1)}
+                expectedProgress={expectedGoalProgress}
+                budgetPacing
                 hint={costCur > tgt.adSpendBudget ? "予算超過" : undefined}
               />
             )}
@@ -882,6 +903,10 @@ export default async function Overview({
         <CardContent>
           <ChannelStackedBar
             data={ga4Last12Months}
+            inProgressMonth={inProgressMonthlyKey(
+              ga4Last12Months[ga4Last12Months.length - 1]?.yearMonth,
+              jstDateString(),
+            )}
             defaultMetric="sessions"
             secondaryDefs={ga4SecondaryEventDefs(client)}
             absenceReason={client.ga4PropertyId ? undefined : "not_configured"}
@@ -962,16 +987,18 @@ export default async function Overview({
                       whether this percentage was on-track — a qualifier
                       word makes that explicit in text too when it's not a
                       clean pass. */}
-                  {channelAchievementTone !== "positive" &&
-                    (channelAchievementTone === "warning"
-                      ? "（未達）"
-                      : "（大幅未達）")}
+                  {channelAchievementTier === "good"
+                    ? "（ペース先行）"
+                    : channelAchievementTier === "warning"
+                      ? "（概ねペース内）"
+                      : "（ペース遅れ）"}
                 </StatusChip>
               )}
             </CardHeader>
             <CardContent>
               <ChannelTargetTable
                 rows={channelTargetRows}
+                expectedProgress={expectedGoalProgress}
                 progressNote={monthProgressNote}
               />
             </CardContent>
@@ -986,7 +1013,7 @@ export default async function Overview({
                 <TableHeader>
                   <TableRow>
                     <TableHead>チャネル</TableHead>
-                    <TableHead className="text-right">SESSION</TableHead>
+                    <TableHead className="text-right">セッション</TableHead>
                     <TableHead className="text-right">CV</TableHead>
                     <TableHead className="text-right">CVR</TableHead>
                     <TableHead className="text-right">売上</TableHead>

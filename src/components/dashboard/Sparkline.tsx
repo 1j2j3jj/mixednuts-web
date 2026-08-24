@@ -40,7 +40,7 @@ export default function Sparkline({
       ? "var(--positive)"
       : tone === "negative"
         ? "var(--negative)"
-        : "var(--chart-1)";
+        : "var(--brand)";
   // E-3 guard-rail: today's only caller passes a STATIC tone (COST cards
   // are always styled "negative" regardless of whether spend actually rose
   // or fell — a branding choice, not data-derived), so this has zero live

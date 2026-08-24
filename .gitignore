@@ -40,6 +40,7 @@ yarn-error.log*
 .velite
 public/static
 .artifacts/
+/preview/
 
 # typescript
 *.tsbuildinfo

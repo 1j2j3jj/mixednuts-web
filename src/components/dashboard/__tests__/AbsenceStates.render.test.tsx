@@ -43,7 +43,7 @@ describe("ChannelStackedBar — A-21 empty state", () => {
 
   it("keeps the metric toggle visible in the empty state (title/controls stay — only the body is replaced)", () => {
     const html = renderToStaticMarkup(<ChannelStackedBar data={[]} />);
-    expect(html).toContain("SESSION");
+    expect(html).toContain("セッション");
     expect(html).toContain("CV");
   });
 

@@ -206,7 +206,7 @@ export default function ReportTable({
   overallLabel = "全体CV",
   showOverallValue = false,
   gaGroupLabel = "GA",
-  gaCvLabel = "GA_CV(購入)",
+  gaCvLabel = "コンバージョン（サイト全体）",
   monoLabel = false,
   eventDefs = [],
   showAdCvPurchase = false,
@@ -330,7 +330,7 @@ export default function ReportTable({
             Screen reader users landing on this table via table-navigation
             commands otherwise get no name at all announcing what it is. */}
         <TableCaption className="sr-only">
-          {labelHeader}別のレポート集計表（COST・広告媒体・{gaGroupLabel}
+          {labelHeader}別のレポート集計表（広告費・広告媒体・{gaGroupLabel}
           の各指標）
         </TableCaption>
         <TableHeader>
@@ -348,14 +348,14 @@ export default function ReportTable({
             <TableHead
               colSpan={mediaCols}
               scope="colgroup"
-              className="border-l text-center text-[11px] font-semibold uppercase tracking-wider"
+              className="border-l text-center text-[11px] font-semibold"
             >
               広告媒体
             </TableHead>
             <TableHead
               colSpan={gaCols}
               scope="colgroup"
-              className="border-l text-center text-[11px] font-semibold uppercase tracking-wider"
+              className="border-l text-center text-[11px] font-semibold"
             >
               {gaGroupLabel}
             </TableHead>
@@ -363,7 +363,7 @@ export default function ReportTable({
               <TableHead
                 colSpan={overallCols}
                 scope="colgroup"
-                className="border-l text-center text-[11px] font-semibold uppercase tracking-wider"
+                className="border-l text-center text-[11px] font-semibold"
               >
                 全体
               </TableHead>
@@ -375,7 +375,7 @@ export default function ReportTable({
             </SortableHead>
             {showMedia && <SortableHead sortKeyName="media">媒体</SortableHead>}
             <SortableHead sortKeyName="cost" className="border-l text-right">
-              COST
+              広告費
             </SortableHead>
             <SortableHead sortKeyName="impressions" className="text-right">
               Imp
@@ -408,7 +408,7 @@ export default function ReportTable({
               sortKeyName="sessions"
               className="border-l text-right"
             >
-              SESSION
+              セッション
             </SortableHead>
             <SortableHead
               sortKeyName="gaCvPurchase"
@@ -418,16 +418,16 @@ export default function ReportTable({
               {gaCvLabel}
             </SortableHead>
             <SortableHead sortKeyName="gaCvr" className="text-right">
-              GA_CVR
+              CVR（GA4計測）
             </SortableHead>
             <SortableHead sortKeyName="gaCpa" className="text-right">
-              GA_CPA
+              CPA（GA4計測）
             </SortableHead>
             <SortableHead sortKeyName="gaValue" className="text-right">
-              GA売上
+              売上（GA4計測）
             </SortableHead>
             <SortableHead sortKeyName="gaRoasPct" className="text-right">
-              GA_ROAS
+              ROAS（GA4計測）
             </SortableHead>
             {eventDefs.map((ev) => (
               <SortableHead
@@ -442,9 +442,9 @@ export default function ReportTable({
               <SortableHead
                 sortKeyName="adCvPurchase"
                 className="text-right whitespace-nowrap"
-                title="広告エンティティに帰属したGA計測分。参考列 — サイト全体のGA_CV(購入)とは別の数字"
+                title="広告エンティティに帰属したGA4計測分。サイト全体のコンバージョンとは別の参考値です。"
               >
-                GA_CV(広告帰属)
+                コンバージョン（広告経由）
               </SortableHead>
             )}
             {showOverall && (

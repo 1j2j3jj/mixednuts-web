@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Legend,
   ResponsiveContainer,
   Tooltip,
@@ -21,6 +22,10 @@ import type {
 } from "@/lib/sources/ga4";
 import type { AbsenceReason, NoDataPeriodDetail } from "@/lib/absence";
 import { usePrefersReducedMotion } from "@/lib/use-reduced-motion";
+import {
+  formatCompactAxis,
+  formatCompactRevenueAxis,
+} from "@/lib/chart-format";
 
 interface Props {
   data: ChannelMonth[];
@@ -45,13 +50,18 @@ interface Props {
    *  CardTitle text already rendered at the one real call site, not new
    *  copy. */
   title?: string;
+  /** Final monthly bucket that is still in progress (normally current JST month). */
+  inProgressMonth?: string | null;
+  /** Optional fixed dimensions for embedded browser previews. */
+  width?: number;
+  height?: number;
 }
 
 type BaseMetric = "sessions" | "conversions" | "revenue";
 type Metric = BaseMetric | string;
 
 const BASE_METRICS: Array<{ key: Metric; label: string }> = [
-  { key: "sessions", label: "SESSION" },
+  { key: "sessions", label: "セッション" },
   { key: "conversions", label: "CV" },
   { key: "revenue", label: "売上" },
 ];
@@ -86,6 +96,8 @@ const CHANNEL_ORDER: ChannelGroup[] = [
   "Other",
 ];
 
+const MONTHLY_BAR_SIZE = 28;
+
 const BASE_METRIC_KEYS = new Set<string>(BASE_METRICS.map((m) => m.key));
 
 /** Reads a metric value off a ChannelMonth row — base metrics (sessions /
@@ -103,7 +115,11 @@ export default function ChannelStackedBar({
   absenceReason,
   absenceDetail,
   title = "月次チャネル別",
+  inProgressMonth,
+  width,
+  height,
 }: Props) {
+  const inProgressPatternBase = `channel-month-in-progress-${useId()}`;
   const METRICS = [
     ...BASE_METRICS,
     ...secondaryDefs.map((d) => ({ key: d.key, label: d.label })),
@@ -130,10 +146,10 @@ export default function ChannelStackedBar({
 
   const yTickFormat =
     metric === "revenue"
-      ? (v: number) => `¥${Math.round(v / 1_000_000).toLocaleString()}M`
+      ? formatCompactRevenueAxis
       : !BASE_METRIC_KEYS.has(metric)
         ? (v: number) => Math.round(v).toLocaleString()
-        : (v: number) => `${Math.round(v / 1000).toLocaleString()}k`;
+        : (v: number) => formatCompactAxis(v);
 
   const tooltipValueFormatter = (value: unknown): string => {
     const n = typeof value === "number" ? value : Number(value);
@@ -172,20 +188,54 @@ export default function ChannelStackedBar({
         onValueChange={setMetric}
         ariaLabel="グラフ指標"
       />
-      <div className="h-72 w-full">
-        <ResponsiveContainer width="100%" height="100%">
+      <div
+        className={width || height ? undefined : "h-72 w-full"}
+        style={{ width, height }}
+      >
+        <ResponsiveContainer width={width ?? "100%"} height={height ?? "100%"}>
           <BarChart
             data={wide}
             title={title}
             desc={`月別のチャネル別${METRICS.find((m) => m.key === metric)?.label ?? metric}を積み上げ棒グラフで表示`}
             margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
+            barCategoryGap="20%"
           >
+            <defs>
+              {channels.map((channel, index) => (
+                <pattern
+                  key={channel}
+                  id={`${inProgressPatternBase}-${index}`}
+                  patternUnits="userSpaceOnUse"
+                  width="6"
+                  height="6"
+                  patternTransform="rotate(45)"
+                >
+                  <rect
+                    width="6"
+                    height="6"
+                    fill={CHANNEL_COLOURS[channel]}
+                    opacity="0.45"
+                  />
+                  <line
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="6"
+                    stroke={CHANNEL_COLOURS[channel]}
+                    strokeWidth="2"
+                  />
+                </pattern>
+              ))}
+            </defs>
             <CartesianGrid vertical={false} stroke="var(--border)" />
             <XAxis
               dataKey="yearMonth"
               fontSize={11}
               tickMargin={6}
               stroke="var(--muted-foreground)"
+              tickFormatter={(value) =>
+                value === inProgressMonth ? `${value}（進行中）` : value
+              }
             />
             <YAxis
               fontSize={11}
@@ -218,12 +268,23 @@ export default function ChannelStackedBar({
                 }
                 stroke="var(--card)"
                 strokeWidth={2}
-                maxBarSize={24}
+                barSize={MONTHLY_BAR_SIZE}
                 radius={
                   idx === channels.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]
                 }
                 isAnimationActive={!reducedMotion}
-              />
+              >
+                {wide.map((point) => (
+                  <Cell
+                    key={String(point.yearMonth)}
+                    fill={
+                      point.yearMonth === inProgressMonth
+                        ? `url(#${inProgressPatternBase}-${idx})`
+                        : CHANNEL_COLOURS[ch]
+                    }
+                  />
+                ))}
+              </Bar>
             ))}
           </BarChart>
         </ResponsiveContainer>
