@@ -44,7 +44,9 @@
   .mn-v6 .ring{position:absolute;left:50%;top:78%;width:0;height:0;z-index:0;transform-style:preserve-3d;pointer-events:none;opacity:.9}
   .mn-v6 .ring span{position:absolute;left:0;top:0;transform:rotateY(calc(var(--i)*30deg)) translateZ(46vw) translate(-50%,-50%);font:900 clamp(20px,3vw,44px)/1 var(--grot);font-variation-settings:"wdth" 110;letter-spacing:.06em;text-transform:uppercase;color:transparent;-webkit-text-stroke:1.5px var(--navy);white-space:nowrap;backface-visibility:hidden}
   .mn-v6 .hero-main{position:relative;z-index:1;display:grid;grid-template-rows:auto 1fr auto;height:100%}
-  .mn-v6 .overline{font:700 11px/1 var(--grot);letter-spacing:.22em;text-transform:uppercase;color:var(--muted);display:flex;gap:18px;align-items:center}
+  /* `overline` and `ring` collide with Tailwind utilities (text-decoration: overline / box-shadow ring) */
+  .mn-v6 .overline{font:700 11px/1 var(--grot);letter-spacing:.22em;text-transform:uppercase;color:var(--muted);display:flex;gap:18px;align-items:center;text-decoration:none}
+  .mn-v6 .ring{box-shadow:none}
   .mn-v6 .overline i{width:36px;height:2px;background:var(--navy);display:inline-block}
   .mn-v6 h1{margin:0;align-self:end;font-family:var(--grot);font-variation-settings:"wdth" 110;font-weight:900;font-size:clamp(50px,8.4vw,132px);line-height:.9;letter-spacing:-.05em;text-transform:uppercase;max-width:13ch;transform-style:preserve-3d}
   .mn-v6 h1 .c{display:inline-block;will-change:transform;transform-origin:50% 100%}
