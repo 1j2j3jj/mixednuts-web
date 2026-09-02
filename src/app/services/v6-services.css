@@ -129,3 +129,10 @@ body:has(.services-v6) .nav[data-theme="light"]{background:var(--stone)}
 @media(prefers-reduced-motion:reduce){
   .services-v6,.services-v6 *{animation:none!important;transition:none!important}.services-v6 .force .word{color:var(--ink);-webkit-text-stroke-color:transparent}.services-v6 .force.on .word{color:#fff}.services-v6 [data-wipe]{clip-path:none!important}
 }
+
+/* ≤900px: the mandate intro stacks — the two-column headline/lead grid collided on strategy at 390px */
+@media(max-width:900px){
+  .services-v6 .detail-intro,.services-v6 .detail-intro:not(:has(.detail-metric)){display:grid !important;grid-template-columns:minmax(0,1fr) !important;grid-template-areas:none !important;gap:22px}
+  .services-v6 .detail-intro > div,.services-v6 .detail-intro > p,.services-v6 .detail-intro > .detail-metric{grid-column:1 / -1 !important;grid-row:auto !important;grid-area:auto !important;max-width:100%;min-width:0}
+  .services-v6 .detail-intro h2{margin:0;max-width:none}
+}
