@@ -73,7 +73,7 @@ export default function SiteMotionV6() {
         const desktop = window.matchMedia("(min-width: 861px)").matches;
         if (desktop) {
           gsap.timeline({
-            scrollTrigger: { trigger: ".v6-hero", start: "top top", end: "+=120%", pin: true, scrub: 1 },
+            scrollTrigger: { trigger: ".v6-hero", start: "top top", end: "+=90%", pin: true, scrub: 1 },
           })
             .to(".v6-hero-title-wrap", { yPercent: -18, scale: 0.84, opacity: 0.55, ease: "none" }, 0)
             .to(".v6-hero-bottom", { yPercent: -8, opacity: 0.35, ease: "none" }, 0)
@@ -81,8 +81,17 @@ export default function SiteMotionV6() {
             .add(cut(0.66), 0.82);
 
           const thesisLines = gsap.utils.toArray<HTMLElement>(".v6-thesis-line", scope);
-          gsap.timeline({ scrollTrigger: { trigger: ".v6-thesis", start: "top top", end: "+=180%", pin: true, scrub: 0.8 } })
-            .fromTo(thesisLines, { clipPath: "inset(0 100% 0 0)", opacity: 0.2 }, { clipPath: "inset(0 0% 0 0)", opacity: 1, stagger: 0.22, duration: 0.45, immediateRender: true, ease: "power4.inOut" })
+          if (thesisLines[0]) {
+            gsap.fromTo(thesisLines[0], { clipPath: "inset(0 100% 0 0)", opacity: 0.2 }, {
+              clipPath: "inset(0 0% 0 0)",
+              opacity: 1,
+              immediateRender: true,
+              ease: "none",
+              scrollTrigger: { trigger: thesisLines[0], start: "top 92%", end: "top 75%", scrub: true },
+            });
+          }
+          gsap.timeline({ scrollTrigger: { trigger: ".v6-thesis", start: "top top", end: "+=140%", pin: true, scrub: 0.75 } })
+            .fromTo(thesisLines.slice(1), { clipPath: "inset(0 100% 0 0)", opacity: 0.2 }, { clipPath: "inset(0 0% 0 0)", opacity: 1, stagger: 0.24, duration: 0.48, immediateRender: true, ease: "power4.inOut" })
             .fromTo(".v6-thesis-answer", { clipPath: "inset(0 0 100% 0)", opacity: 0 }, { clipPath: "inset(0 0 0% 0)", opacity: 1, duration: 0.5, immediateRender: true, ease: "power4.inOut" });
 
           const actPanels = gsap.utils.toArray<HTMLElement>(".v6-act", scope);
@@ -112,6 +121,12 @@ export default function SiteMotionV6() {
         gsap.fromTo(".v6-index-row", { opacity: 0, y: 12 }, { opacity: 1, y: 0, stagger: 0.06, duration: 0.55, immediateRender: true, ease: "expo.out", scrollTrigger: { trigger: ".v6-index", start: "top 82%", once: true } });
         gsap.fromTo(".v6-insight", { opacity: 0, y: 20 }, { opacity: 1, y: 0, stagger: 0.12, duration: 0.75, immediateRender: true, ease: "expo.out", scrollTrigger: { trigger: ".v6-insight-list", start: "top 82%", once: true } });
         gsap.fromTo([".v6-end-title", ".v6-end-copy", ".v6-end .v6-button"], { opacity: 0, y: 30 }, { opacity: 1, y: 0, stagger: 0.12, duration: 0.9, immediateRender: true, ease: "expo.out", scrollTrigger: { trigger: ".v6-end", start: "top 70%", once: true } });
+        ScrollTrigger.create({
+          trigger: ".v6-end",
+          start: "top 65%",
+          onEnter: () => canvasRef.current?.setAct(0),
+          onLeaveBack: () => canvasRef.current?.setAct(3),
+        });
       }, scope);
       cleanup.push(() => context.revert());
       ScrollTrigger.refresh();

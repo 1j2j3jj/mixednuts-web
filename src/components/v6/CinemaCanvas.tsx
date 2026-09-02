@@ -57,13 +57,16 @@ void main() {
   vec2 aspect = vec2(uRes.x / max(uRes.y, 1.0), 1.0);
   vec2 p = (uv - 0.5) * aspect;
   float time = uTime * 0.035;
-  vec2 pointer = (uPointer - 0.5) * 0.08;
+  vec2 pointer = (uPointer - 0.5) * 0.035;
   vec2 warp = vec2(fbm(p * 1.8 + vec2(time, -time)), fbm(p * 1.55 + 8.4 - time));
   float haze = fbm(p * 2.1 + warp * 1.75 + vec2(0.0, uScroll * 0.8));
   haze = smoothstep(0.42, 0.88, haze) * 0.16;
 
   float actMix = clamp(uAct, 0.0, 3.0);
-  vec2 lightPos = vec2(pointer.x, -0.33 + uScroll * 0.18 + pointer.y);
+  vec2 lightUv = vec2(0.5 + pointer.x, 0.14 + uScroll * 0.1 + pointer.y);
+  if (actMix < 0.5 && uScroll > 0.72) lightUv = vec2(0.88, 0.12);
+  if (actMix > 0.5) lightUv = vec2(0.18, 0.16);
+  vec2 lightPos = (lightUv - 0.5) * aspect;
   vec2 delta = p - lightPos;
   float anisotropic = length(vec2(delta.x * 1.85, delta.y * 0.68));
   float light = exp(-anisotropic * 5.8);
