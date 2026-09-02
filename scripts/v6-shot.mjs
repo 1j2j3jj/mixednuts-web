@@ -42,7 +42,10 @@ async function resolveChromiumExecutable() {
     const entries = await fs.readdir(cacheRoot).catch(() => []);
     const candidates = entries
       .filter((entry) => entry.startsWith("chromium"))
-      .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
+      .sort((a, b) => {
+        const headlessOrder = Number(b.startsWith("chromium_headless_shell")) - Number(a.startsWith("chromium_headless_shell"));
+        return headlessOrder || b.localeCompare(a, undefined, { numeric: true });
+      })
       .flatMap((entry) => [
         path.join(cacheRoot, entry, "chrome-headless-shell-mac-arm64", "chrome-headless-shell"),
         path.join(cacheRoot, entry, "chrome-headless-shell-mac", "chrome-headless-shell"),
