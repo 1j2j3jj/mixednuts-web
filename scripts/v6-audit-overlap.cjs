@@ -2,7 +2,7 @@
 const { chromium } = require('playwright');
 (async () => {
   const url = process.argv[2]; const widths = (process.argv[3] || '1440,1280,1024,390').split(',').map(Number);
-  const b = await chromium.launch({ executablePath: process.env.PW_EXE });
+  const b = await chromium.launch({ executablePath: process.env.PW_EXE, args: process.env.PW_SANDBOX ? ['--single-process', '--no-zygote'] : [] });
   for (const w of widths) {
     const ctx = await b.newContext({ viewport: { width: w, height: 900 }, isMobile: w < 600 }); const p = await ctx.newPage();
     await p.addInitScript(() => { try { localStorage.setItem('mn_cookie_consent', JSON.stringify({ value: 'essential-only', ts: Date.now() })); } catch {} });
