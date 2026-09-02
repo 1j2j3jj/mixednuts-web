@@ -138,22 +138,12 @@ export default function ApplyForm({ initialPosition }: { initialPosition?: strin
 
   if (state.status === "success") {
     return (
-      <div style={{ textAlign: "center", padding: "64px 24px" }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
-        <h3
-          style={{
-            fontFamily: "'Noto Sans JP', sans-serif",
-            fontSize: 24,
-            fontWeight: 900,
-            color: "var(--charcoal)",
-            marginBottom: 16,
-          }}
-        >
+      <div className="form-success" role="status">
+        <div className="form-success-mark" aria-hidden="true">✓</div>
+        <h3 className="v6-jp-heading">
           ご応募ありがとうございます
         </h3>
-        <p style={{ color: "var(--gray-600)", fontSize: 14, lineHeight: 1.9, maxWidth: 520, margin: "0 auto" }}>
-          {state.message}
-        </p>
+        <p>{state.message}</p>
       </div>
     );
   }
@@ -162,43 +152,6 @@ export default function ApplyForm({ initialPosition }: { initialPosition?: strin
 
   return (
     <>
-      <style>{`
-        .file-input-group { margin-bottom: 20px; }
-        .file-input-wrapper {
-          display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-        }
-        .file-input-btn {
-          flex-shrink: 0;
-          padding: 8px 18px;
-          border: 1px solid rgba(10,10,10,0.2);
-          border-radius: 6px;
-          background: var(--off-white-alt);
-          color: var(--charcoal);
-          font-size: 13px;
-          font-weight: 600;
-          font-family: inherit;
-          cursor: pointer;
-          transition: all 0.15s ease;
-          white-space: nowrap;
-        }
-        .file-input-btn:hover:not(:disabled) {
-          border-color: var(--cyan);
-          background: rgba(0,217,255,0.06);
-        }
-        .file-input-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .file-input-name {
-          font-size: 13px; color: var(--gray-600);
-          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        }
-        .file-input-error {
-          margin-top: 6px; font-size: 12px; color: #991B1B;
-        }
-        .file-upload-note {
-          font-size: 12px; color: var(--gray-400);
-          margin-top: 8px; line-height: 1.7;
-        }
-      `}</style>
-
       <form ref={formRef} onSubmit={handleSubmit} className="apply-form">
         <input type="text" name="_honey" style={{ display: "none" }} tabIndex={-1} autoComplete="off" />
 

@@ -1,72 +1,54 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import * as runtime from "react/jsx-runtime";
-import fs from "node:fs";
-import path from "node:path";
 import { posts } from "#site/content";
-import { mdxComponents } from "@/components/mdx-components";
 import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
-import { buildPageOg } from "@/lib/site-metadata";
 import { ReadingProgressBar } from "@/components/ReadingProgressBar";
 import { StickyToc } from "@/components/StickyToc";
+import { mdxComponents } from "@/components/mdx-components";
+import { buildPageOg } from "@/lib/site-metadata";
+import "../v6-insights.css";
 
-/**
- * Extract FAQ Q&A pairs from raw MDX content.
- * Matches the pattern:  **Q. ...?**\nA. ...
- * Returns array of {question, answer}.
- */
 function extractFaqPairs(slug: string): { question: string; answer: string }[] {
-  const mdxPath = path.join(
-    process.cwd(),
-    "content",
-    "insights",
-    `${slug}.mdx`,
-  );
+  const mdxPath = path.join(process.cwd(), "content", "insights", `${slug}.mdx`);
   let raw = "";
   try {
     raw = fs.readFileSync(mdxPath, "utf-8");
   } catch {
     return [];
   }
-  const out: { question: string; answer: string }[] = [];
-  // Split by section "## FAQ" (or "FAQ" heading) and parse Q/A within
   const faqSection = raw.split(/\n##\s+FAQ\b/i)[1];
-  if (!faqSection) return out;
-  // Stop at next "---" (Sources section) or "## "
+  if (!faqSection) return [];
   const scope = faqSection.split(/\n(?:---|##\s)/)[0];
-  const re = /\*\*Q\.\s*(.+?)\*\*\s*\nA\.\s*([\s\S]+?)(?=\n\n\*\*Q\.|\n\n$|$)/g;
-  let m;
-  while ((m = re.exec(scope)) !== null) {
-    const question = m[1].trim();
-    const answer = m[2].trim().replace(/\s+/g, " ");
-    if (question && answer) out.push({ question, answer });
+  const pairs: { question: string; answer: string }[] = [];
+  const pattern = /\*\*Q\.\s*(.+?)\*\*\s*\nA\.\s*([\s\S]+?)(?=\n\n\*\*Q\.|\n\n$|$)/g;
+  let match;
+  while ((match = pattern.exec(scope)) !== null) {
+    const question = match[1].trim();
+    const answer = match[2].trim().replace(/\s+/g, " ");
+    if (question && answer) pairs.push({ question, answer });
   }
-  return out;
+  return pairs;
 }
 
 type Params = { slug: string };
 
 export function generateStaticParams() {
-  return posts
-    .filter((post) => !post.hidden)
-    .map((post) => ({ slug: post.slug }));
+  return posts.filter((post) => !post.hidden).map((post) => ({ slug: post.slug }));
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<Params>;
-}): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { slug } = await params;
-  const post = posts.find((p) => p.slug === slug);
+  const post = posts.find((item) => item.slug === slug);
   if (!post) return {};
   return {
     title: `${post.title} | Insights`,
     description: post.excerpt,
     alternates: { canonical: `/insights/${slug}` },
-    // buildPageOg で og:url / og:site_name / og:locale / twitter:* を補完
-    // (従来は部分定義のため親とマージされず欠落し、twitter:title がルートの "mixednuts" のままだった)
     ...buildPageOg({
       title: post.title,
       description: post.excerpt,
@@ -78,27 +60,27 @@ export async function generateMetadata({
 }
 
 function MDXContent({ code }: { code: string }) {
-  const fn = new Function(code);
-  const Component = fn(runtime).default;
+  const compile = new Function(code);
+  const Component = compile(runtime).default;
   return <Component components={mdxComponents} />;
 }
 
-export default async function InsightsArticlePage({
-  params,
-}: {
-  params: Promise<Params>;
-}) {
+export default async function InsightsArticlePage({ params }: { params: Promise<Params> }) {
   const { slug } = await params;
-  const post = posts.find((p) => p.slug === slug);
+  const post = posts.find((item) => item.slug === slug);
   if (!post || post.hidden) return notFound();
 
-  const related = posts
-    .filter((p) => p.slug !== post.slug && !p.hidden)
+  const orderedPosts = [...posts]
+    .filter((item) => !item.hidden)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+  const currentIndex = orderedPosts.findIndex((item) => item.slug === post.slug);
+  const newerPost = currentIndex > 0 ? orderedPosts[currentIndex - 1] : null;
+  const olderPost = currentIndex < orderedPosts.length - 1 ? orderedPosts[currentIndex + 1] : null;
+  const related = orderedPosts
+    .filter((item) => item.slug !== post.slug)
+    .sort((a, b) => Number(b.category === post.category) - Number(a.category === post.category))
     .slice(0, 3);
   const formattedDate = post.date.slice(0, 10).replace(/-/g, ".");
-  const heroBg = post.hero
-    ? `linear-gradient(135deg, rgba(0, 217, 255, 0.08), rgba(10, 10, 10, 0.85)), url('${post.hero}') center/cover no-repeat`
-    : "linear-gradient(135deg, var(--charcoal-soft), var(--charcoal))";
 
   const articleSchema = {
     "@context": "https://schema.org",
@@ -111,8 +93,6 @@ export default async function InsightsArticlePage({
     inLanguage: "ja-JP",
     author: {
       "@type": "Person",
-      // 既定著者 (CEO) は /team/ceo の Person エンティティに @id で接続し
-      // E-E-A-T の著者シグナルを1エンティティに集約する (他著者はインライン Person のまま)
       ...(post.author === "石井 希実"
         ? {
             "@id": "https://mixednuts-inc.com/team/ceo#person",
@@ -137,360 +117,111 @@ export default async function InsightsArticlePage({
   ]);
 
   const faqPairs = extractFaqPairs(post.slug);
-  const faqPageSchema =
-    faqPairs.length > 0
-      ? {
-          "@context": "https://schema.org",
-          "@type": "FAQPage",
-          "@id": `https://mixednuts-inc.com${post.permalink}#faq`,
-          mainEntity: faqPairs.map((p) => ({
-            "@type": "Question",
-            name: p.question,
-            acceptedAnswer: {
-              "@type": "Answer",
-              text: p.answer,
-            },
-          })),
-        }
-      : null;
+  const faqPageSchema = faqPairs.length > 0
+    ? {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "@id": `https://mixednuts-inc.com${post.permalink}#faq`,
+        mainEntity: faqPairs.map((pair) => ({
+          "@type": "Question",
+          name: pair.question,
+          acceptedAnswer: { "@type": "Answer", text: pair.answer },
+        })),
+      }
+    : null;
 
   return (
-    <>
+    <div className="mn-v6 mn-v6-insights">
       <JsonLd data={articleSchema} />
       <JsonLd data={breadcrumb} />
       {faqPageSchema && <JsonLd data={faqPageSchema} />}
-      <style>{`
-        .article-hero { background: var(--off-white); padding: 140px 32px 64px; }
-        .article-hero-inner { max-width: 860px; margin: 0 auto; }
-        .article-hero .category-tag {
-          display: inline-block; font-family: var(--font-sans-en); font-size: 11px; color: var(--cyan);
-          letter-spacing: 0.2em; text-transform: uppercase; font-weight: 700;
-          margin-bottom: 16px; padding: 6px 14px; background: var(--cyan-soft); border-radius: 999px;
-        }
-        .article-hero h1 {
-          font-family: 'Noto Sans JP', sans-serif; font-size: clamp(28px, 5vw, 52px); line-height: 1.25;
-          font-weight: 900; color: var(--charcoal); margin-bottom: 24px; letter-spacing: -0.01em; word-break: keep-all;
-        }
-        .article-subtitle {
-          font-family: var(--font-serif-jp); font-size: 17px; color: var(--gray-600);
-          line-height: 1.9; margin-bottom: 40px;
-        }
-        .article-meta-row {
-          display: flex; align-items: center; gap: 24px; padding-top: 24px;
-          border-top: 1px solid rgba(10,10,10,0.12);
-        }
-        .article-author-img {
-          width: 48px; height: 48px; border-radius: 50%;
-          background: linear-gradient(135deg, var(--charcoal), var(--charcoal-soft));
-          display: flex; align-items: center; justify-content: center;
-          color: var(--off-white); font-weight: 700; font-size: 14px; font-family: var(--font-sans-en);
-        }
-        .article-author-name { font-size: 14px; font-weight: 700; color: var(--charcoal); }
-        .article-author-role { font-size: 11px; color: var(--gray-400); font-family: var(--font-sans-en); letter-spacing: 0.05em; }
-        .article-meta-items { display: flex; gap: 12px; font-size: 12px; color: var(--gray-400); font-family: var(--font-sans-en); letter-spacing: 0.05em; margin-left: auto; }
-
-        .article-featured-image {
-          max-width: 1280px; margin: 0 auto 64px; padding: 0 32px;
-          aspect-ratio: 21/9; border-radius: 24px;
-          background: ${heroBg};
-        }
-
-        .article-body { padding: 0 32px 120px; background: var(--off-white); }
-        .article-body-wrap {
-          max-width: 1120px; margin: 0 auto;
-          display: grid; grid-template-columns: 220px minmax(0, 720px);
-          gap: 64px; align-items: start;
-        }
-        .article-side { padding-top: 12px; }
-        .article-body-inner { max-width: 720px; min-width: 0; }
-        @media (max-width: 1100px) {
-          .article-body-wrap { grid-template-columns: 1fr; max-width: 720px; gap: 0; }
-          .article-side { display: none; }
-        }
-        .article-body h2 {
-          font-family: 'Noto Sans JP', sans-serif; font-size: 26px; line-height: 1.4;
-          font-weight: 900; color: var(--charcoal); margin: 56px 0 20px;
-          padding-bottom: 16px; border-bottom: 2px solid var(--charcoal);
-          word-break: keep-all;
-        }
-        .article-body h2 a { text-decoration: none; color: inherit; }
-        .article-body h3 {
-          font-family: 'Noto Sans JP', sans-serif; font-size: 19px; font-weight: 700;
-          color: var(--charcoal); margin: 32px 0 12px;
-        }
-        .article-body p {
-          font-size: 15px; line-height: 2.0; color: var(--charcoal); margin-bottom: 20px;
-        }
-        .article-body ul, .article-body ol { margin: 16px 0 24px 24px; }
-        .article-body ul li, .article-body ol li {
-          font-size: 15px; line-height: 2.0; color: var(--charcoal); margin-bottom: 10px;
-        }
-        .article-body strong { color: var(--charcoal); font-weight: 700; }
-
-        /* --- Markdown table styling (previously unstyled, rendered as plain lines) --- */
-        .article-body table {
-          width: 100%; margin: 32px 0;
-          border-collapse: collapse;
-          font-size: 14px; line-height: 1.7;
-          border-top: 2px solid var(--charcoal);
-          border-bottom: 2px solid var(--charcoal);
-        }
-        .article-body thead th {
-          padding: 14px 16px;
-          text-align: left;
-          font-family: var(--font-sans-en);
-          font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
-          font-weight: 700; color: var(--gray-500);
-          border-bottom: 1px solid rgba(10,10,10,0.15);
-          background: transparent;
-        }
-        .article-body tbody td {
-          padding: 14px 16px;
-          color: var(--charcoal);
-          border-bottom: 1px solid rgba(10,10,10,0.08);
-          vertical-align: top;
-        }
-        .article-body tbody tr:last-child td { border-bottom: none; }
-        .article-body tbody tr:hover { background: rgba(0,217,255,0.03); }
-        @media (max-width: 700px) {
-          .article-body table { font-size: 13px; }
-          .article-body thead th, .article-body tbody td { padding: 10px 10px; }
-        }
-        .article-body blockquote {
-          margin: 32px 0; padding: 24px 32px;
-          background: var(--off-white-alt); border-left: 3px solid var(--cyan); border-radius: 4px;
-          font-family: var(--font-serif-jp); font-size: 16px; line-height: 1.9;
-          color: var(--charcoal); font-style: italic;
-        }
-        .article-body code {
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 0.9em; background: var(--off-white-alt); padding: 0.15em 0.4em; border-radius: 4px;
-        }
-        .tldr {
-          background: var(--off-white-alt);
-          border: 1px solid rgba(0,217,255,0.25); border-radius: 12px;
-          padding: 24px 32px; margin: 32px 0;
-        }
-        .tldr-label { font-family: var(--font-sans-en); font-size: 11px; color: var(--cyan); letter-spacing: 0.2em; text-transform: uppercase; font-weight: 700; margin-bottom: 12px; }
-        .tldr p { margin: 0; font-size: 14px; line-height: 1.9; }
-        .principle {
-          background: var(--off-white-alt); border: 1px solid rgba(10,10,10,0.08); border-radius: 16px;
-          padding: 28px 32px; margin: 24px 0;
-        }
-        .principle-num { font-family: var(--font-sans-en); font-size: 12px; color: var(--cyan); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 8px; }
-        .principle h3 { margin: 0 !important; font-size: 17px; line-height: 1.5; }
-
-        .inline-cite { text-decoration: none; color: var(--cyan); font-weight: 700; margin: 0 2px; }
-        .inline-cite sup { font-size: 0.72em; vertical-align: super; }
-        .inline-cite:hover { text-decoration: underline; }
-
-        .pull-quote {
-          border-left: 4px solid var(--cyan);
-          background: var(--off-white-alt);
-          padding: 28px 32px; margin: 32px 0;
-          border-radius: 0 12px 12px 0;
-        }
-        .pull-quote p {
-          font-family: var(--font-serif-jp, 'Noto Serif JP', serif);
-          font-size: 18px; line-height: 1.8; font-weight: 500;
-          color: var(--charcoal); margin: 0 0 12px 0;
-        }
-        .pull-quote cite {
-          font-style: normal; font-size: 12px; color: var(--gray-500);
-          font-family: var(--font-sans-en);
-          letter-spacing: 0.06em;
-        }
-
-        .answer-block {
-          background: rgba(0,217,255,0.06);
-          border-left: 3px solid var(--cyan);
-          border-radius: 8px;
-          padding: 20px 24px;
-          margin: 20px 0 32px 0;
-        }
-        .answer-label {
-          font-family: var(--font-sans-en);
-          font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
-          color: var(--cyan); font-weight: 700; margin-bottom: 8px;
-        }
-        .answer-block p { margin: 0; font-size: 15px; line-height: 1.8; color: var(--charcoal); }
-
-        .stat-callout {
-          display: block;
-          width: 100%;
-          background: transparent;
-          border-top: 1px solid rgba(10,10,10,0.15);
-          border-bottom: 1px solid rgba(10,10,10,0.15);
-          padding: 32px 0;
-          margin: 40px 0;
-          text-align: center;
-        }
-        .stat-callout.inline {
-          display: grid;
-          grid-template-columns: auto 1fr auto;
-          gap: 28px;
-          align-items: center;
-          text-align: left;
-        }
-        .stat-value {
-          font-family: 'Archivo', 'Noto Sans JP', sans-serif;
-          font-size: clamp(48px, 7vw, 84px);
-          font-weight: 900; line-height: 0.95; letter-spacing: -0.03em;
-          color: var(--cyan);
-          display: block;
-          margin-bottom: 8px;
-        }
-        .stat-label {
-          font-size: 14px; color: var(--charcoal); font-weight: 600;
-          line-height: 1.6;
-        }
-        .stat-source {
-          font-size: 11px; margin-top: 10px;
-          color: var(--gray-500);
-          font-family: var(--font-sans-en);
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-        }
-        @media (max-width: 700px) {
-          .stat-value { font-size: clamp(40px, 12vw, 56px); }
-          .stat-callout { padding: 24px 0; }
-        }
-
-        .article-tags {
-          display: flex; gap: 8px; flex-wrap: wrap;
-          margin-top: 48px; padding-top: 32px; border-top: 1px solid rgba(10,10,10,0.12);
-        }
-        .article-tag-link { padding: 6px 14px; background: var(--off-white-alt); color: var(--gray-600); border-radius: 999px; font-size: 12px; text-decoration: none; transition: all 0.2s; }
-        .article-tag-link:hover { background: var(--charcoal); color: var(--off-white); }
-
-        .article-cta {
-          margin-top: 48px; padding: 40px;
-          background: var(--charcoal);
-          color: var(--off-white); border-radius: 20px; text-align: center;
-        }
-        .article-cta h3 { font-family: 'Noto Sans JP', sans-serif; font-size: 22px; margin-bottom: 16px; color: var(--off-white); }
-        .article-cta p { color: rgba(245,241,232,0.85); margin-bottom: 24px; font-size: 14px; }
-        .article-cta .btn-cta { background: var(--cyan); color: var(--charcoal); padding: 14px 28px; border-radius: 999px; font-weight: 700; font-size: 14px; text-decoration: none; display: inline-block; transition: all 0.2s; }
-        .article-cta .btn-cta:hover { transform: translateY(-2px); }
-
-        .related { background: var(--off-white-alt); padding: 96px 32px; }
-        .related-inner { max-width: 1280px; margin: 0 auto; }
-        .related-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 32px; }
-        .related-card { background: var(--off-white); border: 1px solid rgba(10,10,10,0.08); border-radius: 16px; overflow: hidden; text-decoration: none; color: inherit; transition: all 0.3s; }
-        .related-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(10,10,10,0.08); }
-        .related-visual { aspect-ratio: 16/9; position: relative; background: var(--charcoal); }
-        .related-tag-pos { position: absolute; top: 16px; left: 16px; background: var(--off-white); color: var(--charcoal); padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; font-family: var(--font-sans-en); }
-        .related-body { padding: 24px; }
-        .related-date { font-size: 11px; color: var(--gray-400); font-family: var(--font-sans-en); margin-bottom: 8px; }
-        .related-title { font-family: 'Noto Sans JP', sans-serif; font-size: 15px; font-weight: 700; color: var(--charcoal); line-height: 1.5; }
-
-        @media (max-width: 900px) {
-          .related-grid { grid-template-columns: 1fr; }
-          .article-hero { padding: 120px 24px 48px; }
-          .article-meta-items { margin-left: 0; }
-          .article-meta-row { flex-wrap: wrap; }
-        }
-      `}</style>
-
-      <section className="article-hero">
-        <div className="article-hero-inner">
-          <div className="breadcrumb" style={{ marginBottom: 20 }}>
-            <Link href="/">Home</Link> / <Link href="/insights">Insights</Link>{" "}
-            / {post.category}
-          </div>
-          <span className="category-tag">{post.category}</span>
-          <h1>{post.title}</h1>
-          {post.subtitle && <p className="article-subtitle">{post.subtitle}</p>}
-          <div className="article-meta-row">
-            <div className="article-author-img" aria-hidden="true">
-              N.I.
-            </div>
-            <div>
-              <div className="article-author-name">{post.author}</div>
-              <div className="article-author-role">{post.authorRole}</div>
-            </div>
-            <div className="article-meta-items">
-              <span>{formattedDate}</span>
-              <span>·</span>
-              <span>{post.readTime}で読める</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="article-featured-image" />
-
       <ReadingProgressBar />
 
-      <article className="article-body" data-reading-target>
-        <div className="article-body-wrap">
-          <aside className="article-side">
-            <StickyToc />
-          </aside>
-          <div className="article-body-inner">
-            <MDXContent code={post.body} />
-
-            <div className="article-tags">
-              {post.tags.map((tag) => (
-                <Link
-                  key={tag}
-                  href={`/insights/tag/${encodeURIComponent(tag)}`}
-                  className="article-tag-link"
-                >
-                  #{tag}
-                </Link>
-              ))}
-            </div>
-
-            <div className="article-cta">
-              <h3>AI-first 組織の構築にご関心ありませんか?</h3>
-              <p>
-                私たちの知見をあなたの事業に実装します。60分の無料相談をご予約ください。
+      <main>
+        <section className="article-hero" aria-labelledby="article-title">
+          <div className="v6-scene-inner article-hero-grid">
+            <div>
+              <p className="article-breadcrumb">
+                <Link href="/">Home</Link> / <Link href="/insights">Insights</Link> / {post.category}
               </p>
-              <Link href="/contact" className="btn-cta">
-                無料相談を申し込む →
-              </Link>
+              <p className="v6-kicker">Signal · {post.category}</p>
+              <h1 id="article-title" className="v6-jp-heading">{post.title}</h1>
+              {post.subtitle && <p className="article-subtitle">{post.subtitle}</p>}
+              <div className="article-byline">
+                <div>
+                  <div className="article-author-name">{post.author}</div>
+                  <div className="article-author-role">{post.authorRole}</div>
+                </div>
+                <div className="article-date">
+                  <time dateTime={post.date.slice(0, 10)}>{formattedDate}</time> · {post.readTime} read
+                </div>
+              </div>
+            </div>
+            {post.hero && (
+              <div className="article-hero-image">
+                <Image src={post.hero} alt="" width={960} height={540} priority sizes="(max-width: 860px) 100vw, 40vw" />
+              </div>
+            )}
+          </div>
+        </section>
+
+        <article className="article-paper" data-reading-target>
+          <div className="v6-scene-inner article-layout">
+            <aside className="article-side"><StickyToc /></aside>
+            <div className="article-prose">
+              <MDXContent code={post.body} />
+
+              <div className="article-tags" aria-label="記事タグ">
+                {post.tags.map((tag) => (
+                  <Link key={tag} href={`/insights/tag/${encodeURIComponent(tag)}`} className="article-tag-link">
+                    #{tag}
+                  </Link>
+                ))}
+              </div>
+
+              <aside className="article-cta">
+                <h3 className="v6-jp-heading">AI-first 組織の構築にご関心ありませんか?</h3>
+                <p>私たちの知見をあなたの事業に実装します。60分の無料相談をご予約ください。</p>
+                <Link href="/contact" className="v6-button v6-button--paper">無料相談を申し込む</Link>
+              </aside>
             </div>
           </div>
-        </div>
-      </article>
+        </article>
 
-      {related.length > 0 && (
-        <section className="related">
-          <div className="related-inner">
-            <span className="section-label">Related Articles</span>
-            <h2 className="section-title" style={{ marginBottom: 32 }}>
-              関連記事
-            </h2>
-            <div className="related-grid">
+        <section className="article-footer" aria-label="記事ナビゲーションと関連記事">
+          <div className="v6-scene-inner article-footer-grid">
+            <div>
+              <p className="v6-kicker v6-kicker--paper">Continue reading</p>
+              <h2 className="v6-en-display">Next<br />signals.</h2>
+              {newerPost && (
+                <Link href={newerPost.permalink} className="article-nav-link">
+                  <span className="article-nav-label">Newer</span>
+                  <h3 className="v6-jp-heading">{newerPost.title}</h3>
+                  <span aria-hidden="true">↑</span>
+                </Link>
+              )}
+              {olderPost && (
+                <Link href={olderPost.permalink} className="article-nav-link">
+                  <span className="article-nav-label">Older</span>
+                  <h3 className="v6-jp-heading">{olderPost.title}</h3>
+                  <span aria-hidden="true">↓</span>
+                </Link>
+              )}
+            </div>
+            <div>
+              <p className="v6-kicker v6-kicker--paper">Related Articles</p>
+              <h2 className="v6-jp-heading">関連記事</h2>
               {related.map((item) => (
-                <Link
-                  key={item.slug}
-                  href={item.permalink}
-                  className="related-card"
-                >
-                  <div
-                    className="related-visual"
-                    style={{
-                      background: item.hero
-                        ? `linear-gradient(135deg, rgba(0,217,255,0.18), rgba(10,10,10,0.85)), url('${item.hero}') center/cover no-repeat`
-                        : "var(--charcoal)",
-                    }}
-                  >
-                    <span className="related-tag-pos">{item.category}</span>
-                  </div>
-                  <div className="related-body">
-                    <div className="related-date">
-                      {item.date.slice(0, 10).replace(/-/g, ".")}
-                    </div>
-                    <div className="related-title">{item.title}</div>
-                  </div>
+                <Link href={item.permalink} className="related-link" key={item.slug}>
+                  <span className="related-meta">{item.category}</span>
+                  <h3 className="v6-jp-heading">{item.title}</h3>
+                  <span aria-hidden="true">↗</span>
                 </Link>
               ))}
             </div>
           </div>
         </section>
-      )}
-    </>
+      </main>
+    </div>
   );
 }

@@ -1,22 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { members } from "@/data/members";
 import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import SiteMotionV6 from "@/components/v6/SiteMotionV6";
+import { members } from "@/data/members";
 import { buildPageOg } from "@/lib/site-metadata";
+import "./v6-ceo.css";
 
 const pageTitle = "CEO Profile — 石井 希実 (Nozomi Ishii)";
 const pageDescription =
-  "mixednuts 代表取締役 石井 希実 の詳細プロフィール。国内大手IT企業経営企画、グローバル大手IT企業を経て2021年に創業。";
+  "国内大手デジタル広告代理店で金融・不動産・旅行業界の大手企業を担当し、チームマネージャーとして PL 責任を担う。グローバル大手IT企業では広告事業のアカウントストラテジストとして、大手企業約50社のデジタル戦略を支援。国内大手IT企業の経営企画では、ライブ配信・エンターテインメント事業の事業計画策定、FP&A、投資評価、取締役会付議資料を担当。2021年に mixednuts を創業し、戦略・AI・マーケティングの統合提供を牽引。早稲田大学大学院 経営管理研究科 修了（MBA）。";
 
 export const metadata: Metadata = {
   title: pageTitle,
   description: pageDescription,
   alternates: { canonical: "/team/ceo" },
-  ...buildPageOg({
-    title: pageTitle,
-    description: pageDescription,
-    path: "/team/ceo",
-  }),
+  ...buildPageOg({ title: pageTitle, description: pageDescription, path: "/team/ceo" }),
 };
 
 const personSchema = {
@@ -26,26 +24,23 @@ const personSchema = {
   name: "石井 希実 (Nozomi Ishii)",
   jobTitle: "Founder & CEO",
   worksFor: { "@id": "https://mixednuts-inc.com/#organization" },
-  description:
-    "戦略ファーム出身、国内大手IT企業で経営企画責任者として取締役会付議・中期戦略を統括。mixednuts 創業後は戦略×AI×マーケティングの統合提供を牽引。早稲田大学大学院 経営管理研究科 MBA。",
+  description: pageDescription,
   alumniOf: [
     { "@type": "CollegeOrUniversity", name: "早稲田大学大学院 経営管理研究科" },
   ],
   knowsAbout: [
     "FP&A",
-    "M&A / Valuation",
+    "Investment Evaluation",
     "AI Agent Design",
     "LLM Implementation",
     "Growth Marketing",
     "SEO / AIO",
-    "Corporate Finance",
+    "Corporate Planning",
     "Business Strategy",
   ],
   url: "https://mixednuts-inc.com/team/ceo",
 };
 
-// Google 公式の profile page 構造化データパターン (ProfilePage → mainEntity Person)。
-// Insights 記事の author @id もこの Person を参照し E-E-A-T のエンティティを一点に集約する
 const profilePageSchema = {
   "@context": "https://schema.org",
   "@type": "ProfilePage",
@@ -62,207 +57,151 @@ const breadcrumb = buildBreadcrumbSchema([
   { name: "CEO Profile", path: "/team/ceo" },
 ]);
 
+const career = [
+  {
+    period: "2012—2015",
+    company: "国内大手デジタル広告代理店",
+    title: "Account Planner / Team Manager",
+    description: "金融・不動産・旅行業界の大手企業を担当し、チームマネージャーとしてPL責任を担う。",
+  },
+  {
+    period: "2015—2018",
+    company: "グローバル大手IT企業",
+    title: "Account Strategist, Advertising",
+    description: "広告事業のアカウントストラテジストとして、大手企業約50社のデジタル戦略を支援。",
+  },
+  {
+    period: "2018—2021",
+    company: "国内大手IT企業",
+    title: "Corporate Planning / FP&A",
+    description: "ライブ配信・エンターテインメント事業の事業計画策定、FP&A、投資評価、取締役会付議資料を担当。",
+  },
+  {
+    period: "2021—NOW",
+    company: "mixednuts Inc.",
+    title: "Founder & CEO",
+    description: "mixednutsを創業し、戦略・AI・マーケティングの統合提供を牽引。",
+  },
+  {
+    period: "2026",
+    company: "早稲田大学大学院",
+    title: "Master of Business Administration",
+    description: "経営管理研究科 修了（MBA）。",
+  },
+];
+
+const expertise = [
+  "Corporate Planning",
+  "FP&A",
+  "Investment Evaluation",
+  "Board Materials",
+  "Business Strategy",
+  "AI Agent Design",
+  "LLM Implementation",
+  "Growth Marketing",
+  "SEO / AIO",
+];
+
 export default function CeoPage() {
-  const ceo = members.find((m) => m.division === "leadership")!;
+  const ceo = members.find((member) => member.division === "leadership")!;
 
   return (
-    <>
+    <div className="mn-v6 v6-ceo">
       <JsonLd data={personSchema} />
       <JsonLd data={profilePageSchema} />
       <JsonLd data={breadcrumb} />
-      <style>{`
-        .ceo-wrap { display: grid; grid-template-columns: 1fr 2fr; gap: 80px; align-items: start; }
-        .ceo-sidebar { position: sticky; top: 100px; }
-        .ceo-portrait {
-          aspect-ratio: 3/4; border-radius: 20px; min-height: 320px; margin-bottom: 32px;
-          background: linear-gradient(135deg, var(--charcoal) 0%, var(--charcoal-soft) 55%, #0d3c47 100%);
-          display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
-        }
-        .ceo-portrait::before {
-          content: ''; position: absolute; inset: 0;
-          background-image: radial-gradient(circle at 28% 28%, rgba(0,217,255,0.24), transparent 55%),
-                            radial-gradient(circle at 78% 82%, rgba(0,217,255,0.12), transparent 60%);
-        }
-        .ceo-portrait-initials {
-          position: relative; z-index: 2;
-          font-family: var(--font-display);
-          font-weight: 900; font-size: clamp(96px, 13vw, 200px); letter-spacing: -0.02em;
-          color: var(--off-white); line-height: 1;
-        }
-        .ceo-portrait-initials .dot { color: var(--cyan); }
-        .ceo-sidebar-meta { display: flex; flex-direction: column; gap: 16px; }
-        .ceo-meta-item { padding: 16px; background: #F9FAFB; border-radius: 12px; border: 1px solid var(--border, #E5E7EB); }
-        .ceo-meta-label { font-size: 10px; color: #9CA3AF; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
-        .ceo-meta-value { font-size: 13px; color: #1A1A1A; line-height: 1.5; }
-        .ceo-content h2 { font-family: var(--font-serif-jp); font-size: 28px; font-weight: 700; color: var(--navy); margin: 48px 0 20px; padding-bottom: 12px; border-bottom: 2px solid #E5E7EB; }
-        .ceo-content h2:first-child { margin-top: 0; }
-        .ceo-content p { font-size: 15px; line-height: 1.95; color: #1A1A1A; margin-bottom: 20px; }
-        .career-item { display: grid; grid-template-columns: 120px 1fr; gap: 24px; padding: 24px 0; border-bottom: 1px solid #E5E7EB; }
-        .career-period { font-size: 12px; color: #9CA3AF; letter-spacing: 0.05em; padding-top: 2px; }
-        .career-detail h4 { font-family: var(--font-serif-jp); font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
-        .career-detail .company { font-size: 12px; color: var(--cyan); font-weight: 600; letter-spacing: 0.05em; margin-bottom: 8px; }
-        .career-detail p { font-size: 13px; color: #4B5563; line-height: 1.7; margin: 0; }
-        .skill-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-        .skill-tag { padding: 6px 14px; background: #F0F9FF; border: 1px solid rgba(0,180,216,0.2); color: #0891B2; border-radius: 999px; font-size: 12px; font-weight: 600; }
-        .quote-block { background: var(--charcoal); color: var(--off-white); border-radius: 16px; padding: 40px 48px; margin: 40px 0; position: relative; }
-        .quote-block::before { content: '"'; font-family: var(--font-serif-en); font-size: 120px; color: rgba(0,217,255,0.25); position: absolute; top: -20px; left: 24px; line-height: 1; }
-        .quote-block p { font-family: var(--font-serif-jp); font-size: 20px; line-height: 1.8; position: relative; z-index: 2; margin: 0; color: var(--off-white) !important; }
-        @media (max-width: 900px) {
-          .ceo-wrap { grid-template-columns: 1fr; }
-          .ceo-sidebar { position: static; }
-          .career-item { grid-template-columns: 1fr; gap: 8px; }
-        }
-      `}</style>
+      <SiteMotionV6 />
 
-      <section className="page-hero">
-        <div className="page-hero-inner">
-          <div className="breadcrumb">
-            <Link href="/">Home</Link> / <Link href="/team">Team</Link> / CEO
-          </div>
-          <div className="page-hero-badge">Founder & CEO</div>
-          <h1>
-            <span className="accent">石井 希実</span>
-          </h1>
-          <p className="lead">{ceo.role} — mixednuts Inc. Founder</p>
-        </div>
-      </section>
-
-      <section className="section">
-        <div className="section-inner">
-          <div className="ceo-wrap">
-            <div className="ceo-sidebar">
-              <div className="ceo-portrait">
-                <span className="ceo-portrait-initials">
-                  N<span className="dot">.</span>I<span className="dot">.</span>
-                </span>
-              </div>
-              <div className="ceo-sidebar-meta">
-                <div className="ceo-meta-item">
-                  <div className="ceo-meta-label">Role</div>
-                  <div className="ceo-meta-value">
-                    Founder & CEO
-                    <br />
-                    mixednuts Inc.
-                  </div>
-                </div>
-                <div className="ceo-meta-item">
-                  <div className="ceo-meta-label">Education</div>
-                  <div className="ceo-meta-value">
-                    早稲田大学大学院
-                    <br />
-                    経営管理研究科（MBA）
-                  </div>
-                </div>
-                <div className="ceo-meta-item">
-                  <div className="ceo-meta-label">Base</div>
-                  <div className="ceo-meta-value">Tokyo, Japan</div>
-                </div>
-                <div className="ceo-meta-item">
-                  <div className="ceo-meta-label">Languages</div>
-                  <div className="ceo-meta-value">
-                    日本語（ネイティブ）
-                    <br />
-                    英語（ビジネス）
-                  </div>
-                </div>
-              </div>
+      <main>
+        <section className="v6-scene v6-hero" data-v6-scene="ceo-hero" aria-labelledby="ceo-title">
+          <div className="v6-scene-inner v6-hero-inner">
+            <p className="v6-kicker v6-hero-overline">Founder &amp; CEO · Profile 001</p>
+            <div className="v6-hero-title-wrap">
+              <h1 id="ceo-title" className="v6-jp-heading v6-hero-title v6-ceo-title">
+                <span className="v6-hero-word">石井 希実</span>
+              </h1>
+              <p className="v6-en-display v6-hero-register">Nozomi Ishii<br />mixednuts Inc.</p>
             </div>
-
-            <div className="ceo-content">
-              <h2>Overview</h2>
-              <p>
-                国内大手デジタル広告代理店でアカウントプランナーとしてキャリアをスタート。その後グローバル大手IT企業に転じ、広告事業のアカウントストラテジストとして年間40億円超の広告ポートフォリオを運用。
-              </p>
-              <p>
-                その後、国内大手IT企業の経営企画本部へ。300億円規模のエンタメ領域の事業管理を統括し、事業計画策定・投資評価・取締役会付議・中期戦略立案まで、経営判断の中枢に関わる。FP&AとM&Aアドバイザリーの実践経験を持つ。
-              </p>
-              <p>
-                2021年4月、ミックスナッツ株式会社を創業。「戦略 × AI ×
-                マーケティング」の統合提供をコンセプトに、多様なバックグラウンドのプロフェッショナルを束ねるAI-firstコンサルティングファームを構築。自社内で120体超のAIエージェント組織を設計・運用し、そのノウハウをクライアントに移植している。
-              </p>
-
-              <div className="quote-block">
-                <p>
-                  戦略だけでは遅い。AIだけでは浅い。マーケだけでは一過性。3つが"ミックス"して初めて、事業は再現性のある成長曲線を描きはじめる。
-                </p>
-              </div>
-
-              <h2>Career</h2>
-              <div>
-                {[
-                  {
-                    period: "2021 — 現在",
-                    company: "mixednuts Inc.",
-                    title: "Founder & CEO",
-                    desc: "戦略・AI・マーケティングの統合コンサルティングファームを創業。AI-first組織設計、クライアントへの実装支援、社内120体超のAIエージェント組織の構築・運用を統括。",
-                  },
-                  {
-                    period: "2018 — 2021",
-                    company: "国内大手IT企業",
-                    title: "経営企画 責任者",
-                    desc: "300億円規模のエンタメ領域の事業管理を統括。中期経営計画策定、取締役会付議資料作成、M&A案件評価、予実管理を担う。FP&AとDCFバリュエーションの実践。",
-                  },
-                  {
-                    period: "2015 — 2018",
-                    company: "グローバル大手IT企業",
-                    title: "Account Strategist, Advertising",
-                    desc: "大手広告主の広告事業全体を担当するアカウントストラテジスト。年間40億円超の広告ポートフォリオ最適化、クライアント経営層への戦略提案を担当。",
-                  },
-                  {
-                    period: "2012 — 2015",
-                    company: "国内大手デジタル広告代理店",
-                    title: "アカウントプランナー",
-                    desc: "大手クライアントの統合マーケティング戦略立案・実行。Google Ads、Meta Ads、DSP運用から戦略策定まで一気通貫で担当。",
-                  },
-                ].map((c) => (
-                  <div key={c.period} className="career-item">
-                    <div className="career-period">{c.period}</div>
-                    <div className="career-detail">
-                      <h4>{c.title}</h4>
-                      <div className="company">{c.company}</div>
-                      <p>{c.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <h2>Expertise</h2>
-              <div className="skill-tags">
-                {[
-                  "FP&A",
-                  "M&A / Valuation",
-                  "AI Agent Design",
-                  "LLM Implementation",
-                  "Google Ads",
-                  "Meta Ads",
-                  "Growth Marketing",
-                  "SEO / AIO",
-                  "Corporate Finance",
-                  "Business Strategy",
-                  "OKR / KPI Design",
-                  "Board Deck",
-                ].map((skill) => (
-                  <span key={skill} className="skill-tag">
-                    {skill}
-                  </span>
-                ))}
+            <div className="v6-hero-bottom">
+              <p className="v6-hero-lead">デジタル広告から経営企画・FP&amp;Aへ。<br />2021年、mixednutsを創業。</p>
+              <div className="v6-button-row v6-hero-actions">
+                <Link href="/contact" className="v6-button v6-button--paper">Talk to Nozomi</Link>
+                <Link href="/team" className="v6-button v6-button--outline">Back to Team</Link>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="cta">
-        <div className="cta-inner">
-          <h2>石井 希実 と直接、話しましょう。</h2>
-          <p>
-            初回相談は無料です。60分で、貴社の課題に最適なアプローチを一緒に設計します。
-          </p>
-          <Link href="/contact" className="btn-primary">
-            無料相談を申し込む →
-          </Link>
-        </div>
-      </section>
-    </>
+        <section className="v6-scene v6-paper-scene v6-ceo-profile" data-v6-scene="profile" aria-labelledby="ceo-overview">
+          <div className="v6-scene-inner v6-ceo-profile-grid">
+            <aside className="v6-ceo-aside">
+              <div className="v6-ceo-monogram">
+                <span className="v6-en-display">N<span>.</span>I<span>.</span></span>
+                <small>Tokyo / Japan</small>
+              </div>
+              <dl>
+                <div><dt>Role</dt><dd>Founder &amp; CEO<br />mixednuts Inc.</dd></div>
+                <div><dt>Background</dt><dd>{ceo.background}</dd></div>
+                <div><dt>Education</dt><dd>早稲田大学大学院<br />経営管理研究科 修了（MBA, 2026）</dd></div>
+              </dl>
+            </aside>
+
+            <div className="v6-ceo-main">
+              <header>
+                <p className="v6-kicker v6-kicker--paper">Overview · Biography</p>
+                <h2 id="ceo-overview" className="v6-jp-heading">異なる現場をつなぎ、<br />成長を実装する。</h2>
+              </header>
+              <p className="v6-ceo-intro">{ceo.bio}</p>
+
+              <blockquote className="v6-ceo-quote v6-insight">
+                <p className="v6-jp-heading">戦略だけでは遅い。AIだけでは浅い。マーケだけでは一過性。3つが<span className="v6-accent">“ミックス”</span>して初めて、事業は再現性のある成長曲線を描きはじめる。</p>
+              </blockquote>
+
+              <section className="v6-ceo-career" aria-labelledby="ceo-career">
+                <header>
+                  <p className="v6-kicker v6-kicker--paper">Career · Chronology</p>
+                  <h2 id="ceo-career" className="v6-en-display">Career</h2>
+                </header>
+                <div className="v6-ceo-career-list">
+                  {career.map((item) => (
+                    <article key={item.period} className="v6-ceo-career-row v6-index-row">
+                      <time>{item.period}</time>
+                      <div>
+                        <p>{item.company}</p>
+                        <h3>{item.title}</h3>
+                      </div>
+                      <p>{item.description}</p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+
+              <section className="v6-ceo-expertise" aria-labelledby="ceo-expertise">
+                <header>
+                  <p className="v6-kicker v6-kicker--paper">Expertise · Selected</p>
+                  <h2 id="ceo-expertise" className="v6-en-display">Expertise</h2>
+                </header>
+                <div>
+                  {expertise.map((item, index) => (
+                    <span key={item}><small>{String(index + 1).padStart(2, "0")}</small>{item}</span>
+                  ))}
+                </div>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <section className="v6-scene v6-end v6-ceo-end" data-v6-scene="end" aria-labelledby="ceo-end">
+          <div className="v6-scene-inner v6-end-inner">
+            <p className="v6-kicker">End Credits · Direct Conversation</p>
+            <div>
+              <h2 id="ceo-end" className="v6-en-display v6-end-title">LET&apos;S<br /><span className="v6-accent">TALK.</span></h2>
+              <p className="v6-end-copy">石井 希実と直接、話しましょう。<br />初回60分で課題と次の一手を整理します。</p>
+              <Link href="/contact" className="v6-button v6-button--paper">Book a Session</Link>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
   );
 }

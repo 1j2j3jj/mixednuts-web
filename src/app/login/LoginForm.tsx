@@ -126,25 +126,25 @@ export default function LoginForm() {
   const anyOAuthLoading = googleLoading || msLoading;
 
   return (
-    <div className="w-full max-w-sm space-y-6">
+    <div className="login-form">
       {/* Brand header */}
-      <div className="text-center">
+      <div>
         <Link href="/" className="inline-flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-mark.png" alt="mixednuts Inc." className="h-8 w-auto" />
           <span className="text-base font-semibold tracking-tight text-neutral-900">mixednuts</span>
         </Link>
-        <h1 className="mt-4 text-xl font-semibold tracking-tight text-neutral-900">
+        <h1 className="v6-en-display">
           Client Dashboard
         </h1>
-        <p className="mt-1 text-sm text-neutral-500">
+        <p>
           サインインしてダッシュボードを開く
         </p>
       </div>
 
       {/* Invitation hint banner */}
       {invitationHint && (
-        <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+        <div className="login-alert">
           <span className="font-medium">招待を受け取りました。</span>{" "}
           <span className="font-mono text-xs">{invitationHint}</span>{" "}
           として招待されたアカウントでサインインしてください。
@@ -155,20 +155,20 @@ export default function LoginForm() {
       {error && (
         <div
           role="alert"
-          className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900"
+          className="login-alert"
         >
           {error}
         </div>
       )}
 
-      <div className="space-y-3 rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
+      <div className="login-stack">
         {/* Primary CTA: Google */}
         {googleEnabled ? (
           <button
             type="button"
             onClick={onGoogle}
             disabled={anyOAuthLoading}
-            className="flex w-full items-center justify-center gap-3 rounded-md bg-neutral-900 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="login-button login-button--primary"
           >
             <GoogleIcon className="h-5 w-5" />
             {googleLoading ? "リダイレクト中…" : "Continue with Google"}
@@ -178,7 +178,7 @@ export default function LoginForm() {
             type="button"
             disabled
             title="準備中 — Google OAuth Client ID/Secret を設定すると有効化されます"
-            className="flex w-full items-center justify-center gap-3 rounded-md border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm font-semibold text-neutral-400 disabled:cursor-not-allowed"
+            className="login-button"
           >
             <GoogleIcon className="h-5 w-5 opacity-50" />
             Continue with Google（設定中）
@@ -191,7 +191,7 @@ export default function LoginForm() {
             type="button"
             onClick={onMicrosoft}
             disabled={anyOAuthLoading}
-            className="flex w-full items-center justify-center gap-3 rounded-md border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="login-button"
           >
             <MicrosoftIcon className="h-4 w-4" />
             {msLoading ? "リダイレクト中…" : "Continue with Microsoft"}
@@ -199,18 +199,15 @@ export default function LoginForm() {
         ) : null}
 
         {/* Divider */}
-        <div className="flex items-center gap-3 py-1 text-xs text-neutral-400">
-          <div className="h-px flex-1 bg-neutral-200" />
+        <div className="login-divider">
           <span>または</span>
-          <div className="h-px flex-1 bg-neutral-200" />
         </div>
 
         {/* Email + Password fallback */}
-        <form onSubmit={onSubmit} className="space-y-3">
-          <div className="space-y-1">
+        <form onSubmit={onSubmit} className="login-stack">
+          <div className="form-group">
             <label
               htmlFor="email"
-              className="block text-xs font-medium uppercase tracking-wider text-neutral-500"
             >
               メールアドレス / ID
             </label>
@@ -222,15 +219,13 @@ export default function LoginForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900"
               placeholder="you@example.com"
             />
           </div>
-          <div className="space-y-1">
+          <div className="form-group">
             <div className="flex items-center justify-between">
               <label
                 htmlFor="pass"
-                className="block text-xs font-medium uppercase tracking-wider text-neutral-500"
               >
                 パスワード
               </label>
@@ -243,21 +238,20 @@ export default function LoginForm() {
               required
               value={pass}
               onChange={(e) => setPass(e.target.value)}
-              className="block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900"
               placeholder="••••••••"
             />
           </div>
           <button
             type="submit"
             disabled={loading || anyOAuthLoading}
-            className="w-full rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="login-button"
           >
             {loading ? "サインイン中…" : "Sign in"}
           </button>
         </form>
       </div>
 
-      <p className="text-center text-xs text-neutral-500">
+      <p>
         アクセスに関するお問い合わせは{" "}
         <Link href="/contact" className="underline hover:text-neutral-900">
           Contact

@@ -1,21 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import SiteMotionV6 from "@/components/v6/SiteMotionV6";
 import { buildPageOg } from "@/lib/site-metadata";
+import "./v6-about.css";
 
 const pageTitle = "About — 才能が「ミックス」する瞬間、事業は動き始める";
 const pageDescription =
-  "戦略・AI・マーケティングを一気通貫で提供するAI-firstファーム。多様なバックグラウンドのプロフェッショナルが集結。";
+  "戦略・AI・マーケティングを一気通貫で提供するAI-firstファーム。代表の実務経験、AIエージェント組織、案件ごとの専門パートナーを組み合わせて事業成長を支援します。";
 
 export const metadata: Metadata = {
   title: pageTitle,
   description: pageDescription,
   alternates: { canonical: "/about" },
-  ...buildPageOg({
-    title: pageTitle,
-    description: pageDescription,
-    path: "/about",
-  }),
+  ...buildPageOg({ title: pageTitle, description: pageDescription, path: "/about" }),
 };
 
 const aboutPageSchema = {
@@ -27,7 +25,6 @@ const aboutPageSchema = {
   description: pageDescription,
   inLanguage: "ja-JP",
   isPartOf: { "@id": "https://mixednuts-inc.com/#website" },
-  // ページの主題は会社そのもの — Organization エンティティへ接続
   mainEntity: { "@id": "https://mixednuts-inc.com/#organization" },
 };
 
@@ -36,390 +33,145 @@ const breadcrumb = buildBreadcrumbSchema([
   { name: "About", path: "/about" },
 ]);
 
+const values = [
+  ["01", "Mix, Don’t Divide", "領域を分断しない。戦略・AI・マーケを断絶させず、3つが常に連動する設計で仕事を組み立てる。"],
+  ["02", "On the Ground", "評論家にならない。現場の最前線に飛び込み、実装・運用・改善までハンズオンで伴走する。"],
+  ["03", "Data-Driven", "勘と経験で語らない。意思決定の全段階でデータを起点にし、AIで仮説検証を高速化する。"],
+  ["04", "Calibrated Honesty", "ドラマ化しない。異常値を見たらまず実害を計算し、断定せず、仮説と事実を分離して報告する。"],
+  ["05", "AI-First, Human-Led", "AIに任せる領域と人間が握る領域を意図的に設計する。AI導入で終わらせず、AIと共に働く組織をつくる。"],
+];
+
+const facts = [
+  ["01", "Name", "ミックスナッツ株式会社", "mixednuts Inc."],
+  ["02", "Founded", "2021年4月19日", "Tokyo, Japan"],
+  ["03", "Representative", "石井 希実", "Founder & CEO"],
+  ["04", "Services", "戦略コンサルティング / AI実装支援", "マーケティング成長支援"],
+  ["05", "Address", "東京都港区南青山3-8-40", "〒107-0062"],
+  ["06", "Contact", "hello@mixednuts-inc.com", "Business inquiries"],
+  ["07", "Advisors", "弁護士法人クレア法律事務所", "関野会計事務所"],
+  ["08", "Banks", "三井住友銀行", "三菱UFJ銀行"],
+];
+
 export default function AboutPage() {
   return (
-    <>
+    <div className="mn-v6 v6-about">
       <JsonLd data={aboutPageSchema} />
       <JsonLd data={breadcrumb} />
-      <style>{`
-        .story-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; margin-bottom: 96px; }
-        .story-text .story-num { font-size: 14px; color: var(--cyan); letter-spacing: 0.15em; margin-bottom: 16px; font-weight: 700; }
-        .story-text h3 { font-family: var(--font-serif-jp); font-size: 28px; font-weight: 700; margin-bottom: 20px; color: var(--navy); line-height: 1.4; }
-        .story-text p { color: #4B5563; font-size: 15px; line-height: 1.9; margin-bottom: 16px; }
-        .story-visual { aspect-ratio: 4/3; background: linear-gradient(135deg, var(--navy) 0%, var(--burgundy) 100%); border-radius: 20px; overflow: hidden; }
-        .values-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
-        .value-card { background: #fff; border: 1px solid #E5E7EB; border-radius: 16px; padding: 40px 32px; transition: all 0.3s; }
-        .value-card:hover { transform: translateY(-4px); box-shadow: 0 24px 48px rgba(11,22,52,0.08); border-color: var(--cyan); }
-        .value-num { font-family: var(--font-serif-en); font-size: 48px; color: var(--cyan); font-weight: 900; line-height: 1; margin-bottom: 20px; }
-        .value-card h3 { font-family: var(--font-serif-jp); font-size: 20px; font-weight: 700; margin-bottom: 12px; color: var(--navy); }
-        .value-card p { color: #4B5563; font-size: 14px; line-height: 1.8; }
-        .team-intro {
-          background: linear-gradient(135deg, rgba(11,22,52,0.88) 0%, rgba(19,34,78,0.92) 100%), url('/images/generated/team_diverse.jpg') center/cover no-repeat;
-          color: #fff; border-radius: 24px; padding: 64px 48px; margin-bottom: 48px; position: relative; overflow: hidden;
-        }
-        .team-intro::before {
-          content: ''; position: absolute; inset: 0;
-          background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-          background-size: 48px 48px; pointer-events: none;
-        }
-        .team-intro-inner { position: relative; z-index: 2; }
-        .team-intro h3 { font-family: var(--font-serif-jp); font-size: 32px; font-weight: 700; margin-bottom: 20px; line-height: 1.4; }
-        .bg-tags { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
-        .bg-tag { padding: 8px 16px; background: rgba(0,180,216,0.15); border: 1px solid rgba(0,180,216,0.3); border-radius: 999px; font-size: 13px; color: var(--cyan); font-weight: 500; }
-        .info-section { background: #F9FAFB; padding: 80px 32px; }
-        .info-inner { max-width: 1280px; margin: 0 auto; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
-        .info-table { background: #fff; border: 1px solid #E5E7EB; border-radius: 16px; overflow: hidden; }
-        .info-row { display: grid; grid-template-columns: 140px 1fr; padding: 20px 24px; border-bottom: 1px solid #E5E7EB; }
-        .info-row:last-child { border-bottom: none; }
-        .info-row dt { font-size: 11px; color: #9CA3AF; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; padding-top: 2px; }
-        .info-row dd { font-size: 14px; color: #1A1A1A; line-height: 1.8; }
-        .ceo-grid { display: grid; grid-template-columns: 1fr 1.4fr; gap: 48px; align-items: center; background: #F9FAFB; border-radius: 20px; padding: 48px; }
-        .ceo-img {
-          aspect-ratio: 3/4; border-radius: 16px; min-height: 300px;
-          background: linear-gradient(135deg, var(--charcoal) 0%, var(--charcoal-soft) 55%, #0d3c47 100%);
-          display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
-        }
-        .ceo-img::before {
-          content: ''; position: absolute; inset: 0;
-          background-image: radial-gradient(circle at 30% 28%, rgba(0,217,255,0.22), transparent 55%),
-                            radial-gradient(circle at 76% 80%, rgba(0,217,255,0.12), transparent 60%);
-        }
-        .ceo-img-initials {
-          position: relative; z-index: 2;
-          font-family: var(--font-display);
-          font-weight: 900; font-size: clamp(80px, 11vw, 160px); letter-spacing: -0.02em;
-          color: var(--off-white); line-height: 1;
-        }
-        .ceo-img-initials .dot { color: var(--cyan); }
-        @media (max-width: 900px) {
-          .story-grid { grid-template-columns: 1fr; gap: 32px; }
-          .values-grid, .info-grid { grid-template-columns: 1fr; }
-          .team-intro { padding: 40px 24px; }
-          .ceo-grid { grid-template-columns: 1fr; }
-        }
-      `}</style>
+      <SiteMotionV6 />
 
-      <section className="page-hero">
-        <div className="page-hero-inner">
-          <div className="breadcrumb">
-            <Link href="/">Home</Link> / About
-          </div>
-          <div className="page-hero-badge">About mixednuts Inc.</div>
-          <h1>
-            <span style={{ display: "block" }}>
-              才能が&quot;<span className="accent">ミックス</span>
-              &quot;する瞬間、
-            </span>
-            <span style={{ display: "block" }}>事業は動き始める。</span>
-          </h1>
-          <p className="lead">
-            異なる業界・異なる役職を渡り歩いてきたプロが、一つのチームに集まっています。その多様性が、単一専門ファームには出せない角度で、課題を解く強さになります。
-          </p>
-        </div>
-      </section>
-
-      {/* Mission / Vision */}
-      <section className="section">
-        <div className="section-inner">
-          <div className="story-grid">
-            <div className="story-text">
-              <div className="story-num">MISSION</div>
-              <h3>"ミックス"で、事業の未来に必然性を。</h3>
-              <p>
-                私たちは、異なる領域のプロフェッショナルを "ミックス"
-                することで、単一の視座では生まれ得ない事業価値を創り出します。戦略は現場に届かなければ絵に描いた餅。AIは業務に溶け込まなければただのツール。マーケは戦略なしには一過性。
-              </p>
-              <p>
-                3つを断絶させず、有機的に繋ぐ仕組みを、クライアントの事業に実装する。それが私たちのミッションです。
-              </p>
+      <main>
+        <section className="v6-scene v6-hero" data-v6-scene="about-hero" aria-labelledby="about-title">
+          <div className="v6-scene-inner v6-hero-inner">
+            <p className="v6-kicker v6-hero-overline">About mixednuts Inc. · Since 2021</p>
+            <div className="v6-hero-title-wrap">
+              <h1 id="about-title" className="v6-jp-heading v6-hero-title v6-about-title">
+                <span className="v6-hero-word">才能が<span className="v6-accent">“ミックス”</span>する瞬間、</span><br />
+                <span className="v6-hero-word">事業は動き始める。</span>
+              </h1>
+              <p className="v6-en-display v6-hero-register">Different disciplines.<br />One growth system.</p>
             </div>
-            <div
-              className="story-visual"
-              style={{
-                background: `url('/images/generated/strategy_hero.jpg') center/cover no-repeat`,
-              }}
-            />
-          </div>
-          <div className="story-grid">
-            <div className="story-text">
-              <div className="story-num">VISION</div>
-              <h3>日本の事業成長に、"再現性"を持ち込む。</h3>
-              <p>
-                たまたま成功した、ではなく、意図して成功させる。勘と経験ではなく、データとAIで。個人の能力依存ではなく、組織の仕組みで。
+            <div className="v6-hero-bottom">
+              <p className="v6-hero-lead">
+                代表が培った広告・経営企画／FP&amp;Aの実務経験に、<br className="v6-desktop-break" />
+                100体超のAIエージェント組織と案件ごとの専門パートナーを掛け合わせます。
               </p>
-              <p>
-                私たちは、事業成長を科学する会社です。AI-firstのコンサルティングファームとして、日本企業の
-                "勝ち筋"
-                を再現可能にする。この営みを通じて、国内事業の競争力そのものを底上げしていきます。
-              </p>
-            </div>
-            <div
-              className="story-visual"
-              style={{
-                background: `url('/images/generated/ai_hero.jpg') center/cover no-repeat`,
-              }}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Values */}
-      <section className="section" style={{ background: "#F9FAFB" }}>
-        <div className="section-inner">
-          <span className="section-label">Our Values</span>
-          <h2 className="section-title">私たちの行動原則。</h2>
-          <p className="section-lead">
-            多様な人材が同じ方向を向くための、5つの指針。日々の判断と振る舞いの中に、これらを埋め込んでいます。
-          </p>
-          <div className="values-grid">
-            {[
-              {
-                num: "01",
-                title: "Mix, Don't Divide",
-                desc: "領域を分断しない。戦略・AI・マーケを断絶させず、3つが常に連動する設計で仕事を組み立てる。",
-              },
-              {
-                num: "02",
-                title: "On the Ground",
-                desc: "評論家にならない。現場の最前線に飛び込み、実装・運用・改善までハンズオンで伴走する。",
-              },
-              {
-                num: "03",
-                title: "Data-Driven",
-                desc: "勘と経験で語らない。意思決定の全段階でデータを起点にし、AIで仮説検証を高速化する。",
-              },
-              {
-                num: "04",
-                title: "Calibrated Honesty",
-                desc: "ドラマ化しない。異常値を見たらまず実害を計算し、断定せず、仮説と事実を分離して報告する。",
-              },
-              {
-                num: "05",
-                title: "AI-First, Human-Led",
-                desc: "AIに任せる領域と人間が握る領域を意図的に設計する。AI導入で終わらせず、AIと共に働く組織をつくる。",
-              },
-            ].map((v) => (
-              <div key={v.num} className="value-card">
-                <div className="value-num">{v.num}</div>
-                <h3>{v.title}</h3>
-                <p>{v.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Team */}
-      <section className="section">
-        <div className="section-inner">
-          <span className="section-label">Our People</span>
-          <h2 className="section-title">多様な才能の"ミックス"。</h2>
-          <p className="section-lead">
-            ミックスナッツの強みは、単一のバックグラウンドに依存しないこと。異なる業界・異なる役職を経験してきたプロフェッショナルが、一つのプロジェクトで視座を重ねます。
-          </p>
-
-          <div className="team-intro">
-            <div className="team-intro-inner">
-              <h3>
-                広告・マーケ・戦略・ビッグテック・クリエイター。
-                <br />
-                異なるバックグラウンドが、一つのファームに集結。
-              </h3>
-              <p style={{ color: "rgba(255,255,255,0.85)", lineHeight: 1.9 }}>
-                大手広告代理店でアカウントを動かしてきたマーケター、事業会社のマーケ責任者として現場を率いてきたリーダー、戦略ファーム出身のコンサルタント、外資系ビッグテックでプロダクトを作ってきたエンジニア、SNSで実績を出してきたクリエイター。それぞれの領域で磨いた専門性を、ひとつのチームで掛け合わせます。
-              </p>
-              <div className="bg-tags">
-                {[
-                  "国内大手広告代理店",
-                  "事業会社マーケ責任者",
-                  "戦略コンサルティングファーム",
-                  "外資系ビッグテック",
-                  "AI / MLエンジニア",
-                  "SNS クリエイター",
-                  "財務・経営企画",
-                ].map((tag) => (
-                  <span key={tag} className="bg-tag">
-                    {tag}
-                  </span>
-                ))}
+              <div className="v6-button-row v6-hero-actions">
+                <Link href="/team" className="v6-button v6-button--paper">Meet the Team</Link>
+                <Link href="/contact" className="v6-button v6-button--outline">Let&apos;s Talk</Link>
               </div>
             </div>
           </div>
+        </section>
 
-          {/* CEO Highlight */}
-          <div className="ceo-grid">
-            <div className="ceo-img">
-              <span className="ceo-img-initials">
-                N<span className="dot">.</span>I<span className="dot">.</span>
-              </span>
+        <section className="v6-scene v6-thesis v6-about-thesis" data-v6-scene="mission" aria-labelledby="about-mission">
+          <div className="v6-scene-inner v6-thesis-inner">
+            <h2 id="about-mission" className="v6-kicker">Mission · Why Mixed</h2>
+            <div className="v6-thesis-lines v6-jp-heading">
+              <p className="v6-thesis-line">戦略は、現場に届いてこそ。</p>
+              <p className="v6-thesis-line">AIは、業務に溶け込んでこそ。</p>
+              <p className="v6-thesis-line">マーケは、戦略と繋がってこそ。</p>
             </div>
-            <div>
-              <h3
-                style={{
-                  fontFamily: "var(--font-serif-jp)",
-                  fontSize: 28,
-                  color: "var(--navy)",
-                  marginBottom: 8,
-                  fontWeight: 700,
-                }}
-              >
-                石井 希実{" "}
-                <span
-                  style={{
-                    fontFamily: "var(--font-serif-en)",
-                    color: "#9CA3AF",
-                    fontSize: 18,
-                    fontWeight: 400,
-                  }}
-                >
-                  Nozomi Ishii / Founder & CEO
-                </span>
-              </h3>
-              <div
-                style={{
-                  color: "var(--cyan)",
-                  fontSize: 12,
-                  letterSpacing: "0.15em",
-                  textTransform: "uppercase",
-                  fontWeight: 700,
-                  marginBottom: 20,
-                }}
-              >
-                CEO / Founder
-              </div>
-              <p
-                style={{
-                  color: "#4B5563",
-                  fontSize: 15,
-                  lineHeight: 1.9,
-                  marginBottom: 16,
-                }}
-              >
-                国内大手デジタル広告代理店でアカウントプランナーを務めた後、グローバル大手IT企業で広告事業のアカウントストラテジスト（年間40億円超のポートフォリオ運用）。その後、国内大手IT企業の経営企画に転じ、300億円規模のエンタメ領域の事業管理を統括。事業計画・投資評価・中期戦略まで、経営判断の中枢で意思決定を支援。
-              </p>
-              <p
-                style={{
-                  color: "#4B5563",
-                  fontSize: 15,
-                  lineHeight: 1.9,
-                  marginBottom: 24,
-                }}
-              >
-                2021年、ミックスナッツ株式会社を創業。AI-firstファームを率い、戦略・AI・マーケティングの統合提供を牽引。早稲田大学大学院経営管理研究科（MBA）修了。
-              </p>
-              <Link href="/team/ceo" className="btn-dark">
-                詳細プロフィールを見る →
+            <div className="v6-thesis-answer v6-about-answer">
+              <p className="v6-jp-heading"><span className="v6-accent">“ミックス”</span>で、<br />事業の未来に必然性を。</p>
+              <p>3つを断絶させず、有機的に繋ぐ仕組みをクライアントの事業に実装する。それが私たちのミッションです。</p>
+              <p>たまたまではなく、意図して成功させる。日本の事業成長に“再現性”を持ち込みます。</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="v6-scene v6-paper-scene v6-about-values" data-v6-scene="values" aria-labelledby="about-values">
+          <div className="v6-scene-inner">
+            <header className="v6-about-section-head">
+              <p className="v6-kicker v6-kicker--paper">Our Values · Five Principles</p>
+              <h2 id="about-values" className="v6-jp-heading">私たちの<br />行動原則。</h2>
+              <p>多様な才能が同じ方向を向くための5つの指針。日々の判断と振る舞いの中に埋め込んでいます。</p>
+            </header>
+            <div className="v6-about-value-list">
+              {values.map(([number, title, description]) => (
+                <article key={number} className="v6-about-value v6-proof-item">
+                  <div className="v6-proof-shutter" aria-hidden="true" />
+                  <span className="v6-en-display">{number}</span>
+                  <h3 className="v6-en-display">{title}</h3>
+                  <p>{description}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="v6-scene v6-paper-scene v6-about-people" data-v6-scene="people" aria-labelledby="about-people">
+          <div className="v6-scene-inner">
+            <header className="v6-about-section-head v6-about-section-head--wide">
+              <p className="v6-kicker v6-kicker--paper">Our People · One Team</p>
+              <h2 id="about-people" className="v6-jp-heading">多様な才能の<br /><span className="v6-accent">“ミックス”。</span></h2>
+              <p>代表が経験してきたデジタル広告代理店、グローバルIT企業の広告事業、国内大手IT企業の経営企画・FP&amp;A。その実務知に、100体超のAIエージェント組織を支援要素として組み込み、案件ごとに必要な専門パートナーと、ひとつのチームで掛け合わせます。</p>
+            </header>
+
+            <article className="v6-about-ceo v6-insight">
+              <Link href="/team/ceo" className="v6-about-monogram" aria-label="石井 希実のプロフィールを見る">
+                <span className="v6-en-display">N<span>.</span>I<span>.</span></span>
+                <small>Portrait / 001</small>
               </Link>
+              <div className="v6-about-ceo-copy">
+                <p className="v6-kicker v6-kicker--paper">Founder &amp; CEO</p>
+                <h3 className="v6-jp-heading">石井 希実 <span>Nozomi Ishii</span></h3>
+                <p>国内大手デジタル広告代理店で金融・不動産・旅行業界の大手企業を担当し、チームマネージャーとしてPL責任を担う。グローバル大手IT企業では広告事業のアカウントストラテジストとして大手企業約50社のデジタル戦略を支援。国内大手IT企業の経営企画を経て、2021年にmixednutsを創業。早稲田大学大学院 経営管理研究科 修了（MBA）。</p>
+                <Link href="/team/ceo" className="v6-about-text-link">Read full profile <span aria-hidden="true">↗</span></Link>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section className="v6-scene v6-about-facts" data-v6-scene="facts" aria-labelledby="about-facts">
+          <div className="v6-scene-inner v6-about-facts-inner">
+            <header>
+              <p className="v6-kicker">Company Information</p>
+              <h2 id="about-facts" className="v6-en-display">Since 2021<br /><span>· Tokyo</span></h2>
+            </header>
+            <div className="v6-about-fact-list">
+              {facts.map(([number, label, value, note]) => (
+                <div key={number} className="v6-about-fact v6-index-row">
+                  <span className="v6-index-no">{number}</span>
+                  <span>{label}</span>
+                  <strong>{value}</strong>
+                  <span>{note}</span>
+                </div>
+              ))}
             </div>
           </div>
+        </section>
 
-          <div style={{ textAlign: "center", marginTop: 64 }}>
-            <Link href="/team" className="btn-dark">
-              メンバー一覧を見る →
-            </Link>
+        <section className="v6-scene v6-end" data-v6-scene="end" aria-labelledby="about-end">
+          <div className="v6-scene-inner v6-end-inner">
+            <p className="v6-kicker">End Credits · Next Chapter</p>
+            <div>
+              <h2 id="about-end" className="v6-en-display v6-end-title">WRITE THE<br /><span className="v6-accent">NEXT.</span></h2>
+              <p className="v6-end-copy">一緒に、事業の次の章を書き始めませんか。<br />60分で課題を伺い、最適なアプローチを提案します。</p>
+              <Link href="/contact" className="v6-button v6-button--paper">Start a Conversation</Link>
+            </div>
           </div>
-        </div>
-      </section>
-
-      {/* Company Info */}
-      <section className="info-section">
-        <div className="info-inner">
-          <span className="section-label">Company Information</span>
-          <h2 className="section-title" style={{ marginBottom: 48 }}>
-            会社概要
-          </h2>
-          <div className="info-grid">
-            <dl className="info-table">
-              <div className="info-row">
-                <dt>Name</dt>
-                <dd>
-                  ミックスナッツ株式会社
-                  <br />
-                  (mixednuts Inc.)
-                </dd>
-              </div>
-              <div className="info-row">
-                <dt>Founded</dt>
-                <dd>2021年4月19日</dd>
-              </div>
-              <div className="info-row">
-                <dt>CEO</dt>
-                <dd>石井 希実</dd>
-              </div>
-              <div className="info-row">
-                <dt>Business</dt>
-                <dd>
-                  戦略コンサルティング事業
-                  <br />
-                  AI実装支援事業
-                  <br />
-                  マーケティング成長支援事業
-                </dd>
-              </div>
-            </dl>
-            <dl className="info-table">
-              <div className="info-row">
-                <dt>Address</dt>
-                <dd>
-                  〒107-0062
-                  <br />
-                  東京都港区南青山3-8-40
-                </dd>
-              </div>
-              <div className="info-row">
-                <dt>Contact</dt>
-                <dd>
-                  <a
-                    href="mailto:hello@mixednuts-inc.com"
-                    style={{
-                      color: "var(--navy)",
-                      textDecoration: "underline",
-                    }}
-                  >
-                    hello@mixednuts-inc.com
-                  </a>
-                </dd>
-              </div>
-              <div className="info-row">
-                <dt>Bank</dt>
-                <dd>
-                  三井住友銀行
-                  <br />
-                  三菱UFJ銀行
-                </dd>
-              </div>
-              <div className="info-row">
-                <dt>Legal Advisor</dt>
-                <dd>弁護士法人クレア法律事務所</dd>
-              </div>
-              <div className="info-row">
-                <dt>Tax Advisor</dt>
-                <dd>関野会計事務所</dd>
-              </div>
-            </dl>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="cta">
-        <div className="cta-inner">
-          <h2>
-            一緒に、事業の次の章を
-            <br />
-            書き始めませんか。
-          </h2>
-          <p style={{ wordBreak: "keep-all", overflowWrap: "break-word" }}>
-            60 分で貴社の課題を聞き、
-            <br />
-            最適なアプローチを提案します。
-          </p>
-          <Link href="/contact" className="btn-primary">
-            初回 60 分、無料でヒアリングする →
-          </Link>
-        </div>
-      </section>
-    </>
+        </section>
+      </main>
+    </div>
   );
 }
