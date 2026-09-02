@@ -2,6 +2,7 @@ import { chromium } from "playwright";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
+import sharp from "sharp";
 
 function readArgs(argv) {
   const args = {
@@ -122,6 +123,25 @@ const initialMetrics = await page.evaluate(() => ({
 }));
 
 const stem = `${args.width}${args.reducedMotion ? "-reduced" : ""}`;
+const contrastSamples = [];
+
+function channelToLinear(channel) {
+  const value = channel / 255;
+  return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+}
+
+function luminance([red, green, blue]) {
+  return 0.2126 * channelToLinear(red) + 0.7152 * channelToLinear(green) + 0.0722 * channelToLinear(blue);
+}
+
+function contrastRatio(foreground, background) {
+  const foregroundLuminance = luminance(foreground);
+  const backgroundLuminance = luminance(background);
+  const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+  const darker = Math.min(foregroundLuminance, backgroundLuminance);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
 for (const fraction of args.scrolls) {
   await page.evaluate((scrollFraction) => {
     const maximum = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
@@ -129,10 +149,73 @@ for (const fraction of args.scrolls) {
   }, fraction);
   await page.waitForTimeout(1_400);
   const label = String(Math.round(fraction * 100)).padStart(3, "0");
-  await page.screenshot({
+  const contrastTargets = await page.evaluate(() => {
+    const parseColor = (value) => {
+      const match = value.match(/rgba?\(([^)]+)\)/);
+      if (!match) return null;
+      const parts = match[1].split(/[ ,/]+/).filter(Boolean).map(Number);
+      return { rgb: parts.slice(0, 3), alpha: Number.isFinite(parts[3]) ? parts[3] : 1 };
+    };
+    const targets = [...document.querySelectorAll("[data-v6-contrast]")]
+      .map((element, index) => {
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        const color = parseColor(style.color);
+        const visible = rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth && Number(style.opacity) >= 0.5 && style.visibility !== "hidden";
+        if (!visible || !color) return null;
+        const tracked = [element, ...element.querySelectorAll("*")];
+        for (const [trackedIndex, trackedElement] of tracked.entries()) {
+          trackedElement.dataset.v6AuditStyle = trackedElement.getAttribute("style") ?? "__none__";
+          trackedElement.dataset.v6AuditNode = `${index}-${trackedIndex}`;
+          trackedElement.style.setProperty("color", "transparent", "important");
+          trackedElement.style.setProperty("text-shadow", "none", "important");
+        }
+        return {
+          text: element.textContent?.replace(/\s+/g, " ").trim().slice(0, 100),
+          kind: element.dataset.v6Contrast,
+          threshold: element.dataset.v6Contrast === "body" ? 4.5 : 3,
+          x: Math.min(innerWidth - 1, Math.max(0, Math.round(rect.left + rect.width / 2))),
+          y: Math.min(innerHeight - 1, Math.max(0, Math.round(rect.top + rect.height / 2))),
+          color,
+        };
+      })
+      .filter(Boolean);
+    return targets;
+  });
+  const screenshotBuffer = await page.screenshot({
     path: path.join(args.out, `${stem}-scroll-${label}.png`),
     fullPage: args.full,
   });
+  if (contrastTargets.length && !args.full) {
+    const backgroundBuffer = await page.screenshot();
+    const { data, info } = await sharp(backgroundBuffer).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    for (const target of contrastTargets) {
+      const pixelOffset = (target.y * info.width + target.x) * info.channels;
+      const background = [data[pixelOffset], data[pixelOffset + 1], data[pixelOffset + 2]];
+      const foreground = target.color.rgb.map((channel, index) => Math.round(channel * target.color.alpha + background[index] * (1 - target.color.alpha)));
+      const ratio = contrastRatio(foreground, background);
+      contrastSamples.push({
+        fraction,
+        text: target.text,
+        kind: target.kind,
+        foreground,
+        background,
+        ratio: Number(ratio.toFixed(2)),
+        threshold: target.threshold,
+        pass: ratio >= target.threshold,
+      });
+    }
+  }
+  await page.evaluate(() => {
+    for (const element of document.querySelectorAll("[data-v6-audit-style]")) {
+      const previousStyle = element.dataset.v6AuditStyle;
+      if (previousStyle === "__none__") element.removeAttribute("style");
+      else element.setAttribute("style", previousStyle);
+      delete element.dataset.v6AuditStyle;
+      delete element.dataset.v6AuditNode;
+    }
+  });
+  void screenshotBuffer;
 }
 
 const audit = await page.evaluate(() => {
@@ -173,6 +256,10 @@ const audit = await page.evaluate(() => {
 });
 audit.lcpMs = initialMetrics.lcpMs;
 audit.cls = initialMetrics.cls;
+audit.contrast = {
+  samples: contrastSamples,
+  failures: contrastSamples.filter((sample) => !sample.pass),
+};
 
 console.log(JSON.stringify({
   url: args.url,
@@ -184,3 +271,4 @@ console.log(JSON.stringify({
 }, null, 2));
 
 await browser.close();
+if (audit.contrast.failures.length) process.exitCode = 1;
