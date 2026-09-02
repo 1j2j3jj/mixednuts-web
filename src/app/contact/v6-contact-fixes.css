@@ -1,0 +1,1 @@
+@media(max-width:900px){.contact-v6__hero{grid-template-columns:minmax(0,1fr)}.contact-v6__hero>*{min-width:0}.contact-v6__title{font-size:clamp(48px,14vw,76px)}}body:has(.contact-v6) .nav[data-theme="light"]{background:var(--stone)}

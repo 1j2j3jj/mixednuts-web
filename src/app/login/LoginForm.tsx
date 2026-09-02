@@ -126,94 +126,48 @@ export default function LoginForm() {
   const anyOAuthLoading = googleLoading || msLoading;
 
   return (
-    <div className="w-full max-w-sm space-y-6">
-      {/* Brand header */}
-      <div className="text-center">
-        <Link href="/" className="inline-flex items-center gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-mark.png" alt="mixednuts Inc." className="h-8 w-auto" />
-          <span className="text-base font-semibold tracking-tight text-neutral-900">mixednuts</span>
-        </Link>
-        <h1 className="mt-4 text-xl font-semibold tracking-tight text-neutral-900">
-          Client Dashboard
-        </h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          サインインしてダッシュボードを開く
-        </p>
+    <div className="login-form-v6">
+      <div className="login-form-v6__head">
+        <Link href="/" className="login-form-v6__brand">mixednuts</Link>
+        <h2>Client Dashboard</h2>
+        <p>サインインしてダッシュボードを開く</p>
       </div>
 
-      {/* Invitation hint banner */}
       {invitationHint && (
-        <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-          <span className="font-medium">招待を受け取りました。</span>{" "}
-          <span className="font-mono text-xs">{invitationHint}</span>{" "}
+        <div className="login-form-v6__notice">
+          <strong>招待を受け取りました。</strong>{" "}<code>{invitationHint}</code>{" "}
           として招待されたアカウントでサインインしてください。
         </div>
       )}
 
-      {/* Error alert */}
       {error && (
-        <div
-          role="alert"
-          className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900"
-        >
-          {error}
-        </div>
+        <div role="alert" className="login-form-v6__error">{error}</div>
       )}
 
-      <div className="space-y-3 rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
-        {/* Primary CTA: Google */}
+      <div className="login-form-v6__fields">
         {googleEnabled ? (
-          <button
-            type="button"
-            onClick={onGoogle}
-            disabled={anyOAuthLoading}
-            className="flex w-full items-center justify-center gap-3 rounded-md bg-neutral-900 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <GoogleIcon className="h-5 w-5" />
+          <button type="button" onClick={onGoogle} disabled={anyOAuthLoading} className="login-form-v6__oauth login-form-v6__oauth--primary">
+            <GoogleIcon />
             {googleLoading ? "リダイレクト中…" : "Continue with Google"}
           </button>
         ) : (
-          <button
-            type="button"
-            disabled
-            title="準備中 — Google OAuth Client ID/Secret を設定すると有効化されます"
-            className="flex w-full items-center justify-center gap-3 rounded-md border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm font-semibold text-neutral-400 disabled:cursor-not-allowed"
-          >
-            <GoogleIcon className="h-5 w-5 opacity-50" />
+          <button type="button" disabled title="準備中 — Google OAuth Client ID/Secret を設定すると有効化されます" className="login-form-v6__oauth">
+            <GoogleIcon />
             Continue with Google（設定中）
           </button>
         )}
 
-        {/* Secondary CTA: Microsoft */}
         {msEnabled ? (
-          <button
-            type="button"
-            onClick={onMicrosoft}
-            disabled={anyOAuthLoading}
-            className="flex w-full items-center justify-center gap-3 rounded-md border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <MicrosoftIcon className="h-4 w-4" />
+          <button type="button" onClick={onMicrosoft} disabled={anyOAuthLoading} className="login-form-v6__oauth">
+            <MicrosoftIcon />
             {msLoading ? "リダイレクト中…" : "Continue with Microsoft"}
           </button>
         ) : null}
 
-        {/* Divider */}
-        <div className="flex items-center gap-3 py-1 text-xs text-neutral-400">
-          <div className="h-px flex-1 bg-neutral-200" />
-          <span>または</span>
-          <div className="h-px flex-1 bg-neutral-200" />
-        </div>
+        <div className="login-form-v6__divider"><span>または</span></div>
 
-        {/* Email + Password fallback */}
-        <form onSubmit={onSubmit} className="space-y-3">
-          <div className="space-y-1">
-            <label
-              htmlFor="email"
-              className="block text-xs font-medium uppercase tracking-wider text-neutral-500"
-            >
-              メールアドレス / ID
-            </label>
+        <form onSubmit={onSubmit} className="login-form-v6__email-form">
+          <div><label htmlFor="email">メールアドレス / ID</label>
             <input
               id="email"
               name="email"
@@ -222,19 +176,10 @@ export default function LoginForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900"
               placeholder="you@example.com"
             />
           </div>
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <label
-                htmlFor="pass"
-                className="block text-xs font-medium uppercase tracking-wider text-neutral-500"
-              >
-                パスワード
-              </label>
-            </div>
+          <div><label htmlFor="pass">パスワード</label>
             <input
               id="pass"
               name="pass"
@@ -243,27 +188,16 @@ export default function LoginForm() {
               required
               value={pass}
               onChange={(e) => setPass(e.target.value)}
-              className="block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900"
               placeholder="••••••••"
             />
           </div>
-          <button
-            type="submit"
-            disabled={loading || anyOAuthLoading}
-            className="w-full rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
-          >
+          <button type="submit" disabled={loading || anyOAuthLoading}>
             {loading ? "サインイン中…" : "Sign in"}
           </button>
         </form>
       </div>
 
-      <p className="text-center text-xs text-neutral-500">
-        アクセスに関するお問い合わせは{" "}
-        <Link href="/contact" className="underline hover:text-neutral-900">
-          Contact
-        </Link>{" "}
-        までご連絡ください。
-      </p>
+      <p className="login-form-v6__help">アクセスに関するお問い合わせは <Link href="/contact">Contact</Link> までご連絡ください。</p>
     </div>
   );
 }

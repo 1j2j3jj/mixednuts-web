@@ -75,12 +75,10 @@ export default function ContactForm() {
 
   if (state.status === "success") {
     return (
-      <div style={{ textAlign: "center", padding: "48px 24px" }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
-        <h3 style={{ fontFamily: "var(--font-serif-jp)", fontSize: 22, color: "var(--navy)", marginBottom: 12 }}>
-          メッセージを受け取りました。
-        </h3>
-        <p style={{ color: "#4B5563", fontSize: 14, lineHeight: 1.8 }}>
+      <div className="contact-form-success" role="status">
+        <span aria-hidden="true">Received / 01</span>
+        <h3>メッセージを受け取りました。</h3>
+        <p>
           2 営業日以内に hello@mixednuts-inc.com から返信します。
         </p>
       </div>
@@ -90,7 +88,7 @@ export default function ContactForm() {
   const pending = state.status === "submitting";
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className="contact-form-v6">
       <input type="text" name="_honey" style={{ display: "none" }} tabIndex={-1} autoComplete="off" />
 
       <div className="form-group">
@@ -140,15 +138,15 @@ export default function ContactForm() {
         <label>ご相談内容 <span className="req">*</span></label>
         <textarea name="message" placeholder="現状の課題、達成したい状態、時間軸などをお聞かせください。" required />
       </div>
-      <div className="form-group" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <input type="checkbox" required style={{ width: "auto" }} id="privacy" />
-        <label htmlFor="privacy" style={{ margin: 0, fontSize: 12, color: "#4B5563", cursor: "pointer" }}>
-          <Link href="/privacy" style={{ color: "var(--navy)", textDecoration: "underline" }}>プライバシーポリシー</Link>に同意する
+      <div className="form-group form-consent">
+        <input type="checkbox" required id="privacy" />
+        <label htmlFor="privacy">
+          <Link href="/privacy">プライバシーポリシー</Link>に同意する
         </label>
       </div>
 
       {state.status === "error" && (
-        <div style={{ padding: "12px 16px", background: "#FEF2F2", color: "#991B1B", borderRadius: 8, fontSize: 13, marginBottom: 16 }}>
+        <div className="form-error" role="alert">
           {state.message}
         </div>
       )}
