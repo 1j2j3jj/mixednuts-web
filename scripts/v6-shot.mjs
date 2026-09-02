@@ -13,6 +13,7 @@ function readArgs(argv) {
     reducedMotion: false,
     showCookieBanner: false,
     settle: 1400,
+    multiProcess: false,
     full: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -25,6 +26,7 @@ function readArgs(argv) {
     else if (value === "--full") args.full = true;
     else if (value === "--show-cookie-banner") args.showCookieBanner = true;
     else if (value === "--settle") args.settle = Number(argv[++index]);
+    else if (value === "--multi-process") args.multiProcess = true;
   }
   if (!Number.isFinite(args.width) || args.width < 320) throw new Error("--width must be at least 320");
   if (args.scrolls.some((fraction) => !Number.isFinite(fraction) || fraction < 0 || fraction > 1)) {
@@ -70,7 +72,9 @@ async function resolveChromiumExecutable() {
 const browser = await chromium.launch({
   headless: true,
   executablePath: await resolveChromiumExecutable(),
-  args: ["--single-process", "--no-zygote"],
+  // --single-process keeps the sandboxed (Codex) launch working but starves
+  // requestAnimationFrame under WebGL load; pass --multi-process for motion-heavy pages.
+  args: args.multiProcess ? [] : ["--single-process", "--no-zygote"],
 });
 const context = await browser.newContext({
   viewport: { width: args.width, height },
