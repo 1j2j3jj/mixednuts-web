@@ -12,7 +12,7 @@ export const services: Service[] = [
     slug: "ai",
     label: "AI Solutions",
     tagline: "AIエージェント・自動化で業務を再設計",
-    description: "LLMを活用したエージェント設計、RAG構築、業務自動化。100体超のAIエージェントを運用してきた実装ノウハウを、クライアントの業務に移植する。",
+    description: "LLMを活用したエージェント設計、RAG構築、業務自動化。120体超のAIエージェントを運用してきた実装ノウハウを、クライアントの業務に移植する。",
     image: "/images/generated/ai_hero.jpg",
     capabilities: [
       "AIエージェント設計・実装",
@@ -27,7 +27,7 @@ export const services: Service[] = [
     slug: "strategy",
     label: "Strategy",
     tagline: "事業計画・投資評価・中期戦略",
-    description: "事業会社の経営企画・FP&A と、広告・グロースの最前線を経験したメンバーが、経営判断の中枢で意思決定を支援。FP&A、M&A、新規事業、組織設計まで一気通貫。",
+    description: "戦略ファーム出身者と事業会社経営企画経験者が、経営判断の中枢で意思決定を支援。FP&A、M&A、新規事業、組織設計まで一気通貫。",
     image: "/images/generated/strategy_hero.jpg",
     capabilities: [
       "中期経営計画策定",

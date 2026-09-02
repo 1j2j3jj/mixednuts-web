@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import SystemMotionV6 from "../SystemMotionV6";
-import "../system-v6.css";
 import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
 import { buildPageOg } from "@/lib/site-metadata";
 
@@ -27,17 +25,45 @@ const breadcrumb = buildBreadcrumbSchema([
 
 export default function PrivacyPage() {
   return (
-    <div className="mn-v6 mn-system-v6 document-v6">
+    <>
       <JsonLd data={breadcrumb} />
-      <SystemMotionV6 />
+      <style>{`
+        .legal-hero { background: linear-gradient(180deg, #F9FAFB 0%, #fff 100%); padding: 140px 32px 64px; }
+        .legal-hero-inner { max-width: 900px; margin: 0 auto; }
+        .legal-hero h1 { font-family: var(--font-serif-jp); font-size: clamp(32px, 5vw, 48px); font-weight: 700; color: var(--navy); margin-bottom: 16px; line-height: 1.3; letter-spacing: -0.01em; }
+        .legal-hero .lead { color: #4B5563; font-size: 15px; line-height: 1.9; }
+        .legal-meta { display: flex; gap: 24px; flex-wrap: wrap; padding: 20px 0; border-top: 1px solid #E5E7EB; border-bottom: 1px solid #E5E7EB; margin-top: 32px; font-size: 12px; color: #9CA3AF; letter-spacing: 0.05em; }
+        .legal-body { padding: 80px 32px 120px; background: #fff; }
+        .legal-body-inner { max-width: 900px; margin: 0 auto; }
+        .toc { background: #F9FAFB; border-radius: 12px; padding: 32px; margin-bottom: 64px; border: 1px solid #E5E7EB; }
+        .toc h3 { font-size: 11px; color: #9CA3AF; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 700; margin-bottom: 16px; }
+        .toc ol { list-style: none; counter-reset: toc; padding: 0; }
+        .toc ol li { counter-increment: toc; padding: 6px 0; font-size: 14px; }
+        .toc ol li::before { content: counter(toc, decimal-leading-zero) " — "; color: var(--cyan); font-weight: 700; }
+        .toc ol li a { color: var(--navy); text-decoration: none; transition: color 0.2s; }
+        .toc ol li a:hover { color: var(--cyan); }
+        .legal-body h2 { font-family: var(--font-serif-jp); font-size: 24px; line-height: 1.4; font-weight: 700; color: var(--navy); margin: 56px 0 20px; padding-bottom: 12px; border-bottom: 2px solid var(--navy); scroll-margin-top: 100px; }
+        .legal-body h3 { font-family: var(--font-serif-jp); font-size: 18px; font-weight: 700; color: var(--navy); margin: 32px 0 12px; }
+        .legal-body p { font-size: 15px; line-height: 1.95; color: #1A1A1A; margin-bottom: 16px; }
+        .legal-body ul, .legal-body ol.numbered { margin: 12px 0 24px 24px; }
+        .legal-body ul li, .legal-body ol.numbered li { font-size: 15px; line-height: 1.95; color: #1A1A1A; margin-bottom: 8px; }
+        .info-box { background: #F9FAFB; border: 1px solid var(--border, #E5E7EB); padding: 20px 24px; border-radius: 4px; margin: 24px 0; font-size: 14px; line-height: 1.9; }
+        .info-box strong { color: var(--navy); }
+        .legal-body table { width: 100%; border-collapse: collapse; margin: 24px 0; border: 1px solid #E5E7EB; border-radius: 8px; overflow: hidden; }
+        .legal-body table th, .legal-body table td { padding: 14px 16px; border: 1px solid #E5E7EB; font-size: 14px; text-align: left; line-height: 1.7; }
+        .legal-body table th { background: #F9FAFB; color: var(--navy); font-weight: 700; }
+        .breadcrumb-priv { color: #9CA3AF; font-size: 12px; letter-spacing: 0.05em; margin-bottom: 20px; }
+        .breadcrumb-priv a { color: inherit; text-decoration: none; }
+        .breadcrumb-priv a:hover { color: var(--cyan); }
+      `}</style>
 
-      <section className="v6-scene system-hero system-hero--compact document-hero">
-        <div className="v6-scene-inner system-hero-inner">
-          <div className="system-breadcrumb">
+      <section className="legal-hero">
+        <div className="legal-hero-inner">
+          <div className="breadcrumb-priv">
             <Link href="/">Home</Link> / プライバシーポリシー
           </div>
-          <h1 className="v6-jp-heading system-title system-title--jp">プライバシーポリシー</h1>
-          <p className="system-lead">
+          <h1>プライバシーポリシー</h1>
+          <p className="lead">
             ミックスナッツ株式会社（以下「当社」）は、お客様の個人情報を適切に取り扱うことの社会的責任を認識し、個人情報保護法およびその他の関連法令を遵守するとともに、以下の方針に従って個人情報を適切に取り扱います。
           </p>
           <div className="legal-meta">
@@ -48,8 +74,8 @@ export default function PrivacyPage() {
         </div>
       </section>
 
-      <section className="v6-scene v6-paper-scene system-paper">
-        <div className="v6-scene-inner system-paper-inner document-body">
+      <section className="legal-body">
+        <div className="legal-body-inner">
           <div className="toc">
             <h3>目次</h3>
             <ol>
@@ -550,6 +576,6 @@ export default function PrivacyPage() {
           </p>
         </div>
       </section>
-    </div>
+    </>
   );
 }

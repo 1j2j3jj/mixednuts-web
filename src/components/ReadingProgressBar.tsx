@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react";
 
+/**
+ * Thin cyan progress bar fixed at the top of the viewport.
+ * Width tracks scroll position (0-100%) relative to <article> height.
+ */
 export function ReadingProgressBar() {
   const [progress, setProgress] = useState(0);
 
@@ -36,7 +40,7 @@ export function ReadingProgressBar() {
         top: 0,
         left: 0,
         right: 0,
-        height: 1,
+        height: 3,
         background: "transparent",
         zIndex: 200,
         pointerEvents: "none",
@@ -46,7 +50,7 @@ export function ReadingProgressBar() {
         style={{
           width: `${progress}%`,
           height: "100%",
-          background: "var(--vermilion, #E4471F)",
+          background: "var(--cyan, #00D9FF)",
           transition: "width 80ms linear",
         }}
       />

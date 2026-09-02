@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { posts } from "#site/content";
 import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
 import { buildPageOg } from "@/lib/site-metadata";
-import SignalMotion from "./SignalMotion";
-import "./v6-insights.css";
 
+// "| mixednuts inc." を除去 — layout の title template "%s | mixednuts" と重複し
+// "... | mixednuts inc. | mixednuts" と二重表示になっていた (built HTML 実測)
 const pageTitle = "Insights — Strategy × AI × Marketing の最新知見";
 const pageDescription =
   "戦略・AI・マーケティング・ファイナンスの実践ノウハウを発信。AI-firstコンサルティングファームの知見を公開しています。";
@@ -22,10 +21,21 @@ export const metadata: Metadata = {
   }),
 };
 
+const categoryColorMap: Record<string, string> = {
+  AI: "art-ai",
+  STRATEGY: "art-strategy",
+  MARKETING: "art-marketing",
+  FINANCE: "art-finance",
+  ENGINEERING: "art-ai",
+  "SEO / AIO": "art-marketing",
+  ORGANIZATION: "art-strategy",
+};
+
 type ListItem = {
   slug: string;
   href: string | null;
   category: string;
+  colorClass: string;
   date: string;
   readTime: string;
   title: string;
@@ -36,12 +46,13 @@ type ListItem = {
   thumbLabel?: string;
 };
 
-type UpcomingItem = Omit<ListItem, "date" | "href" | "hero" | "thumbNumber" | "thumbLabel">;
-
-const upcomingArticles: UpcomingItem[] = [
+const upcomingArticles: ListItem[] = [
   {
     slug: "fpna-ai-monthly-close",
+    href: null,
     category: "AI",
+    colorClass: "art-ai",
+    date: "2026.03.18",
     readTime: "8分",
     title: "FP&A × AI 自動化: 月次締め工数を70%削減した実装パターン",
     excerpt:
@@ -50,7 +61,10 @@ const upcomingArticles: UpcomingItem[] = [
   },
   {
     slug: "ma-dd-ai",
+    href: null,
     category: "STRATEGY",
+    colorClass: "art-strategy",
+    date: "2026.03.05",
     readTime: "10分",
     title: "M&A デューデリジェンスをAIで加速する: 財務DDの新アプローチ",
     excerpt:
@@ -59,34 +73,67 @@ const upcomingArticles: UpcomingItem[] = [
   },
   {
     slug: "prompt-engineering-guide",
+    href: null,
     category: "MARKETING",
+    colorClass: "art-marketing",
+    date: "2026.02.26",
     readTime: "7分",
     title: "プロンプトエンジニアリングの実務ガイド: 再現性のある出力の作り方",
     excerpt:
       "「なんとなく動く」から「必ず動く」へ。本番投入できるプロンプトの設計原則と、評価フレームワークの構築方法を解説します。",
     author: "石井 希実",
   },
+  {
+    slug: "google-ads-ai-cpa",
+    href: null,
+    category: "MARKETING",
+    colorClass: "art-marketing",
+    date: "2026.02.14",
+    readTime: "9分",
+    title:
+      "Google Ads × AI: 自動入札とAIクリエイティブで CPA を30%改善した方法",
+    excerpt:
+      "スマート入札の誤解と正しい使い方。AIクリエイティブ生成ツールの選定基準、A/Bテスト設計まで、実績ベースで解説。",
+    author: "石井 希実",
+  },
+  {
+    slug: "diversity-mix-ops",
+    href: null,
+    category: "FINANCE",
+    colorClass: "art-finance",
+    date: "2026.02.12",
+    readTime: "6分",
+    title: '多様性を成果に変える: 6つのバックグラウンドを"ミックス"する運営術',
+    excerpt:
+      "広告代理店・戦略ファーム・ビッグテック・クリエイター — 異なる専門性をどうまとめるか。チーム設計の実践から学んだ知見。",
+    author: "石井 希実",
+  },
 ];
 
 const publishedArticles: ListItem[] = [...posts]
-  .filter((post) => !post.hidden)
+  .filter((p) => !p.hidden)
   .sort((a, b) => (a.date < b.date ? 1 : -1))
-  .map((post) => ({
-    slug: post.slug,
-    href: post.permalink,
-    category: post.category,
-    date: post.date.slice(0, 10).replace(/-/g, "."),
-    readTime: post.readTime,
-    title: post.title,
-    excerpt: post.excerpt,
-    author: post.author,
-    hero: post.hero,
-    thumbNumber: post.thumbNumber,
-    thumbLabel: post.thumbLabel,
+  .map((p) => ({
+    slug: p.slug,
+    href: p.permalink,
+    category: p.category,
+    colorClass: categoryColorMap[p.category] ?? "art-ai",
+    date: p.date.slice(0, 10).replace(/-/g, "."),
+    readTime: p.readTime,
+    title: p.title,
+    excerpt: p.excerpt,
+    author: p.author,
+    hero: p.hero,
+    thumbNumber: p.thumbNumber,
+    thumbLabel: p.thumbLabel,
   }));
 
-const categories = Array.from(new Set(publishedArticles.map((post) => post.category)));
+// upcomingArticles は当面非表示（16 本の published 記事が揃ったため）
+const articles: ListItem[] = [...publishedArticles];
+void upcomingArticles; // 将来の予告枠として温存
 
+// CollectionPage → mainEntity ItemList → ListItem.item = 記事 canonical URL の3層。
+// ItemList の URL は必ず記事詳細の canonical (フィルタ URL / 画像 URL 禁止)
 const collectionPageSchema = {
   "@context": "https://schema.org",
   "@type": "CollectionPage",
@@ -98,11 +145,11 @@ const collectionPageSchema = {
   isPartOf: { "@id": "https://mixednuts-inc.com/#website" },
   mainEntity: {
     "@type": "ItemList",
-    itemListElement: publishedArticles.map((article, index) => ({
+    itemListElement: publishedArticles.map((a, i) => ({
       "@type": "ListItem",
-      position: index + 1,
-      url: `https://mixednuts-inc.com${article.href}`,
-      name: article.title,
+      position: i + 1,
+      url: `https://mixednuts-inc.com${a.href}`,
+      name: a.title,
     })),
   },
 };
@@ -113,125 +160,380 @@ const breadcrumb = buildBreadcrumbSchema([
 ]);
 
 export default function InsightsPage() {
-  const featured = publishedArticles[0];
-  const rest = publishedArticles.slice(1);
+  const featured = articles[0];
+  const rest = articles.slice(1);
 
   return (
-    <div className="mn-v6 mn-v6-insights">
+    <>
       <JsonLd data={collectionPageSchema} />
       <JsonLd data={breadcrumb} />
-      <SignalMotion />
+      <style>{`
+        .filters {
+          background: var(--off-white);
+          padding: 32px 32px 0;
+          position: sticky; top: 70px; z-index: 50;
+          border-bottom: 1px solid rgba(10,10,10,0.08);
+        }
+        .filters-inner { max-width: 1280px; margin: 0 auto; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; padding-bottom: 24px; }
+        .filter-label { font-family: var(--font-sans-en); font-size: 11px; color: var(--gray-400); letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; margin-right: 8px; }
+        .filter-btn { padding: 8px 16px; background: var(--off-white); border: 1px solid rgba(10,10,10,0.15); border-radius: 999px; font-size: 13px; color: var(--gray-600); transition: all 0.2s; text-decoration: none; }
+        .filter-btn:hover, .filter-btn.active { background: var(--charcoal); color: var(--off-white); border-color: var(--charcoal); }
 
-      <main>
-        <section className="v6-scene v6-hero signal-hero" data-v6-scene="signal-open" aria-labelledby="signal-title">
-          <div className="v6-scene-inner signal-hero-inner">
-            <div className="signal-hero-copy v6-hero-title-wrap">
-              <p className="v6-kicker v6-hero-overline">Insights · mixednuts Inc.</p>
-              <h1 id="signal-title" className="v6-en-display signal-hero-title">
-                <span className="v6-hero-word">SIG</span>
-                <span className="v6-hero-word"><em>NAL.</em></span>
-              </h1>
-            </div>
-            <div className="signal-hero-bottom v6-hero-bottom">
-              <p className="signal-hero-lead v6-hero-lead">
-                戦略・AI・マーケティング・ファイナンスの実践から得た、<br />
-                次の意思決定につながる知見を公開します。
-              </p>
-              <p className="signal-hero-register v6-hero-register">
-                Field notes · Research · Practice<br />Tokyo · 2026
-              </p>
-            </div>
+        .featured { background: var(--off-white); padding: 64px 32px; }
+        .featured-inner { max-width: 1280px; margin: 0 auto; }
+        .featured-card {
+          display: grid; grid-template-columns: 1fr 1fr; gap: 48px;
+          background: var(--off-white-alt); border-radius: 24px; overflow: hidden;
+          transition: all 0.3s; text-decoration: none; color: inherit;
+        }
+        .featured-card:hover { transform: translateY(-4px); box-shadow: 0 24px 48px rgba(10,10,10,0.08); }
+        .featured-visual {
+          aspect-ratio: 4/3;
+          background: linear-gradient(135deg, var(--charcoal-soft) 0%, var(--charcoal) 100%);
+          position: relative; display: flex; align-items: center; justify-content: center;
+          color: rgba(255,255,255,0.4); font-size: 64px;
+        }
+        .featured-tag {
+          position: absolute; top: 20px; left: 20px;
+          background: var(--off-white); color: var(--charcoal);
+          padding: 6px 14px; border-radius: 4px;
+          font-size: 11px; font-weight: 700; letter-spacing: 0.1em; font-family: var(--font-sans-en);
+        }
+        .featured-body { padding: 48px; display: flex; flex-direction: column; justify-content: center; }
+        .featured-meta { display: flex; gap: 16px; font-size: 12px; color: var(--gray-400); font-family: var(--font-sans-en); margin-bottom: 16px; letter-spacing: 0.05em; }
+        .featured-body h2 { font-family: 'Noto Sans JP', sans-serif; font-size: 30px; line-height: 1.4; font-weight: 900; margin-bottom: 20px; color: var(--charcoal); word-break: keep-all; }
+        .featured-body p { color: var(--gray-600); font-size: 14px; line-height: 1.9; margin-bottom: 32px; }
+        .featured-author { display: flex; align-items: center; gap: 12px; }
+        .featured-author-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--charcoal), var(--charcoal-soft)); }
+        .featured-author-name { font-size: 13px; font-weight: 600; color: var(--charcoal); }
+        .featured-author-role { font-size: 11px; color: var(--gray-400); }
+
+        .articles { background: var(--off-white-alt); padding: 64px 32px 120px; }
+        .articles-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 1280px; margin: 0 auto; }
+        .article-card {
+          background: var(--off-white); border: 1px solid rgba(10,10,10,0.08); border-radius: 16px;
+          overflow: hidden; text-decoration: none; color: inherit;
+          transition: all 0.3s; display: flex; flex-direction: column;
+        }
+        .article-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(10,10,10,0.08); border-color: var(--charcoal); }
+        .article-visual {
+          aspect-ratio: 16/9; position: relative;
+          display: flex; align-items: center; justify-content: center;
+          color: rgba(255,255,255,0.3); font-size: 44px;
+        }
+        .art-ai { background: linear-gradient(135deg, var(--charcoal) 0%, var(--charcoal-soft) 100%); border-bottom: 2px solid var(--cyan); }
+        .art-strategy { background: linear-gradient(135deg, var(--charcoal-soft) 0%, var(--charcoal) 100%); border-bottom: 2px solid var(--cyan); }
+        .art-marketing { background: linear-gradient(135deg, var(--charcoal) 0%, #141414 100%); border-bottom: 2px solid var(--cyan); }
+        .art-finance { background: linear-gradient(135deg, var(--charcoal) 0%, var(--charcoal-soft) 100%); border-bottom: 2px solid var(--cyan); }
+        .article-tag-pos {
+          position: absolute; top: 16px; left: 16px;
+          background: var(--off-white); color: var(--charcoal);
+          padding: 4px 10px; border-radius: 4px;
+          font-size: 10px; font-weight: 700; letter-spacing: 0.1em; font-family: var(--font-sans-en);
+        }
+        .thumb-overlay {
+          position: absolute; right: 18px; bottom: 14px;
+          display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+          color: var(--off-white);
+          text-shadow: 0 2px 12px rgba(10,10,10,0.45);
+          pointer-events: none;
+        }
+        .thumb-number {
+          font-family: 'Archivo', 'Noto Sans JP', sans-serif;
+          font-size: clamp(28px, 3.4vw, 44px);
+          font-weight: 900;
+          line-height: 1; letter-spacing: -0.02em;
+          color: var(--cyan, #00D9FF);
+        }
+        .thumb-label {
+          font-family: 'Noto Sans JP', sans-serif;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          color: rgba(255,255,255,0.96);
+          text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+        }
+        .featured-overlay {
+          position: absolute; right: 28px; bottom: 28px;
+          display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+          color: var(--off-white);
+          text-shadow: 0 2px 12px rgba(10,10,10,0.5);
+          pointer-events: none;
+        }
+        .featured-overlay-num {
+          font-family: 'Archivo', 'Noto Sans JP', sans-serif;
+          font-size: clamp(40px, 5.5vw, 72px);
+          font-weight: 900;
+          line-height: 1; letter-spacing: -0.03em;
+          color: var(--cyan, #00D9FF);
+        }
+        .featured-overlay-label {
+          font-family: 'Noto Sans JP', sans-serif;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          color: rgba(255,255,255,0.96);
+          text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+        }
+        .article-body { padding: 24px; flex: 1; display: flex; flex-direction: column; }
+        .article-meta { display: flex; gap: 12px; font-size: 11px; color: var(--gray-400); font-family: var(--font-sans-en); margin-bottom: 10px; }
+        .article-body h3 { font-family: 'Noto Sans JP', sans-serif; font-size: 16px; font-weight: 700; line-height: 1.5; margin-bottom: 12px; color: var(--charcoal); flex: 1; }
+        .article-excerpt { font-size: 12px; color: var(--gray-600); line-height: 1.7; margin-bottom: 16px; }
+        .article-author-line { font-size: 11px; color: var(--gray-400); font-family: var(--font-sans-en); letter-spacing: 0.05em; padding-top: 12px; border-top: 1px solid rgba(10,10,10,0.08); }
+
+        .newsletter {
+          background: var(--charcoal); color: var(--off-white);
+          padding: 120px 32px; position: relative; overflow: hidden;
+        }
+        .newsletter::before {
+          content: ''; position: absolute; inset: 0;
+          background-image: radial-gradient(circle at 30% 50%, rgba(0,217,255,0.15) 0%, transparent 50%);
+        }
+        .newsletter-inner { max-width: 720px; margin: 0 auto; text-align: center; position: relative; z-index: 2; }
+        .newsletter h2 { font-family: 'Noto Sans JP', sans-serif; font-size: clamp(28px, 4vw, 42px); margin-bottom: 20px; color: var(--off-white); line-height: 1.3; word-break: keep-all; }
+        .newsletter p { color: rgba(245,241,232,0.8); font-size: 15px; margin-bottom: 40px; line-height: 1.9; }
+        .newsletter-form { display: flex; gap: 12px; max-width: 480px; margin: 0 auto; flex-wrap: wrap; justify-content: center; }
+        .newsletter-form input { flex: 1; min-width: 200px; padding: 14px 20px; border: 1px solid rgba(245,241,232,0.2); background: rgba(245,241,232,0.05); color: var(--off-white); border-radius: 999px; font-size: 14px; font-family: inherit; }
+        .newsletter-form input::placeholder { color: rgba(245,241,232,0.4); }
+        .newsletter-form button { padding: 14px 28px; background: var(--cyan); color: var(--charcoal); border: none; border-radius: 999px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+        .newsletter-form button:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,217,255,0.4); }
+        .newsletter-disclaimer { font-size: 11px; color: rgba(245,241,232,0.4); margin-top: 16px; }
+
+        @media (max-width: 900px) {
+          .featured-card { grid-template-columns: 1fr; }
+          .articles-grid { grid-template-columns: 1fr; }
+          .filters { position: static; }
+        }
+      `}</style>
+
+      <section className="page-hero">
+        <div className="page-hero-inner">
+          <div className="breadcrumb">
+            <Link href="/">Home</Link> / Insights
           </div>
-        </section>
+          <div className="page-hero-badge">Knowledge</div>
+          <h1>
+            実践から生まれる
+            <br />
+            <span className="accent">知見</span>を届ける。
+          </h1>
+          <p className="lead">
+            戦略・AI・マーケティング・ファイナンスの最前線で得た知見を公開。
+            「使えるノウハウ」だけを、実体験ベースで書いています。
+          </p>
+        </div>
+      </section>
 
-        <section className="v6-scene v6-paper-scene signal-index" aria-labelledby="signal-index-title">
-          <div className="v6-scene-inner">
-            <header className="signal-index-head">
-              <div>
-                <p className="v6-kicker v6-kicker--paper">Editorial Index · Latest first</p>
-                <h2 id="signal-index-title" className="v6-en-display">Ideas in<br /><em>practice.</em></h2>
-              </div>
-              <nav className="signal-filters" aria-label="記事カテゴリー">
-                <Link href="/insights" className="signal-filter is-active" aria-current="page">All</Link>
-                {categories.map((category) => (
-                  <Link key={category} href={`/insights/tag/${encodeURIComponent(category)}`} className="signal-filter">
-                    {category}
-                  </Link>
-                ))}
-              </nav>
-            </header>
+      {/* Category filter - implementation Coming Soon */}
+      <div className="filters" style={{ display: "none" }}>
+        <div className="filters-inner">
+          <span className="filter-label">Filter</span>
+          <span className="filter-btn active">All</span>
+          <span className="filter-btn">AI</span>
+          <span className="filter-btn">Strategy</span>
+          <span className="filter-btn">Marketing</span>
+          <span className="filter-btn">Finance</span>
+          <span className="filter-btn">Organization</span>
+        </div>
+      </div>
 
-            {featured?.href && (
-              <Link href={featured.href} className="signal-lead v6-insight">
-                <div className="signal-lead-visual">
-                  {featured.hero && <Image src={featured.hero} alt="" width={960} height={540} priority sizes="(max-width: 860px) 100vw, 42vw" />}
-                  {featured.thumbNumber && (
-                    <div className="signal-lead-data">
-                      <strong className="v6-en-display signal-lead-number">{featured.thumbNumber}</strong>
-                      {featured.thumbLabel && <span className="signal-lead-label">{featured.thumbLabel}</span>}
+      <section className="featured">
+        <div className="featured-inner">
+          {featured.href ? (
+            <Link href={featured.href} className="featured-card">
+              <FeaturedInner item={featured} />
+            </Link>
+          ) : (
+            <div
+              className="featured-card"
+              style={{ cursor: "default", opacity: 0.78 }}
+            >
+              <FeaturedInner item={featured} />
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="articles">
+        <div className="articles-grid">
+          {rest.map((article) => {
+            const inner = (
+              <>
+                <div
+                  className={`article-visual ${article.colorClass}`}
+                  style={
+                    article.hero
+                      ? {
+                          backgroundImage: `linear-gradient(180deg, rgba(10,10,10,0.04) 0%, rgba(10,10,10,0.32) 100%), url('${article.hero}')`,
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
+                        }
+                      : undefined
+                  }
+                >
+                  <span className="article-tag-pos">{article.category}</span>
+                  {article.thumbNumber && (
+                    <div className="thumb-overlay">
+                      <span className="thumb-number">
+                        {article.thumbNumber}
+                      </span>
+                      {article.thumbLabel && (
+                        <span className="thumb-label">
+                          {article.thumbLabel}
+                        </span>
+                      )}
                     </div>
                   )}
+                  {!article.href && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 16,
+                        right: 16,
+                        padding: "4px 10px",
+                        background: "var(--off-white)",
+                        color: "var(--charcoal)",
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: "0.1em",
+                        borderRadius: 999,
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      近日公開
+                    </span>
+                  )}
                 </div>
-                <div className="signal-lead-copy">
-                  <div className="signal-meta">
-                    <span className="signal-category">{featured.category}</span>
-                    <time dateTime={featured.date.replace(/\./g, "-")}>{featured.date}</time>
-                    <span>{featured.readTime} read</span>
+                <div className="article-body">
+                  <div className="article-meta">
+                    <span>{article.date}</span>
+                    <span>·</span>
+                    <span>{article.readTime}</span>
                   </div>
-                  <h3 className="v6-jp-heading">{featured.title}</h3>
-                  <p>{featured.excerpt}</p>
-                  <span className="signal-read-link">Read the signal ↗</span>
+                  <h3>{article.title}</h3>
+                  <p className="article-excerpt">{article.excerpt}</p>
+                  <div className="article-author-line">By {article.author}</div>
                 </div>
-              </Link>
-            )}
-
-            <div className="signal-grid v6-insight-list">
-              {rest.map((article, index) => (
-                article.href && (
-                  <Link href={article.href} className="signal-row v6-insight" key={article.slug}>
-                    {article.hero && (
-                      <div className="signal-row-visual">
-                        <Image src={article.hero} alt="" width={720} height={405} sizes="(max-width: 860px) 100vw, 46vw" />
-                      </div>
-                    )}
-                    <span className="signal-row-index">{String(index + 2).padStart(2, "0")}</span>
-                    <div>
-                      <div className="signal-meta">
-                        <span className="signal-category">{article.category}</span>
-                        <time dateTime={article.date.replace(/\./g, "-")}>{article.date}</time>
-                        <span>{article.readTime}</span>
-                      </div>
-                      <h3 className="v6-jp-heading">{article.title}</h3>
-                      <p>{article.excerpt}</p>
-                    </div>
-                  </Link>
-                )
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="v6-scene v6-paper-scene signal-coming" aria-labelledby="signal-coming-title">
-          <div className="v6-scene-inner">
-            <header className="signal-coming-head">
-              <div>
-                <p className="v6-kicker v6-kicker--paper">Coming Soon · In development</p>
-                <h2 id="signal-coming-title" className="v6-en-display">Next in<br />the edit.</h2>
+              </>
+            );
+            if (article.href) {
+              return (
+                <Link
+                  key={article.slug}
+                  href={article.href}
+                  className="article-card"
+                >
+                  {inner}
+                </Link>
+              );
+            }
+            return (
+              <div
+                key={article.slug}
+                className="article-card"
+                style={{ cursor: "default", opacity: 0.78 }}
+              >
+                {inner}
               </div>
-              <p>現在、取材・検証・編集を進めているテーマです。公開時期は内容の精度を優先して決定します。</p>
-            </header>
-            <div>
-              {upcomingArticles.map((article, index) => (
-                <article className="signal-coming-row" key={article.slug}>
-                  <span>{String(index + 1).padStart(2, "0")} · {article.category}</span>
-                  <h3 className="v6-jp-heading">{article.title}</h3>
-                  <b>IN DEVELOPMENT</b>
-                </article>
-              ))}
-            </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="newsletter">
+        <div className="newsletter-inner">
+          <h2>月2回、実践ノウハウを届けます。</h2>
+          <p>
+            戦略・AI・マーケティングの一次情報を、メールでお届けします。
+            広告・スパムは一切なし。いつでも解除できます。
+          </p>
+          <div className="newsletter-form">
+            <Link
+              href="/contact"
+              style={{
+                padding: "14px 28px",
+                background: "var(--off-white)",
+                color: "var(--charcoal)",
+                borderRadius: 999,
+                fontWeight: 700,
+                fontSize: 14,
+                letterSpacing: "0.04em",
+                textDecoration: "none",
+                display: "inline-block",
+              }}
+            >
+              配信開始をお知らせする →
+            </Link>
           </div>
-        </section>
-      </main>
-    </div>
+          <p className="newsletter-disclaimer">
+            配信開始のお知らせを希望する方は、Contact からどうぞ。
+          </p>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function FeaturedInner({ item }: { item: ListItem }) {
+  return (
+    <>
+      <div
+        className="featured-visual"
+        style={
+          item.hero
+            ? {
+                backgroundImage: `linear-gradient(135deg, rgba(10,10,10,0.04) 0%, rgba(10,10,10,0.28) 100%), url('${item.hero}')`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }
+            : undefined
+        }
+      >
+        <span className="featured-tag">{item.category}</span>
+        {item.thumbNumber && (
+          <div className="featured-overlay">
+            <span className="featured-overlay-num">{item.thumbNumber}</span>
+            {item.thumbLabel && (
+              <span className="featured-overlay-label">{item.thumbLabel}</span>
+            )}
+          </div>
+        )}
+        {!item.href && (
+          <span
+            style={{
+              position: "absolute",
+              top: 20,
+              right: 20,
+              padding: "4px 10px",
+              background: "var(--off-white)",
+              color: "var(--charcoal)",
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              borderRadius: 999,
+              textTransform: "uppercase",
+            }}
+          >
+            近日公開
+          </span>
+        )}
+      </div>
+      <div className="featured-body">
+        <div className="featured-meta">
+          <span>{item.date}</span>
+          <span>·</span>
+          <span>{item.readTime}で読める</span>
+        </div>
+        <h2>{item.title}</h2>
+        <p>{item.excerpt}</p>
+        <div className="featured-author">
+          <div className="featured-author-avatar" />
+          <div>
+            <div className="featured-author-name">{item.author}</div>
+            <div className="featured-author-role">CEO / FOUNDER</div>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }

@@ -91,7 +91,10 @@ function Principle({ num, heading }: { num: string; heading: string }) {
 
 function ServiceLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <Link href={href} className="service-link">
+    <Link
+      href={href}
+      style={{ color: "var(--navy)", fontWeight: 700, borderBottom: "2px solid var(--cyan)" }}
+    >
       {children}
     </Link>
   );
@@ -113,14 +116,6 @@ function MdxLink({ href, children, ...rest }: ComponentProps<"a">) {
   );
 }
 
-function MdxTable({ children, ...rest }: ComponentProps<"table">) {
-  return (
-    <div className="table-scroll" tabIndex={0} role="region" aria-label="横スクロール可能な表">
-      <table {...rest}>{children}</table>
-    </div>
-  );
-}
-
 export const mdxComponents = {
   Tldr,
   Principle,
@@ -130,5 +125,4 @@ export const mdxComponents = {
   Stat,
   ServiceLink,
   a: MdxLink,
-  table: MdxTable,
 };

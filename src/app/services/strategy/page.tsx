@@ -1,25 +1,29 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
 import { works, CASES_COMING_SOON } from "@/data/works";
+import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
 import { buildPageOg } from "@/lib/site-metadata";
-import ServiceDetailMotion from "../ServiceDetailMotion";
-import "../v6-services.css";
 
 const pageTitle = "Strategy — 事業計画・投資評価・中期戦略";
 const pageDescription =
-  "事業会社の経営企画・FP&A と、広告・グロースの最前線を経験したメンバーが、経営判断の中枢で意思決定を支援。FP&A、M&A、新規事業、組織設計まで一気通貫。";
+  "戦略ファーム出身者と事業会社経営企画経験者が、経営判断の中枢で意思決定を支援。FP&A、M&A、新規事業、組織設計まで一気通貫。";
 
 export const metadata: Metadata = {
   title: pageTitle,
   description: pageDescription,
   alternates: { canonical: "/services/strategy" },
-  ...buildPageOg({ title: pageTitle, description: pageDescription, path: "/services/strategy" }),
+  ...buildPageOg({
+    title: pageTitle,
+    description: pageDescription,
+    path: "/services/strategy",
+  }),
 };
 
 const strategyWorks = CASES_COMING_SOON
   ? []
-  : works.filter((work) => !work.hidden && work.services.includes("strategy")).slice(0, 3);
+  : works
+      .filter((w) => !w.hidden && w.services.includes("strategy"))
+      .slice(0, 3);
 
 const serviceSchema = {
   "@context": "https://schema.org",
@@ -28,7 +32,8 @@ const serviceSchema = {
   name: "Strategy Consulting",
   serviceType: "Strategy / FP&A / M&A",
   provider: { "@id": "https://mixednuts-inc.com/#organization" },
-  description: "中期経営計画、FP&A/予実管理、M&A戦略・デューデリジェンス、新規事業立上げ、取締役会付議支援まで統合提供。",
+  description:
+    "中期経営計画、FP&A/予実管理、M&A戦略・デューデリジェンス、新規事業立上げ、取締役会付議支援まで統合提供。",
   areaServed: "JP",
   audience: { "@type": "BusinessAudience", audienceType: "Enterprise" },
   url: "https://mixednuts-inc.com/services/strategy",
@@ -40,101 +45,231 @@ const breadcrumb = buildBreadcrumbSchema([
   { name: "Strategy", path: "/services/strategy" },
 ]);
 
-const proof = [
-  ["15+", "戦略支援実績"],
-  ["5+", "M&A案件サポート"],
-  ["10+", "新規事業立ち上げ"],
-  ["MBA", "早稲田 / 外資系ファーム出身"],
-];
-
-const offerings = [
-  { num: "01", title: "中期経営計画・事業戦略", desc: "3-5年の中期経営計画策定から単年度事業計画まで。市場分析、競合マッピング、ポジショニング設計、成長ドライバーの特定まで、数字に落としたロードマップを作ります。" },
-  { num: "02", title: "FP&A / 予実管理設計", desc: "財務計画・予実分析の仕組みを設計・構築します。月次締め、取締役会付議、KPI設計、AIを使った自動化まで。CFO機能を外部から提供します。" },
-  { num: "03", title: "M&A 戦略・デューデリジェンス", desc: "買収候補の発掘から財務DD、法務DD連携、バリュエーション（DCF・マルチプル）、意思決定支援まで。PEファンド・投資銀行出身メンバーが主導します。" },
-  { num: "04", title: "投資評価・バリュエーション", desc: "DCF、コンパラブル分析、フットボールチャート、シナリオ感応度分析。投資判断の根拠を多角的に構築します。上場・未上場の双方に対応。" },
-  { num: "05", title: "新規事業立ち上げ支援", desc: "ICP定義、仮説検証設計、MVP策定、Gate Review、ピボット判断まで。PMF達成後の本格投入準備まで伴走します。AI活用でリサーチ工程を大幅短縮。" },
-  { num: "06", title: "組織設計・PMO", desc: "事業の成長フェーズに合わせた組織設計、KPI体系の再構築、プロジェクト管理体制の整備。複数部門の横串調整も担います。" },
-];
-
 export default function ServiceStrategyPage() {
   return (
-    <div className="mn-v6 mn-v6-services">
+    <>
       <JsonLd data={serviceSchema} />
       <JsonLd data={breadcrumb} />
-      <ServiceDetailMotion act={1} />
+      <style>{`
+        .page-hero-strategy { background: var(--off-white); }
+        .proof-bar { background: var(--navy); color: #fff; padding: 48px 32px; }
+        .proof-bar-inner { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; }
+        .proof-stat { text-align: center; }
+        .proof-stat .num { font-family: var(--font-serif-en); font-size: 42px; font-weight: 700; color: var(--cyan); line-height: 1; margin-bottom: 8px; }
+        .proof-stat .label { font-size: 12px; color: rgba(255,255,255,0.7); }
+        .service-menu { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+        .service-menu-card { background: #fff; border: 1px solid #E5E7EB; border-radius: 16px; padding: 36px 32px; transition: all 0.3s; }
+        .service-menu-card:hover { transform: translateY(-4px); box-shadow: 0 24px 48px rgba(11,22,52,0.08); border-color: var(--cyan); }
+        .service-menu-card .s-num { font-family: var(--font-serif-en); font-size: 32px; font-weight: 900; color: var(--cyan); line-height: 1; margin-bottom: 16px; }
+        .service-menu-card h3 { font-family: var(--font-serif-jp); font-size: 20px; font-weight: 700; color: var(--navy); margin-bottom: 12px; }
+        .service-menu-card p { font-size: 14px; color: #4B5563; line-height: 1.9; }
+        .team-section { background: #F9FAFB; }
+        .team-profiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 48px; }
+        .team-profile { background: #fff; border: 1px solid #E5E7EB; border-radius: 16px; padding: 28px; }
+        .team-profile-initial { width: 64px; height: 64px; background: linear-gradient(135deg, var(--navy), var(--burgundy)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-family: var(--font-serif-en); font-size: 20px; font-weight: 700; margin-bottom: 16px; }
+        .team-profile h3 { font-family: var(--font-serif-jp); font-size: 17px; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
+        .team-profile .role { font-size: 12px; color: var(--cyan); font-weight: 600; letter-spacing: 0.05em; margin-bottom: 12px; }
+        .team-profile p { font-size: 13px; color: #4B5563; line-height: 1.7; }
+        .cases-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+        .case-card { background: #fff; border: 1px solid #E5E7EB; border-radius: 16px; padding: 28px; transition: all 0.3s; text-decoration: none; color: inherit; display: block; }
+        .case-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(11,22,52,0.08); border-color: var(--navy); }
+        .case-header { display: flex; justify-content: space-between; margin-bottom: 16px; gap: 8px; }
+        .case-sector { padding: 4px 10px; background: var(--navy); color: #fff; font-size: 11px; border-radius: 4px; font-weight: 600; }
+        .case-title { font-family: var(--font-serif-jp); font-size: 17px; font-weight: 700; margin-bottom: 16px; line-height: 1.5; }
+        .case-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px 0; border-top: 1px solid #E5E7EB; border-bottom: 1px solid #E5E7EB; margin-bottom: 16px; }
+        .case-metric-label { font-size: 10px; color: #9CA3AF; margin-bottom: 4px; text-transform: uppercase; font-weight: 600; }
+        .case-metric-value { font-family: var(--font-serif-en); font-size: 22px; font-weight: 700; color: var(--navy); line-height: 1; }
+        @media (max-width: 900px) {
+          .proof-bar-inner, .service-menu, .team-profiles, .cases-grid { grid-template-columns: 1fr; }
+          .proof-bar-inner { grid-template-columns: 1fr 1fr; }
+        }
+      `}</style>
 
-      <main>
-        <section className="v6-scene sv6-detail-hero" aria-labelledby="strategy-title">
-          <div className="v6-scene-inner sv6-detail-hero-inner">
-            <p className="v6-kicker sv6-detail-overline">Act I · Strategy Consulting</p>
-            <h1 id="strategy-title" className="v6-en-display sv6-detail-title"><span>DECIDE.</span><br /><span className="v6-accent">THEN MOVE.</span></h1>
-            <div className="sv6-detail-bottom">
-              <p className="sv6-detail-lead v6-jp-heading">意思決定の質を、<br />数倍に引き上げる。</p>
-              <p className="sv6-detail-meta">Strategy / FP&amp;A / M&amp;A</p>
-            </div>
+      <section className="page-hero page-hero-strategy">
+        <div className="page-hero-inner">
+          <div className="breadcrumb">
+            <Link href="/">Home</Link> / <Link href="/services">Services</Link>{" "}
+            / Strategy
           </div>
-        </section>
+          <div className="page-hero-badge">Strategy Consulting</div>
+          <h1>
+            意思決定の質を、
+            <br />
+            <span className="accent">数倍に引き上げる</span>。
+          </h1>
+          <p className="lead">
+            事業戦略、新規事業、M&A、経営管理まで。"分厚い報告書"ではなく、明日からの行動に変換するロードマップ。戦略ファーム出身者と事業会社経営企画経験者が、経営判断の中枢に入り込みます。
+          </p>
+        </div>
+      </section>
 
-        <section className="v6-scene v6-paper-scene sv6-editorial" aria-labelledby="strategy-intro-title">
-          <div className="v6-scene-inner sv6-editorial-inner">
-            <header className="sv6-section-head" data-sv6-reveal>
-              <p className="v6-kicker v6-kicker--paper">Mandate · Decision Quality</p>
-              <h2 id="strategy-intro-title" className="v6-jp-heading">明日からの行動に変換する、<br />経営のロードマップ。</h2>
-              <p>事業戦略、新規事業、M&amp;A、経営管理まで。&quot;分厚い報告書&quot;ではなく、明日からの行動に変換するロードマップ。事業会社の経営企画・FP&amp;A と、広告・グロースの最前線を経験したメンバーが、経営判断の中枢に入り込みます。</p>
-            </header>
-            <div className="sv6-rows" aria-label="Strategy proof points">
-              {proof.map(([value, label], index) => (
-                <div className="sv6-row" data-sv6-reveal key={label}>
-                  <span className="sv6-row-no">{String(index + 1).padStart(2, "0")}</span>
-                  <h3 className="v6-en-display">{value}</h3>
-                  <div className="sv6-row-copy"><p>{label}</p></div>
+      {/* Proof bar */}
+      <section className="proof-bar">
+        <div className="proof-bar-inner">
+          <div className="proof-stat">
+            <div className="num">15+</div>
+            <div className="label">戦略支援実績</div>
+          </div>
+          <div className="proof-stat">
+            <div className="num">5+</div>
+            <div className="label">M&A案件サポート</div>
+          </div>
+          <div className="proof-stat">
+            <div className="num">10+</div>
+            <div className="label">新規事業立ち上げ</div>
+          </div>
+          <div className="proof-stat">
+            <div className="num">MBA</div>
+            <div className="label">早稲田 / 外資系ファーム出身</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Service menu */}
+      <section className="section">
+        <div className="section-inner">
+          <span className="section-label">What We Offer</span>
+          <h2 className="section-title">戦略コンサルティングの6領域。</h2>
+          <p className="section-lead">
+            経営判断の全段階で、データとAIを使った意思決定支援を提供します。
+          </p>
+          <div className="service-menu">
+            {[
+              {
+                num: "01",
+                title: "中期経営計画・事業戦略",
+                desc: "3-5年の中期経営計画策定から単年度事業計画まで。市場分析、競合マッピング、ポジショニング設計、成長ドライバーの特定まで、数字に落としたロードマップを作ります。",
+              },
+              {
+                num: "02",
+                title: "FP&A / 予実管理設計",
+                desc: "財務計画・予実分析の仕組みを設計・構築します。月次締め、取締役会付議、KPI設計、AIを使った自動化まで。CFO機能を外部から提供します。",
+              },
+              {
+                num: "03",
+                title: "M&A 戦略・デューデリジェンス",
+                desc: "買収候補の発掘から財務DD、法務DD連携、バリュエーション（DCF・マルチプル）、意思決定支援まで。PEファンド・投資銀行出身メンバーが主導します。",
+              },
+              {
+                num: "04",
+                title: "投資評価・バリュエーション",
+                desc: "DCF、コンパラブル分析、フットボールチャート、シナリオ感応度分析。投資判断の根拠を多角的に構築します。上場・未上場の双方に対応。",
+              },
+              {
+                num: "05",
+                title: "新規事業立ち上げ支援",
+                desc: "ICP定義、仮説検証設計、MVP策定、Gate Review、ピボット判断まで。PMF達成後の本格投入準備まで伴走します。AI活用でリサーチ工程を大幅短縮。",
+              },
+              {
+                num: "06",
+                title: "組織設計・PMO",
+                desc: "事業の成長フェーズに合わせた組織設計、KPI体系の再構築、プロジェクト管理体制の整備。複数部門の横串調整も担います。",
+              },
+            ].map((s) => (
+              <div key={s.num} className="service-menu-card">
+                <div className="s-num">{s.num}</div>
+                <h3>{s.title}</h3>
+                <p>{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Team — hidden until profiles are finalized */}
+      {false && (
+        <section className="section team-section">
+          <div className="section-inner">
+            <span className="section-label">Strategy Team</span>
+            <h2 className="section-title">戦略チームを紹介。</h2>
+            <p className="section-lead">
+              外資系戦略ファーム・投資銀行・事業会社経営企画出身のプロフェッショナルが揃っています。
+            </p>
+            <div className="team-profiles">
+              {[
+                {
+                  initial: "N.I.",
+                  role: "Founder & CEO",
+                  bg: "戦略コンサルティング → 大手IT企業 経営企画・FP&A → 投資",
+                  bio: "国内大手IT企業の経営企画責任者として取締役会付議・中期戦略を統括。mixednuts創業後は戦略×AI×マーケの統合提供を牽引。早稲田大学院MBA。",
+                },
+                {
+                  initial: "K.T.",
+                  role: "Head of Strategy",
+                  bg: "外資系戦略コンサルファーム出身",
+                  bio: "外資系戦略ファームで通信・メディア・ヘルスケア業界の中期戦略立案をリード。M&A PMI、新規事業立ち上げ、組織変革の経験多数。",
+                },
+                {
+                  initial: "Y.M.",
+                  role: "Principal, M&A / Investment",
+                  bg: "BIG4 会計事務所出身",
+                  bio: "BIG4 会計事務所の FAS / M&A アドバイザリー部門で財務DD・バリュエーション・PMI を多数経験。DCF・フットボールチャート・感応度分析を実務水準で運用。",
+                },
+              ].map((m) => (
+                <div key={m.initial} className="team-profile">
+                  <div className="team-profile-initial">{m.initial}</div>
+                  <h3>{m.initial}</h3>
+                  <div className="role">{m.role}</div>
+                  <p>{m.bio}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
+      )}
 
-        <section className="v6-scene v6-paper-scene sv6-editorial" aria-labelledby="strategy-offer-title">
-          <div className="v6-scene-inner sv6-editorial-inner">
-            <header className="sv6-section-head" data-sv6-reveal>
-              <p className="v6-kicker v6-kicker--paper">What We Offer · Six Fields</p>
-              <h2 id="strategy-offer-title" className="v6-jp-heading">戦略コンサルティングの<br />6領域。</h2>
-              <p>経営判断の全段階で、データとAIを使った意思決定支援を提供します。</p>
-            </header>
-            <ol className="sv6-rows">
-              {offerings.map((offering) => (
-                <li className="sv6-row" data-sv6-reveal key={offering.num}>
-                  <span className="sv6-row-no">{offering.num}</span>
-                  <h3 className="v6-jp-heading">{offering.title}</h3>
-                  <div className="sv6-row-copy"><p>{offering.desc}</p></div>
-                </li>
+      {/* Cases */}
+      {strategyWorks.length > 0 && (
+        <section className="section">
+          <div className="section-inner">
+            <span className="section-label">Case Studies</span>
+            <h2 className="section-title">戦略支援の実績。</h2>
+            <div className="cases-grid">
+              {strategyWorks.map((w) => (
+                <Link
+                  key={w.slug}
+                  href={`/works/${w.slug}`}
+                  className="case-card"
+                >
+                  <div className="case-header">
+                    <span className="case-sector">{w.industry}</span>
+                  </div>
+                  <div className="case-title">{w.title}</div>
+                  <div className="case-metrics">
+                    {w.metric.slice(0, 2).map((m) => (
+                      <div key={m.label}>
+                        <div className="case-metric-label">{m.label}</div>
+                        <div className="case-metric-value">{m.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <p
+                    style={{ fontSize: 12, color: "#4B5563", lineHeight: 1.7 }}
+                  >
+                    {w.summary}
+                  </p>
+                </Link>
               ))}
-            </ol>
-          </div>
-        </section>
-
-        {false && <section aria-label="Strategy Team" />}
-
-        {strategyWorks.length > 0 && (
-          <section className="v6-scene v6-paper-scene sv6-editorial" aria-labelledby="strategy-cases-title">
-            <div className="v6-scene-inner sv6-editorial-inner">
-              <header className="sv6-section-head"><p className="v6-kicker v6-kicker--paper">Case Studies</p><h2 id="strategy-cases-title" className="v6-jp-heading">戦略支援の実績。</h2></header>
-              <div className="sv6-rows">{strategyWorks.map((work, index) => <Link className="sv6-row sv6-case-link" href={`/works/${work.slug}`} key={work.slug}><span className="sv6-row-no">0{index + 1}</span><h3 className="v6-jp-heading">{work.title}</h3><div className="sv6-row-copy"><p>{work.industry} · {work.summary}</p></div></Link>)}</div>
-            </div>
-          </section>
-        )}
-
-        <section className="v6-scene v6-end" aria-labelledby="strategy-end-title">
-          <div className="v6-scene-inner v6-end-inner">
-            <h2 className="v6-kicker">End Credits · Strategy</h2>
-            <div>
-              <p id="strategy-end-title" className="v6-en-display v6-end-title">DECIDE<br /><span className="v6-accent">WITH CLARITY.</span></p>
-              <p className="v6-end-copy">初回無料相談（60分）で、貴社の経営課題をヒアリングします。まずは話すことから始めましょう。</p>
-              <Link href="/contact" className="v6-button v6-button--paper">無料相談を申し込む</Link>
             </div>
           </div>
         </section>
-      </main>
-    </div>
+      )}
+
+      <section className="cta">
+        <div className="cta-inner">
+          <h2>
+            経営判断を、
+            <br />
+            もっと確信を持って行いたい。
+          </h2>
+          <p>
+            初回無料相談（60分）で、貴社の経営課題をヒアリングします。まずは話すことから始めましょう。
+          </p>
+          <Link href="/contact" className="btn-primary">
+            無料相談を申し込む →
+          </Link>
+        </div>
+      </section>
+    </>
   );
 }

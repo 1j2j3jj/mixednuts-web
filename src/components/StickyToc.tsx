@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 
 type Heading = { id: string; text: string };
 
+/**
+ * Sticky desktop-only TOC. Scans H2 elements inside <article>,
+ * attaches IDs, builds a nav list on the left margin.
+ */
 export function StickyToc() {
   const [headings, setHeadings] = useState<Heading[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -38,20 +42,57 @@ export function StickyToc() {
   if (headings.length < 2) return null;
 
   return (
-    <nav aria-label="目次" className="sticky-toc">
-      <div className="sticky-toc-title">Contents</div>
-      <ul className="sticky-toc-list">
+    <nav
+      aria-label="目次"
+      className="sticky-toc"
+      style={{
+        position: "sticky",
+        top: 96,
+        maxHeight: "calc(100vh - 120px)",
+        overflowY: "auto",
+        fontSize: 12,
+        lineHeight: 1.7,
+        paddingRight: 12,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: "var(--font-sans-en, sans-serif)",
+          fontSize: 10,
+          letterSpacing: "0.2em",
+          textTransform: "uppercase",
+          color: "#9CA3AF",
+          fontWeight: 700,
+          marginBottom: 14,
+        }}
+      >
+        Contents
+      </div>
+      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
         {headings.map((h) => (
           <li key={h.id}>
             <a
               href={`#${h.id}`}
-              className={`sticky-toc-link${activeId === h.id ? " is-active" : ""}`}
+              style={{
+                color: activeId === h.id ? "var(--charcoal, #0A0A0A)" : "#6B7280",
+                fontWeight: activeId === h.id ? 700 : 500,
+                textDecoration: "none",
+                borderLeft: activeId === h.id ? "2px solid var(--cyan, #00D9FF)" : "2px solid transparent",
+                paddingLeft: 10,
+                display: "block",
+                transition: "all 0.18s ease",
+              }}
             >
               {h.text}
             </a>
           </li>
         ))}
       </ul>
+      <style>{`
+        @media (max-width: 1100px) {
+          .sticky-toc { display: none; }
+        }
+      `}</style>
     </nav>
   );
 }

@@ -10,7 +10,6 @@
  */
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import styles from "./CookieBanner.module.css";
 
 const STORAGE_KEY = "mn_cookie_consent";
 const TTL_DAYS = 365;
@@ -70,29 +69,64 @@ export default function CookieBanner() {
     <div
       role="dialog"
       aria-label="Cookie および外部送信に関する通知"
-      className={styles.bar}
+      style={{
+        position: "fixed",
+        bottom: 16,
+        left: 16,
+        right: 16,
+        maxWidth: 720,
+        margin: "0 auto",
+        zIndex: 9999,
+        background: "var(--charcoal, #0A0A0A)",
+        color: "var(--off-white, #F5F1E8)",
+        padding: "20px 24px",
+        borderRadius: 16,
+        boxShadow: "0 24px 48px rgba(0,0,0,0.24)",
+        fontSize: 13,
+        lineHeight: 1.7,
+      }}
     >
-      <p className={styles.copy}>
+      <p style={{ margin: 0, marginBottom: 14, wordBreak: "keep-all" }}>
         当サイトでは、サイトの利用状況の分析・広告効果測定のため、Google Analytics・
         Google Tag Manager 等を通じて Cookie および利用者情報を Google LLC（米国）等の外部事業者に送信します。
         詳細は{" "}
-        <Link href="/privacy#sec5b">
+        <Link href="/privacy#sec5b" style={{ color: "var(--off-white, #F5F1E8)", textDecoration: "underline" }}>
           プライバシーポリシー（外国にある第三者への提供）
         </Link>{" "}
         をご確認ください。
       </p>
-      <div className={styles.actions}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button
           type="button"
           onClick={() => save("all")}
-          className={`${styles.button} ${styles.accept}`}
+          style={{
+            background: "var(--off-white, #F5F1E8)",
+            color: "var(--charcoal, #0A0A0A)",
+            border: "none",
+            padding: "10px 22px",
+            borderRadius: 999,
+            fontWeight: 700,
+            fontSize: 13,
+            cursor: "pointer",
+            letterSpacing: "0.02em",
+          }}
         >
           同意して続行
         </button>
         <button
           type="button"
           onClick={() => save("essential-only")}
-          className={`${styles.button} ${styles.decline}`}
+          style={{
+            background: "transparent",
+            color: "var(--off-white, #F5F1E8)",
+            border: "1px solid rgba(245,241,232,0.3)",
+            padding: "10px 22px",
+            borderRadius: 999,
+            fontWeight: 600,
+            fontSize: 13,
+            cursor: "pointer",
+            letterSpacing: "0.02em",
+          }}
         >
           分析を拒否（必須のみ）
         </button>
