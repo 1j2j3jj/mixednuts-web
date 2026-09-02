@@ -1,0 +1,201 @@
+:root {
+  --ink: #0b0b0e;
+  --ink-2: #141419;
+  --paper: #f3efe7;
+  --paper-2: #e9e4da;
+  --vermilion: #e4471f;
+  --fg-on-ink: #f3efe7;
+  --fg-on-ink-muted: rgba(243, 239, 231, 0.62);
+  --fg-on-paper: #0b0b0e;
+  --fg-on-paper-muted: #5e5c58;
+  --hair-on-ink: rgba(243, 239, 231, 0.14);
+  --hair-on-paper: rgba(11, 11, 14, 0.14);
+  --space: 8px;
+  --radius: 0;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-cut: cubic-bezier(0.83, 0, 0.17, 1);
+
+  --font-archivo: var(--font-fraunces);
+  --font-playfair: var(--font-fraunces);
+  --font-inter: var(--font-sans);
+  --font-noto-serif-jp: var(--font-mincho);
+  --font-noto-sans-jp: var(--font-sans);
+}
+
+.mn-v6 {
+  background: var(--ink);
+  color: var(--fg-on-ink);
+  font-family: var(--font-sans), sans-serif;
+  font-size: max(15px, 0.9375rem);
+  font-weight: 500;
+  line-height: 1.75;
+  overflow: clip;
+}
+
+.mn-v6 *,
+.mn-v6 *::before,
+.mn-v6 *::after {
+  box-sizing: border-box;
+}
+
+.mn-v6 h1,
+.mn-v6 h2,
+.mn-v6 h3,
+.mn-v6 p {
+  margin: 0;
+}
+
+.mn-v6 a {
+  color: inherit;
+}
+
+.mn-v6 .v6-en-display {
+  font-family: var(--font-fraunces), serif;
+  font-optical-sizing: auto;
+  font-variation-settings: "opsz" 144, "SOFT" 0, "WONK" 0;
+}
+
+.mn-v6 .v6-jp-heading {
+  font-family: var(--font-mincho), serif;
+  font-weight: 700;
+  line-height: 1.35;
+  text-wrap: balance;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+
+.mn-v6 .v6-kicker {
+  color: var(--fg-on-ink-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+.mn-v6 .v6-kicker--paper {
+  color: var(--fg-on-paper-muted);
+}
+
+.mn-v6 .v6-accent {
+  color: var(--vermilion);
+}
+
+.mn-v6 .v6-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--space) * 2);
+}
+
+.mn-v6 .v6-button {
+  align-items: center;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  display: inline-flex;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  justify-content: center;
+  letter-spacing: 0.06em;
+  min-height: 48px;
+  padding: calc(var(--space) * 1.5) calc(var(--space) * 3);
+  position: relative;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: text-underline-offset 200ms, opacity 200ms, background-color 200ms, color 200ms;
+}
+
+.mn-v6 .v6-button--paper {
+  background: var(--paper);
+  border-color: var(--paper);
+  color: var(--ink);
+}
+
+.mn-v6 .v6-button--outline {
+  background: transparent;
+  color: var(--paper);
+}
+
+.mn-v6 .v6-button:hover,
+.mn-v6 .v6-button:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 0.35em;
+}
+
+.mn-v6 .v6-button:focus-visible,
+.nav a:focus-visible,
+.nav button:focus-visible,
+.footer a:focus-visible {
+  outline: 2px solid var(--vermilion);
+  outline-offset: 4px;
+}
+
+.mn-v6 .v6-scene {
+  min-height: 100svh;
+  position: relative;
+}
+
+.mn-v6 .v6-scene-inner {
+  margin: 0 auto;
+  max-width: 1600px;
+  padding-inline: clamp(24px, 4vw, 64px);
+  position: relative;
+  width: 100%;
+  z-index: 2;
+}
+
+.mn-v6 .v6-paper-scene {
+  background: var(--paper);
+  color: var(--fg-on-paper);
+}
+
+.mn-v6 .v6-letterbox {
+  inset: 0;
+  pointer-events: none;
+  position: fixed;
+  z-index: 120;
+}
+
+.mn-v6 .v6-letterbox-bar {
+  background: var(--ink);
+  height: 50%;
+  left: 0;
+  position: absolute;
+  right: 0;
+  transform: scaleY(0);
+  will-change: transform;
+}
+
+.mn-v6 .v6-letterbox-bar--top {
+  top: 0;
+  transform-origin: top;
+}
+
+.mn-v6 .v6-letterbox-bar--bottom {
+  bottom: 0;
+  transform-origin: bottom;
+}
+
+@media (max-width: 599px) {
+  .mn-v6 .v6-scene-inner {
+    padding-inline: 16px;
+  }
+
+  .mn-v6 .v6-button {
+    padding-inline: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mn-v6 *,
+  .mn-v6 *::before,
+  .mn-v6 *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .mn-v6 .v6-letterbox {
+    display: none;
+  }
+}

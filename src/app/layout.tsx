@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Noto_Sans_JP, Noto_Serif_JP, Playfair_Display, Inter, Archivo } from "next/font/google";
+import { Fraunces, Noto_Sans_JP, Shippori_Mincho_B1 } from "next/font/google";
 import "./globals.css";
+import "./site-v6.css";
 import SiteChrome from "@/components/SiteChrome";
 import CookieBanner from "@/components/CookieBanner";
 import { JsonLd, organizationSchema, webSiteSchema } from "@/components/JsonLd";
@@ -9,11 +10,26 @@ import { JsonLd, organizationSchema, webSiteSchema } from "@/components/JsonLd";
 const GTM_ID = "GTM-MS76PXZZ";
 const GA4_ID = "G-4XTN8TREFM";
 
-const notoSansJP = Noto_Sans_JP({ subsets: ["latin"], weight: ["400","500","700"], variable: "--font-noto-sans-jp", display: "swap" });
-const notoSerifJP = Noto_Serif_JP({ subsets: ["latin"], weight: ["400","700","900"], variable: "--font-noto-serif-jp", display: "swap" });
-const playfair = Playfair_Display({ subsets: ["latin"], weight: ["400","700","900"], variable: "--font-playfair", display: "swap" });
-const inter = Inter({ subsets: ["latin"], weight: ["400","500","600","700"], variable: "--font-inter", display: "swap" });
-const archivo = Archivo({ subsets: ["latin"], weight: ["800","900"], variable: "--font-archivo", display: "swap" });
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  weight: "variable",
+  style: ["normal", "italic"],
+  axes: ["opsz", "SOFT", "WONK"],
+  variable: "--font-fraunces",
+  display: "swap",
+});
+const shipporiMincho = Shippori_Mincho_B1({
+  subsets: ["latin"],
+  weight: ["700", "800"],
+  variable: "--font-mincho",
+  display: "swap",
+});
+const notoSansJP = Noto_Sans_JP({
+  subsets: ["latin"],
+  weight: ["500", "700"],
+  variable: "--font-sans",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mixednuts-inc.com"),
@@ -39,7 +55,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ja" className={`${notoSansJP.variable} ${notoSerifJP.variable} ${playfair.variable} ${inter.variable} ${archivo.variable}`}>
+    <html lang="ja" className={`${fraunces.variable} ${shipporiMincho.variable} ${notoSansJP.variable}`}>
       <head>
         {/* Google Tag Manager */}
         <Script id="gtm" strategy="afterInteractive">{`
