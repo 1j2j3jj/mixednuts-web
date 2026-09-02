@@ -14,7 +14,8 @@ const acts = [
   {
     numeral: "I",
     label: "ACT I · STRATEGY",
-    title: "戦略コンサルティング",
+    titleLead: "戦略",
+    titleTail: "コンサルティング",
     body: "事業戦略、新規事業、M&A、経営管理まで。\"分厚い報告書\"ではなく、明日からの行動に変換するロードマップ。AIで仮説検証を加速し、意思決定を数日で回します。",
     href: "/services/strategy",
     link: "Explore Strategy",
@@ -23,7 +24,8 @@ const acts = [
   {
     numeral: "II",
     label: "ACT II · AI",
-    title: "AI 実装支援",
+    titleLead: "AI 実装支援",
+    titleTail: "",
     body: "エージェント設計、LLM業務実装、プロンプトエンジニアリング。私たち自身が100体超のAIと働くAI-first組織。その知見を貴社の業務に実装します。",
     href: "/services/ai",
     link: "Explore AI",
@@ -32,7 +34,8 @@ const acts = [
   {
     numeral: "III",
     label: "ACT III · MARKETING",
-    title: "マーケティング成長支援",
+    titleLead: "マーケティング",
+    titleTail: "成長支援",
     body: "広告運用、CVR改善、SEO/AIO、SNS。評論家ではなく、現場の最前線で実行。AIクリエイティブ生成、自動入札、検索意図分析を組み込んだ再現性のある成長。",
     href: "/services/marketing",
     link: "Explore Marketing",
@@ -64,8 +67,10 @@ export default function HomePage() {
             <h2 className="v6-kicker v6-hero-overline">Cold Open · AI-First Consulting · Est. 2021</h2>
             <div className="v6-hero-title-wrap">
               <h1 id="v6-hero-title" className="v6-en-display v6-hero-title">
-                <span className="v6-hero-word">RETHINK</span>{" "}
-                <span className="v6-hero-word">GROWTH.</span><br />
+                <span className="v6-hero-line">
+                  <span className="v6-hero-word">RETHINK</span><br className="v6-mobile-break" />{" "}
+                  <span className="v6-hero-word">GROWTH.</span>
+                </span><br />
                 <span className="v6-hero-word v6-accent">WITH AI.</span>
               </h1>
               <p className="v6-en-display v6-hero-register">Strategy, AI, and Marketing —<br />executed as one.</p>
@@ -107,7 +112,10 @@ export default function HomePage() {
                   <div className="v6-act-numeral v6-en-display" aria-hidden="true">{act.numeral}</div>
                   <div className="v6-act-copy">
                     <p className="v6-kicker">{act.label}</p>
-                    <h3 className="v6-jp-heading">{act.title}</h3>
+                    <h3 className="v6-jp-heading">
+                      {act.titleLead}
+                      {act.titleTail ? <><br className="v6-mobile-break" />{act.titleTail}</> : null}
+                    </h3>
                     <p>{act.body}</p>
                     <Link href={act.href}>{act.link} <span aria-hidden="true">↗</span></Link>
                   </div>

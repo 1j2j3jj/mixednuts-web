@@ -485,6 +485,7 @@
   text-wrap: balance;
 }
 .mn-v6 .v6-hero-word { display: inline-block; }
+.mn-v6 .v6-hero-line { display: inline-block; white-space: nowrap; width: 100%; }
 .mn-v6 .v6-hero-register { bottom: 0.45em; color: var(--fg-on-ink-muted); font-size: clamp(1.1rem, 1.6vw, 1.65rem); font-style: italic; line-height: 1.25; position: absolute; right: 0; }
 .mn-v6 .v6-hero-bottom { align-items: end; display: grid; gap: 40px; grid-template-columns: minmax(280px, 680px) auto; justify-content: space-between; }
 .mn-v6 .v6-hero-lead { color: var(--fg-on-ink-muted); font-size: clamp(0.9375rem, 1.12vw, 1.125rem); }
@@ -551,6 +552,7 @@
   .mn-v6 .v6-hero-overline { align-self: flex-start; }
   .mn-v6 .v6-hero-title-wrap { align-items: start; display: flex; flex-direction: column; gap: 24px; }
   .mn-v6 .v6-hero-title { font-size: clamp(4.1rem, 19vw, 8rem); line-height: 0.83; }
+  .mn-v6 .v6-hero-line { white-space: normal; }
   .mn-v6 .v6-hero-register { font-size: 1rem; position: static; }
   .mn-v6 .v6-hero-bottom { align-items: start; display: flex; flex-direction: column; gap: 32px; }
   .mn-v6 .v6-thesis-inner { padding-block: 112px; }
