@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { works, CASES_COMING_SOON } from "@/data/works";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
 import { buildPageOg } from "@/lib/site-metadata";
 import ServiceDetailV6 from "../ServiceDetailV6";
 import "../v6-services.css";
 
-const pageTitle = "Strategy — 事業計画・投資評価・中期戦略";
+const pageTitle = "戦略・経営管理支援 — 事業計画・FP&A・M&A";
 const pageDescription =
-  "事業会社の経営企画・FP&A と、広告・グロースの最前線を経験したメンバーが、経営判断の中枢で意思決定を支援。FP&A、M&A、新規事業、組織設計まで一気通貫。";
+  "事業会社の経営企画・FP&Aと、広告・グロースの実務経験を生かし、中期経営計画、予実管理、投資評価、M&A、新規事業、組織設計を経営判断から実行まで支援します。";
 
 export const metadata: Metadata = {
   title: pageTitle,
@@ -38,6 +38,7 @@ const breadcrumb = buildBreadcrumbSchema([
   { name: "Services", path: "/services" },
   { name: "Strategy", path: "/services/strategy" },
 ]);
+const webPageSchema = buildWebPageSchema({ path: "/services/strategy", name: pageTitle, description: pageDescription });
 
 const offerings = [
   { num: "01", title: "中期経営計画・事業戦略", desc: "3-5年の中期経営計画策定から単年度事業計画まで。市場分析、競合マッピング、ポジショニング設計、成長ドライバーの特定まで、数字に落としたロードマップを作ります。" },
@@ -52,6 +53,7 @@ export default function ServiceStrategyPage() {
   return (
     <>
       <JsonLd data={serviceSchema} />
+      <JsonLd data={webPageSchema} />
       <JsonLd data={breadcrumb} />
       <ServiceDetailV6
         act="ACT I"

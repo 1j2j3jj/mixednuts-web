@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
 import { Odometer, SplitWords } from "@/components/v6/KineticText";
 import { members, SHOW_MEMBER_ROSTER, divisionLabels } from "@/data/members";
 import { buildPageOg } from "@/lib/site-metadata";
 import V6PageMotion from "../about/V6PageMotion";
 import "./v6-team.css";
+import BreadcrumbNav from "@/components/BreadcrumbNav";
 
-const pageTitle = "Team — mixednuts のチーム";
+const pageTitle = "チーム — 代表・AI・専門パートナーの編成";
 const pageDescription =
-  "代表、100体超のAIエージェント組織、案件ごとの専門パートナー。mixednutsの事業推進を支えるチームの考え方を紹介します。";
+  "代表が課題整理と意思決定に関わり、100体超のAIエージェント組織を調査・分析・運用の裏付けとして活用し、案件ごとの専門パートナーと必要な支援体制を編成します。";
 
 export const metadata: Metadata = {
   title: pageTitle,
@@ -18,17 +19,21 @@ export const metadata: Metadata = {
   ...buildPageOg({ title: pageTitle, description: pageDescription, path: "/team" }),
 };
 
-const teamPageSchema = {
-  "@context": "https://schema.org",
-  "@type": "CollectionPage",
-  "@id": "https://mixednuts-inc.com/team#webpage",
-  url: "https://mixednuts-inc.com/team",
+const teamPageSchema = buildWebPageSchema({
+  type: "CollectionPage",
+  path: "/team",
   name: pageTitle,
   description: pageDescription,
-  inLanguage: "ja-JP",
-  isPartOf: { "@id": "https://mixednuts-inc.com/#website" },
-  about: { "@id": "https://mixednuts-inc.com/#organization" },
-};
+  mainEntityList: {
+    "@type": "ItemList",
+    itemListElement: members.map((member, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      url: member.division === "leadership" ? "https://mixednuts-inc.com/team/ceo" : "https://mixednuts-inc.com/team",
+      name: member.division === "leadership" ? "石井 希実" : member.initial,
+    })),
+  },
+});
 
 const breadcrumb = buildBreadcrumbSchema([
   { name: "Home", path: "/" },
@@ -50,11 +55,12 @@ export default function TeamPage() {
       <V6PageMotion />
       <JsonLd data={teamPageSchema} />
       <JsonLd data={breadcrumb} />
+      <BreadcrumbNav items={[{ name: "Home", path: "/" }, { name: "Team" }]} />
 
       <main>
         <section className="title-card f-enji" data-nav="dark">
           <p className="overline"><i />Team · mixednuts Inc.</p>
-          <h1 data-split><SplitWords words={["Team"]} /><br /><span>違う強さを、同じ方向へ。</span></h1>
+          <h1 data-split aria-label="Team 違う強さを、同じ方向へ。"><SplitWords words={["Team"]} /><br /><span aria-hidden="true">違う強さを、同じ方向へ。</span></h1>
           <p className="page-lead">固定された肩書きの一覧ではなく、課題に必要な力を編成する。代表を起点に、AIエージェント組織と案件ごとの専門パートナーが事業推進を支えます。</p>
           <p className="page-index">01 / 03</p>
         </section>

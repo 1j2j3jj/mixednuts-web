@@ -5,11 +5,16 @@ import { posts } from "#site/content";
 import { works } from "@/data/works";
 import SiteMotionV6 from "@/components/v6/SiteMotionV6";
 import { Odometer, RingItem, SplitWords } from "@/components/v6/KineticText";
+import { buildPageOg } from "@/lib/site-metadata";
+
+const pageTitle = "戦略・AI・マーケティングを実装まで支援 | mixednuts Inc.";
+const pageDescription = "事業戦略・経営管理、AIエージェントの業務実装、広告・SEOを含むグロースマーケティングを一つのチームで支援し、構想から運用改善までつなぐコンサルティング会社です。";
 
 export const metadata: Metadata = {
-  title: "mixednuts — 戦略 × AI × マーケティング",
-  description: "戦略コンサルティング、AIエージェント導入、グロースマーケティングを統合提供するAI-firstコンサルファーム。",
+  title: { absolute: pageTitle },
+  description: pageDescription,
   alternates: { canonical: "/" },
+  ...buildPageOg({ title: pageTitle, description: pageDescription, path: "/" }),
 };
 
 const forces = [
@@ -55,7 +60,7 @@ export default function HomePage() {
           <div className="ring" aria-hidden="true">{ringWords.map((word, index) => <RingItem index={index} key={`${word}-${index}`}>{word}</RingItem>)}</div>
           <div className="hero-main">
             <p className="overline"><i />AI-first growth partner · Tokyo · since 2021</p>
-            <h1 data-split><SplitWords words={["Rethink", "growth."]} /><br /><SplitWords words={["With", "AI."]} accent="AI." /></h1>
+            <h1 data-split aria-label="Rethink growth. With AI."><SplitWords words={["Rethink", "growth."]} /><br /><SplitWords words={["With", "AI."]} accent="AI." /></h1>
             <div className="hero-foot">
               <div>
                 <p className="lead"><span className="en">Strategy · AI · Marketing — executed as one</span>戦略・AI・マーケティングを 3 軸で、上場企業から新規事業まで一気通貫で支援します。分厚い報告書ではなく、明日から動けるアクションを届けます。</p>
@@ -96,7 +101,7 @@ export default function HomePage() {
           <p className="mono" aria-hidden="true">N.I.</p><div><p className="k">Founder</p><h2>石井 希実</h2><p className="role">Founder &amp; CEO · mixednuts Inc.</p><p>デジタル広告代理店で金融・不動産・旅行業界の大手企業を担当し、チームマネージャーとして PL 責任を担う。グローバル IT 企業では広告事業のアカウントストラテジストとして大手企業のデジタル戦略を支援。国内 IT 企業の経営企画で事業計画・FP&amp;A・投資評価・取締役会付議資料を担当。2021 年に mixednuts を創業。早稲田大学大学院 経営管理研究科 修了（MBA）。</p><Link className="go" href="/team/ceo">Profile</Link></div>
         </section>
 
-        <div className="endwrap"><section className="end" id="contact" data-nav="dark"><h2 data-split><SplitWords words={["Let's", "build", "growth."]} /></h2><div className="cols"><p>60分の無料相談で、貴社の事業に適したアプローチを共に設計しませんか。翌営業日までに、初回の論点整理をお戻しします。</p><Link className="btn" href="/contact">無料相談を申し込む</Link></div></section></div>
+        <div className="endwrap"><section className="end" id="contact" data-nav="dark"><h2 data-split aria-label="Let's build growth."><SplitWords words={["Let's", "build", "growth."]} /></h2><div className="cols"><p>60分の無料相談で、貴社の事業に適したアプローチを共に設計しませんか。翌営業日までに、初回の論点整理をお戻しします。</p><Link className="btn" href="/contact">無料相談を申し込む</Link></div></section></div>
       </main>
     </div>
   );

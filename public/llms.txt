@@ -1,50 +1,44 @@
-# /llms.txt — Large Language Model Optimization metadata
-# 説明: 2024年 Answer.AI 提唱の AI 学習・検索エンジン向けサイトマップ
-# 注意: Google は非対応を公言 (2025-07 Gary Illyes / John Mueller)
-#       ChatGPT / Perplexity も一次入力ではなく将来 adoption に備えた実装
-# 効果は約束しない。30 分の実装コストで将来オプションを買う判断
-
 # mixednuts Inc.
 
-> 戦略 × AI × マーケティングを統合提供する AI-first コンサルティングファーム.
-> 自社で 120 体超の AI エージェント組織を運用. クライアントへ知見を還元.
-
-## About
-- [About](https://mixednuts-inc.com/about): 会社概要・ミッション
-- [CEO Profile](https://mixednuts-inc.com/team/ceo): 石井 希実 (Nozomi Ishii) — Founder & CEO
-- [Team](https://mixednuts-inc.com/team): メンバー紹介
+mixednuts Inc.（ミックスナッツ株式会社）は、2021年創業のコンサルティング会社です。
+事業戦略・経営管理、AIエージェントの業務実装、グロースマーケティングを一つのチームで支援します。
+自社で100体超のAIエージェント組織を運用し、実装と改善から得た知見をクライアント支援へ生かしています。
 
 ## Services
-- [Services](https://mixednuts-inc.com/services): 戦略・AI・マーケティング統合提供
-- [Strategy Consulting](https://mixednuts-inc.com/services/strategy)
-- [AI Implementation](https://mixednuts-inc.com/services/ai)
-- [Growth Marketing](https://mixednuts-inc.com/services/marketing)
 
-## Insights (key articles)
-- [AI-First 組織のつくり方: 120体のエージェントを統制する6原則](https://mixednuts-inc.com/insights/ai-first-org)
-- [AI Overviews 時代の SEO 7 原則](https://mixednuts-inc.com/insights/ai-overviews-7-principles)
-- [Core Update 2026 と Answer Engine 対応](https://mixednuts-inc.com/insights/core-update-2026-answer-engine)
-- [Calibration Bias: 17倍の事故から学んだもの](https://mixednuts-inc.com/insights/calibration-bias-17x)
-- [FP&A の D+1 締めを実現する AI 実装](https://mixednuts-inc.com/insights/fpna-d-plus-1)
-- [AI エージェント 123 体の組織設計](https://mixednuts-inc.com/insights/ai-agent-org-123)
-- [Google Ads × Claude で ROAS 2x を達成した方法](https://mixednuts-inc.com/insights/ads-roas-2x-google-claude)
-- [Clerk から Better Auth への移行](https://mixednuts-inc.com/insights/clerk-to-better-auth)
-- [Edge で JSON-LD を注入する実装パターン](https://mixednuts-inc.com/insights/edge-injection-json-ld)
-- [Opus / Sonnet / Haiku のティアリング戦略](https://mixednuts-inc.com/insights/opus-sonnet-haiku-tiering)
-- [Routines on Cloud v6](https://mixednuts-inc.com/insights/routines-on-cloud-v6)
-- [Self-Healing Agent とコスト追跡](https://mixednuts-inc.com/insights/self-healing-cost-tracking)
-- [Skills as Microservices](https://mixednuts-inc.com/insights/skills-as-microservices)
-- [Task Forced Delegation](https://mixednuts-inc.com/insights/task-forced-delegation)
-- [Windsor vs Supermetrics 比較](https://mixednuts-inc.com/insights/windsor-vs-supermetrics)
-- [Calibration: ハルシネーション・ゼロへの実装](https://mixednuts-inc.com/insights/calibration-hallucination-zero)
+- [戦略・経営管理支援](https://mixednuts-inc.com/services/strategy): 中期経営計画、FP&A、投資評価、M&A、新規事業、組織設計を支援します。
+- [AI実装支援](https://mixednuts-inc.com/services/ai): AIエージェント設計、LLM業務実装、データ基盤・MCP統合、ガバナンス、研修を支援します。
+- [マーケティング支援](https://mixednuts-inc.com/services/marketing): 広告運用、SEO・AIO、LTV・CAC分析、コンテンツ、計測基盤を統合します。
 
-## Cases
-- [Works](https://mixednuts-inc.com/works): ケーススタディ (匿名化)
+## Works
+
+- [支援実績](https://mixednuts-inc.com/works): 戦略・AI・マーケティングを横断した案件を、企業名を伏せた匿名ケースとして掲載しています。
+
+## Insights
+
+- [2026 Core Update 総括 — Answer Engine 時代の SEO 戦略](https://mixednuts-inc.com/insights/core-update-2026-answer-engine): 2026年のGoogle Core Updateを総括し、AI Overviews、Perplexity、ChatGPTなどAnswer Engine時代のSEO戦略を10原則と具体施策に整理します。
+- [AI Overviews で引用される 7 原則 — 複数サイト実装で分かった構造化データ戦略](https://mixednuts-inc.com/insights/ai-overviews-7-principles): Google AI Overviews、Perplexity、ChatGPTに引用される記事を分ける7つの構造要素と、複数サイト監査で検証した構造化データ設計を、マーケティング責任者向けに解説します。
+- [広告運用 AI で ROAS を 2 倍にした — Google Ads × Claude の実装パターン](https://mixednuts-inc.com/insights/ads-roas-2x-google-claude): 複数 EC クライアントで運用した Google Ads × AI の実装ログ。Smart Bidding の誤解と正しい使い方、AI クリエイティブ生成の運用設計、日次レビューを 4 時間 → 15 分に圧縮した自動化の詳細。
+- [AI ハルシネーションをゼロ化する Calibration 設計 — 意思決定を歪めない運用ルール](https://mixednuts-inc.com/insights/calibration-hallucination-zero): LLM は「役立ちたい」バイアスで異常値を見ると事態をドラマ化する。経営判断を歪めないために必要なのは、温度パラメータではなく「盛らない運用ルール」の組織化。CEO / AI 導入担当者が明日から応用できる 7 ヶ条。
+- [1 人 CEO が AI エージェント 123 体で事業を回す組織設計](https://mixednuts-inc.com/insights/ai-agent-org-123): Lead 6、Head 15、Worker 100+の3階層で、1人のCEOが複数クライアント、自社プロダクト、投資分析を並行運用する設計と、Claude Max Plan内の実コストを公開します。
+- [Cloudflare Workers で JSON-LD を自動注入する — 既存サイト改修ゼロで AI Overviews 引用率を上げる方法](https://mixednuts-inc.com/insights/edge-injection-json-ld): 既存ECサイトのソースコードを変更せず、Cloudflare WorkersのHTMLRewriterでProduct、Offer、BreadcrumbListのJSON-LDを全ページへ注入する実装を解説します。
+- [Clerk から Better Auth への完全移行 — Neon Postgres × Next.js 15 × Organization 招待まで](https://mixednuts-inc.com/insights/clerk-to-better-auth): Clerk dev instance の本番ドメイン制約に詰まり、Better Auth + Neon Postgres に全面移行した実装ログ。Organization 招待 UI まで含めた日本語唯一の実戦記録。
+- [Windsor.ai vs Supermetrics 日本語決定版 — 広告データ統合 SaaS 6 本比較 + BigQuery 連携実装](https://mixednuts-inc.com/insights/windsor-vs-supermetrics): Yahoo、Meta、Microsoft、Google Adsを日次でBigQueryへ集約するSaaS6製品を比較し、Windsor.aiを選んだ判断軸とPythonクライアント実装を公開します。
+- [FP&A 月次締めが 2 週間 → D+1 に短縮するまで — AI エージェント × 管理会計の実装パターン](https://mixednuts-inc.com/insights/fpna-d-plus-1): 上場子会社規模の FP&A で、月次実績確定の翌日 (D+1) に経営会議付議資料の初稿が自動生成される構造を実装。AI エージェント配置・人間の判断時間化・プロセス境界設計の一次ログ。
+- [Self-Healing + Cost Tracking — エージェント暴走と $200/月 Max Plan の運用](https://mixednuts-inc.com/insights/self-healing-cost-tracking): 123体のAIエージェントを24時間稼働させるため、失敗を検知して自動修復する仕組み、トークン使用量の追跡、Max Plan内に収める運用ルールを実ログから解説します。
+- [Opus / Sonnet / Haiku の使い分け — 6+15+100 体をモデル階層化した運用実数値](https://mixednuts-inc.com/insights/opus-sonnet-haiku-tiering): 123体のAI組織でClaude Opus、Sonnet、Haikuをどう割り当てたか。C-Suite、Head、Workerの役割別モデル階層と、Max Plan内で運用するコスト設計を公開します。
+- [Routines on Cloud v6 — Mac mini 依存を捨てて 24/7 自律稼働に移行した理由](https://mixednuts-inc.com/insights/routines-on-cloud-v6): ローカル Mac mini で動かしていた定期ジョブ (launchd) を、Anthropic Claude Code Routines (クラウド) に全面移行。PC 電源不要の 24/7 稼働インフラへの移行判断軸と実運用。
+- [Skills as Microservices — 79 本のスラッシュコマンドで組織を動かす](https://mixednuts-inc.com/insights/skills-as-microservices): Claude Code の Skills (スラッシュコマンド) 79 本を 「マイクロサービス」 として運用する設計パターン。skill 単体の疎結合化、品質測定、肥大化防止の運用ログ。
+- [Task ツール強制委任 — メインセッションを「自分で実行禁止」にした理由](https://mixednuts-inc.com/insights/task-forced-delegation): AI エージェントのメインセッションが「何でも自分でやる」傾向を構造的に止める設計。ドラマ化バイアスの暴走を防ぐ auto-delegation ルールの一次実装ログ。
+- [AI-First 組織のつくり方: 100体超のエージェントを統制する6原則](https://mixednuts-inc.com/insights/ai-first-org): 自社で運用する100体超のAIエージェント組織について、C-Suite・部門Head・Workerの3階層構造、委任、Calibration、コスト管理の設計原則を解説します。
+- [「17 倍乖離」が実害 ¥3 だった日 — AI エージェント 123 体組織の Calibration ルール](https://mixednuts-inc.com/insights/calibration-bias-17x): 広告レビューで AI が「EC クライアント 汚染！4 媒体死亡！」と 4 連発したが、実害計算すると ¥3 だった 1 日のログ。Drama 化バイアスを構造的に抑える Calibration ルール 7 ヶ条を公開。
+
+## About / Team / CEO
+
+- [会社情報](https://mixednuts-inc.com/about): mixednutsの考え方、行動原則、会社概要、提供体制を紹介します。
+- [チーム](https://mixednuts-inc.com/team): 代表、100体超のAIエージェント組織、案件ごとの専門パートナーによる編成を紹介します。
+- [代表プロフィール](https://mixednuts-inc.com/team/ceo): 石井希実の広告、IT企業の広告事業、経営企画・FP&A、2021年の創業までの経歴を紹介します。
 
 ## Contact
-- [Contact](https://mixednuts-inc.com/contact): お問い合わせ
-- Email: hello@mixednuts-inc.com
 
-## Optional
-- [Privacy](https://mixednuts-inc.com/privacy)
-- [Legal](https://mixednuts-inc.com/legal)
+- [お問い合わせ・無料相談](https://mixednuts-inc.com/contact): 戦略・AI・マーケティングに関する60分の初回無料相談を受け付けています。

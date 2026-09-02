@@ -1,19 +1,20 @@
 import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
 import { Odometer, SplitWords } from "@/components/v6/KineticText";
 import { buildPageOg } from "@/lib/site-metadata";
 import { works, CASES_COMING_SOON, type Work } from "@/data/works";
 import WorksMotionV6 from "./WorksMotionV6";
 import "./v6-works.css";
+import BreadcrumbNav from "@/components/BreadcrumbNav";
 
 const indexWorks = works.filter((work) => !work.hidden);
 const visibleWorks = CASES_COMING_SOON ? [] : indexWorks;
 
-const pageTitle = "Works — 数字で語る、実績ケース";
+const pageTitle = "支援実績 — 匿名ケース一覧";
 const pageDescription =
-  "上場企業の経営管理から D2C のグロースまで、戦略・AI・マーケティングを横断したクライアントワーク。実績ケースは現在準備中で、匿名化のうえ順次公開していきます。";
+  "経営管理・FP&A、投資評価、新規事業、AI実装、広告運用、SEO・AIOなど、戦略・AI・マーケティングを横断して支援した案件を、企業名を伏せた匿名ケースとして紹介します。";
 
 export const metadata: Metadata = {
   title: pageTitle,
@@ -26,18 +27,15 @@ export const metadata: Metadata = {
   }),
 };
 
-const collectionPageSchema = {
-  "@context": "https://schema.org",
-  "@type": "CollectionPage",
-  "@id": "https://mixednuts-inc.com/works#webpage",
-  url: "https://mixednuts-inc.com/works",
+// While the case roster is gated (CASES_COMING_SOON) the page is a plain WebPage — an empty ItemList is invalid.
+const collectionPageSchema = buildWebPageSchema({
+  type: visibleWorks.length ? "CollectionPage" : "WebPage",
+  path: "/works",
   name: pageTitle,
   description: pageDescription,
-  inLanguage: "ja-JP",
-  isPartOf: { "@id": "https://mixednuts-inc.com/#website" },
-  ...(visibleWorks.length > 0
+  ...(visibleWorks.length
     ? {
-        mainEntity: {
+        mainEntityList: {
           "@type": "ItemList",
           itemListElement: visibleWorks.map((work, index) => ({
             "@type": "ListItem",
@@ -48,7 +46,7 @@ const collectionPageSchema = {
         },
       }
     : {}),
-};
+});
 
 const breadcrumb = buildBreadcrumbSchema([
   { name: "Home", path: "/" },
@@ -136,11 +134,12 @@ export default function WorksPage() {
       <WorksMotionV6 />
       <JsonLd data={collectionPageSchema} />
       <JsonLd data={breadcrumb} />
+      <BreadcrumbNav items={[{ name: "Home", path: "/" }, { name: "Works" }]} />
 
       <main>
         <section className="works-title-card works-title-black" data-nav="dark">
           <p className="works-overline" data-title-reveal><i />Works · Confidential engagement index</p>
-          <h1 data-split>
+          <h1 data-split aria-label="Confidential Engagement Index">
             <SplitWords words={["Confidential"]} />
             <br />
             <SplitWords words={["Engagement"]} />

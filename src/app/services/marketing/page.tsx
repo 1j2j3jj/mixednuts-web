@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { works, CASES_COMING_SOON } from "@/data/works";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
 import { buildPageOg } from "@/lib/site-metadata";
 import ServiceDetailV6 from "../ServiceDetailV6";
 import "../v6-services.css";
 
-const pageTitle = "Marketing — グロースマーケティングと統合広告運用";
+const pageTitle = "マーケティング支援 — 広告・SEO・グロース";
 const pageDescription =
-  "広告・グロースの実務経験を持つメンバーが、広告運用とグロース戦略を統合提供。LTV/CAC最適化、SEO/AIO、クリエイティブ戦略まで。";
+  "広告・グロースの実務経験を基に、広告運用、SEO・AIO、ファネル設計、LTV・CAC分析、コンテンツ、計測基盤を統合し、日次の可視化と継続改善まで支援します。";
 
 export const metadata: Metadata = {
   title: pageTitle,
@@ -38,6 +38,7 @@ const breadcrumb = buildBreadcrumbSchema([
   { name: "Services", path: "/services" },
   { name: "Marketing", path: "/services/marketing" },
 ]);
+const webPageSchema = buildWebPageSchema({ path: "/services/marketing", name: pageTitle, description: pageDescription });
 
 const offerings = [
   { num: "01", title: "広告運用（Google / Meta / TikTok）", desc: "キャンペーン構造の設計から入札戦略、クリエイティブ最適化まで。AIを活用した自動入札設定と、人間の目によるCV品質管理を組み合わせ、ROASとCPAの両立を目指します。" },
@@ -58,6 +59,7 @@ export default function ServiceMarketingPage() {
   return (
     <>
       <JsonLd data={serviceSchema} />
+      <JsonLd data={webPageSchema} />
       <JsonLd data={breadcrumb} />
       <ServiceDetailV6
         act="ACT III"

@@ -2,12 +2,17 @@ import type { Metadata } from "next";
 import V6PageMotion from "@/components/V6PageMotion";
 import { SplitWords } from "@/components/v6/KineticText";
 import "./v6-beta.css";
+import { buildPageOg } from "@/lib/site-metadata";
+
+const pageTitle = "広告レポートダッシュボード・クローズドβ";
+const pageDescription = "広告媒体、GA4、売上、オフラインコンバージョンを突合し、目標対比とデータ鮮度を確認できるクライアント専用レポートダッシュボードです。現在は招待制で提供しています。";
 
 export const metadata: Metadata = {
-  title: "広告レポートダッシュボード（クローズドβ）| ミックスナッツ株式会社",
-  description: "広告（Google/Yahoo/Meta 等）× GA4 × 売上を突合したレポートを、クライアント専用ダッシュボードで提供します。現在は招待制のクローズドβです。",
+  title: pageTitle,
+  description: pageDescription,
   alternates: { canonical: "/beta" },
   robots: { index: false, follow: false },
+  ...buildPageOg({ title: pageTitle, description: pageDescription, path: "/beta" }),
 };
 
 const FEATURES: Array<[string, string]> = [
@@ -24,7 +29,7 @@ export default function BetaPage() {
       <V6PageMotion />
       <section className="beta-v6__hero" data-nav="dark">
         <p className="v6-hero-detail">Closed beta / Invitation only</p>
-        <h1 className="v6-slam"><SplitWords words={["See", "what", "moves."]} /></h1>
+        <h1 className="v6-slam" aria-label="See what moves."><SplitWords words={["See", "what", "moves."]} /></h1>
         <p className="beta-v6__lead v6-hero-detail">広告・アクセス解析・売上を、ひとつの画面で。クライアント向けレポートダッシュボードです。</p>
       </section>
       <section className="beta-v6__body" data-nav="light">

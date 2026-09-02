@@ -1,14 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
 import { Odometer, SplitWords } from "@/components/v6/KineticText";
 import { works, type Work, CASES_COMING_SOON } from "@/data/works";
-import { buildPageOg } from "@/lib/site-metadata";
+import { buildPageOg, compactTitle } from "@/lib/site-metadata";
 import WorksMotionV6 from "../WorksMotionV6";
 import "../v6-works.css";
+import BreadcrumbNav from "@/components/BreadcrumbNav";
 
 type Props = { params: Promise<{ slug: string }> };
+
+function workDescription(work: Work): string {
+  const source = `${work.summary} ${work.role}として、${work.services.map((service) => serviceLabels[service]).join("・")}領域を支援した匿名ケースです。`;
+  return source.length <= 120 ? source : `${source.slice(0, 119).trim()}。`;
+}
 
 export async function generateStaticParams() {
   if (CASES_COMING_SOON) return [];
@@ -19,16 +25,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const work = works.find((entry) => entry.slug === slug);
   if (!work || work.hidden || CASES_COMING_SOON) return {};
-  const title = `Case: ${work.title}`;
+  const title = compactTitle(`事例: ${work.title}`);
+  const description = workDescription(work);
   return {
     title,
-    description: work.summary,
+    description,
     alternates: { canonical: `/works/${slug}` },
     ...buildPageOg({
       title,
-      description: work.summary,
+      description,
       path: `/works/${slug}`,
-      images: work.image ? [{ url: work.image }] : undefined,
     }),
   };
 }
@@ -72,19 +78,9 @@ export default async function WorkDetailPage({ params }: Props) {
   const work = works.find((entry) => entry.slug === slug);
   if (!work || work.hidden) notFound();
 
-  const creativeWorkSchema = {
-    "@context": "https://schema.org",
-    "@type": "CreativeWork",
-    "@id": `https://mixednuts-inc.com/works/${work.slug}#case`,
-    name: work.title,
-    description: work.summary,
-    about: work.industry,
-    creator: { "@id": "https://mixednuts-inc.com/#organization" },
-    inLanguage: "ja-JP",
-    keywords: work.services.join(", "),
-    image: `https://mixednuts-inc.com${work.image}`,
-    url: `https://mixednuts-inc.com/works/${work.slug}`,
-  };
+  const pageName = compactTitle(`事例: ${work.title}`);
+  const description = workDescription(work);
+  const webPageSchema = buildWebPageSchema({ path: `/works/${work.slug}`, name: pageName, description, about: { "@id": "https://mixednuts-inc.com/#organization" } });
 
   const breadcrumb = buildBreadcrumbSchema([
     { name: "Home", path: "/" },
@@ -98,8 +94,9 @@ export default async function WorkDetailPage({ params }: Props) {
   return (
     <div className="mn-v6 works-v6 work-detail-v6" data-v6-motion>
       <WorksMotionV6 />
-      <JsonLd data={creativeWorkSchema} />
+      <JsonLd data={webPageSchema} />
       <JsonLd data={breadcrumb} />
+      <BreadcrumbNav items={[{ name: "Home", path: "/" }, { name: "Works", path: "/works" }, { name: work.title }]} />
 
       <main>
         <section className="works-title-card case-title-card" data-nav="dark">
@@ -107,7 +104,7 @@ export default async function WorkDetailPage({ params }: Props) {
           <div className="case-service-line" data-title-reveal>
             {work.services.map((service) => <span key={service}>{serviceLabels[service]}</span>)}
           </div>
-          <h1 data-split><SplitWords words={work.title.split(" ")} /></h1>
+          <h1 data-split aria-label={work.title}><SplitWords words={work.title.split(" ")} /></h1>
           <p className="case-summary" data-title-reveal>{work.summary}</p>
           <div className="case-metrics-strip" data-odometer data-title-reveal>
             {work.metric.map((metric) => (

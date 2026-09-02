@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import V6PageMotion from "@/components/V6PageMotion";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
 import { buildPageOg } from "@/lib/site-metadata";
 import "./v6-legal.css";
 
-const pageTitle = "Legal / 特定商取引法に基づく表記";
+const pageTitle = "法的情報・特定商取引法に基づく表記";
 const pageDescription =
-  "特定商取引法に基づく表記、サービス利用規約、免責事項。ミックスナッツ株式会社のサービスに関する法的情報。";
+  "ミックスナッツ株式会社の特定商取引法に基づく表記、サービス利用規約、支払い・キャンセル条件、知的財産権、禁止事項、免責事項、準拠法と管轄の情報を掲載しています。";
 
 export const metadata: Metadata = {
   title: pageTitle,
@@ -24,18 +24,18 @@ const breadcrumb = buildBreadcrumbSchema([
   { name: "Home", path: "/" },
   { name: "Legal", path: "/legal" },
 ]);
+const webPageSchema = buildWebPageSchema({ path: "/legal", name: pageTitle, description: pageDescription });
 
 export default function LegalPage() {
   return (
     <main className="legal-v6" data-v6-page>
       <JsonLd data={breadcrumb} />
+      <JsonLd data={webPageSchema} />
       <V6PageMotion />
 
       <section className="legal-hero" data-nav="dark">
         <div className="legal-hero-inner">
-          <div className="breadcrumb-legal">
-            <Link href="/">Home</Link> / Legal
-          </div>
+          <nav className="breadcrumb-legal" aria-label="パンくずリスト"><ol style={{ display: "contents" }}><li style={{ display: "contents" }}><Link href="/">Home</Link></li><li style={{ display: "contents" }}> / Legal</li></ol></nav>
           <h1>Legal / 特定商取引法に基づく表記</h1>
           <p className="lead">
             特定商取引法に基づく表記、サービス利用規約、免責事項をまとめています。当社のサービスをご利用いただく際は、必ずご確認ください。
@@ -128,6 +128,7 @@ export default function LegalPage() {
                 <td>
                   <a
                     href="https://www.mixednuts-inc.com"
+                    rel="noopener"
                     style={{
                       color: "var(--navy)",
                       textDecoration: "underline",

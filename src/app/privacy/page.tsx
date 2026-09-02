@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import V6PageMotion from "@/components/V6PageMotion";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
 import { buildPageOg } from "@/lib/site-metadata";
 import "./v6-privacy.css";
 
 const pageTitle = "プライバシーポリシー";
 const pageDescription =
-  "ミックスナッツ株式会社のプライバシーポリシー（個人情報保護方針）。個人情報の取扱い、利用目的、第三者提供、クッキー等について。";
+  "ミックスナッツ株式会社が取得する個人情報、その利用目的、第三者提供、委託、安全管理、Cookie、AIツール利用、採用応募情報、開示請求とお問い合わせ方法を定めています。";
 
 export const metadata: Metadata = {
   title: pageTitle,
@@ -24,18 +24,18 @@ const breadcrumb = buildBreadcrumbSchema([
   { name: "Home", path: "/" },
   { name: "プライバシーポリシー", path: "/privacy" },
 ]);
+const webPageSchema = buildWebPageSchema({ path: "/privacy", name: pageTitle, description: pageDescription });
 
 export default function PrivacyPage() {
   return (
     <main className="privacy-v6" data-v6-page>
       <JsonLd data={breadcrumb} />
+      <JsonLd data={webPageSchema} />
       <V6PageMotion />
 
       <section className="legal-hero" data-nav="dark">
         <div className="legal-hero-inner">
-          <div className="breadcrumb-priv">
-            <Link href="/">Home</Link> / プライバシーポリシー
-          </div>
+          <nav className="breadcrumb-priv" aria-label="パンくずリスト"><ol style={{ display: "contents" }}><li style={{ display: "contents" }}><Link href="/">Home</Link></li><li style={{ display: "contents" }}> / プライバシーポリシー</li></ol></nav>
           <h1>プライバシーポリシー</h1>
           <p className="lead">
             ミックスナッツ株式会社（以下「当社」）は、お客様の個人情報を適切に取り扱うことの社会的責任を認識し、個人情報保護法およびその他の関連法令を遵守するとともに、以下の方針に従って個人情報を適切に取り扱います。
@@ -51,7 +51,7 @@ export default function PrivacyPage() {
       <section className="legal-body" data-nav="light">
         <div className="legal-body-inner">
           <div className="toc">
-            <h3>目次</h3>
+            <p style={{ margin: "0 0 18px", font: "700 11px/1 var(--grot)", letterSpacing: ".18em", textTransform: "uppercase", color: "var(--muted)" }}>目次</p>
             <ol>
               <li>
                 <a href="#sec1">個人情報の定義</a>

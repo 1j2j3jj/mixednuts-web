@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { works, CASES_COMING_SOON } from "@/data/works";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
 import { buildPageOg } from "@/lib/site-metadata";
 import ServiceDetailV6 from "../ServiceDetailV6";
 import "../v6-services.css";
 
-const pageTitle = "AI Implementation — AIと「共に働く組織」をつくる";
+const pageTitle = "AI実装支援 — AIエージェントを業務へ組み込む";
 const pageDescription =
-  "AIエージェント設計、LLM業務実装、データ基盤構築。自社で100体超のAIエージェント組織を運営するAI-firstファーム。";
+  "AIエージェント設計、プロンプト評価、LLMの業務実装、データ基盤・MCP統合、ガバナンス、社内研修まで、自社の100体超のAI運用知見を基に本番稼働まで支援します。";
 
 export const metadata: Metadata = {
   title: pageTitle,
@@ -68,6 +68,7 @@ const breadcrumb = buildBreadcrumbSchema([
   { name: "Services", path: "/services" },
   { name: "AI Implementation", path: "/services/ai" },
 ]);
+const webPageSchema = buildWebPageSchema({ path: "/services/ai", name: pageTitle, description: pageDescription });
 
 const offerings = [
   { num: "01", title: "AI エージェント設計", desc: "業務フロー全体を分析し、どこにAIを配置すべきかの設計から実装まで。専門領域ごとの役割分担、エージェント間連携、ガバナンスまで一気通貫で支援します。", items: ["マルチエージェント設計", "専門性別ロール分担", "エージェント間連携", "ガバナンス設計"] },
@@ -96,6 +97,7 @@ export default function ServiceAIPage() {
   return (
     <>
       <JsonLd data={serviceSchema} />
+      <JsonLd data={webPageSchema} />
       <JsonLd data={faqSchema} />
       <JsonLd data={breadcrumb} />
       <ServiceDetailV6

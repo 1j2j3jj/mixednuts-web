@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { services } from "@/data/services";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
 import { buildPageOg } from "@/lib/site-metadata";
 import { SplitWords } from "@/components/v6/KineticText";
 import ServicesMotion from "./ServicesMotion";
 import "./v6-services.css";
 
-const pageTitle = "Services — Strategy × AI × Marketing";
+const pageTitle = "サービス一覧 — 戦略・AI・マーケティング";
 const pageDescription =
-  "戦略コンサルティング・AI実装支援・マーケティング成長支援の3軸を一気通貫で提供。";
+  "事業戦略と経営管理、AIエージェントの設計・業務実装、広告運用やSEOを含むグロースマーケティングの3領域を、構想から運用改善まで一つのチームで継続支援します。";
 
 export const metadata: Metadata = {
   title: pageTitle,
@@ -22,16 +22,12 @@ export const metadata: Metadata = {
   }),
 };
 
-const collectionPageSchema = {
-  "@context": "https://schema.org",
-  "@type": "CollectionPage",
-  "@id": "https://mixednuts-inc.com/services#webpage",
-  url: "https://mixednuts-inc.com/services",
+const collectionPageSchema = buildWebPageSchema({
+  type: "CollectionPage",
+  path: "/services",
   name: pageTitle,
   description: pageDescription,
-  inLanguage: "ja-JP",
-  isPartOf: { "@id": "https://mixednuts-inc.com/#website" },
-  mainEntity: {
+  mainEntityList: {
     "@type": "ItemList",
     itemListElement: [
       { name: "Strategy Consulting", path: "/services/strategy" },
@@ -44,7 +40,7 @@ const collectionPageSchema = {
       name: service.name,
     })),
   },
-};
+});
 
 const breadcrumb = buildBreadcrumbSchema([
   { name: "Home", path: "/" },
@@ -80,9 +76,9 @@ export default function ServicesPage() {
       <ServicesMotion />
       <main>
         <section className="services-title" data-nav="dark">
-          <p className="service-crumb" data-hero-copy><Link href="/">Home</Link> / Services</p>
+          <nav className="service-crumb" aria-label="パンくずリスト" data-hero-copy><ol style={{ display: "contents" }}><li style={{ display: "contents" }}><Link href="/">Home</Link></li><li style={{ display: "contents" }}> / Services</li></ol></nav>
           <p className="act-label" data-hero-copy>Our services · one operating system</p>
-          <h1 data-service-title data-split><SplitWords words={["Three"]} /><br /><SplitWords words={["Acts."]} /></h1>
+          <h1 data-service-title data-split aria-label="Three Acts."><SplitWords words={["Three"]} /><br /><SplitWords words={["Acts."]} /></h1>
           <div className="services-title-copy">
             <h2 data-hero-copy><span>3つの専門性を、</span><br /><span>1つのチームで。</span></h2>
             <p data-hero-copy>
@@ -132,7 +128,7 @@ export default function ServicesPage() {
         </section>
 
         <section className="service-end" data-nav="dark">
-          <h2 data-split><SplitWords words={["Let’s"]} /><br /><SplitWords words={["build"]} /><br /><SplitWords words={["growth."]} /></h2>
+          <h2 data-split aria-label="Let’s build growth."><SplitWords words={["Let’s"]} /><br /><SplitWords words={["build"]} /><br /><SplitWords words={["growth."]} /></h2>
           <div data-reveal>
             <p>どのサービスから始めるべきかも含めて、一緒に考えます。まずは課題をお聞かせください。</p>
             <Link className="btn" href="/contact">無料相談を申し込む</Link>

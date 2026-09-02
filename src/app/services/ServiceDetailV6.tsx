@@ -60,9 +60,9 @@ export default function ServiceDetailV6({
       <main>
         <section className="service-hero" data-nav="dark">
           <div className="service-title-card">
-            <p className="service-crumb" data-hero-copy><Link href="/">Home</Link> / <Link href="/services">Services</Link> / {word}</p>
+            <nav className="service-crumb" aria-label="パンくずリスト" data-hero-copy><ol style={{ display: "contents" }}><li style={{ display: "contents" }}><Link href="/">Home</Link></li><li style={{ display: "contents" }}> / <Link href="/services">Services</Link></li><li style={{ display: "contents" }}> / {word}</li></ol></nav>
             <p className="act-label" data-hero-copy>{act} · {eyebrow}</p>
-            <h1 data-service-title data-split><SplitWords words={[word]} /></h1>
+            <h1 data-service-title data-split aria-label={word}><SplitWords words={[word]} /></h1>
             <h2 data-hero-copy><span className="balanced-lines">{headline}</span></h2>
             <p className="service-lead" data-hero-copy>{lead}</p>
           </div>

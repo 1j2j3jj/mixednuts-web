@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { posts } from "#site/content";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
 import { buildPageOg } from "@/lib/site-metadata";
 import InsightsMotion from "../../InsightsMotion";
 import "../../v6-insights.css";
@@ -33,8 +33,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { tag } = await params;
   const name = decodeTag(tag);
-  const title = `#${name} — Insights`;
-  const description = `タグ「${name}」の記事一覧。mixednuts Inc. の Insights。`;
+  const title = `タグ「${name}」の記事一覧`;
+  const description = `タグ「${name}」に関連するmixednutsの公開記事を、新しい順に一覧で紹介します。戦略、AI、経営管理、マーケティング、技術実装のうち、このテーマに紐づく実践知を確認できます。`;
   const path = `/insights/tag/${encodeURIComponent(name)}`;
   const visibleCount = posts.filter(
     (post) => !post.hidden && post.tags.includes(name),
@@ -43,10 +43,7 @@ export async function generateMetadata({
     title,
     description,
     alternates: { canonical: path },
-    robots:
-      visibleCount >= 2
-        ? { index: true, follow: true }
-        : { index: false, follow: true },
+    ...(visibleCount < 2 ? { robots: { index: false, follow: true } } : {}),
     ...buildPageOg({ title, description, path }),
   };
 }
@@ -77,21 +74,26 @@ export default async function TagPage({ params }: { params: Promise<Params> }) {
     { name: "Insights", path: "/insights" },
     { name: `#${tag}`, path: `/insights/tag/${encodeURIComponent(tag)}` },
   ]);
+  const collectionPageSchema = buildWebPageSchema({
+    type: "CollectionPage",
+    path: `/insights/tag/${encodeURIComponent(tag)}`,
+    name: `タグ「${tag}」の記事一覧`,
+    description: `タグ「${tag}」に関連するmixednutsの公開記事を、新しい順に一覧で紹介します。戦略、AI、経営管理、マーケティング、技術実装のうち、このテーマに紐づく実践知を確認できます。`,
+    mainEntityList: {
+      "@type": "ItemList",
+      itemListElement: matched.map((post, index) => ({ "@type": "ListItem", position: index + 1, url: `https://mixednuts-inc.com${post.permalink}`, name: post.title })),
+    },
+  });
 
   return (
     <main className="mn-v6 insights-v6 tag-v6">
       <InsightsMotion />
+      <JsonLd data={collectionPageSchema} />
       <JsonLd data={breadcrumb} />
 
       <header className="insights-title enji" data-nav="dark">
         <div className="insights-title-top insights-title-meta">
-          <div className="insights-breadcrumb">
-            <Link href="/">Home</Link>
-            <span aria-hidden="true">/</span>
-            <Link href="/insights">Insights</Link>
-            <span aria-hidden="true">/</span>
-            <span>Tag</span>
-          </div>
+          <nav className="insights-breadcrumb" aria-label="パンくずリスト"><ol style={{ display: "contents" }}><li style={{ display: "contents" }}><Link href="/">Home</Link></li><li style={{ display: "contents" }}><span aria-hidden="true">/</span><Link href="/insights">Insights</Link></li><li style={{ display: "contents" }}><span aria-hidden="true">/</span><span>Tag</span></li></ol></nav>
           <span className="insights-title-index">Tag index / {String(matched.length).padStart(2, "0")}</span>
         </div>
 

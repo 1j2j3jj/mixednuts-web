@@ -3,10 +3,17 @@ import { Suspense } from "react";
 import LoginForm from "./LoginForm";
 import V6PageMotion from "@/components/V6PageMotion";
 import "./v6-login.css";
+import { buildPageOg } from "@/lib/site-metadata";
+
+const pageTitle = "クライアントログイン";
+const pageDescription = "mixednutsのクライアント専用ダッシュボードへログインするページです。招待済みの利用者が安全に認証を行い、広告・アクセス解析・売上レポートを確認できます。";
 
 export const metadata: Metadata = {
-  title: "Login | mixednuts Dashboard",
+  title: pageTitle,
+  description: pageDescription,
+  alternates: { canonical: "/login" },
   robots: { index: false, follow: false },
+  ...buildPageOg({ title: pageTitle, description: pageDescription, path: "/login" }),
 };
 
 export default function LoginPage() {

@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
 import { Odometer, SplitWords } from "@/components/v6/KineticText";
 import { buildPageOg } from "@/lib/site-metadata";
 import V6PageMotion from "./V6PageMotion";
 import "./v6-about.css";
+import BreadcrumbNav from "@/components/BreadcrumbNav";
 
-const pageTitle = "About — 才能が「ミックス」する瞬間、事業は動き始める";
+const pageTitle = "会社情報 — 考え方と提供体制";
 const pageDescription =
   "戦略・AI・マーケティングを一気通貫で提供するAI-firstファーム。代表の経験、AIエージェント組織、案件ごとの専門パートナーを組み合わせて事業成長を支援します。";
 
@@ -17,17 +18,7 @@ export const metadata: Metadata = {
   ...buildPageOg({ title: pageTitle, description: pageDescription, path: "/about" }),
 };
 
-const aboutPageSchema = {
-  "@context": "https://schema.org",
-  "@type": "AboutPage",
-  "@id": "https://mixednuts-inc.com/about#webpage",
-  url: "https://mixednuts-inc.com/about",
-  name: pageTitle,
-  description: pageDescription,
-  inLanguage: "ja-JP",
-  isPartOf: { "@id": "https://mixednuts-inc.com/#website" },
-  mainEntity: { "@id": "https://mixednuts-inc.com/#organization" },
-};
+const aboutPageSchema = buildWebPageSchema({ type: "AboutPage", path: "/about", name: pageTitle, description: pageDescription, mainEntity: { "@id": "https://mixednuts-inc.com/#organization" } });
 
 const breadcrumb = buildBreadcrumbSchema([
   { name: "Home", path: "/" },
@@ -56,11 +47,12 @@ export default function AboutPage() {
       <V6PageMotion />
       <JsonLd data={aboutPageSchema} />
       <JsonLd data={breadcrumb} />
+      <BreadcrumbNav items={[{ name: "Home", path: "/" }, { name: "About" }]} />
 
       <main>
         <section className="title-card f-navy" data-nav="dark">
           <p className="overline"><i />About mixednuts Inc. · Tokyo</p>
-          <h1 data-split>
+          <h1 data-split aria-label="About 才能が「ミックス」する瞬間、事業は動き始める。">
             <SplitWords words={["About"]} /><br />
             <span className="jp-title">才能が「ミックス」する瞬間、<br />事業は動き始める。</span>
           </h1>

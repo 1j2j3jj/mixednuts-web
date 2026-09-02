@@ -83,7 +83,7 @@ export default function Nav() {
     <>
       <Link href="/" className="mark" aria-label="mixednuts Inc. - Home">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo-mark.png" alt="" width="13" height="36" />
+        <img src="/logo-mark.png" alt="" aria-hidden="true" width="13" height="36" />
       </Link>
       <nav className="nav" aria-label="Primary navigation" data-theme="light">
         <div className="nav-inner">

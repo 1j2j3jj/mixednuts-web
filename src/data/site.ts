@@ -16,3 +16,5 @@ export const siteConfig = {
     automations: "40+",
   },
 };
+
+export const SITE_UPDATED = "2026-09-03";

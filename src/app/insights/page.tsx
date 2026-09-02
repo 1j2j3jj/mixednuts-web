@@ -2,15 +2,15 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { posts } from "#site/content";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
 import { Odometer } from "@/components/v6/KineticText";
 import { buildPageOg } from "@/lib/site-metadata";
 import InsightsMotion from "./InsightsMotion";
 import "./v6-insights.css";
 
-const pageTitle = "Insights — Strategy × AI × Marketing の最新知見";
+const pageTitle = "インサイト — 戦略・AI・マーケティングの実践知";
 const pageDescription =
-  "戦略・AI・マーケティング・ファイナンスの実践ノウハウを発信。AI-firstコンサルティングファームの知見を公開しています。";
+  "戦略、AIエージェント運用、経営管理・FP&A、広告運用、SEO・AIO、エンジニアリングについて、mixednutsが実装と検証から得た知見を公開記事としてまとめています。";
 
 export const metadata: Metadata = {
   title: pageTitle,
@@ -112,16 +112,12 @@ const publishedArticles: ListItem[] = [...posts]
     thumbLabel: post.thumbLabel,
   }));
 
-const collectionPageSchema = {
-  "@context": "https://schema.org",
-  "@type": "CollectionPage",
-  "@id": "https://mixednuts-inc.com/insights#webpage",
-  url: "https://mixednuts-inc.com/insights",
+const collectionPageSchema = buildWebPageSchema({
+  type: "CollectionPage",
+  path: "/insights",
   name: pageTitle,
   description: pageDescription,
-  inLanguage: "ja-JP",
-  isPartOf: { "@id": "https://mixednuts-inc.com/#website" },
-  mainEntity: {
+  mainEntityList: {
     "@type": "ItemList",
     itemListElement: publishedArticles.map((article, index) => ({
       "@type": "ListItem",
@@ -130,7 +126,7 @@ const collectionPageSchema = {
       name: article.title,
     })),
   },
-};
+});
 
 const breadcrumb = buildBreadcrumbSchema([
   { name: "Home", path: "/" },
@@ -178,11 +174,7 @@ export default function InsightsPage() {
 
       <section className="insights-title" data-nav="dark">
         <div className="insights-title-top insights-title-meta">
-          <div className="insights-breadcrumb">
-            <Link href="/">Home</Link>
-            <span aria-hidden="true">/</span>
-            <span>Insights</span>
-          </div>
+          <nav className="insights-breadcrumb" aria-label="パンくずリスト"><ol style={{ display: "contents" }}><li style={{ display: "contents" }}><Link href="/">Home</Link></li><li style={{ display: "contents" }}><span aria-hidden="true">/</span><span>Insights</span></li></ol></nav>
           <span className="insights-title-index">Knowledge / 06</span>
         </div>
 

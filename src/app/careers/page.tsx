@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import V6PageMotion from "@/components/V6PageMotion";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
 import { SplitWords } from "@/components/v6/KineticText";
 import { positions, CASUAL_INTERVIEW_SLUG } from "@/data/careers";
 import { buildPageOg } from "@/lib/site-metadata";
@@ -30,8 +30,9 @@ const breadcrumb = buildBreadcrumbSchema([
   { name: "Careers", path: "/careers" },
 ]);
 
-const pageTitle = "Careers — AI と共に働くプロフェッショナル募集";
-const pageDescription = "戦略・AI・マーケのプロフェッショナルを募集。専門性と働き方に合わせて、多様な参画方法を設計します。";
+const pageTitle = "採用情報 — 戦略・AI・マーケティング";
+const pageDescription = "戦略・AI・マーケティングの専門性を持ち、AIを標準装備として事業成果まで越境して働くメンバーを募集しています。副業・業務委託やリモートを含む参画方法も相談できます。";
+const webPageSchema = buildWebPageSchema({ path: "/careers", name: pageTitle, description: pageDescription });
 
 export const metadata: Metadata = {
   title: pageTitle,
@@ -50,13 +51,14 @@ export default function CareersPage() {
   return (
     <main className="careers-v6" data-v6-page>
       <JsonLd data={faqSchema} />
+      <JsonLd data={webPageSchema} />
       <JsonLd data={breadcrumb} />
       <V6PageMotion />
 
       <section className="careers-v6__hero" data-nav="dark">
-        <div className="careers-v6__crumb v6-hero-detail"><Link href="/">Home</Link><span>/</span>Careers</div>
+        <nav className="careers-v6__crumb v6-hero-detail" aria-label="パンくずリスト"><ol style={{ display: "contents" }}><li style={{ display: "contents" }}><Link href="/">Home</Link></li><li style={{ display: "contents" }}><span>/</span>Careers</li></ol></nav>
         <p className="careers-v6__eyebrow v6-hero-detail">Build the operating system</p>
-        <h1 className="careers-v6__title v6-slam"><SplitWords words={["Work", "beyond", "labels."]} /></h1>
+        <h1 className="careers-v6__title v6-slam" aria-label="Work beyond labels."><SplitWords words={["Work", "beyond", "labels."]} /></h1>
         <p className="careers-v6__lead v6-hero-detail">専門性を持ち寄り、AIと共に、事業が動くところまでつくる。役職名よりも、越境する意志を歓迎します。</p>
       </section>
 

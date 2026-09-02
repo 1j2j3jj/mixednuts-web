@@ -1,21 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
 import { SplitWords } from "@/components/v6/KineticText";
 import { members } from "@/data/members";
 import { buildPageOg } from "@/lib/site-metadata";
 import V6PageMotion from "../../about/V6PageMotion";
 import "./v6-ceo.css";
+import BreadcrumbNav from "@/components/BreadcrumbNav";
 
-const pageTitle = "CEO Profile — 石井 希実 (Nozomi Ishii)";
+const pageTitle = "代表プロフィール — 石井 希実";
 const pageDescription =
-  "国内大手デジタル広告代理店で金融・不動産・旅行業界の大手企業を担当し、チームマネージャーとして PL 責任を担う。グローバル大手IT企業では広告事業のアカウントストラテジストとして、大手企業約50社のデジタル戦略を支援。国内大手IT企業の経営企画では、ライブ配信・エンターテインメント事業の事業計画策定、FP&A、投資評価、取締役会付議資料を担当。2021年に mixednuts を創業し、戦略・AI・マーケティングの統合提供を牽引。早稲田大学大学院 経営管理研究科 修了（MBA）。";
+  "国内大手デジタル広告代理店、グローバル大手IT企業の広告事業、国内大手IT企業の経営企画・FP&Aを経て、2021年にmixednutsを創業した石井希実の経歴と専門領域を紹介します。";
 
 export const metadata: Metadata = {
   title: pageTitle,
   description: pageDescription,
   alternates: { canonical: "/team/ceo" },
-  ...buildPageOg({ title: pageTitle, description: pageDescription, path: "/team/ceo" }),
+  ...buildPageOg({ title: pageTitle, description: pageDescription, path: "/team/ceo", type: "profile" }),
 };
 
 const personSchema = {
@@ -25,30 +26,22 @@ const personSchema = {
   name: "石井 希実 (Nozomi Ishii)",
   jobTitle: "Founder & CEO",
   worksFor: { "@id": "https://mixednuts-inc.com/#organization" },
-  description: pageDescription,
+  description: members.find((member) => member.division === "leadership")!.bio,
   alumniOf: [{ "@type": "CollegeOrUniversity", name: "早稲田大学大学院 経営管理研究科" }],
   knowsAbout: [
+    "Corporate Planning",
     "FP&A",
     "Investment Evaluation",
-    "AI Agent Design",
-    "LLM Implementation",
+    "Board Materials",
+    "Digital Advertising",
     "Growth Marketing",
-    "SEO / AIO",
-    "Corporate Finance",
+    "AI Agent Design",
     "Business Planning",
   ],
   url: "https://mixednuts-inc.com/team/ceo",
 };
 
-const profilePageSchema = {
-  "@context": "https://schema.org",
-  "@type": "ProfilePage",
-  "@id": "https://mixednuts-inc.com/team/ceo#webpage",
-  url: "https://mixednuts-inc.com/team/ceo",
-  inLanguage: "ja-JP",
-  isPartOf: { "@id": "https://mixednuts-inc.com/#website" },
-  mainEntity: { "@id": "https://mixednuts-inc.com/team/ceo#person" },
-};
+const profilePageSchema = buildWebPageSchema({ type: "ProfilePage", path: "/team/ceo", name: pageTitle, description: pageDescription, mainEntity: { "@id": "https://mixednuts-inc.com/team/ceo#person" } });
 
 const breadcrumb = buildBreadcrumbSchema([
   { name: "Home", path: "/" },
@@ -109,11 +102,12 @@ export default function CeoPage() {
       <JsonLd data={personSchema} />
       <JsonLd data={profilePageSchema} />
       <JsonLd data={breadcrumb} />
+      <BreadcrumbNav items={[{ name: "Home", path: "/" }, { name: "Team", path: "/team" }, { name: "CEO Profile" }]} />
 
       <main>
         <section className="title-card f-black" data-nav="dark">
           <p className="overline"><i />Founder &amp; CEO · Profile</p>
-          <h1 data-split><SplitWords words={["Nozomi"]} /><br /><SplitWords words={["Ishii"]} /><br /><span>石井 希実</span></h1>
+          <h1 data-split aria-label="Nozomi Ishii 石井 希実"><SplitWords words={["Nozomi"]} /><br /><SplitWords words={["Ishii"]} /><br /><span aria-hidden="true">石井 希実</span></h1>
           <p className="page-lead">{ceo.background}<br />2021年 mixednuts 創業 · 2026年 早稲田大学大学院 経営管理研究科 修了（MBA）</p>
           <p className="page-index">01 / 04</p>
         </section>

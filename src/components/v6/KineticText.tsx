@@ -6,7 +6,7 @@ export function SplitWords({ words, accent }: { words: string[]; accent?: string
   // inside an inline-block collapses, which glued "With" to "AI.").
   return words.map((word, wordIndex) => (
     <Fragment key={`${word}-${wordIndex}`}>
-      <span className={`w${word === accent ? " ai" : ""}`}>
+      <span className={`w${word === accent ? " ai" : ""}`} aria-hidden="true">
         {Array.from(word).map((character, characterIndex) => (
           <span className="c" key={`${character}-${characterIndex}`}>{character}</span>
         ))}

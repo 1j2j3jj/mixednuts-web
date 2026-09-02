@@ -1,4 +1,5 @@
 import type { ReactElement } from "react";
+import { OG_DEFAULT_IMAGE, SITE_URL, absoluteUrl } from "@/lib/site-metadata";
 
 /**
  * 共通 JSON-LD レンダラー。
@@ -22,16 +23,14 @@ export function JsonLd({
 // サイト全体で使う共通 schema
 // ============================================================
 
-const SITE_URL = "https://mixednuts-inc.com";
-
 export const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
   "@id": `${SITE_URL}/#organization`,
-  name: "ミックスナッツ株式会社",
-  alternateName: "mixednuts Inc.",
+  name: "mixednuts Inc.",
+  alternateName: "ミックスナッツ株式会社",
   legalName: "ミックスナッツ株式会社",
-  url: `${SITE_URL}/`,
+  url: SITE_URL,
   // logo は実ロゴ (1500x281 ワードマーク、両辺 112px 以上の Google 要件充足) を指す。
   // 従来は OGP バナー (og-default.jpg 1200x630) を指しておりナレッジパネル用ロゴとして不適切だった
   logo: {
@@ -44,6 +43,7 @@ export const organizationSchema = {
   description:
     "戦略コンサルティング、AIエージェント導入、グロースマーケティングを統合提供する AI-first コンサルティングファーム。",
   foundingDate: "2021",
+  founder: { "@id": `${SITE_URL}/team/ceo#person` },
   email: "hello@mixednuts-inc.com",
   address: {
     "@type": "PostalAddress",
@@ -83,11 +83,11 @@ export const webSiteSchema = {
   "@context": "https://schema.org",
   "@type": "WebSite",
   "@id": `${SITE_URL}/#website`,
-  url: `${SITE_URL}/`,
-  name: "mixednuts",
+  url: SITE_URL,
+  name: "mixednuts Inc.",
   description:
     "戦略・AI・マーケティングを一気通貫で提供する AI-first コンサルティングファーム。",
-  inLanguage: "ja-JP",
+  inLanguage: "ja",
   publisher: { "@id": `${SITE_URL}/#organization` },
 };
 
@@ -101,6 +101,7 @@ export function buildBreadcrumbSchema(
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
+    "@id": `${absoluteUrl(items.at(-1)?.path ?? "/")}#breadcrumb`,
     itemListElement: items.map((item, index) => ({
       "@type": "ListItem",
       position: index + 1,
@@ -109,5 +110,48 @@ export function buildBreadcrumbSchema(
         ? item.path
         : `${SITE_URL}${item.path}`,
     })),
+  };
+}
+
+
+export function buildWebPageSchema({
+  type = "WebPage",
+  path,
+  name,
+  description,
+  mainEntity,
+  mainEntityList,
+  image,
+  about,
+}: {
+  type?: string;
+  path: string;
+  name: string;
+  description: string;
+  mainEntity?: Record<string, unknown>;
+  mainEntityList?: Record<string, unknown>;
+  image?: string;
+  about?: Record<string, unknown>;
+}): Record<string, unknown> {
+  const url = absoluteUrl(path);
+  return {
+    "@context": "https://schema.org",
+    "@type": type,
+    "@id": `${url}#webpage`,
+    url,
+    name,
+    description,
+    inLanguage: "ja",
+    isPartOf: { "@id": `${SITE_URL}/#website` },
+    breadcrumb: { "@id": `${url}#breadcrumb` },
+    primaryImageOfPage: {
+      "@type": "ImageObject",
+      url: absoluteUrl(image ?? OG_DEFAULT_IMAGE.url),
+      width: OG_DEFAULT_IMAGE.width,
+      height: OG_DEFAULT_IMAGE.height,
+    },
+    ...(mainEntity ? { mainEntity } : {}),
+    ...(mainEntityList ? { mainEntity: mainEntityList } : {}),
+    ...(about ? { about } : {}),
   };
 }

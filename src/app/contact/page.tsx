@@ -2,15 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import ContactForm from "./ContactForm";
 import V6PageMotion from "@/components/V6PageMotion";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
 import { SplitWords } from "@/components/v6/KineticText";
 import { buildPageOg } from "@/lib/site-metadata";
 import "./v6-contact.css";
 import "./v6-contact-fixes.css";
 
-const pageTitle = "Contact — まずは、話しましょう";
+const pageTitle = "お問い合わせ・無料相談";
 const pageDescription =
-  "初回無料相談（60分）で、貴社の課題をヒアリングし最適なアプローチをご提案します。24時間以内にご返信します。";
+  "戦略・AI・マーケティングに関する初回無料相談を受け付けています。60分のオンライン対話で課題、目標、時間軸を整理し、必要な場合に具体的な進め方と費用をご提案します。";
 
 export const metadata: Metadata = {
   title: pageTitle,
@@ -19,17 +19,7 @@ export const metadata: Metadata = {
   ...buildPageOg({ title: pageTitle, description: pageDescription, path: "/contact" }),
 };
 
-const contactPageSchema = {
-  "@context": "https://schema.org",
-  "@type": "ContactPage",
-  "@id": "https://mixednuts-inc.com/contact#webpage",
-  url: "https://mixednuts-inc.com/contact",
-  name: pageTitle,
-  description: pageDescription,
-  inLanguage: "ja-JP",
-  isPartOf: { "@id": "https://mixednuts-inc.com/#website" },
-  mainEntity: { "@id": "https://mixednuts-inc.com/#organization" },
-};
+const contactPageSchema = buildWebPageSchema({ type: "ContactPage", path: "/contact", name: pageTitle, description: pageDescription, mainEntity: { "@id": "https://mixednuts-inc.com/#organization" } });
 
 const breadcrumb = buildBreadcrumbSchema([
   { name: "Home", path: "/" },
@@ -50,9 +40,9 @@ export default function ContactPage() {
       <V6PageMotion />
 
       <section className="contact-v6__hero" data-nav="dark">
-        <div className="contact-v6__crumb v6-hero-detail"><Link href="/">Home</Link><span>/</span>Contact</div>
+        <nav className="contact-v6__crumb v6-hero-detail" aria-label="パンくずリスト"><ol style={{ display: "contents" }}><li style={{ display: "contents" }}><Link href="/">Home</Link></li><li style={{ display: "contents" }}><span>/</span>Contact</li></ol></nav>
         <p className="contact-v6__eyebrow v6-hero-detail">60-minute free consultation</p>
-        <h1 className="contact-v6__title v6-slam"><SplitWords words={["Let's", "build", "growth."]} /></h1>
+        <h1 className="contact-v6__title v6-slam" aria-label="Let's build growth."><SplitWords words={["Let's", "build", "growth."]} /></h1>
         <p className="contact-v6__lead v6-hero-detail">
           売り込みではなく、対話から。初回無料相談（60分）で課題を整理し、最適なアプローチを一緒に考えます。
         </p>

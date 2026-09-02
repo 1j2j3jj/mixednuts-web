@@ -7,8 +7,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { posts } from "#site/content";
 import { mdxComponents } from "@/components/mdx-components";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
-import { buildPageOg } from "@/lib/site-metadata";
+import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
+import { buildPageOg, compactTitle, OG_DEFAULT_IMAGE, SITE_URL } from "@/lib/site-metadata";
 import { ReadingProgressBar } from "@/components/ReadingProgressBar";
 import { StickyToc } from "@/components/StickyToc";
 import InsightsMotion from "../InsightsMotion";
@@ -50,16 +50,16 @@ export async function generateMetadata({
   const { slug } = await params;
   const post = posts.find((item) => item.slug === slug);
   if (!post) return {};
+  const title = compactTitle(post.title);
   return {
-    title: `${post.title} | Insights`,
+    title,
     description: post.excerpt,
     alternates: { canonical: `/insights/${slug}` },
     ...buildPageOg({
-      title: post.title,
+      title,
       description: post.excerpt,
       path: post.permalink,
-      images: post.hero ? [{ url: post.hero }] : undefined,
-      article: { publishedTime: post.date, authors: [post.author] },
+      article: { publishedTime: post.date, modifiedTime: post.updated ?? post.date, authors: [post.author], tags: post.tags },
     }),
   };
 }
@@ -103,6 +103,10 @@ export default async function InsightsArticlePage({
     .sort((a, b) => Number(b.category === post.category) - Number(a.category === post.category))
     .slice(0, 3);
   const formattedDate = post.date.slice(0, 10).replace(/-/g, ".");
+  const rawMdx = fs.readFileSync(path.join(process.cwd(), "content", "insights", `${post.slug}.mdx`), "utf-8");
+  const wordCount = rawMdx.replace(/^---[\s\S]*?---/m, "").replace(/<[^>]+>|[#*_`>[\]()!-]/g, " ").trim().split(/\s+/).filter(Boolean).length;
+  const articleImage = post.hero ? `${SITE_URL}${post.hero}` : `${SITE_URL}${OG_DEFAULT_IMAGE.url}`;
+  const webPageSchema = buildWebPageSchema({ path: post.permalink, name: post.title, description: post.excerpt });
 
   const articleSchema = {
     "@context": "https://schema.org",
@@ -111,8 +115,8 @@ export default async function InsightsArticlePage({
     headline: post.title,
     description: post.excerpt,
     datePublished: post.date,
-    dateModified: post.date,
-    inLanguage: "ja-JP",
+    dateModified: post.updated ?? post.date,
+    inLanguage: "ja",
     author: {
       "@type": "Person",
       ...(post.author === "石井 希実"
@@ -126,10 +130,11 @@ export default async function InsightsArticlePage({
       worksFor: { "@id": "https://mixednuts-inc.com/#organization" },
     },
     publisher: { "@id": "https://mixednuts-inc.com/#organization" },
-    image: post.hero ? `https://mixednuts-inc.com${post.hero}` : undefined,
-    keywords: post.tags.join(", "),
+    image: articleImage,
+    keywords: post.tags,
     articleSection: post.category,
-    mainEntityOfPage: `https://mixednuts-inc.com${post.permalink}`,
+    wordCount,
+    mainEntityOfPage: { "@id": `${SITE_URL}${post.permalink}#webpage` },
   };
 
   const breadcrumb = buildBreadcrumbSchema([
@@ -157,18 +162,13 @@ export default async function InsightsArticlePage({
       <InsightsMotion />
       <ReadingProgressBar />
       <JsonLd data={articleSchema} />
+      <JsonLd data={webPageSchema} />
       <JsonLd data={breadcrumb} />
       {faqPageSchema && <JsonLd data={faqPageSchema} />}
 
       <header className="insights-title navy" data-nav="dark">
         <div className="insights-title-top insights-title-meta">
-          <div className="insights-breadcrumb">
-            <Link href="/">Home</Link>
-            <span aria-hidden="true">/</span>
-            <Link href="/insights">Insights</Link>
-            <span aria-hidden="true">/</span>
-            <span>{post.category}</span>
-          </div>
+          <nav className="insights-breadcrumb" aria-label="パンくずリスト"><ol style={{ display: "contents" }}><li style={{ display: "contents" }}><Link href="/">Home</Link></li><li style={{ display: "contents" }}><span aria-hidden="true">/</span><Link href="/insights">Insights</Link></li><li style={{ display: "contents" }}><span aria-hidden="true">/</span><span>{post.category}</span></li></ol></nav>
           <span className="insights-title-index">Article / {String(currentIndex + 1).padStart(2, "0")}</span>
         </div>
 
