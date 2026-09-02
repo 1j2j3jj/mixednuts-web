@@ -108,7 +108,16 @@ export default function SiteMotionV6() {
             .add(cut(0.6), 0)
             .fromTo(".v6-thesis-line, .v6-thesis-answer", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.65, stagger: 0.1, ease: "expo.out", immediateRender: true }, 0.2);
           gsap.utils.toArray<HTMLElement>(".v6-act", scope).forEach((panel) => {
-            ScrollTrigger.create({ trigger: panel, start: "top 82%", once: true, onEnter: () => gsap.fromTo(panel, { opacity: 0, y: 32 }, { opacity: 1, y: 0, duration: 0.8, ease: "expo.out", immediateRender: true }) });
+            const act = Number(panel.dataset.v6Act || 0);
+            ScrollTrigger.create({
+              trigger: panel,
+              start: "top 82%",
+              onEnter: () => {
+                canvasRef.current?.setAct(act);
+                gsap.fromTo(panel, { opacity: 0, y: 32 }, { opacity: 1, y: 0, duration: 0.8, ease: "expo.out", immediateRender: true });
+              },
+              onEnterBack: () => canvasRef.current?.setAct(act),
+            });
           });
         }
 
