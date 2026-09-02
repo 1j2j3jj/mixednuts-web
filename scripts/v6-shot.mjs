@@ -94,7 +94,6 @@ page.on("console", (message) => {
 page.on("pageerror", (error) => consoleMessages.push({ type: "error", text: error.message }));
 
 await page.addInitScript(() => {
-  localStorage.setItem("mn_cookie_consent", JSON.stringify({ value: "essential-only", ts: Date.now() }));
   window.__v6Metrics = { lcp: 0, cls: 0 };
   new PerformanceObserver((list) => {
     const entries = list.getEntries();
