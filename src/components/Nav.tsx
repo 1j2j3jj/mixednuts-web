@@ -25,7 +25,15 @@ export default function Nav() {
     const nav = document.querySelector<HTMLElement>("nav.nav");
     if (!nav) return;
     let frame = 0;
-    const isTransparent = (color: string) => !color || color === "transparent" || /^rgba\((?:[^,]*,){3}\s*0\)$/.test(color);
+    // Only an (almost) opaque colour counts — translucent tint layers (e.g. rgba(17,17,20,.08)) are skipped.
+    const isOpaque = (color: string) => {
+      if (!color || color === "transparent") return false;
+      const match = /^rgba?\(([^)]+)\)$/.exec(color);
+      if (!match) return true;
+      const parts = match[1].split(/[\s,\/]+/).filter(Boolean);
+      const alpha = parts.length >= 4 ? Number.parseFloat(parts[3]) : 1;
+      return Number.isNaN(alpha) || alpha >= 0.85;
+    };
     const sample = () => {
       frame = 0;
       nav.dataset.scrolled = window.scrollY > 12 ? "1" : "0";
@@ -34,7 +42,7 @@ export default function Nav() {
       let element = document.elementFromPoint(Math.round(window.innerWidth * 0.5), y) as HTMLElement | null;
       while (element && element !== document.documentElement) {
         const color = getComputedStyle(element).backgroundColor;
-        if (!isTransparent(color)) { nav.style.setProperty("--nav-bg", color); return; }
+        if (isOpaque(color)) { nav.style.setProperty("--nav-bg", color); return; }
         element = element.parentElement;
       }
       nav.style.setProperty("--nav-bg", getComputedStyle(document.body).backgroundColor);
