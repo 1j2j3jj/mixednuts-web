@@ -150,14 +150,14 @@ const audit = await page.evaluate(() => {
     })
     .filter((item) => item.renderedLines > item.allowedLines);
   return {
-    lcpMs: initialMetrics.lcpMs,
-    cls: initialMetrics.cls,
     horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
     scrollWidth: document.documentElement.scrollWidth,
     innerWidth: window.innerWidth,
     wrapIssues,
   };
 });
+audit.lcpMs = initialMetrics.lcpMs;
+audit.cls = initialMetrics.cls;
 
 console.log(JSON.stringify({
   url: args.url,
