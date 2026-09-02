@@ -64,7 +64,10 @@ export default function HomePage() {
       <main>
         <section className="v6-scene v6-hero" data-v6-scene="hero" aria-labelledby="v6-hero-title">
           <div className="v6-scene-inner v6-hero-inner">
-            <h2 className="v6-kicker v6-hero-overline">Cold Open · AI-First Consulting · Est. 2021</h2>
+            <h2 className="v6-kicker v6-hero-overline">
+              <span className="v6-hero-overline-desktop">AI-First Consulting · Est. 2021</span>
+              <span className="v6-hero-overline-mobile">AI-First · Est. 2021</span>
+            </h2>
             <div className="v6-hero-title-wrap">
               <h1 id="v6-hero-title" className="v6-en-display v6-hero-title">
                 <span className="v6-hero-line">
@@ -90,13 +93,13 @@ export default function HomePage() {
 
         <section className="v6-scene v6-thesis" data-v6-scene="thesis" aria-labelledby="v6-thesis-heading">
           <div className="v6-scene-inner v6-thesis-inner">
-            <h2 id="v6-thesis-heading" className="v6-kicker">Thesis · Why Mixed</h2>
+            <h2 id="v6-thesis-heading" className="v6-kicker">Why Mixed</h2>
             <div className="v6-thesis-lines v6-jp-heading">
-              <p className="v6-thesis-line">戦略だけでは遅い。</p>
-              <p className="v6-thesis-line">AIだけでは浅い。</p>
-              <p className="v6-thesis-line">マーケだけでは一過性。</p>
+              <p className="v6-thesis-line" data-v6-contrast="display">戦略だけでは遅い。</p>
+              <p className="v6-thesis-line" data-v6-contrast="display">AIだけでは浅い。</p>
+              <p className="v6-thesis-line" data-v6-contrast="display">マーケだけでは一過性。</p>
             </div>
-            <p className="v6-thesis-answer v6-jp-heading">
+            <p className="v6-thesis-answer v6-jp-heading" data-v6-contrast="display">
               3つが<span className="v6-accent">&quot;ミックス&quot;</span>して初めて、<br />
               事業は再現性のある<br className="v6-mobile-break" />成長曲線を描きはじめる。
             </p>
@@ -105,18 +108,18 @@ export default function HomePage() {
 
         <section className="v6-scene v6-acts" data-v6-scene="acts" aria-labelledby="v6-acts-heading">
           <div className="v6-scene-inner v6-acts-inner">
-            <h2 id="v6-acts-heading" className="v6-kicker v6-acts-kicker">Three Acts · One Growth Engine</h2>
+            <h2 id="v6-acts-heading" className="v6-kicker v6-acts-kicker">Three Forces · One Growth Engine</h2>
             <div className="v6-act-stage">
               {acts.map((act) => (
                 <article className="v6-act" data-v6-act={act.act} key={act.label}>
                   <div className="v6-act-numeral v6-en-display" aria-hidden="true">{act.numeral}</div>
                   <div className="v6-act-copy">
                     <p className="v6-kicker">{act.label}</p>
-                    <h3 className="v6-jp-heading">
+                    <h3 className="v6-jp-heading" data-v6-contrast="display">
                       {act.titleLead}
                       {act.titleTail ? <><br className="v6-mobile-break" />{act.titleTail}</> : null}
                     </h3>
-                    <p>{act.body}</p>
+                    <p data-v6-contrast="body">{act.body}</p>
                     <Link href={act.href}>{act.link} <span aria-hidden="true">↗</span></Link>
                   </div>
                 </article>
@@ -128,7 +131,7 @@ export default function HomePage() {
         <section className="v6-scene v6-paper-scene v6-proof" data-v6-scene="proof" aria-labelledby="v6-proof-heading">
           <div className="v6-scene-inner v6-proof-inner">
             <header className="v6-section-head">
-              <p className="v6-kicker v6-kicker--paper">Proof · By the Numbers</p>
+              <p className="v6-kicker v6-kicker--paper">By the Numbers</p>
               <h2 id="v6-proof-heading" className="v6-en-display">Capability,<br />without theatre.</h2>
               <p>AI-first 組織の、数字で見るケイパビリティ。</p>
             </header>
@@ -151,7 +154,10 @@ export default function HomePage() {
                 {engagementRows.map((work, index) => (
                   <div className="v6-index-row" role="row" key={work.slug}>
                     <span role="cell" className="v6-index-no">{String(index + 1).padStart(2, "0")}</span>
-                    <span role="cell" className="v6-index-client"><i aria-hidden="true" />{work.client}</span>
+                    <span role="cell" className="v6-index-client">
+                      <span className="v6-sr-only">{work.client}</span>
+                      <i className="v6-redaction" aria-hidden="true" />
+                    </span>
                     <span role="cell">{work.industry}</span>
                     <span role="cell">{work.services.map((service) => service.toUpperCase()).join(" · ")}</span>
                   </div>
@@ -164,7 +170,7 @@ export default function HomePage() {
         <section className="v6-scene v6-paper-scene v6-signal" data-v6-scene="signal" aria-labelledby="v6-signal-heading">
           <div className="v6-scene-inner v6-signal-inner">
             <header className="v6-section-head v6-signal-head">
-              <p className="v6-kicker v6-kicker--paper">Signal · Latest Insights</p>
+              <p className="v6-kicker v6-kicker--paper">Insights</p>
               <h2 id="v6-signal-heading" className="v6-en-display">Ideas in<br /><em>practice.</em></h2>
             </header>
             <div className="v6-insight-list">
@@ -186,10 +192,10 @@ export default function HomePage() {
 
         <section className="v6-scene v6-end" data-v6-scene="end" aria-labelledby="v6-end-heading">
           <div className="v6-scene-inner v6-end-inner">
-            <h2 className="v6-kicker">End Credits · mixednuts Inc.</h2>
+            <h2 className="v6-kicker">Let&apos;s Talk</h2>
             <div>
-              <p id="v6-end-heading" className="v6-en-display v6-end-title">LET&apos;S BUILD<br /><span className="v6-accent">GROWTH.</span></p>
-              <p className="v6-end-copy">60分の無料相談で、貴社の事業に適したアプローチを共に設計しませんか。</p>
+              <p id="v6-end-heading" className="v6-en-display v6-end-title" data-v6-contrast="display">LET&apos;S BUILD<br /><span className="v6-accent">GROWTH.</span></p>
+              <p className="v6-end-copy" data-v6-contrast="body">60分の無料相談で、貴社の事業に適したアプローチを共に設計しませんか。</p>
               <Link href="/contact" className="v6-button v6-button--paper">無料相談を申し込む</Link>
             </div>
           </div>
