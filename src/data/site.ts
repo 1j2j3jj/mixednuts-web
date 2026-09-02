@@ -9,7 +9,7 @@ export const siteConfig = {
   founded: "2021",
   stats: {
     members: "多様なバックグラウンドが集う専門家集団",
-    projects: "120+",
+    projects: "100+",
     industries: "30+",
     automations: "40+",
   },
