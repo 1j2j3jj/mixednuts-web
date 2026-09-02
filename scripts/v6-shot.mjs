@@ -62,7 +62,11 @@ async function resolveChromiumExecutable() {
   }
 }
 
-const browser = await chromium.launch({ headless: true, executablePath: await resolveChromiumExecutable() });
+const browser = await chromium.launch({
+  headless: true,
+  executablePath: await resolveChromiumExecutable(),
+  args: ["--single-process", "--no-zygote"],
+});
 const context = await browser.newContext({
   viewport: { width: args.width, height },
   deviceScaleFactor: 1,
