@@ -39,7 +39,7 @@ function Cite({ n, href, children }: { n?: number; href?: string; children: Reac
 function PullQuote({ children, author }: { children: ReactNode; author?: string }) {
   return (
     <aside className="pull-quote">
-      <p>{children}</p>
+      <div className="pull-quote-body">{children}</div>
       {author && <cite>— {author}</cite>}
     </aside>
   );
@@ -91,10 +91,7 @@ function Principle({ num, heading }: { num: string; heading: string }) {
 
 function ServiceLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <Link
-      href={href}
-      style={{ color: "var(--navy)", fontWeight: 700, borderBottom: "2px solid var(--cyan)" }}
-    >
+    <Link href={href} className="service-link">
       {children}
     </Link>
   );

@@ -48,7 +48,8 @@
   .mn-v6 .overline{font:700 11px/1 var(--grot);letter-spacing:.22em;text-transform:uppercase;color:var(--muted);display:flex;gap:18px;align-items:center;text-decoration:none}
   .mn-v6 .ring{box-shadow:none}
   .mn-v6 .overline i{width:36px;height:2px;background:var(--navy);display:inline-block}
-  .mn-v6 h1{margin:0;align-self:end;font-family:var(--grot);font-variation-settings:"wdth" 110;font-weight:900;font-size:clamp(50px,8.4vw,132px);line-height:.9;letter-spacing:-.05em;text-transform:uppercase;max-width:13ch;transform-style:preserve-3d}
+  .mn-v6 h1{margin:0;align-self:end;font-family:var(--grot);font-variation-settings:"wdth" 110;font-weight:900;font-size:clamp(50px,8.4vw,132px);line-height:.9;letter-spacing:-.05em;max-width:13ch;transform-style:preserve-3d}
+  .mn-v6 .hero h1{text-transform:uppercase}
   .mn-v6 h1 .c{display:inline-block;will-change:transform;transform-origin:50% 100%}
   .mn-v6 h1 .ai .c{color:var(--navy)}
   .mn-v6 .hero-foot{display:grid;grid-template-columns:1fr auto;gap:40px;align-items:end;margin-top:28px}
