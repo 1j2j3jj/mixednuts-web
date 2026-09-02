@@ -41,9 +41,11 @@ async function resolveChromiumExecutable() {
     const cacheRoot = path.join(os.homedir(), "Library", "Caches", "ms-playwright");
     const entries = await fs.readdir(cacheRoot).catch(() => []);
     const candidates = entries
-      .filter((entry) => entry.startsWith("chromium-") && !entry.includes("headless"))
+      .filter((entry) => entry.startsWith("chromium"))
       .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
       .flatMap((entry) => [
+        path.join(cacheRoot, entry, "chrome-headless-shell-mac-arm64", "chrome-headless-shell"),
+        path.join(cacheRoot, entry, "chrome-headless-shell-mac", "chrome-headless-shell"),
         path.join(cacheRoot, entry, "chrome-mac-arm64", "Google Chrome for Testing.app", "Contents", "MacOS", "Google Chrome for Testing"),
         path.join(cacheRoot, entry, "chrome-mac", "Chromium.app", "Contents", "MacOS", "Chromium"),
       ]);
