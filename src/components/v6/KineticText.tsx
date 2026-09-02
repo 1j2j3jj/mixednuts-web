@@ -1,13 +1,18 @@
+import { Fragment } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 export function SplitWords({ words, accent }: { words: string[]; accent?: string }) {
+  // The space must live OUTSIDE the inline-block `.w` (trailing whitespace
+  // inside an inline-block collapses, which glued "With" to "AI.").
   return words.map((word, wordIndex) => (
-    <span className={`w${word === accent ? " ai" : ""}`} key={`${word}-${wordIndex}`}>
-      {Array.from(word).map((character, characterIndex) => (
-        <span className="c" key={`${character}-${characterIndex}`}>{character}</span>
-      ))}
+    <Fragment key={`${word}-${wordIndex}`}>
+      <span className={`w${word === accent ? " ai" : ""}`}>
+        {Array.from(word).map((character, characterIndex) => (
+          <span className="c" key={`${character}-${characterIndex}`}>{character}</span>
+        ))}
+      </span>
       {wordIndex < words.length - 1 ? " " : null}
-    </span>
+    </Fragment>
   ));
 }
 

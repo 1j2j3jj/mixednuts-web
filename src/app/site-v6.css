@@ -193,3 +193,8 @@
   .footer .bars i:nth-child(3){background:var(--stone)}
   @media(max-width:900px){.nav .nav-desktop{display:none}.nav .nav-toggle{display:block}.nav{padding-right:18px}.footer{grid-template-columns:1fr;padding-inline:24px}}
   .mn-v6 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* The legacy marketing nav in globals.css blends with `difference`, which turns the
+   white CTA peach on navy and teal on enji. The approved design switches the bar
+   between light/dark themes instead (data-theme set by SiteMotionV6). */
+nav.nav{mix-blend-mode:normal}
