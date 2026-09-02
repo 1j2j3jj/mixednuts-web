@@ -85,6 +85,7 @@ page.on("console", (message) => {
 page.on("pageerror", (error) => consoleMessages.push({ type: "error", text: error.message }));
 
 await page.addInitScript(() => {
+  localStorage.setItem("mn_cookie_consent", JSON.stringify({ value: "essential-only", ts: Date.now() }));
   window.__v6Metrics = { lcp: 0, cls: 0 };
   new PerformanceObserver((list) => {
     const entries = list.getEntries();
@@ -100,6 +101,10 @@ await page.addInitScript(() => {
 
 await page.goto(args.url, { waitUntil: "networkidle", timeout: 90_000 });
 await page.waitForTimeout(1_400);
+const initialMetrics = await page.evaluate(() => ({
+  lcpMs: Math.round(window.__v6Metrics?.lcp || 0),
+  cls: Number((window.__v6Metrics?.cls || 0).toFixed(4)),
+}));
 
 const stem = `${args.width}${args.reducedMotion ? "-reduced" : ""}`;
 for (const fraction of args.scrolls) {
@@ -145,8 +150,8 @@ const audit = await page.evaluate(() => {
     })
     .filter((item) => item.renderedLines > item.allowedLines);
   return {
-    lcpMs: Math.round(window.__v6Metrics?.lcp || 0),
-    cls: Number((window.__v6Metrics?.cls || 0).toFixed(4)),
+    lcpMs: initialMetrics.lcpMs,
+    cls: initialMetrics.cls,
     horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
     scrollWidth: document.documentElement.scrollWidth,
     innerWidth: window.innerWidth,
