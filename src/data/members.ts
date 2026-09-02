@@ -6,7 +6,7 @@ export type Member = {
   bio: string;
 };
 
-// The remaining roster entries are unverified and stay hidden until the CEO confirms them.
+// K.T.〜J.W. are not verified people and must not be displayed until the CEO confirms them.
 export const SHOW_MEMBER_ROSTER = false;
 
 const memberRoster: Member[] = [
@@ -14,8 +14,10 @@ const memberRoster: Member[] = [
     initial: "N.I.",
     role: "Founder & CEO",
     division: "leadership",
-    background: "デジタル広告代理店 → グローバル IT 企業 → 国内 IT 企業 経営企画／FP&A → 起業",
-    bio: "デジタル広告代理店で金融・不動産・旅行業界の大手企業を担当し、チームマネージャーとして PL 責任を担う。グローバル IT 企業では広告事業のアカウントストラテジストとして大手企業のデジタル戦略を支援。国内 IT 企業の経営企画で事業計画・FP&A・投資評価・取締役会付議資料を担当。2021 年に mixednuts を創業。早稲田大学大学院 経営管理研究科 修了（MBA）。",
+    background: "デジタル広告代理店 → グローバルIT企業（広告事業）→ 事業会社 経営企画／FP&A",
+    // CEO 選択用: 数値なし版
+    // bio: "国内大手デジタル広告代理店で金融・不動産・旅行業界の大手企業を担当し、チームマネージャーとして PL 責任を担う。グローバル大手IT企業では広告事業のアカウントストラテジストとして、大手企業のデジタル戦略を支援。国内大手IT企業の経営企画では、ライブ配信・エンターテインメント事業の事業計画策定、FP&A、投資評価、取締役会付議資料を担当。2021年に mixednuts を創業し、戦略・AI・マーケティングの統合提供を牽引。早稲田大学大学院 経営管理研究科 修了（MBA）。",
+    bio: "国内大手デジタル広告代理店で金融・不動産・旅行業界の大手企業を担当し、チームマネージャーとして PL 責任を担う。グローバル大手IT企業では広告事業のアカウントストラテジストとして、大手企業約50社のデジタル戦略を支援。国内大手IT企業の経営企画では、ライブ配信・エンターテインメント事業の事業計画策定、FP&A、投資評価、取締役会付議資料を担当。2021年に mixednuts を創業し、戦略・AI・マーケティングの統合提供を牽引。早稲田大学大学院 経営管理研究科 修了（MBA）。",
   },
   {
     initial: "K.T.",
