@@ -138,15 +138,16 @@ const breadcrumb = buildBreadcrumbSchema([
 ]);
 
 function SlamText({ children }: { children: string }) {
-  return Array.from(children).map((character, index) => (
-    <span
-      className={character === " " ? "c space" : "c"}
-      key={`${character}-${index}`}
-      aria-hidden="true"
-    >
-      {character === " " ? "\u00a0" : character}
-    </span>
-  ));
+  // Latin / numeric runs stay unbreakable (one `.w` per run), CJK characters wrap
+  // freely, whitespace becomes a `.space` — so "ROAS" never splits into "RO / AS".
+  const tokens = children.match(/[A-Za-z0-9&+.%×#@'’\-]+|\s+|./gu) ?? [];
+  return tokens.map((token, index) => {
+    if (/^\s+$/.test(token)) return <span className="c space" aria-hidden="true" key={index}>{"\u00a0"}</span>;
+    const chars = Array.from(token).map((ch, j) => (
+      <span className="c" aria-hidden="true" key={`${index}-${j}`}>{ch}</span>
+    ));
+    return token.length > 1 ? <span className="w" key={index}>{chars}</span> : chars[0];
+  });
 }
 
 function ArticleImage({ article }: { article: ListItem }) {

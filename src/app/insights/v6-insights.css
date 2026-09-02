@@ -1057,3 +1057,5 @@
 /* orchestrator fix: never split Latin words inside Japanese titles */
 .insights-v6 h1, .insights-v6 h2, .insights-v6 h3 { overflow-wrap: normal; word-break: normal; }
 @media (max-width: 480px) { .insights-v6 .article-hero h1, .insights-v6 h1 { font-size: clamp(26px, 8vw, 40px); } }
+
+.insights-v6 .insights-slam .w { display: inline-block; white-space: nowrap; }
