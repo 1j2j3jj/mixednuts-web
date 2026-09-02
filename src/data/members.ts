@@ -6,13 +6,16 @@ export type Member = {
   bio: string;
 };
 
-export const members: Member[] = [
+// The remaining roster entries are unverified and stay hidden until the CEO confirms them.
+export const SHOW_MEMBER_ROSTER = false;
+
+const memberRoster: Member[] = [
   {
     initial: "N.I.",
     role: "Founder & CEO",
     division: "leadership",
-    background: "戦略コンサルティング → 事業会社経営企画／FP&A → 投資",
-    bio: "戦略ファーム出身。国内大手IT企業で300億円規模のエンタメ領域の事業管理を統括し、中期計画・投資判断・取締役会付議を担う。現在は mixednuts 代表として、戦略・AI・マーケティングの統合提供を牽引。",
+    background: "デジタル広告代理店 → グローバル IT 企業 → 国内 IT 企業 経営企画／FP&A → 起業",
+    bio: "デジタル広告代理店で金融・不動産・旅行業界の大手企業を担当し、チームマネージャーとして PL 責任を担う。グローバル IT 企業では広告事業のアカウントストラテジストとして大手企業のデジタル戦略を支援。国内 IT 企業の経営企画で事業計画・FP&A・投資評価・取締役会付議資料を担当。2021 年に mixednuts を創業。早稲田大学大学院 経営管理研究科 修了（MBA）。",
   },
   {
     initial: "K.T.",
@@ -78,6 +81,10 @@ export const members: Member[] = [
     bio: "SNSプラットフォームで10万フォロワー超のクリエイター活動と並行して、媒体編集者としてブランドコンテンツ戦略を担当。",
   },
 ];
+
+export const members = SHOW_MEMBER_ROSTER
+  ? memberRoster
+  : memberRoster.filter((member) => member.division === "leadership");
 
 export const divisionLabels = {
   leadership: "Leadership",

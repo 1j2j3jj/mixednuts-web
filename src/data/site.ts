@@ -9,7 +9,8 @@ export const siteConfig = {
   founded: "2021",
   stats: {
     members: "多様なバックグラウンドが集う専門家集団",
-    projects: "100+",
+    projects: "100+", // Verified internal AI-agent registry count.
+    dashboards: "6", // Verified by active: true entries in src/config/clients.ts.
     industries: "30+",
     automations: "40+",
   },
