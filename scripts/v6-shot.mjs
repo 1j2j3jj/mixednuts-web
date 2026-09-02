@@ -156,20 +156,13 @@ for (const fraction of args.scrolls) {
       const parts = match[1].split(/[ ,/]+/).filter(Boolean).map(Number);
       return { rgb: parts.slice(0, 3), alpha: Number.isFinite(parts[3]) ? parts[3] : 1 };
     };
-    const targets = [...document.querySelectorAll("[data-v6-contrast]")]
-      .map((element, index) => {
+    return [...document.querySelectorAll("[data-v6-contrast]")]
+      .map((element) => {
         const rect = element.getBoundingClientRect();
         const style = getComputedStyle(element);
         const color = parseColor(style.color);
         const visible = rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth && Number(style.opacity) >= 0.5 && style.visibility !== "hidden";
         if (!visible || !color) return null;
-        const tracked = [element, ...element.querySelectorAll("*")];
-        for (const [trackedIndex, trackedElement] of tracked.entries()) {
-          trackedElement.dataset.v6AuditStyle = trackedElement.getAttribute("style") ?? "__none__";
-          trackedElement.dataset.v6AuditNode = `${index}-${trackedIndex}`;
-          trackedElement.style.setProperty("color", "transparent", "important");
-          trackedElement.style.setProperty("text-shadow", "none", "important");
-        }
         return {
           text: element.textContent?.replace(/\s+/g, " ").trim().slice(0, 100),
           kind: element.dataset.v6Contrast,
@@ -180,13 +173,26 @@ for (const fraction of args.scrolls) {
         };
       })
       .filter(Boolean);
-    return targets;
   });
   const screenshotBuffer = await page.screenshot({
     path: path.join(args.out, `${stem}-scroll-${label}.png`),
     fullPage: args.full,
   });
   if (contrastTargets.length && !args.full) {
+    await page.evaluate(() => {
+      for (const [index, element] of [...document.querySelectorAll("[data-v6-contrast]")].entries()) {
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        const visible = rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth && Number(style.opacity) >= 0.5 && style.visibility !== "hidden";
+        if (!visible) continue;
+        for (const [trackedIndex, trackedElement] of [element, ...element.querySelectorAll("*")].entries()) {
+          trackedElement.dataset.v6AuditStyle = trackedElement.getAttribute("style") ?? "__none__";
+          trackedElement.dataset.v6AuditNode = `${index}-${trackedIndex}`;
+          trackedElement.style.setProperty("color", "transparent", "important");
+          trackedElement.style.setProperty("text-shadow", "none", "important");
+        }
+      }
+    });
     const backgroundBuffer = await page.screenshot();
     const { data, info } = await sharp(backgroundBuffer).removeAlpha().raw().toBuffer({ resolveWithObject: true });
     for (const target of contrastTargets) {
