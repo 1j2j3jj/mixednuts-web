@@ -1,6 +1,7 @@
 import { chromium } from "playwright";
 import fs from "node:fs/promises";
 import path from "node:path";
+import os from "node:os";
 
 function readArgs(argv) {
   const args = {
@@ -31,7 +32,32 @@ const args = readArgs(process.argv.slice(2));
 const height = args.width <= 500 ? 844 : 900;
 await fs.mkdir(args.out, { recursive: true });
 
-const browser = await chromium.launch({ headless: true });
+async function resolveChromiumExecutable() {
+  const defaultPath = chromium.executablePath();
+  try {
+    await fs.access(defaultPath);
+    return defaultPath;
+  } catch {
+    const cacheRoot = path.join(os.homedir(), "Library", "Caches", "ms-playwright");
+    const entries = await fs.readdir(cacheRoot).catch(() => []);
+    const candidates = entries
+      .filter((entry) => entry.startsWith("chromium-") && !entry.includes("headless"))
+      .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
+      .flatMap((entry) => [
+        path.join(cacheRoot, entry, "chrome-mac-arm64", "Google Chrome for Testing.app", "Contents", "MacOS", "Google Chrome for Testing"),
+        path.join(cacheRoot, entry, "chrome-mac", "Chromium.app", "Contents", "MacOS", "Chromium"),
+      ]);
+    for (const candidate of candidates) {
+      try {
+        await fs.access(candidate);
+        return candidate;
+      } catch {}
+    }
+    throw new Error(`No installed Chromium executable found. Expected ${defaultPath}`);
+  }
+}
+
+const browser = await chromium.launch({ headless: true, executablePath: await resolveChromiumExecutable() });
 const context = await browser.newContext({
   viewport: { width: args.width, height },
   deviceScaleFactor: 1,
