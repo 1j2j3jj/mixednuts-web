@@ -39,15 +39,13 @@ export default function Nav() {
 
   return (
     <>
-      <Link href="/" className="nav-mark" aria-label="mixednuts Inc. - Home">
+      <Link href="/" className="mark" aria-label="mixednuts Inc. - Home">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo-mark.png" alt="" width="13" height="36" />
       </Link>
-      <nav className="nav" aria-label="Primary navigation">
+      <nav className="nav" aria-label="Primary navigation" data-theme="light">
         <div className="nav-inner">
-          <Link href="/" className="logo" aria-label="mixednuts Inc. - Home">
-            <span className="logo-text">mixednuts Inc.</span>
-          </Link>
+          <Link href="/" className="brand" aria-label="mixednuts Inc. - Home">mixednuts Inc.</Link>
 
           <div className="nav-desktop">
             {navItems.map((item) => (
@@ -56,7 +54,7 @@ export default function Nav() {
               </Link>
             ))}
             <Link href="/login" className="nav-login">Login</Link>
-            <Link href="/contact" className="nav-cta">Contact</Link>
+            <Link href="/contact" className="cta">Contact</Link>
           </div>
 
           <button
