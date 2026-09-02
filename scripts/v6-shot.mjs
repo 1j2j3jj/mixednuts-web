@@ -161,7 +161,10 @@ for (const fraction of args.scrolls) {
         const rect = element.getBoundingClientRect();
         const style = getComputedStyle(element);
         const color = parseColor(style.color);
-        const visible = rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth && Number(style.opacity) >= 0.5 && style.visibility !== "hidden";
+        const visible = rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth &&
+          (typeof element.checkVisibility === "function"
+            ? element.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })
+            : Number(style.opacity) >= 0.5 && style.visibility !== "hidden");
         if (!visible || !color) return null;
         return {
           text: element.textContent?.replace(/\s+/g, " ").trim().slice(0, 100),
@@ -183,7 +186,10 @@ for (const fraction of args.scrolls) {
       for (const [index, element] of [...document.querySelectorAll("[data-v6-contrast]")].entries()) {
         const rect = element.getBoundingClientRect();
         const style = getComputedStyle(element);
-        const visible = rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth && Number(style.opacity) >= 0.5 && style.visibility !== "hidden";
+        const visible = rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth &&
+          (typeof element.checkVisibility === "function"
+            ? element.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })
+            : Number(style.opacity) >= 0.5 && style.visibility !== "hidden");
         if (!visible) continue;
         for (const [trackedIndex, trackedElement] of [element, ...element.querySelectorAll("*")].entries()) {
           trackedElement.dataset.v6AuditStyle = trackedElement.getAttribute("style") ?? "__none__";
