@@ -1050,6 +1050,10 @@
 /* orchestrator fix: the hero column must never exceed the viewport on phones */
 @media (max-width: 900px) {
   .insights-v6 .insights-title { grid-template-columns: minmax(0, 1fr); }
-  .insights-v6 .insights-title-lead, .insights-v6 .insights-title h1 { max-width: 100%; min-width: 0; overflow-wrap: anywhere; }
+  .insights-v6 .insights-title-lead, .insights-v6 .insights-title h1 { max-width: 100%; min-width: 0; overflow-wrap: normal; }
   .insights-v6 .insights-title-word { justify-self: start; max-width: 100%; overflow: hidden; font-size: clamp(40px, 15vw, 148px); }
 }
+
+/* orchestrator fix: never split Latin words inside Japanese titles */
+.insights-v6 h1, .insights-v6 h2, .insights-v6 h3 { overflow-wrap: normal; word-break: normal; }
+@media (max-width: 480px) { .insights-v6 .article-hero h1, .insights-v6 h1 { font-size: clamp(26px, 8vw, 40px); } }
