@@ -18,6 +18,40 @@ export default function Nav() {
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
+  // Scrolled backdrop: the nav is transparent by design, so once the page scrolls we
+  // paint a bar in whatever colour sits underneath it (sampled at the bar's bottom edge).
+  // Keeps the adaptive light/dark theme intact and stops body copy colliding with the brand.
+  useEffect(() => {
+    const nav = document.querySelector<HTMLElement>("nav.nav");
+    if (!nav) return;
+    let frame = 0;
+    const isTransparent = (color: string) => !color || color === "transparent" || /^rgba\((?:[^,]*,){3}\s*0\)$/.test(color);
+    const sample = () => {
+      frame = 0;
+      nav.dataset.scrolled = window.scrollY > 12 ? "1" : "0";
+      const rect = nav.getBoundingClientRect();
+      const y = Math.max(1, Math.round(rect.bottom - 1));
+      let element = document.elementFromPoint(Math.round(window.innerWidth * 0.5), y) as HTMLElement | null;
+      while (element && element !== document.documentElement) {
+        const color = getComputedStyle(element).backgroundColor;
+        if (!isTransparent(color)) { nav.style.setProperty("--nav-bg", color); return; }
+        element = element.parentElement;
+      }
+      nav.style.setProperty("--nav-bg", getComputedStyle(document.body).backgroundColor);
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(sample); };
+    sample();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    const interval = window.setInterval(schedule, 250); // pinned/scrubbed scenes change colour without a scroll event
+    return () => {
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      window.clearInterval(interval);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [pathname]);
+
   useEffect(() => {
     setOpen(false);
   }, [pathname]);

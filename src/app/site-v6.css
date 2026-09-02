@@ -201,3 +201,7 @@
    white CTA peach on navy and teal on enji. The approved design switches the bar
    between light/dark themes instead (data-theme set by SiteMotionV6). */
 nav.nav{mix-blend-mode:normal}
+
+/* Scrolled nav backdrop — sampled page colour, so it disappears on solid scenes and only shows over body copy */
+nav.nav::before{content:"";position:absolute;inset:0;z-index:-1;background:var(--nav-bg,transparent);opacity:0;transition:opacity .25s,background-color .2s;pointer-events:none}
+nav.nav[data-scrolled="1"]::before{opacity:1}
