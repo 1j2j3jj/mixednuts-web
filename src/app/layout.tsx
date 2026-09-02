@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Fraunces, Noto_Sans_JP, Shippori_Mincho_B1 } from "next/font/google";
+import { Archivo, Zen_Kaku_Gothic_New } from "next/font/google";
 import "./globals.css";
 import "./site-v6.css";
 import SiteChrome from "@/components/SiteChrome";
@@ -10,24 +10,17 @@ import { JsonLd, organizationSchema, webSiteSchema } from "@/components/JsonLd";
 const GTM_ID = "GTM-MS76PXZZ";
 const GA4_ID = "G-4XTN8TREFM";
 
-const fraunces = Fraunces({
+const archivo = Archivo({
   subsets: ["latin"],
   weight: "variable",
-  style: ["normal", "italic"],
-  axes: ["opsz", "SOFT", "WONK"],
-  variable: "--font-fraunces",
+  axes: ["wdth"],
+  variable: "--font-archivo",
   display: "swap",
 });
-const shipporiMincho = Shippori_Mincho_B1({
+const zen = Zen_Kaku_Gothic_New({
   subsets: ["latin"],
-  weight: ["700", "800"],
-  variable: "--font-mincho",
-  display: "swap",
-});
-const notoSansJP = Noto_Sans_JP({
-  subsets: ["latin"],
-  weight: ["500", "700"],
-  variable: "--font-sans",
+  weight: ["500", "700", "900"],
+  variable: "--font-zen",
   display: "swap",
 });
 
@@ -55,7 +48,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ja" className={`${fraunces.variable} ${shipporiMincho.variable} ${notoSansJP.variable}`}>
+    <html lang="ja" className={`${archivo.variable} ${zen.variable}`}>
       <head>
         {/* Google Tag Manager */}
         <Script id="gtm" strategy="afterInteractive">{`

@@ -358,19 +358,19 @@
 }
 
 :root {
-  --off-white: #f3efe7;
-  --off-white-alt: #e9e4da;
-  --charcoal: #0b0b0e;
-  --charcoal-soft: #141419;
-  --cyan: #e4471f;
-  --cyan-soft: rgba(228, 71, 31, 0.12);
+  --off-white: var(--stone);
+  --off-white-alt: var(--paper);
+  --charcoal: var(--black);
+  --charcoal-soft: #1a1a1f;
+  --cyan: var(--navy);
+  --cyan-soft: rgba(0, 64, 112, 0.12);
   --gray-400: #9ca3af;
   --gray-600: #4b5563;
   /* ===== Legacy v2 aliases → remapped to v3-pure ===== */
   --navy: #0a0a0a; /* old navy → charcoal */
   --navy-light: #1a1a1a; /* old navy-light → charcoal-soft */
   --burgundy: #0a0a0a; /* old burgundy → charcoal */
-  --gold: #e4471f; /* old gold → vermilion */
+  --gold: var(--enji);
   --white: #ffffff;
 }
 
