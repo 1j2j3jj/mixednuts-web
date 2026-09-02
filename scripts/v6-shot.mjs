@@ -10,6 +10,7 @@ function readArgs(argv) {
     width: 1440,
     scrolls: [0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1],
     reducedMotion: false,
+    showCookieBanner: false,
     full: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -20,6 +21,7 @@ function readArgs(argv) {
     else if (value === "--scrolls") args.scrolls = argv[++index].split(",").map(Number);
     else if (value === "--reduced-motion") args.reducedMotion = true;
     else if (value === "--full") args.full = true;
+    else if (value === "--show-cookie-banner") args.showCookieBanner = true;
   }
   if (!Number.isFinite(args.width) || args.width < 320) throw new Error("--width must be at least 320");
   if (args.scrolls.some((fraction) => !Number.isFinite(fraction) || fraction < 0 || fraction > 1)) {
@@ -99,6 +101,19 @@ await page.addInitScript(() => {
   }).observe({ type: "layout-shift", buffered: true });
 });
 
+// Pre-set cookie consent so the CookieBanner (localStorage key
+// `mn_cookie_consent`) does not occlude every frame; pass
+// --show-cookie-banner to audit the banner itself.
+if (!args.showCookieBanner) {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem(
+        "mn_cookie_consent",
+        JSON.stringify({ value: "essential-only", ts: Date.now() }),
+      );
+    } catch {}
+  });
+}
 await page.goto(args.url, { waitUntil: "networkidle", timeout: 90_000 });
 await page.waitForTimeout(1_400);
 const initialMetrics = await page.evaluate(() => ({
