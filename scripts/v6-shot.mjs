@@ -12,6 +12,7 @@ function readArgs(argv) {
     scrolls: [0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1],
     reducedMotion: false,
     showCookieBanner: false,
+    settle: 1400,
     full: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -23,6 +24,7 @@ function readArgs(argv) {
     else if (value === "--reduced-motion") args.reducedMotion = true;
     else if (value === "--full") args.full = true;
     else if (value === "--show-cookie-banner") args.showCookieBanner = true;
+    else if (value === "--settle") args.settle = Number(argv[++index]);
   }
   if (!Number.isFinite(args.width) || args.width < 320) throw new Error("--width must be at least 320");
   if (args.scrolls.some((fraction) => !Number.isFinite(fraction) || fraction < 0 || fraction > 1)) {
@@ -116,7 +118,7 @@ if (!args.showCookieBanner) {
   });
 }
 await page.goto(args.url, { waitUntil: "networkidle", timeout: 90_000 });
-await page.waitForTimeout(1_400);
+await page.waitForTimeout(args.settle);
 const initialMetrics = await page.evaluate(() => ({
   lcpMs: Math.round(window.__v6Metrics?.lcp || 0),
   cls: Number((window.__v6Metrics?.cls || 0).toFixed(4)),
@@ -147,7 +149,7 @@ for (const fraction of args.scrolls) {
     const maximum = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
     window.scrollTo({ top: maximum * scrollFraction, behavior: "instant" });
   }, fraction);
-  await page.waitForTimeout(1_400);
+  await page.waitForTimeout(args.settle);
   const label = String(Math.round(fraction * 100)).padStart(3, "0");
   const contrastTargets = await page.evaluate(() => {
     const parseColor = (value) => {
