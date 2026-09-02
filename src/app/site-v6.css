@@ -205,3 +205,8 @@ nav.nav{mix-blend-mode:normal}
 /* Scrolled nav backdrop — sampled page colour, so it disappears on solid scenes and only shows over body copy */
 nav.nav::before{content:"";position:absolute;inset:0;z-index:-1;background:var(--nav-bg,transparent);opacity:0;transition:opacity .25s,background-color .2s;pointer-events:none}
 nav.nav[data-scrolled="1"]::before{opacity:1}
+
+/* No-JS / slow-JS fallback: the intro curtain is normally removed by SiteMotionV6 after its timeline.
+   If scripts never run, CSS lifts it after 4.5s so the page is never left behind the split-screen. */
+@keyframes v6-intro-fallback{to{opacity:0;visibility:hidden}}
+.mn-v6 .intro{animation:v6-intro-fallback .4s ease 4.5s forwards}
