@@ -90,7 +90,7 @@ export default function WorksMotionV6() {
           });
         });
 
-        root.querySelectorAll<HTMLElement>("[data-row-reveal]").forEach((element, index) => {
+        root.querySelectorAll<HTMLElement>("[data-row-reveal]:not([hidden])").forEach((element, index) => {
           gsap.fromTo(element, { x: -24, opacity: 0 }, {
             x: 0,
             opacity: 1,
@@ -130,7 +130,21 @@ export default function WorksMotionV6() {
         });
       }, root);
 
-      cleanup = () => context.revert();
+      const handleFilterChange = () => {
+        root.querySelectorAll<HTMLElement>(".problem-case-row:not([hidden])").forEach((row) => {
+          gsap.set(row, { x: 0, opacity: 1 });
+          row.querySelectorAll<HTMLElement>(".od i").forEach((reel) => {
+            const column = reel.closest<HTMLElement>(".od");
+            gsap.set(reel, { y: `${-Number(column?.dataset.d || 0) * 0.85}em` });
+          });
+        });
+        ScrollTrigger.refresh();
+      };
+      window.addEventListener("works:filter-change", handleFilterChange);
+      cleanup = () => {
+        window.removeEventListener("works:filter-change", handleFilterChange);
+        context.revert();
+      };
       await document.fonts?.ready;
       if (!cancelled) ScrollTrigger.refresh();
     })();

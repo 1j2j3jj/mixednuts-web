@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
-import { MetricValue, Odometer, Phrases } from "@/components/v6/KineticText";
 import { buildPageOg } from "@/lib/site-metadata";
-import { works, workThemes, CASES_COMING_SOON, type Work } from "@/data/works";
+import { works, workThemes, CASES_COMING_SOON } from "@/data/works";
 import WorksMotionV6 from "./WorksMotionV6";
+import WorksFilter from "./WorksFilter";
 import "./v6-works.css";
 import BreadcrumbNav from "@/components/BreadcrumbNav";
 
@@ -13,6 +13,21 @@ const visibleWorks = CASES_COMING_SOON ? [] : indexWorks;
 const themeGroups = workThemes
   .map((theme) => ({ ...theme, works: visibleWorks.filter((work) => work.theme === theme.id) }))
   .filter((theme) => theme.works.length > 0);
+const filterThemes = themeGroups.map((theme) => ({
+  id: theme.id,
+  label: theme.label,
+  lead: theme.lead,
+  count: theme.works.length,
+}));
+const filterWorks = visibleWorks.map(({ slug, theme, problem, move, metric, industry, services }) => ({
+  slug,
+  theme,
+  problem,
+  move,
+  metric,
+  industry,
+  services,
+}));
 
 const pageTitle = "課題からたどる匿名事例";
 const pageDescription =
@@ -51,12 +66,6 @@ const breadcrumb = buildBreadcrumbSchema([
   { name: "Works", path: "/works" },
 ]);
 
-const serviceLabels: Record<Work["services"][number], string> = {
-  strategy: "STRATEGY",
-  ai: "AI",
-  marketing: "MARKETING",
-};
-
 const engagementAreas = [
   {
     number: "01",
@@ -87,26 +96,6 @@ function SplitCharacters({ text }: { text: string }) {
   ));
 }
 
-function CaseRow({ work, index }: { work: Work; index: number }) {
-  return (
-    <Link className="problem-case-row" href={`/works/${work.slug}`} data-row-reveal>
-      <span className="problem-case-number">{String(index + 1).padStart(2, "0")}</span>
-      <h3 className="case-problem"><Phrases text={work.problem} /></h3>
-      <div className="case-move-column">
-        <p className="case-move">{work.move}</p>
-        {work.metric.length > 0 && (
-          <div className="problem-case-metrics" data-odometer>
-            {work.metric.slice(0, 3).map((metric) => (
-              <span key={metric.label}><small>{metric.label}</small><strong><MetricValue value={metric.value} /></strong></span>
-            ))}
-          </div>
-        )}
-        <p className="problem-case-tags">{work.industry} · {work.services.map((service) => serviceLabels[service]).join(" · ")}</p>
-      </div>
-    </Link>
-  );
-}
-
 export default function WorksPage() {
   return (
     <div className="mn-v6 works-v6 works-index-v6" data-v6-motion>
@@ -134,40 +123,7 @@ export default function WorksPage() {
               <p className="index-status">CASE FILES / PREPARING</p>
             </header>
           </section>
-        ) : (
-          <>
-            <section className="theme-index-scene" data-nav="light" aria-labelledby="theme-index-heading">
-              <header className="works-scene-head" data-reveal>
-                <p className="works-kicker">Problem index</p>
-                <div><h2 id="theme-index-heading">課題の型から、<br />ケースを探す。</h2><p>似た業界ではなく、いま直面している課題に近い入口を選んでください。</p></div>
-                <p className="index-status">{visibleWorks.length} CASE FILES</p>
-              </header>
-              <nav className="theme-index-list" aria-label="課題テーマ">
-                {themeGroups.map((theme, index) => (
-                  <a className="theme-index-row" href={`#theme-${theme.id}`} data-row-reveal key={theme.id}>
-                    <span className="theme-index-number">{String(index + 1).padStart(2, "0")}</span>
-                    <h3 className="theme-index-title" data-split-slam aria-label={theme.label}><SplitCharacters text={theme.label} /></h3>
-                    <p>{theme.lead}</p>
-                    <span className="theme-index-count">{String(theme.works.length).padStart(2, "0")} CASES</span>
-                  </a>
-                ))}
-              </nav>
-            </section>
-
-            {themeGroups.map((theme, themeIndex) => (
-              <section className="problem-theme-section" id={`theme-${theme.id}`} data-nav={themeIndex % 2 ? "dark" : "light"} key={theme.id}>
-                <header className="problem-theme-head" data-reveal>
-                  <p className="works-kicker">Problem theme {String(themeIndex + 1).padStart(2, "0")}</p>
-                  <h2>{theme.label}</h2>
-                  <p>{theme.lead}</p>
-                </header>
-                <div className="problem-case-list">
-                  {theme.works.map((work, index) => <CaseRow work={work} index={index} key={work.slug} />)}
-                </div>
-              </section>
-            ))}
-          </>
-        )}
+        ) : <WorksFilter themes={filterThemes} works={filterWorks} />}
 
         <section className="engagement-areas-field" data-nav="dark" data-wipe>
           <header data-reveal>
