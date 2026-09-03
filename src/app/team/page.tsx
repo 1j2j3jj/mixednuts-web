@@ -26,7 +26,8 @@ const teamPageSchema = buildWebPageSchema({
   description: pageDescription,
   mainEntityList: {
     "@type": "ItemList",
-    itemListElement: members.map((member, index) => ({
+    // structured data lists only verified people; the placeholder roster (initials) stays out of the graph
+    itemListElement: members.filter((member) => member.division === "leadership").map((member, index) => ({
       "@type": "ListItem",
       position: index + 1,
       url: member.division === "leadership" ? "https://mixednuts-inc.com/team/ceo" : "https://mixednuts-inc.com/team",
