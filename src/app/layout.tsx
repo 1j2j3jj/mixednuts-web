@@ -7,6 +7,7 @@ import SiteChrome from "@/components/SiteChrome";
 import CookieBanner from "@/components/CookieBanner";
 import { JsonLd, organizationSchema, webSiteSchema } from "@/components/JsonLd";
 import { buildPageOg } from "@/lib/site-metadata";
+import ScrollReset from "@/components/ScrollReset";
 
 const GTM_ID = "GTM-MS76PXZZ";
 const GA4_ID = "G-4XTN8TREFM";
@@ -43,7 +44,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ja" className={`${archivo.variable} ${zen.variable}`}>
+    <html data-scroll-behavior="smooth" lang="ja" className={`${archivo.variable} ${zen.variable}`}>
       <head>
         {/* Google Tag Manager */}
         <Script id="gtm" strategy="afterInteractive">{`
@@ -62,6 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <JsonLd data={webSiteSchema} />
       </head>
       <body>
+        <ScrollReset />
         {/* GTM noscript fallback */}
         <noscript>
           <iframe src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID}`} height="0" width="0" style={{ display: "none", visibility: "hidden" }} />
