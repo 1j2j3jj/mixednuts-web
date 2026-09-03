@@ -38,6 +38,19 @@ export default function SiteMotionV6() {
       gsap.ticker.add(lenisTick);
       gsap.ticker.lagSmoothing(0);
       cleanups.push(() => { gsap.ticker.remove(lenisTick); lenis.destroy(); });
+      // Route change race: if the user clicks an internal link while Lenis is still easing, Next scrolls the
+      // new page to the top and the old Lenis writes its animated position back on its last tick — the new
+      // page then opens mid-scroll. Freeze Lenis the moment an internal navigation starts.
+      const onInternalClick = (event: MouseEvent) => {
+        const anchor = (event.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+        if (!anchor) return;
+        const href = anchor.getAttribute("href") || "";
+        if (href.startsWith("#") || anchor.target === "_blank" || (/^https?:\/\//.test(href) && !href.startsWith(location.origin))) return;
+        lenis.stop();
+        gsap.ticker.remove(lenisTick);
+      };
+      document.addEventListener("click", onInternalClick, true);
+      cleanups.push(() => document.removeEventListener("click", onInternalClick, true));
 
       const context = gsap.context(() => {
         gsap.set(".od i", { yPercent: 0 });
