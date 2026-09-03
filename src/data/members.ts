@@ -6,78 +6,41 @@ export type Member = {
   bio: string;
 };
 
-export const members: Member[] = [
+// 協力メンバーのロスターを表示（CEO 2026-09-03）。イニシャル + 領域のみ。
+export const SHOW_MEMBER_ROSTER = true;
+
+const memberRoster: Member[] = [
   {
     initial: "N.I.",
     role: "Founder & CEO",
     division: "leadership",
-    background: "戦略コンサルティング → 事業会社経営企画／FP&A → 投資",
-    bio: "戦略ファーム出身。国内大手IT企業で300億円規模のエンタメ領域の事業管理を統括し、中期計画・投資判断・取締役会付議を担う。現在は mixednuts 代表として、戦略・AI・マーケティングの統合提供を牽引。",
+    background: "デジタル広告代理店 → グローバルIT企業（広告事業）→ 事業会社 経営企画／FP&A",
+    // CEO 選択用: 数値なし版
+    // bio: "国内大手デジタル広告代理店で金融・不動産・旅行業界の大手企業を担当し、チームマネージャーとして PL 責任を担う。グローバル大手IT企業では広告事業のアカウントストラテジストとして、大手企業のデジタル戦略を支援。国内大手IT企業の経営企画では、ライブ配信・エンターテインメント事業の事業計画策定、FP&A、投資評価、取締役会付議資料を担当。2021年に mixednuts を創業し、戦略・AI・マーケティングの統合提供を牽引。早稲田大学大学院 経営管理研究科 修了（MBA）。",
+    bio: "国内大手デジタル広告代理店で金融・不動産・旅行業界の大手企業を担当し、チームマネージャーとして PL 責任を担う。グローバル大手IT企業では広告事業のアカウントストラテジストとして、大手企業約50社のデジタル戦略を支援。国内大手IT企業の経営企画では、ライブ配信・エンターテインメント事業の事業計画策定、FP&A、投資評価、取締役会付議資料を担当。2021年に mixednuts を創業し、戦略・AI・マーケティングの統合提供を牽引。早稲田大学大学院 経営管理研究科 修了（MBA）。",
   },
-  {
-    initial: "K.T.",
-    role: "Head of Strategy",
-    division: "strategy",
-    background: "外資系戦略コンサル出身",
-    bio: "外資系戦略ファームで通信・メディア・ヘルスケア業界の中期戦略立案をリード。M&A PMI、新規事業立ち上げ、組織変革の経験多数。",
-  },
-  {
-    initial: "Y.M.",
-    role: "Principal, M&A / Investment",
-    division: "strategy",
-    background: "BIG4 会計事務所出身",
-    bio: "BIG4 会計事務所の FAS / M&A アドバイザリー部門で財務DD・バリュエーション・PMI を多数経験。DCF・フットボールチャート・感応度分析を実務水準で運用。",
-  },
-  {
-    initial: "R.S.",
-    role: "Principal, FP&A / Corporate Finance",
-    division: "strategy",
-    background: "事業会社経営企画 責任者",
-    bio: "国内大手事業会社で経営企画責任者として予実管理・取締役会付議・中期計画策定を統括。Netflix型ユニットエコノミクス分析が専門。",
-  },
-  {
-    initial: "H.K.",
-    role: "Head of AI",
-    division: "ai",
-    background: "グローバル大手IT企業 AI/ML エンジニア",
-    bio: "グローバル大手IT企業で大規模言語モデルのプロダクト適用を担当。RAG、エージェント、マルチモーダルAIの実装経験多数。",
-  },
-  {
-    initial: "M.A.",
-    role: "Lead AI Engineer",
-    division: "ai",
-    background: "国内大手IT企業 プロダクト開発",
-    bio: "国内大手IT企業でAIプロダクトの開発リードを経験。LLM Ops、プロンプトエンジニアリング、Evaluation 設計が得意領域。",
-  },
-  {
-    initial: "T.N.",
-    role: "Prompt & Agent Architect",
-    division: "ai",
-    background: "スタートアップ CTO 経験",
-    bio: "複数スタートアップでCTO／技術顧問を歴任。AIエージェントのオーケストレーション設計、MCP統合、ツール実装が専門。",
-  },
-  {
-    initial: "S.O.",
-    role: "Head of Marketing",
-    division: "marketing",
-    background: "国内大手デジタル広告代理店 Sr. Director",
-    bio: "国内大手デジタル広告代理店でシニアディレクターとして大手クライアントの統合マーケティング戦略を統括。BtoB／BtoC双方の実績。",
-  },
-  {
-    initial: "A.Y.",
-    role: "Lead, Growth Marketing",
-    division: "marketing",
-    background: "事業会社マーケ責任者（D2C／SaaS）",
-    bio: "D2CブランドおよびSaaS事業会社でマーケティング責任者を歴任。CAC／LTV最適化、コホート分析、グロース設計が専門。",
-  },
-  {
-    initial: "J.W.",
-    role: "Creative & Content Lead",
-    division: "marketing",
-    background: "SNSクリエイター／編集者",
-    bio: "SNSプラットフォームで10万フォロワー超のクリエイター活動と並行して、媒体編集者としてブランドコンテンツ戦略を担当。",
-  },
+  // ─── 協力メンバー（実在。Slack #marketing_unit / Chatwork の稼働記録から抽出、CEO 確認 2026-09-03）。
+  //     公開はイニシャルと領域のみ。氏名・所属・関与形態・経歴は載せない。───
+  { initial: "N.F.", role: "Ads Operations", division: "marketing", background: "広告運用（EC・B2B）", bio: "" },
+  { initial: "R.H.", role: "Ads Operations", division: "marketing", background: "広告運用・レポーティング", bio: "" },
+  { initial: "Y.N.", role: "Performance Marketing", division: "marketing", background: "Google / Meta / Yahoo 運用・EC グロース", bio: "" },
+  { initial: "N.K.", role: "LP Design & Build", division: "marketing", background: "LP デザイン・コーディング", bio: "" },
+  { initial: "M.M.", role: "Ad Creative", division: "marketing", background: "バナー・広告クリエイティブ", bio: "" },
+  { initial: "T.O.", role: "Ad Creative", division: "marketing", background: "バナー・広告クリエイティブ", bio: "" },
+  { initial: "M.S.", role: "Ad Creative", division: "marketing", background: "構成案・広告クリエイティブ", bio: "" },
+  // ─── 仮置き（CEO 2026-09-03「戦略コンサル等もいるので既存 7 名も残す」）。実在者に差し替え次第、更新。───
+  { initial: "K.T.", role: "Strategy Lead", division: "strategy", background: "事業戦略・中期計画・FP&A 支援", bio: "" },
+  { initial: "Y.M.", role: "M&A / Investment", division: "strategy", background: "投資評価・DD・バリュエーション", bio: "" },
+  { initial: "R.S.", role: "Corporate Finance", division: "strategy", background: "予実管理・経営管理の仕組み化", bio: "" },
+  { initial: "A.H.", role: "AI Engineer", division: "ai", background: "エージェント設計・LLM 業務実装", bio: "" },
+  { initial: "M.K.", role: "Data / Platform", division: "ai", background: "データ基盤・計測・MCP 統合", bio: "" },
+  { initial: "S.O.", role: "Growth Marketing", division: "marketing", background: "広告運用・LTV / CAC 設計", bio: "" },
+  { initial: "J.W.", role: "SEO / AIO", division: "marketing", background: "検索・AI 検索対策・構造化データ", bio: "" },
 ];
+
+export const members = SHOW_MEMBER_ROSTER
+  ? memberRoster
+  : memberRoster.filter((member) => member.division === "leadership");
 
 export const divisionLabels = {
   leadership: "Leadership",

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import * as runtime from "react/jsx-runtime";
@@ -6,23 +7,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { posts } from "#site/content";
 import { mdxComponents } from "@/components/mdx-components";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
-import { buildPageOg } from "@/lib/site-metadata";
+import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
+import { buildPageOg, compactTitle, OG_DEFAULT_IMAGE, SITE_URL } from "@/lib/site-metadata";
 import { ReadingProgressBar } from "@/components/ReadingProgressBar";
 import { StickyToc } from "@/components/StickyToc";
+import InsightsMotion from "../InsightsMotion";
+import "../v6-insights.css";
 
-/**
- * Extract FAQ Q&A pairs from raw MDX content.
- * Matches the pattern:  **Q. ...?**\nA. ...
- * Returns array of {question, answer}.
- */
 function extractFaqPairs(slug: string): { question: string; answer: string }[] {
-  const mdxPath = path.join(
-    process.cwd(),
-    "content",
-    "insights",
-    `${slug}.mdx`,
-  );
+  const mdxPath = path.join(process.cwd(), "content", "insights", `${slug}.mdx`);
   let raw = "";
   try {
     raw = fs.readFileSync(mdxPath, "utf-8");
@@ -30,16 +23,14 @@ function extractFaqPairs(slug: string): { question: string; answer: string }[] {
     return [];
   }
   const out: { question: string; answer: string }[] = [];
-  // Split by section "## FAQ" (or "FAQ" heading) and parse Q/A within
   const faqSection = raw.split(/\n##\s+FAQ\b/i)[1];
   if (!faqSection) return out;
-  // Stop at next "---" (Sources section) or "## "
   const scope = faqSection.split(/\n(?:---|##\s)/)[0];
   const re = /\*\*Q\.\s*(.+?)\*\*\s*\nA\.\s*([\s\S]+?)(?=\n\n\*\*Q\.|\n\n$|$)/g;
-  let m;
-  while ((m = re.exec(scope)) !== null) {
-    const question = m[1].trim();
-    const answer = m[2].trim().replace(/\s+/g, " ");
+  let match;
+  while ((match = re.exec(scope)) !== null) {
+    const question = match[1].trim();
+    const answer = match[2].trim().replace(/\s+/g, " ");
     if (question && answer) out.push({ question, answer });
   }
   return out;
@@ -48,9 +39,7 @@ function extractFaqPairs(slug: string): { question: string; answer: string }[] {
 type Params = { slug: string };
 
 export function generateStaticParams() {
-  return posts
-    .filter((post) => !post.hidden)
-    .map((post) => ({ slug: post.slug }));
+  return posts.filter((post) => !post.hidden).map((post) => ({ slug: post.slug }));
 }
 
 export async function generateMetadata({
@@ -59,20 +48,18 @@ export async function generateMetadata({
   params: Promise<Params>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const post = posts.find((p) => p.slug === slug);
+  const post = posts.find((item) => item.slug === slug);
   if (!post) return {};
+  const title = compactTitle(post.title);
   return {
-    title: `${post.title} | Insights`,
+    title,
     description: post.excerpt,
     alternates: { canonical: `/insights/${slug}` },
-    // buildPageOg で og:url / og:site_name / og:locale / twitter:* を補完
-    // (従来は部分定義のため親とマージされず欠落し、twitter:title がルートの "mixednuts" のままだった)
     ...buildPageOg({
-      title: post.title,
+      title,
       description: post.excerpt,
       path: post.permalink,
-      images: post.hero ? [{ url: post.hero }] : undefined,
-      article: { publishedTime: post.date, authors: [post.author] },
+      article: { publishedTime: post.date, modifiedTime: post.updated ?? post.date, authors: [post.author], tags: post.tags },
     }),
   };
 }
@@ -83,22 +70,43 @@ function MDXContent({ code }: { code: string }) {
   return <Component components={mdxComponents} />;
 }
 
+function SlamText({ children }: { children: string }) {
+  // Latin / numeric runs stay unbreakable (one `.w` per run), CJK characters wrap
+  // freely, whitespace becomes a `.space` — so "ROAS" never splits into "RO / AS".
+  const tokens = children.match(/[A-Za-z0-9&+.%×#@'’\-]+|\s+|./gu) ?? [];
+  return tokens.map((token, index) => {
+    if (/^\s+$/.test(token)) return <span className="c space" aria-hidden="true" key={index}>{"\u00a0"}</span>;
+    const chars = Array.from(token).map((ch, j) => (
+      <span className="c" aria-hidden="true" key={`${index}-${j}`}>{ch}</span>
+    ));
+    return token.length > 1 ? <span className="w" key={index}>{chars}</span> : chars[0];
+  });
+}
+
 export default async function InsightsArticlePage({
   params,
 }: {
   params: Promise<Params>;
 }) {
   const { slug } = await params;
-  const post = posts.find((p) => p.slug === slug);
+  const post = posts.find((item) => item.slug === slug);
   if (!post || post.hidden) return notFound();
 
-  const related = posts
-    .filter((p) => p.slug !== post.slug && !p.hidden)
+  const visiblePosts = posts
+    .filter((item) => !item.hidden)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+  const currentIndex = visiblePosts.findIndex((item) => item.slug === post.slug);
+  const previous = currentIndex > 0 ? visiblePosts[currentIndex - 1] : null;
+  const next = currentIndex < visiblePosts.length - 1 ? visiblePosts[currentIndex + 1] : null;
+  const related = visiblePosts
+    .filter((item) => item.slug !== post.slug)
+    .sort((a, b) => Number(b.category === post.category) - Number(a.category === post.category))
     .slice(0, 3);
   const formattedDate = post.date.slice(0, 10).replace(/-/g, ".");
-  const heroBg = post.hero
-    ? `linear-gradient(135deg, rgba(0, 217, 255, 0.08), rgba(10, 10, 10, 0.85)), url('${post.hero}') center/cover no-repeat`
-    : "linear-gradient(135deg, var(--charcoal-soft), var(--charcoal))";
+  const rawMdx = fs.readFileSync(path.join(process.cwd(), "content", "insights", `${post.slug}.mdx`), "utf-8");
+  const wordCount = rawMdx.replace(/^---[\s\S]*?---/m, "").replace(/<[^>]+>|[#*_`>[\]()!-]/g, " ").trim().split(/\s+/).filter(Boolean).length;
+  const articleImage = post.hero ? `${SITE_URL}${post.hero}` : `${SITE_URL}${OG_DEFAULT_IMAGE.url}`;
+  const webPageSchema = buildWebPageSchema({ path: post.permalink, name: post.title, description: post.excerpt });
 
   const articleSchema = {
     "@context": "https://schema.org",
@@ -107,12 +115,10 @@ export default async function InsightsArticlePage({
     headline: post.title,
     description: post.excerpt,
     datePublished: post.date,
-    dateModified: post.date,
-    inLanguage: "ja-JP",
+    dateModified: post.updated ?? post.date,
+    inLanguage: "ja",
     author: {
       "@type": "Person",
-      // 既定著者 (CEO) は /team/ceo の Person エンティティに @id で接続し
-      // E-E-A-T の著者シグナルを1エンティティに集約する (他著者はインライン Person のまま)
       ...(post.author === "石井 希実"
         ? {
             "@id": "https://mixednuts-inc.com/team/ceo#person",
@@ -124,10 +130,11 @@ export default async function InsightsArticlePage({
       worksFor: { "@id": "https://mixednuts-inc.com/#organization" },
     },
     publisher: { "@id": "https://mixednuts-inc.com/#organization" },
-    image: post.hero ? `https://mixednuts-inc.com${post.hero}` : undefined,
-    keywords: post.tags.join(", "),
+    image: articleImage,
+    keywords: post.tags,
     articleSection: post.category,
-    mainEntityOfPage: `https://mixednuts-inc.com${post.permalink}`,
+    wordCount,
+    mainEntityOfPage: { "@id": `${SITE_URL}${post.permalink}#webpage` },
   };
 
   const breadcrumb = buildBreadcrumbSchema([
@@ -137,300 +144,78 @@ export default async function InsightsArticlePage({
   ]);
 
   const faqPairs = extractFaqPairs(post.slug);
-  const faqPageSchema =
-    faqPairs.length > 0
-      ? {
-          "@context": "https://schema.org",
-          "@type": "FAQPage",
-          "@id": `https://mixednuts-inc.com${post.permalink}#faq`,
-          mainEntity: faqPairs.map((p) => ({
-            "@type": "Question",
-            name: p.question,
-            acceptedAnswer: {
-              "@type": "Answer",
-              text: p.answer,
-            },
-          })),
-        }
-      : null;
+  const faqPageSchema = faqPairs.length > 0
+    ? {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "@id": `https://mixednuts-inc.com${post.permalink}#faq`,
+        mainEntity: faqPairs.map((pair) => ({
+          "@type": "Question",
+          name: pair.question,
+          acceptedAnswer: { "@type": "Answer", text: pair.answer },
+        })),
+      }
+    : null;
 
   return (
-    <>
+    <main className="mn-v6 insights-v6 article-v6">
+      <InsightsMotion />
+      <ReadingProgressBar />
       <JsonLd data={articleSchema} />
+      <JsonLd data={webPageSchema} />
       <JsonLd data={breadcrumb} />
       {faqPageSchema && <JsonLd data={faqPageSchema} />}
-      <style>{`
-        .article-hero { background: var(--off-white); padding: 140px 32px 64px; }
-        .article-hero-inner { max-width: 860px; margin: 0 auto; }
-        .article-hero .category-tag {
-          display: inline-block; font-family: var(--font-sans-en); font-size: 11px; color: var(--cyan);
-          letter-spacing: 0.2em; text-transform: uppercase; font-weight: 700;
-          margin-bottom: 16px; padding: 6px 14px; background: var(--cyan-soft); border-radius: 999px;
-        }
-        .article-hero h1 {
-          font-family: 'Noto Sans JP', sans-serif; font-size: clamp(28px, 5vw, 52px); line-height: 1.25;
-          font-weight: 900; color: var(--charcoal); margin-bottom: 24px; letter-spacing: -0.01em; word-break: keep-all;
-        }
-        .article-subtitle {
-          font-family: var(--font-serif-jp); font-size: 17px; color: var(--gray-600);
-          line-height: 1.9; margin-bottom: 40px;
-        }
-        .article-meta-row {
-          display: flex; align-items: center; gap: 24px; padding-top: 24px;
-          border-top: 1px solid rgba(10,10,10,0.12);
-        }
-        .article-author-img {
-          width: 48px; height: 48px; border-radius: 50%;
-          background: linear-gradient(135deg, var(--charcoal), var(--charcoal-soft));
-          display: flex; align-items: center; justify-content: center;
-          color: var(--off-white); font-weight: 700; font-size: 14px; font-family: var(--font-sans-en);
-        }
-        .article-author-name { font-size: 14px; font-weight: 700; color: var(--charcoal); }
-        .article-author-role { font-size: 11px; color: var(--gray-400); font-family: var(--font-sans-en); letter-spacing: 0.05em; }
-        .article-meta-items { display: flex; gap: 12px; font-size: 12px; color: var(--gray-400); font-family: var(--font-sans-en); letter-spacing: 0.05em; margin-left: auto; }
 
-        .article-featured-image {
-          max-width: 1280px; margin: 0 auto 64px; padding: 0 32px;
-          aspect-ratio: 21/9; border-radius: 24px;
-          background: ${heroBg};
-        }
+      <header className="insights-title navy" data-nav="dark">
+        <div className="insights-title-top insights-title-meta">
+          <nav className="insights-breadcrumb" aria-label="パンくずリスト"><ol style={{ display: "contents" }}><li style={{ display: "contents" }}><Link href="/">Home</Link></li><li style={{ display: "contents" }}><span aria-hidden="true">/</span><Link href="/insights">Insights</Link></li><li style={{ display: "contents" }}><span aria-hidden="true">/</span><span>{post.category}</span></li></ol></nav>
+          <span className="insights-title-index">Article / {String(currentIndex + 1).padStart(2, "0")}</span>
+        </div>
 
-        .article-body { padding: 0 32px 120px; background: var(--off-white); }
-        .article-body-wrap {
-          max-width: 1120px; margin: 0 auto;
-          display: grid; grid-template-columns: 220px minmax(0, 720px);
-          gap: 64px; align-items: start;
-        }
-        .article-side { padding-top: 12px; }
-        .article-body-inner { max-width: 720px; min-width: 0; }
-        @media (max-width: 1100px) {
-          .article-body-wrap { grid-template-columns: 1fr; max-width: 720px; gap: 0; }
-          .article-side { display: none; }
-        }
-        .article-body h2 {
-          font-family: 'Noto Sans JP', sans-serif; font-size: 26px; line-height: 1.4;
-          font-weight: 900; color: var(--charcoal); margin: 56px 0 20px;
-          padding-bottom: 16px; border-bottom: 2px solid var(--charcoal);
-          word-break: keep-all;
-        }
-        .article-body h2 a { text-decoration: none; color: inherit; }
-        .article-body h3 {
-          font-family: 'Noto Sans JP', sans-serif; font-size: 19px; font-weight: 700;
-          color: var(--charcoal); margin: 32px 0 12px;
-        }
-        .article-body p {
-          font-size: 15px; line-height: 2.0; color: var(--charcoal); margin-bottom: 20px;
-        }
-        .article-body ul, .article-body ol { margin: 16px 0 24px 24px; }
-        .article-body ul li, .article-body ol li {
-          font-size: 15px; line-height: 2.0; color: var(--charcoal); margin-bottom: 10px;
-        }
-        .article-body strong { color: var(--charcoal); font-weight: 700; }
+        <h1 className="insights-slam" aria-label={post.title}>
+          <SlamText>{post.title}</SlamText>
+        </h1>
 
-        /* --- Markdown table styling (previously unstyled, rendered as plain lines) --- */
-        .article-body table {
-          width: 100%; margin: 32px 0;
-          border-collapse: collapse;
-          font-size: 14px; line-height: 1.7;
-          border-top: 2px solid var(--charcoal);
-          border-bottom: 2px solid var(--charcoal);
-        }
-        .article-body thead th {
-          padding: 14px 16px;
-          text-align: left;
-          font-family: var(--font-sans-en);
-          font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
-          font-weight: 700; color: var(--gray-500);
-          border-bottom: 1px solid rgba(10,10,10,0.15);
-          background: transparent;
-        }
-        .article-body tbody td {
-          padding: 14px 16px;
-          color: var(--charcoal);
-          border-bottom: 1px solid rgba(10,10,10,0.08);
-          vertical-align: top;
-        }
-        .article-body tbody tr:last-child td { border-bottom: none; }
-        .article-body tbody tr:hover { background: rgba(0,217,255,0.03); }
-        @media (max-width: 700px) {
-          .article-body table { font-size: 13px; }
-          .article-body thead th, .article-body tbody td { padding: 10px 10px; }
-        }
-        .article-body blockquote {
-          margin: 32px 0; padding: 24px 32px;
-          background: var(--off-white-alt); border-left: 3px solid var(--cyan); border-radius: 4px;
-          font-family: var(--font-serif-jp); font-size: 16px; line-height: 1.9;
-          color: var(--charcoal); font-style: italic;
-        }
-        .article-body code {
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 0.9em; background: var(--off-white-alt); padding: 0.15em 0.4em; border-radius: 4px;
-        }
-        .tldr {
-          background: var(--off-white-alt);
-          border: 1px solid rgba(0,217,255,0.25); border-radius: 12px;
-          padding: 24px 32px; margin: 32px 0;
-        }
-        .tldr-label { font-family: var(--font-sans-en); font-size: 11px; color: var(--cyan); letter-spacing: 0.2em; text-transform: uppercase; font-weight: 700; margin-bottom: 12px; }
-        .tldr p { margin: 0; font-size: 14px; line-height: 1.9; }
-        .principle {
-          background: var(--off-white-alt); border: 1px solid rgba(10,10,10,0.08); border-radius: 16px;
-          padding: 28px 32px; margin: 24px 0;
-        }
-        .principle-num { font-family: var(--font-sans-en); font-size: 12px; color: var(--cyan); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 8px; }
-        .principle h3 { margin: 0 !important; font-size: 17px; line-height: 1.5; }
-
-        .inline-cite { text-decoration: none; color: var(--cyan); font-weight: 700; margin: 0 2px; }
-        .inline-cite sup { font-size: 0.72em; vertical-align: super; }
-        .inline-cite:hover { text-decoration: underline; }
-
-        .pull-quote {
-          border-left: 4px solid var(--cyan);
-          background: var(--off-white-alt);
-          padding: 28px 32px; margin: 32px 0;
-          border-radius: 0 12px 12px 0;
-        }
-        .pull-quote p {
-          font-family: var(--font-serif-jp, 'Noto Serif JP', serif);
-          font-size: 18px; line-height: 1.8; font-weight: 500;
-          color: var(--charcoal); margin: 0 0 12px 0;
-        }
-        .pull-quote cite {
-          font-style: normal; font-size: 12px; color: var(--gray-500);
-          font-family: var(--font-sans-en);
-          letter-spacing: 0.06em;
-        }
-
-        .answer-block {
-          background: rgba(0,217,255,0.06);
-          border-left: 3px solid var(--cyan);
-          border-radius: 8px;
-          padding: 20px 24px;
-          margin: 20px 0 32px 0;
-        }
-        .answer-label {
-          font-family: var(--font-sans-en);
-          font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
-          color: var(--cyan); font-weight: 700; margin-bottom: 8px;
-        }
-        .answer-block p { margin: 0; font-size: 15px; line-height: 1.8; color: var(--charcoal); }
-
-        .stat-callout {
-          display: block;
-          width: 100%;
-          background: transparent;
-          border-top: 1px solid rgba(10,10,10,0.15);
-          border-bottom: 1px solid rgba(10,10,10,0.15);
-          padding: 32px 0;
-          margin: 40px 0;
-          text-align: center;
-        }
-        .stat-callout.inline {
-          display: grid;
-          grid-template-columns: auto 1fr auto;
-          gap: 28px;
-          align-items: center;
-          text-align: left;
-        }
-        .stat-value {
-          font-family: 'Archivo', 'Noto Sans JP', sans-serif;
-          font-size: clamp(48px, 7vw, 84px);
-          font-weight: 900; line-height: 0.95; letter-spacing: -0.03em;
-          color: var(--cyan);
-          display: block;
-          margin-bottom: 8px;
-        }
-        .stat-label {
-          font-size: 14px; color: var(--charcoal); font-weight: 600;
-          line-height: 1.6;
-        }
-        .stat-source {
-          font-size: 11px; margin-top: 10px;
-          color: var(--gray-500);
-          font-family: var(--font-sans-en);
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-        }
-        @media (max-width: 700px) {
-          .stat-value { font-size: clamp(40px, 12vw, 56px); }
-          .stat-callout { padding: 24px 0; }
-        }
-
-        .article-tags {
-          display: flex; gap: 8px; flex-wrap: wrap;
-          margin-top: 48px; padding-top: 32px; border-top: 1px solid rgba(10,10,10,0.12);
-        }
-        .article-tag-link { padding: 6px 14px; background: var(--off-white-alt); color: var(--gray-600); border-radius: 999px; font-size: 12px; text-decoration: none; transition: all 0.2s; }
-        .article-tag-link:hover { background: var(--charcoal); color: var(--off-white); }
-
-        .article-cta {
-          margin-top: 48px; padding: 40px;
-          background: var(--charcoal);
-          color: var(--off-white); border-radius: 20px; text-align: center;
-        }
-        .article-cta h3 { font-family: 'Noto Sans JP', sans-serif; font-size: 22px; margin-bottom: 16px; color: var(--off-white); }
-        .article-cta p { color: rgba(245,241,232,0.85); margin-bottom: 24px; font-size: 14px; }
-        .article-cta .btn-cta { background: var(--cyan); color: var(--charcoal); padding: 14px 28px; border-radius: 999px; font-weight: 700; font-size: 14px; text-decoration: none; display: inline-block; transition: all 0.2s; }
-        .article-cta .btn-cta:hover { transform: translateY(-2px); }
-
-        .related { background: var(--off-white-alt); padding: 96px 32px; }
-        .related-inner { max-width: 1280px; margin: 0 auto; }
-        .related-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 32px; }
-        .related-card { background: var(--off-white); border: 1px solid rgba(10,10,10,0.08); border-radius: 16px; overflow: hidden; text-decoration: none; color: inherit; transition: all 0.3s; }
-        .related-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(10,10,10,0.08); }
-        .related-visual { aspect-ratio: 16/9; position: relative; background: var(--charcoal); }
-        .related-tag-pos { position: absolute; top: 16px; left: 16px; background: var(--off-white); color: var(--charcoal); padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; font-family: var(--font-sans-en); }
-        .related-body { padding: 24px; }
-        .related-date { font-size: 11px; color: var(--gray-400); font-family: var(--font-sans-en); margin-bottom: 8px; }
-        .related-title { font-family: 'Noto Sans JP', sans-serif; font-size: 15px; font-weight: 700; color: var(--charcoal); line-height: 1.5; }
-
-        @media (max-width: 900px) {
-          .related-grid { grid-template-columns: 1fr; }
-          .article-hero { padding: 120px 24px 48px; }
-          .article-meta-items { margin-left: 0; }
-          .article-meta-row { flex-wrap: wrap; }
-        }
-      `}</style>
-
-      <section className="article-hero">
-        <div className="article-hero-inner">
-          <div className="breadcrumb" style={{ marginBottom: 20 }}>
-            <Link href="/">Home</Link> / <Link href="/insights">Insights</Link>{" "}
-            / {post.category}
+        <div className="insights-title-bottom insights-title-meta">
+          <div className="article-hero-meta">
+            {post.subtitle && <p className="insights-title-lead">{post.subtitle}</p>}
+            <div className="article-hero-meta-line">
+              <span>{post.category}</span>
+              <time dateTime={post.date}>{formattedDate}</time>
+              <span>{post.readTime} read</span>
+              <span>{post.author}</span>
+            </div>
           </div>
-          <span className="category-tag">{post.category}</span>
-          <h1>{post.title}</h1>
-          {post.subtitle && <p className="article-subtitle">{post.subtitle}</p>}
-          <div className="article-meta-row">
-            <div className="article-author-img" aria-hidden="true">
-              N.I.
-            </div>
-            <div>
-              <div className="article-author-name">{post.author}</div>
-              <div className="article-author-role">{post.authorRole}</div>
-            </div>
-            <div className="article-meta-items">
-              <span>{formattedDate}</span>
-              <span>·</span>
-              <span>{post.readTime}で読める</span>
-            </div>
+          <span className="insights-title-word" aria-hidden="true">READ</span>
+        </div>
+      </header>
+
+      {post.hero && (
+        <div className="article-hero-image-wrap" data-nav="light">
+          <div className="article-hero-image" data-wipe>
+            <Image
+              src={post.hero}
+              alt=""
+              width={1600}
+              height={900}
+              priority
+              sizes="100vw"
+            />
           </div>
         </div>
-      </section>
+      )}
 
-      <div className="article-featured-image" />
-
-      <ReadingProgressBar />
-
-      <article className="article-body" data-reading-target>
-        <div className="article-body-wrap">
-          <aside className="article-side">
+      <article className="article-reading" data-reading-target data-nav="light">
+        <div className="article-reading-grid">
+          <aside className="article-toc-column" aria-label="目次">
             <StickyToc />
           </aside>
-          <div className="article-body-inner">
-            <MDXContent code={post.body} />
+          <div className="article-copy">
+            <div className="article-mdx">
+              <MDXContent code={post.body} />
+            </div>
 
-            <div className="article-tags">
+            <div className="article-tags" aria-label="記事タグ">
               {post.tags.map((tag) => (
                 <Link
                   key={tag}
@@ -442,55 +227,64 @@ export default async function InsightsArticlePage({
               ))}
             </div>
 
-            <div className="article-cta">
-              <h3>AI-first 組織の構築にご関心ありませんか?</h3>
-              <p>
-                私たちの知見をあなたの事業に実装します。60分の無料相談をご予約ください。
-              </p>
-              <Link href="/contact" className="btn-cta">
-                無料相談を申し込む →
-              </Link>
-            </div>
+            <section className="article-author" aria-labelledby="article-author-heading">
+              <div className="article-author-mark" aria-hidden="true">N.I.</div>
+              <div>
+                <span className="article-author-role">Founder &amp; CEO</span>
+                <h2 id="article-author-heading">{post.author}</h2>
+                <p>mixednuts Inc. / Strategy × AI × Marketing</p>
+              </div>
+              <Link href="/team/ceo" className="article-author-link">Profile</Link>
+            </section>
+
+            <section className="article-cta" aria-labelledby="article-cta-heading">
+              <div>
+                <h2 id="article-cta-heading">知見を、事業の実装へ。</h2>
+                <p>60分の無料相談で、貴社に適した論点と次の一手を整理します。</p>
+              </div>
+              <Link href="/contact" className="article-cta-link">相談を申し込む</Link>
+            </section>
           </div>
         </div>
       </article>
 
-      {related.length > 0 && (
-        <section className="related">
-          <div className="related-inner">
-            <span className="section-label">Related Articles</span>
-            <h2 className="section-title" style={{ marginBottom: 32 }}>
-              関連記事
-            </h2>
-            <div className="related-grid">
-              {related.map((item) => (
-                <Link
-                  key={item.slug}
-                  href={item.permalink}
-                  className="related-card"
-                >
-                  <div
-                    className="related-visual"
-                    style={{
-                      background: item.hero
-                        ? `linear-gradient(135deg, rgba(0,217,255,0.18), rgba(10,10,10,0.85)), url('${item.hero}') center/cover no-repeat`
-                        : "var(--charcoal)",
-                    }}
-                  >
-                    <span className="related-tag-pos">{item.category}</span>
-                  </div>
-                  <div className="related-body">
-                    <div className="related-date">
-                      {item.date.slice(0, 10).replace(/-/g, ".")}
-                    </div>
-                    <div className="related-title">{item.title}</div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-    </>
+      <section className="article-bottom" data-nav="light">
+        {(previous || next) && (
+          <nav className="article-nav" aria-label="前後の記事" data-reveal>
+            {previous && (
+              <Link href={previous.permalink} className="article-nav-link">
+                <span className="article-nav-kicker">Newer article</span>
+                <strong>{previous.title}</strong>
+              </Link>
+            )}
+            {next && (
+              <Link href={next.permalink} className="article-nav-link">
+                <span className="article-nav-kicker">Older article</span>
+                <strong>{next.title}</strong>
+              </Link>
+            )}
+          </nav>
+        )}
+
+        {related.length > 0 && (
+          <section className="related" aria-labelledby="related-heading">
+            <header className="related-head" data-reveal>
+              <span className="insights-section-label">Continue reading</span>
+              <h2 id="related-heading">Related</h2>
+            </header>
+            {related.map((item) => (
+              <Link href={item.permalink} className="related-row" key={item.slug} data-reveal>
+                <span className="insight-category">{item.category}</span>
+                <h3>{item.title}</h3>
+                <div className="insight-meta">
+                  <time dateTime={item.date}>{item.date.slice(0, 10).replace(/-/g, ".")}</time>
+                  <span>{item.readTime}</span>
+                </div>
+              </Link>
+            ))}
+          </section>
+        )}
+      </section>
+    </main>
   );
 }

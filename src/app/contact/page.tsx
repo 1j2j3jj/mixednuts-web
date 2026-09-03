@@ -1,190 +1,91 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import ContactForm from "./ContactForm";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import V6PageMotion from "@/components/V6PageMotion";
+import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
+import { SplitWords } from "@/components/v6/KineticText";
 import { buildPageOg } from "@/lib/site-metadata";
+import "./v6-contact.css";
+import "./v6-contact-fixes.css";
 
-const pageTitle = "Contact — まずは、話しましょう";
+const pageTitle = "お問い合わせ・無料相談";
 const pageDescription =
-  "初回無料相談（60分）で、貴社の課題をヒアリングし最適なアプローチをご提案します。24時間以内にご返信します。";
+  "戦略・AI・マーケティングに関する初回無料相談を受け付けています。60分のオンライン対話で課題、目標、時間軸を整理し、必要な場合に具体的な進め方と費用をご提案します。";
 
 export const metadata: Metadata = {
   title: pageTitle,
   description: pageDescription,
   alternates: { canonical: "/contact" },
-  ...buildPageOg({
-    title: pageTitle,
-    description: pageDescription,
-    path: "/contact",
-  }),
+  ...buildPageOg({ title: pageTitle, description: pageDescription, path: "/contact" }),
 };
 
-const contactPageSchema = {
-  "@context": "https://schema.org",
-  "@type": "ContactPage",
-  "@id": "https://mixednuts-inc.com/contact#webpage",
-  url: "https://mixednuts-inc.com/contact",
-  name: pageTitle,
-  description: pageDescription,
-  inLanguage: "ja-JP",
-  isPartOf: { "@id": "https://mixednuts-inc.com/#website" },
-  mainEntity: { "@id": "https://mixednuts-inc.com/#organization" },
-};
+const contactPageSchema = buildWebPageSchema({ type: "ContactPage", path: "/contact", name: pageTitle, description: pageDescription, mainEntity: { "@id": "https://mixednuts-inc.com/#organization" } });
 
 const breadcrumb = buildBreadcrumbSchema([
   { name: "Home", path: "/" },
   { name: "Contact", path: "/contact" },
 ]);
 
+const steps = [
+  ["01", "お問い合わせ", "フォームまたはメールで、現在地と相談したいテーマをお知らせください。"],
+  ["02", "初回ヒアリング", "60分の無料相談で、課題・目標・時間軸をオンラインで整理します。"],
+  ["03", "提案・始動", "必要な場合のみ、進め方と費用をご提案。合意後すぐに始動します。"],
+];
+
 export default function ContactPage() {
   return (
-    <>
+    <main className="contact-v6" data-v6-page>
       <JsonLd data={contactPageSchema} />
       <JsonLd data={breadcrumb} />
-      <style>{`
-        .contact-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; }
-        .contact-form { background: #fff; border: 1px solid #E5E7EB; border-radius: 20px; padding: 48px; }
-        .contact-form h3 { font-family: var(--font-serif-jp); font-size: 24px; margin-bottom: 24px; color: var(--navy); }
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; font-size: 12px; color: #4B5563; margin-bottom: 6px; font-weight: 600; letter-spacing: 0.05em; }
-        .form-group label .req { color: var(--burgundy); }
-        .form-group input, .form-group select, .form-group textarea {
-          width: 100%; padding: 12px 14px;
-          border: 1px solid #D1D5DB; border-radius: 8px;
-          font-size: 14px; font-family: inherit;
-          transition: all 0.2s; background: #fff; color: #1A1A1A;
-        }
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-          outline: none; border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,180,216,0.1);
-        }
-        .form-group textarea { resize: vertical; min-height: 140px; }
-        .form-actions { margin-top: 32px; }
-        .form-submit { width: 100%; justify-content: center; background: var(--navy); color: #fff; padding: 16px 32px; border-radius: 10px; font-weight: 600; font-size: 15px; border: none; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; }
-        .form-submit:hover { background: var(--cyan); color: var(--navy); transform: translateY(-2px); }
-        .form-note { font-size: 11px; color: #9CA3AF; margin-top: 16px; line-height: 1.7; }
-        .contact-info { padding: 48px 0; }
-        .contact-info h3 { font-family: var(--font-serif-jp); font-size: 24px; margin-bottom: 24px; color: var(--navy); }
-        .info-block { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid #E5E7EB; }
-        .info-block:last-child { border-bottom: none; }
-        .info-block-label { font-size: 11px; color: var(--cyan); letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; margin-bottom: 8px; }
-        .info-block-value { font-size: 14px; color: #1A1A1A; line-height: 1.7; }
-        .info-block-value a { color: var(--navy); text-decoration: underline; }
-        .quick-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-        .quick-link { padding: 8px 14px; background: #F9FAFB; color: #4B5563; border-radius: 999px; font-size: 12px; text-decoration: none; transition: all 0.2s; }
-        .quick-link:hover { background: var(--navy); color: #fff; }
-        .flow-steps { display: flex; flex-direction: column; gap: 20px; margin-top: 32px; }
-        .flow-step { display: flex; gap: 16px; align-items: flex-start; }
-        .flow-num { width: 32px; height: 32px; border-radius: 50%; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
-        .flow-step-text h4 { font-size: 15px; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
-        .flow-step-text p { font-size: 13px; color: #4B5563; line-height: 1.6; }
-        @media (max-width: 900px) {
-          .contact-wrap { grid-template-columns: 1fr; gap: 32px; }
-          .contact-form { padding: 32px 24px; }
-        }
-      `}</style>
+      <V6PageMotion />
 
-      <section className="page-hero">
-        <div className="page-hero-inner">
-          <div className="breadcrumb">
-            <Link href="/">Home</Link> / Contact
-          </div>
-          <div className="page-hero-badge">Let&apos;s Talk</div>
-          <h1>
-            まずは、<span className="accent">話しましょう</span>。
-          </h1>
-          <p className="lead">
-            初回無料相談（60分）で、貴社の課題をヒアリングし、最適なアプローチをご提案します。24時間以内にご返信します。売り込みではなく、対話からはじめましょう。
-          </p>
-        </div>
+      <section className="contact-v6__hero" data-nav="dark">
+        <nav className="contact-v6__crumb v6-hero-detail" aria-label="パンくずリスト"><ol style={{ display: "contents" }}><li style={{ display: "contents" }}><Link href="/">Home</Link></li><li style={{ display: "contents" }}><span>/</span>Contact</li></ol></nav>
+        <p className="contact-v6__eyebrow v6-hero-detail">60-minute free consultation</p>
+        <h1 className="contact-v6__title v6-slam" aria-label="Let's build growth."><SplitWords words={["Let's", "build", "growth."]} /></h1>
+        <p className="contact-v6__lead v6-hero-detail">
+          売り込みではなく、対話から。初回無料相談（60分）で課題を整理し、最適なアプローチを一緒に考えます。
+        </p>
+        <span className="contact-v6__index v6-hero-detail" aria-hidden="true">C/01</span>
       </section>
 
-      <section className="section" style={{ background: "#F9FAFB" }}>
-        <div className="section-inner">
-          <div className="contact-wrap">
-            <div className="contact-form">
-              <h3>お問い合わせフォーム</h3>
-              <ContactForm />
-            </div>
-
-            <div className="contact-info">
-              <h3>その他のお問い合わせ方法</h3>
-
-              <div className="info-block">
-                <div className="info-block-label">Email</div>
-                <div className="info-block-value">
-                  <a href="mailto:hello@mixednuts-inc.com">
-                    hello@mixednuts-inc.com
-                  </a>
-                  <br />
-                  通常24時間以内に返信いたします（土日祝は翌営業日）。
-                </div>
-              </div>
-
-              <div className="info-block">
-                <div className="info-block-label">所在地</div>
-                <div className="info-block-value">
-                  〒107-0062
-                  <br />
-                  東京都港区南青山3-8-40
-                  <br />※ 訪問は事前予約制です
-                </div>
-              </div>
-
-              <div className="info-block">
-                <div className="info-block-label">お役立ちリンク</div>
-                <div className="quick-links">
-                  <Link href="/services" className="quick-link">
-                    サービス一覧
-                  </Link>
-                  <Link href="/works" className="quick-link">
-                    実績・事例
-                  </Link>
-                  <Link href="/team" className="quick-link">
-                    メンバー紹介
-                  </Link>
-                  <Link href="/insights" className="quick-link">
-                    Insights
-                  </Link>
-                </div>
-              </div>
-
-              <div className="info-block">
-                <div className="info-block-label">相談フロー</div>
-                <div className="flow-steps">
-                  <div className="flow-step">
-                    <div className="flow-num">1</div>
-                    <div className="flow-step-text">
-                      <h4>お問い合わせ</h4>
-                      <p>フォームまたはメールにてご連絡ください。</p>
-                    </div>
-                  </div>
-                  <div className="flow-step">
-                    <div className="flow-num">2</div>
-                    <div className="flow-step-text">
-                      <h4>初回ヒアリング（60分・無料）</h4>
-                      <p>課題・目標・時間軸をオンラインでお聞きします。</p>
-                    </div>
-                  </div>
-                  <div className="flow-step">
-                    <div className="flow-num">3</div>
-                    <div className="flow-step-text">
-                      <h4>提案・見積もり</h4>
-                      <p>最適なアプローチと費用感をご提案します。</p>
-                    </div>
-                  </div>
-                  <div className="flow-step">
-                    <div className="flow-num">4</div>
-                    <div className="flow-step-text">
-                      <h4>契約・キックオフ</h4>
-                      <p>業務委託契約締結後、即日着手可能です。</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+      <section className="contact-v6__body" data-nav="light">
+        <div className="contact-v6__form-column v6-reveal">
+          <div className="contact-v6__section-head">
+            <span>Inquiry form</span>
+            <h2>相談の入口を、<br />ここから。</h2>
           </div>
+          <ContactForm />
         </div>
+
+        <aside className="contact-v6__aside">
+          <section className="contact-v6__aside-section v6-reveal">
+            <p className="contact-v6__aside-label">What happens next</p>
+            <div className="contact-v6__steps">
+              {steps.map(([number, title, body]) => (
+                <div className="contact-v6__step" key={number}>
+                  <span>{number}</span><div><h3>{title}</h3><p>{body}</p></div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="contact-v6__aside-section v6-reveal">
+            <p className="contact-v6__aside-label">Direct</p>
+            <a className="contact-v6__email" href="mailto:hello@mixednuts-inc.com">hello@mixednuts-inc.com</a>
+            <p>通常24時間以内に返信します（土日祝は翌営業日）。</p>
+          </section>
+
+          <section className="contact-v6__aside-section v6-reveal">
+            <p className="contact-v6__aside-label">Company facts</p>
+            <dl className="contact-v6__facts">
+              <div><dt>Company</dt><dd>ミックスナッツ株式会社</dd></div>
+              <div><dt>Office</dt><dd>東京都港区南青山3-8-40</dd></div>
+              <div><dt>Visit</dt><dd>事前予約制</dd></div>
+            </dl>
+          </section>
+        </aside>
       </section>
-    </>
+    </main>
   );
 }

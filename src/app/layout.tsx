@@ -1,45 +1,49 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Noto_Sans_JP, Noto_Serif_JP, Playfair_Display, Inter, Archivo } from "next/font/google";
+import { Archivo, Zen_Kaku_Gothic_New } from "next/font/google";
 import "./globals.css";
+import "./site-v6.css";
 import SiteChrome from "@/components/SiteChrome";
 import CookieBanner from "@/components/CookieBanner";
 import { JsonLd, organizationSchema, webSiteSchema } from "@/components/JsonLd";
+import { buildPageOg } from "@/lib/site-metadata";
 
 const GTM_ID = "GTM-MS76PXZZ";
 const GA4_ID = "G-4XTN8TREFM";
 
-const notoSansJP = Noto_Sans_JP({ subsets: ["latin"], weight: ["400","500","700"], variable: "--font-noto-sans-jp", display: "swap" });
-const notoSerifJP = Noto_Serif_JP({ subsets: ["latin"], weight: ["400","700","900"], variable: "--font-noto-serif-jp", display: "swap" });
-const playfair = Playfair_Display({ subsets: ["latin"], weight: ["400","700","900"], variable: "--font-playfair", display: "swap" });
-const inter = Inter({ subsets: ["latin"], weight: ["400","500","600","700"], variable: "--font-inter", display: "swap" });
-const archivo = Archivo({ subsets: ["latin"], weight: ["800","900"], variable: "--font-archivo", display: "swap" });
+const archivo = Archivo({
+  subsets: ["latin"],
+  weight: "variable",
+  axes: ["wdth"],
+  variable: "--font-archivo",
+  display: "swap",
+});
+const zen = Zen_Kaku_Gothic_New({
+  subsets: ["latin"],
+  weight: ["500", "700", "900"],
+  variable: "--font-zen",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mixednuts-inc.com"),
   title: {
-    default: "mixednuts — 戦略 × AI × マーケティング",
-    template: "%s | mixednuts",
+    default: "戦略・AI・マーケティングを実装まで支援 | mixednuts Inc.",
+    template: "%s | mixednuts Inc.",
   },
-  description: "戦略コンサルティング、AIエージェント導入、グロースマーケティングを統合提供するAI-firstコンサルファーム。",
+  description: "事業戦略・経営管理、AIエージェントの業務実装、広告・SEOを含むグロースマーケティングを一つのチームで支援し、構想から運用改善までつなぐコンサルティング会社です。",
   // canonical: layout では設定しない。各ページの page.tsx / generateMetadata で個別に設定する
   // (ここで固定すると全ページが apex root を canonical と宣言してしまう)
-  robots: { index: true, follow: true },
-  openGraph: {
-    title: "mixednuts — 戦略 × AI × マーケティング",
-    description: "戦略コンサルティング、AIエージェント導入、グロースマーケティングを統合提供するAI-firstコンサルファーム。",
-    url: "https://mixednuts-inc.com",
-    siteName: "mixednuts",
-    locale: "ja_JP",
-    type: "website",
-    images: [{ url: "/og-default.jpg", width: 1200, height: 630, alt: "mixednuts - 戦略 × AI × マーケティング" }],
-  },
-  twitter: { card: "summary_large_image", title: "mixednuts", description: "戦略 × AI × マーケティング", images: ["/og-default.jpg"] },
+  ...buildPageOg({
+    title: "戦略・AI・マーケティングを実装まで支援 | mixednuts Inc.",
+    description: "事業戦略・経営管理、AIエージェントの業務実装、広告・SEOを含むグロースマーケティングを一つのチームで支援し、構想から運用改善までつなぐコンサルティング会社です。",
+    path: "/",
+  }),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ja" className={`${notoSansJP.variable} ${notoSerifJP.variable} ${playfair.variable} ${inter.variable} ${archivo.variable}`}>
+    <html lang="ja" className={`${archivo.variable} ${zen.variable}`}>
       <head>
         {/* Google Tag Manager */}
         <Script id="gtm" strategy="afterInteractive">{`

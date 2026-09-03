@@ -1,81 +1,64 @@
 import type { MetadataRoute } from "next";
 import { works, CASES_COMING_SOON } from "@/data/works";
+import { SITE_UPDATED } from "@/data/site";
 import { posts } from "#site/content";
 
-/**
- * 動的 sitemap 生成
- *
- * 変更理由:
- * - 旧実装は静的 15 URL のみで Insights 全 16 記事が未掲載
- * - GSC 側で Wix 時代の sitemap (45 URL, 提出 2025-01-16) が残存し、
- *   新サイトの URL が Google に発見されない状態が継続していた
- * - 本実装で公開済 Insights 16 件 + 静的 14 件 = 約 30 URL に拡大
- *   (CASES_COMING_SOON=false になった時点で Works 件数も加算)
- *
- * hidden:true の記事は除外する（404 を返すページを sitemap に含めない）
- */
-export default function sitemap(): MetadataRoute.Sitemap {
-  const base = "https://mixednuts-inc.com";
+const SITE_URL = "https://mixednuts-inc.com";
 
-  // 静的ルート（変更頻度: weekly、priority は / のみ 1.0）
-  const staticRoutes = [
-    "",
-    "/about",
-    "/services",
-    "/services/ai",
-    "/services/strategy",
-    "/services/marketing",
-    "/works",
-    "/team",
-    "/team/ceo",
-    "/insights",
-    "/careers",
-    "/contact",
-    "/privacy",
-    "/legal",
-  ].map((route) => ({
-    url: `${base}${route}`,
-    lastModified: new Date(),
-    changeFrequency: "weekly" as const,
-    priority: route === "" ? 1.0 : 0.7,
+export default function sitemap(): MetadataRoute.Sitemap {
+  const staticRoutes: Array<[string, MetadataRoute.Sitemap[number]["changeFrequency"], number]> = [
+    ["", "weekly", 1],
+    ["/services", "monthly", 0.9],
+    ["/services/strategy", "monthly", 0.8],
+    ["/services/ai", "monthly", 0.8],
+    ["/services/marketing", "monthly", 0.8],
+    ["/works", "monthly", 0.8],
+    ["/insights", "weekly", 0.8],
+    ["/about", "monthly", 0.7],
+    ["/team", "monthly", 0.7],
+    ["/team/ceo", "monthly", 0.7],
+    ["/contact", "yearly", 0.6],
+    ["/careers", "monthly", 0.6],
+    ["/careers/apply", "monthly", 0.5],
+    ["/legal", "yearly", 0.3],
+    ["/privacy", "yearly", 0.3],
+  ];
+
+  const staticEntries = staticRoutes.map(([path, changeFrequency, priority]) => ({
+    url: `${SITE_URL}${path}`,
+    lastModified: SITE_UPDATED,
+    changeFrequency,
+    priority,
   }));
 
-  // Insights 公開記事を動的取得
-  // hidden:true は除外。lastModified は記事 frontmatter の date を採用
-  const insightRoutes = posts
-    .filter((p) => !p.hidden)
-    .map((p) => ({
-      url: `${base}${p.permalink}`,
-      lastModified: new Date(p.date),
-      changeFrequency: "monthly" as const,
-      priority: 0.6,
-    }));
+  const publishedPosts = posts.filter((post) => !post.hidden);
+  const articleEntries = publishedPosts.map((post) => ({
+    url: `${SITE_URL}${post.permalink}`,
+    lastModified: post.updated ?? post.date,
+    changeFrequency: "monthly" as const,
+    priority: 0.65,
+  }));
 
-  // Works 公開ケース（CASES_COMING_SOON=true の間は空配列）
-  const workRoutes = (
-    CASES_COMING_SOON ? [] : works.filter((w) => !w.hidden)
-  ).map((w) => ({
-    url: `${base}/works/${w.slug}`,
-    lastModified: new Date(),
+  // Case pages stay out of the sitemap while the roster is gated (they 404 until CASES_COMING_SOON is false).
+  const workEntries = (CASES_COMING_SOON ? [] : works.filter((work) => !work.hidden)).map((work) => ({
+    url: `${SITE_URL}/works/${work.slug}`,
+    lastModified: SITE_UPDATED,
     changeFrequency: "monthly" as const,
     priority: 0.6,
   }));
 
-  // Insights タグページ: 公開記事2件以上のタグのみ掲載
-  // (1記事のみのタグページは noindex 運用のため sitemap に含めない —
-  //  tag/[tag]/page.tsx generateMetadata の robots 設定と対応)
   const tagCounts = new Map<string, number>();
-  for (const p of posts.filter((p) => !p.hidden)) {
-    for (const t of p.tags) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
+  for (const post of publishedPosts) {
+    for (const tag of post.tags) tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
   }
-  const tagRoutes = Array.from(tagCounts.entries())
+  const tagEntries = Array.from(tagCounts.entries())
     .filter(([, count]) => count >= 2)
     .map(([tag]) => ({
-      url: `${base}/insights/tag/${encodeURIComponent(tag)}`,
-      lastModified: new Date(),
+      url: `${SITE_URL}/insights/tag/${encodeURIComponent(tag)}`,
+      lastModified: SITE_UPDATED,
       changeFrequency: "monthly" as const,
       priority: 0.4,
     }));
 
-  return [...staticRoutes, ...insightRoutes, ...workRoutes, ...tagRoutes];
+  return [...staticEntries, ...workEntries, ...articleEntries, ...tagEntries];
 }

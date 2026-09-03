@@ -15,7 +15,8 @@ import type { Metadata } from "next";
  */
 
 export const SITE_URL = "https://mixednuts-inc.com";
-export const SITE_NAME = "mixednuts";
+export const SITE_NAME = "mixednuts Inc.";
+export const TITLE_SUFFIX = " | mixednuts Inc.";
 
 export type OgImage = {
   url: string;
@@ -31,6 +32,17 @@ export const OG_DEFAULT_IMAGE: OgImage = {
   alt: "mixednuts - 戦略 × AI × マーケティング",
 };
 
+export function absoluteUrl(path: string): string {
+  return path.startsWith("http") ? path : `${SITE_URL}${path === "/" ? "" : path}`;
+}
+
+export function compactTitle(title: string, maxLength = 42): string {
+  if (title.length <= maxLength) return title;
+  const boundary = title.slice(0, maxLength - 1).search(/[—:：]/);
+  if (boundary >= 12) return title.slice(0, boundary).trim();
+  return `${title.slice(0, maxLength - 1).trim()}…`;
+}
+
 type PageOgInput = {
   /** og:title / twitter:title (テンプレート適用前の生テキスト) */
   title: string;
@@ -39,8 +51,9 @@ type PageOgInput = {
   path: string;
   /** 省略時は og-default.jpg */
   images?: OgImage[];
+  type?: "website" | "profile";
   /** 記事ページのみ指定。og:type=article + published_time / author を出力する */
-  article?: { publishedTime: string; modifiedTime?: string; authors: string[] };
+  article?: { publishedTime: string; modifiedTime?: string; authors: string[]; tags?: string[] };
 };
 
 /** ページ別 openGraph / twitter を一括生成する。全公開ページの metadata でこれを spread する。 */
@@ -49,6 +62,7 @@ export function buildPageOg({
   description,
   path,
   images,
+  type = "website",
   article,
 }: PageOgInput): Pick<Metadata, "openGraph" | "twitter"> {
   const imgs = images && images.length > 0 ? images : [OG_DEFAULT_IMAGE];
@@ -68,8 +82,9 @@ export function buildPageOg({
           publishedTime: article.publishedTime,
           modifiedTime: article.modifiedTime ?? article.publishedTime,
           authors: article.authors,
+          tags: article.tags,
         }
-      : { ...base, type: "website" },
+      : { ...base, type },
     twitter: {
       card: "summary_large_image",
       title,

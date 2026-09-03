@@ -13,6 +13,7 @@ const posts = defineCollection({
       title: s.string().max(160),
       excerpt: s.string().max(400),
       date: s.isodate(),
+      updated: s.isodate().optional(),
       readTime: s.string(),
       category: s.enum(["AI", "STRATEGY", "MARKETING", "FINANCE", "ORGANIZATION", "ENGINEERING", "SEO / AIO"]),
       author: s.string().default("石井 希実"),

@@ -1,330 +1,152 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { works, CASES_COMING_SOON } from "@/data/works";
-import WorksList from "./WorksList";
-import { JsonLd, buildBreadcrumbSchema } from "@/components/JsonLd";
+import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
 import { buildPageOg } from "@/lib/site-metadata";
+import { works, workThemes, CASES_COMING_SOON } from "@/data/works";
+import WorksMotionV6 from "./WorksMotionV6";
+import WorksFilter from "./WorksFilter";
+import "./v6-works.css";
+import BreadcrumbNav from "@/components/BreadcrumbNav";
 
-const visibleWorks = CASES_COMING_SOON ? [] : works.filter((w) => !w.hidden);
+const indexWorks = works.filter((work) => !work.hidden);
+const visibleWorks = CASES_COMING_SOON ? [] : indexWorks;
+const themeGroups = workThemes
+  .map((theme) => ({ ...theme, works: visibleWorks.filter((work) => work.theme === theme.id) }))
+  .filter((theme) => theme.works.length > 0);
+const filterThemes = themeGroups.map((theme) => ({
+  id: theme.id,
+  label: theme.label,
+  lead: theme.lead,
+  count: theme.works.length,
+}));
+const filterWorks = visibleWorks.map(({ slug, theme, problem, move, metric, industry, services }) => ({
+  slug,
+  theme,
+  problem,
+  move,
+  metric,
+  industry,
+  services,
+}));
 
-const pageTitle = "Works — 数字で語る、実績ケース";
+const pageTitle = "課題からたどる匿名事例";
 const pageDescription =
-  "上場企業の経営管理から D2C のグロースまで、戦略・AI・マーケティングを横断したクライアントワーク。実績ケースは現在準備中で、匿名化のうえ順次公開していきます。";
+  "クライアント名を伏せ、どんな課題にどう向き合い、何が変わったかを課題テーマ別に紹介する mixednuts の匿名事例集です。業界や案件名ではなく、いま直面している問題から近いケースを探せます。";
 
 export const metadata: Metadata = {
   title: pageTitle,
   description: pageDescription,
   alternates: { canonical: "/works" },
-  ...buildPageOg({
-    title: pageTitle,
-    description: pageDescription,
-    path: "/works",
-  }),
+  ...buildPageOg({ title: pageTitle, description: pageDescription, path: "/works" }),
 };
 
-// CASES_COMING_SOON 解除で visibleWorks が入ると ItemList も自動で有効化される
-const collectionPageSchema = {
-  "@context": "https://schema.org",
-  "@type": "CollectionPage",
-  "@id": "https://mixednuts-inc.com/works#webpage",
-  url: "https://mixednuts-inc.com/works",
+// While the case roster is gated (CASES_COMING_SOON) the page is a plain WebPage — an empty ItemList is invalid.
+const collectionPageSchema = buildWebPageSchema({
+  type: visibleWorks.length ? "CollectionPage" : "WebPage",
+  path: "/works",
   name: pageTitle,
   description: pageDescription,
-  inLanguage: "ja-JP",
-  isPartOf: { "@id": "https://mixednuts-inc.com/#website" },
-  ...(visibleWorks.length > 0
+  ...(visibleWorks.length
     ? {
-        mainEntity: {
+        mainEntityList: {
           "@type": "ItemList",
-          itemListElement: visibleWorks.map((w, i) => ({
+          itemListElement: visibleWorks.map((work, index) => ({
             "@type": "ListItem",
-            position: i + 1,
-            url: `https://mixednuts-inc.com/works/${w.slug}`,
-            name: w.title,
+            position: index + 1,
+            url: `https://mixednuts-inc.com/works/${work.slug}`,
+            name: work.problem,
           })),
         },
       }
     : {}),
-};
+});
 
 const breadcrumb = buildBreadcrumbSchema([
   { name: "Home", path: "/" },
   { name: "Works", path: "/works" },
 ]);
 
+const engagementAreas = [
+  {
+    number: "01",
+    label: "Strategy & Management",
+    title: "戦略・経営管理",
+    items: ["事業戦略・新規事業・ポートフォリオ設計", "FP&A・予実管理・意思決定支援", "海外展開・市場参入・組織変革", "取締役会・投資判断のための分析"],
+    scale: "スタートアップ〜上場企業",
+  },
+  {
+    number: "02",
+    label: "AI Implementation",
+    title: "AI 実装・業務変革",
+    items: ["AI エージェント組織の設計・実装", "業務自動化（経理・レポート・分析）", "Claude / Gemini / OpenAI 統合基盤", "MCP・ノーコード連携の内製化"],
+    scale: "スタートアップ〜上場企業",
+  },
+  {
+    number: "03",
+    label: "Marketing & Growth",
+    title: "マーケティング・グロース",
+    items: ["Google Ads / Meta Ads 運用設計", "計測基盤（GTM / GA4）整備", "SEO・AIO・LLMO・構造化データ", "CVR 改善・LP / フォーム最適化"],
+    scale: "月予算 数百万〜数千万円",
+  },
+] as const;
+
+function SplitCharacters({ text }: { text: string }) {
+  return Array.from(text).map((character, index) => (
+    <span className="c" aria-hidden="true" key={`${character}-${index}`}>{character}</span>
+  ));
+}
+
 export default function WorksPage() {
   return (
-    <>
+    <div className="mn-v6 works-v6 works-index-v6" data-v6-motion>
+      <WorksMotionV6 />
       <JsonLd data={collectionPageSchema} />
       <JsonLd data={breadcrumb} />
-      <style>{`
-        .works-filters {
-          background: var(--off-white); padding: 32px 32px 0;
-          border-bottom: 1px solid rgba(10,10,10,0.08);
-          position: sticky; top: 70px; z-index: 50;
-        }
-        .works-filters-inner { max-width: 1280px; margin: 0 auto; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; padding-bottom: 24px; }
-        .filter-label { font-family: var(--font-sans-en); font-size: 11px; color: var(--gray-400); letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; margin-right: 8px; }
-        .filter-tag {
-          padding: 8px 16px; background: var(--off-white); border: 1px solid rgba(10,10,10,0.15);
-          border-radius: 999px; font-size: 13px; color: var(--gray-600); font-family: inherit;
-          cursor: pointer; transition: all 0.18s ease; display: inline-flex; align-items: center; gap: 8px;
-        }
-        .filter-tag:hover { border-color: var(--charcoal); color: var(--charcoal); }
-        .filter-tag.active { background: var(--charcoal); color: var(--off-white); border-color: var(--charcoal); }
-        .filter-count {
-          display: inline-block; font-family: var(--font-sans-en); font-size: 11px; font-weight: 700;
-          padding: 1px 7px; border-radius: 999px;
-          background: rgba(10,10,10,0.08); color: inherit;
-        }
-        .filter-tag.active .filter-count { background: rgba(245,241,232,0.2); }
+      <BreadcrumbNav items={[{ name: "Home", path: "/" }, { name: "Works" }]} />
 
-        .cases-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
-        .case-card {
-          background: var(--off-white); border: 1px solid rgba(10,10,10,0.08); border-radius: 20px;
-          overflow: hidden; transition: all 0.3s; text-decoration: none; color: inherit; display: block;
-        }
-        .case-card:hover { transform: translateY(-4px); box-shadow: 0 24px 48px rgba(10,10,10,0.08); border-color: var(--charcoal); }
-        .case-image { aspect-ratio: 16/9; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        .case-bg-ai { background: linear-gradient(135deg, var(--charcoal) 0%, var(--charcoal-soft) 100%); }
-        .case-bg-strategy { background: linear-gradient(135deg, var(--charcoal-soft) 0%, var(--charcoal) 100%); }
-        .case-bg-marketing { background: linear-gradient(135deg, var(--charcoal) 0%, #141414 100%); }
-        .case-tag-badge {
-          position: absolute; top: 16px; left: 16px; z-index: 2;
-          background: var(--off-white); color: var(--charcoal);
-          padding: 4px 10px; border-radius: 4px;
-          font-size: 11px; font-weight: 700; letter-spacing: 0.05em; font-family: var(--font-sans-en);
-        }
-        .case-body { padding: 28px; }
-        .case-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--gray-400); }
-        .case-industry { padding: 3px 10px; background: var(--off-white-alt); color: var(--gray-600); border-radius: 4px; font-size: 11px; font-weight: 600; }
-        .case-title { font-family: 'Noto Sans JP', sans-serif; font-size: 17px; font-weight: 700; margin-bottom: 14px; line-height: 1.5; min-height: 54px; color: var(--charcoal); word-break: keep-all; }
-        .case-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px 0; border-top: 1px solid rgba(10,10,10,0.08); border-bottom: 1px solid rgba(10,10,10,0.08); margin-bottom: 14px; }
-        .case-metric-label { font-size: 10px; color: var(--gray-400); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; font-family: var(--font-sans-en); }
-        .case-metric-value { font-family: var(--font-sans-jp); font-size: 18px; font-weight: 900; color: var(--charcoal); line-height: 1.1; }
-        .case-metric-value.gain { color: var(--color-success, #10B981); }
-        .case-desc { font-size: 12px; color: var(--gray-600); line-height: 1.7; }
-        @media (max-width: 900px) {
-          .cases-grid { grid-template-columns: 1fr; }
-          .works-filters { position: static; padding: 16px 20px 0; }
-          .filter-tag { font-size: 12px; padding: 6px 12px; }
-        }
-      `}</style>
-
-      <section className="page-hero">
-        <div className="page-hero-inner">
-          <div className="breadcrumb">
-            <Link href="/">Home</Link> / Works
+      <main>
+        <section className="works-title-card works-title-black" data-nav="dark">
+          <p className="works-overline" data-title-reveal><i />CASE FILES · BY PROBLEM, NOT BY CLIENT</p>
+          <h1 data-split aria-label="課題から、たどる。"><span className="w"><SplitCharacters text="課題から、" /></span><span className="w"><SplitCharacters text="たどる。" /></span></h1>
+          <div className="works-title-copy" data-title-reveal>
+            <p className="works-jp-title">案件ではなく、<br />課題から。</p>
+            <p className="works-page-lead">クライアント名は伏せています。どんな課題に、どう向き合い、何が変わったか。その型だけを記録しています。</p>
           </div>
-          <div className="page-hero-badge">Case Studies</div>
-          <h1>
-            <span style={{ display: "block" }}>数字で語る、</span>
-            <span style={{ display: "block" }}>
-              <span className="accent">実績ケース</span>。
-            </span>
-          </h1>
-          <p className="lead">
-            上場企業の経営管理から D2C
-            のグロースまで、戦略・AI・マーケティングを横断して関与してきました。実績ケースの一覧は現在準備中で、匿名化のうえ順次公開していきます。領域・規模・関与の深さは下記のとおりです。
-          </p>
-        </div>
-      </section>
+          <p className="works-page-index" data-title-reveal>01 / 04</p>
+        </section>
 
-      {CASES_COMING_SOON ? (
-        <section
-          style={{ padding: "80px 32px 120px", background: "var(--off-white)" }}
-        >
-          <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-            <div
-              style={{
-                fontFamily: "var(--font-sans-en)",
-                fontSize: 11,
-                letterSpacing: "0.2em",
-                color: "var(--gray-400)",
-                fontWeight: 700,
-                marginBottom: 16,
-                textAlign: "center",
-              }}
-            >
-              ENGAGEMENT AREAS · 主な関与領域
-            </div>
-            <h2
-              style={{
-                fontFamily: "var(--font-sans-jp)",
-                fontSize: "clamp(26px, 3.5vw, 36px)",
-                fontWeight: 900,
-                color: "var(--charcoal)",
-                lineHeight: 1.4,
-                marginBottom: 56,
-                wordBreak: "keep-all",
-                textAlign: "center",
-              }}
-            >
-              何をやってきたか、を先に。
-            </h2>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
-                gap: 28,
-                marginBottom: 56,
-              }}
-            >
-              {[
-                {
-                  label: "Strategy & FP&A",
-                  jp: "経営管理・財務戦略",
-                  items: [
-                    "上場企業の取締役会資料・月次定例",
-                    "予実管理・事業計画・KPI 設計",
-                    "投資判断・M&A デューデリジェンス",
-                    "IR・エクイティストーリー支援",
-                  ],
-                  scale: "上場企業（時価総額 100 億〜数兆円）",
-                },
-                {
-                  label: "AI & Organization",
-                  jp: "AI・組織設計",
-                  items: [
-                    "AI エージェント組織の設計・運用",
-                    "業務自動化（経理・レポート・分析）",
-                    "Claude / Gemini / OpenAI 統合基盤",
-                    "MCP・ノーコード連携の内製化",
-                  ],
-                  scale: "スタートアップ〜上場企業",
-                },
-                {
-                  label: "Marketing & Growth",
-                  jp: "マーケティング・グロース",
-                  items: [
-                    "Google Ads / Meta Ads 運用設計",
-                    "計測基盤（GTM / GA4）整備",
-                    "SEO・AIO・LLMO・構造化データ",
-                    "CVR 改善・LP / フォーム最適化",
-                  ],
-                  scale: "月予算 数百万〜数千万円",
-                },
-              ].map((col) => (
-                <div
-                  key={col.label}
-                  style={{
-                    background: "#FFFFFF",
-                    border: "1px solid rgba(10,10,10,0.08)",
-                    borderRadius: 16,
-                    padding: 28,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontFamily: "var(--font-sans-en)",
-                      fontSize: 11,
-                      letterSpacing: "0.15em",
-                      fontWeight: 700,
-                      color: "var(--gray-400)",
-                      marginBottom: 6,
-                    }}
-                  >
-                    {col.label}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-sans-jp)",
-                      fontSize: 18,
-                      fontWeight: 900,
-                      color: "var(--charcoal)",
-                      marginBottom: 20,
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    {col.jp}
-                  </div>
-                  <ul
-                    style={{
-                      listStyle: "none",
-                      padding: 0,
-                      margin: 0,
-                      marginBottom: 20,
-                      fontSize: 13,
-                      lineHeight: 1.9,
-                      color: "#4B5563",
-                    }}
-                  >
-                    {col.items.map((it) => (
-                      <li
-                        key={it}
-                        style={{
-                          position: "relative",
-                          paddingLeft: 16,
-                          wordBreak: "keep-all",
-                        }}
-                      >
-                        <span
-                          style={{
-                            position: "absolute",
-                            left: 0,
-                            top: "0.7em",
-                            width: 6,
-                            height: 1,
-                            background: "var(--charcoal)",
-                          }}
-                        />
-                        {it}
-                      </li>
-                    ))}
-                  </ul>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "var(--gray-400)",
-                      letterSpacing: "0.05em",
-                      paddingTop: 14,
-                      borderTop: "1px solid rgba(10,10,10,0.06)",
-                    }}
-                  >
-                    対象規模：{col.scale}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div style={{ textAlign: "center" }}>
-              <p
-                style={{
-                  color: "#4B5563",
-                  fontSize: 14,
-                  lineHeight: 1.9,
-                  maxWidth: 680,
-                  margin: "0 auto 28px",
-                  wordBreak: "keep-all",
-                }}
-              >
-                個別ケースは現在準備中で、匿名化のうえ順次公開していきます。
-                <br />
-                類似案件の関与内容・成果はお気軽にご相談ください。
-              </p>
-              <Link href="/contact" className="btn-primary">
-                課題を相談する →
-              </Link>
-            </div>
+        {CASES_COMING_SOON ? (
+          <section className="engagement-index-scene works-preparing-scene" data-nav="light">
+            <header className="works-scene-head" data-reveal>
+              <p className="works-kicker">Case files</p>
+              <div><h2>公開準備中。</h2><p>匿名化と掲載許諾の確認が完了したケースから、課題単位で公開します。</p></div>
+              <p className="index-status">CASE FILES / PREPARING</p>
+            </header>
+          </section>
+        ) : <WorksFilter themes={filterThemes} works={filterWorks} />}
+
+        <section className="engagement-areas-field" data-nav="dark" data-wipe>
+          <header data-reveal>
+            <p className="works-kicker">Engagement areas</p>
+            <h2>What we have<br />done, first.</h2>
+            <p>肩書きや業界の前に、実際に担ってきた仕事からお伝えします。</p>
+          </header>
+          <div className="engagement-area-grid">
+            {engagementAreas.map((area) => (
+              <article className="engagement-area" data-reveal key={area.number}>
+                <p className="area-number">{area.number}</p><p className="area-label">{area.label}</p><h3>{area.title}</h3>
+                <ul>{area.items.map((item) => <li key={item}>{item}</li>)}</ul><p className="area-scale">{area.scale}</p>
+              </article>
+            ))}
           </div>
         </section>
-      ) : (
-        <WorksList works={visibleWorks} />
-      )}
 
-      <section className="cta">
-        <div className="cta-inner">
-          <h2>
-            <span style={{ display: "block" }}>次の成功事例を、</span>
-            <span style={{ display: "block" }}>あなたと一緒につくりたい。</span>
-          </h2>
-          <p>
-            まずは課題をお聞かせください。60分の無料相談で、最適なアプローチをご提案します。
-          </p>
-          <Link href="/contact" className="btn-primary">
-            無料相談を申し込む →
-          </Link>
-        </div>
-      </section>
-    </>
+        <section className="works-closing-field" data-nav="dark" data-wipe>
+          <p className="works-kicker">Your problem, next</p>
+          <h2>次のケースは、<br />あなたの事業かもしれない。</h2>
+          <div data-reveal><p>似た課題の進め方、必要な体制、最初に見るべき数字からお話しします。</p><Link className="works-button" href="/contact">無料相談を申し込む</Link></div>
+        </section>
+      </main>
+    </div>
   );
 }
