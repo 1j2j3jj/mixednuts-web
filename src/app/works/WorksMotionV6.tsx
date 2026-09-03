@@ -62,6 +62,23 @@ export default function WorksMotionV6() {
           { y: 0, opacity: 1, duration: 0.7, stagger: 0.07, ease: "expo.out", immediateRender: true },
         );
 
+        root.querySelectorAll<HTMLElement>("[data-split-slam]").forEach((heading) => {
+          gsap.fromTo(heading.querySelectorAll(".c"), {
+            yPercent: 105,
+            rotateZ: 4,
+            opacity: 0,
+          }, {
+            yPercent: 0,
+            rotateZ: 0,
+            opacity: 1,
+            duration: 0.56,
+            stagger: 0.018,
+            ease: "expo.out",
+            immediateRender: true,
+            scrollTrigger: { trigger: heading, start: "top 90%", once: true },
+          });
+        });
+
         root.querySelectorAll<HTMLElement>("[data-reveal]").forEach((element) => {
           gsap.fromTo(element, { y: 28, opacity: 0 }, {
             y: 0,

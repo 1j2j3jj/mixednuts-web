@@ -56,7 +56,7 @@ export type Work = {
  *   - /works/[slug] は通常の hidden 判定（個別 hidden フラグを継続）
  * 公開再開時は false に戻すだけで全面復旧。
  */
-export const CASES_COMING_SOON = true;
+export const CASES_COMING_SOON = false;
 
 export const works: Work[] = [
   {

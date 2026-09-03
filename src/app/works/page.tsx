@@ -1,30 +1,28 @@
-import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
-import { Odometer, SplitWords } from "@/components/v6/KineticText";
+import { Odometer } from "@/components/v6/KineticText";
 import { buildPageOg } from "@/lib/site-metadata";
-import { works, CASES_COMING_SOON, type Work } from "@/data/works";
+import { works, workThemes, CASES_COMING_SOON, type Work } from "@/data/works";
 import WorksMotionV6 from "./WorksMotionV6";
 import "./v6-works.css";
 import BreadcrumbNav from "@/components/BreadcrumbNav";
 
 const indexWorks = works.filter((work) => !work.hidden);
 const visibleWorks = CASES_COMING_SOON ? [] : indexWorks;
+const themeGroups = workThemes
+  .map((theme) => ({ ...theme, works: visibleWorks.filter((work) => work.theme === theme.id) }))
+  .filter((theme) => theme.works.length > 0);
 
-const pageTitle = "支援実績 — 匿名ケース一覧";
+const pageTitle = "課題からたどる匿名事例";
 const pageDescription =
-  "経営管理・FP&A、投資評価、新規事業、AI実装、広告運用、SEO・AIOなど、戦略・AI・マーケティングを横断して支援した案件を、企業名を伏せた匿名ケースとして紹介します。";
+  "クライアント名を伏せ、どんな課題にどう向き合い、何が変わったかを課題テーマ別に紹介する mixednuts の匿名事例集です。業界や案件名ではなく、いま直面している問題から近いケースを探せます。";
 
 export const metadata: Metadata = {
   title: pageTitle,
   description: pageDescription,
   alternates: { canonical: "/works" },
-  ...buildPageOg({
-    title: pageTitle,
-    description: pageDescription,
-    path: "/works",
-  }),
+  ...buildPageOg({ title: pageTitle, description: pageDescription, path: "/works" }),
 };
 
 // While the case roster is gated (CASES_COMING_SOON) the page is a plain WebPage — an empty ItemList is invalid.
@@ -41,7 +39,7 @@ const collectionPageSchema = buildWebPageSchema({
             "@type": "ListItem",
             position: index + 1,
             url: `https://mixednuts-inc.com/works/${work.slug}`,
-            name: work.title,
+            name: work.problem,
           })),
         },
       }
@@ -64,67 +62,48 @@ const engagementAreas = [
     number: "01",
     label: "Strategy & Management",
     title: "戦略・経営管理",
-    items: [
-      "事業戦略・新規事業・ポートフォリオ設計",
-      "FP&A・予実管理・意思決定支援",
-      "海外展開・市場参入・組織変革",
-      "取締役会・投資判断のための分析",
-    ],
+    items: ["事業戦略・新規事業・ポートフォリオ設計", "FP&A・予実管理・意思決定支援", "海外展開・市場参入・組織変革", "取締役会・投資判断のための分析"],
     scale: "スタートアップ〜上場企業",
   },
   {
     number: "02",
     label: "AI Implementation",
     title: "AI 実装・業務変革",
-    items: [
-      "AI エージェント組織の設計・実装",
-      "業務自動化（経理・レポート・分析）",
-      "Claude / Gemini / OpenAI 統合基盤",
-      "MCP・ノーコード連携の内製化",
-    ],
+    items: ["AI エージェント組織の設計・実装", "業務自動化（経理・レポート・分析）", "Claude / Gemini / OpenAI 統合基盤", "MCP・ノーコード連携の内製化"],
     scale: "スタートアップ〜上場企業",
   },
   {
     number: "03",
     label: "Marketing & Growth",
     title: "マーケティング・グロース",
-    items: [
-      "Google Ads / Meta Ads 運用設計",
-      "計測基盤（GTM / GA4）整備",
-      "SEO・AIO・LLMO・構造化データ",
-      "CVR 改善・LP / フォーム最適化",
-    ],
+    items: ["Google Ads / Meta Ads 運用設計", "計測基盤（GTM / GA4）整備", "SEO・AIO・LLMO・構造化データ", "CVR 改善・LP / フォーム最適化"],
     scale: "月予算 数百万〜数千万円",
   },
 ] as const;
 
-function EngagementContent({ work, index }: { work: Work; index: number }) {
-  const redactionWidth = Math.min(88, 46 + work.client.length * 1.8);
+function SplitCharacters({ text }: { text: string }) {
+  return Array.from(text).map((character, index) => (
+    <span className="c" aria-hidden="true" key={`${character}-${index}`}>{character}</span>
+  ));
+}
 
+function CaseRow({ work, index }: { work: Work; index: number }) {
   return (
-    <>
-      <span className="engagement-number">{String(index + 1).padStart(2, "0")}</span>
-      <span className="engagement-client">
-        <span className="client-label">{work.client}</span>
-        <span
-          className="redaction-bar"
-          style={{ "--redaction-width": `${redactionWidth}%` } as CSSProperties}
-          aria-hidden="true"
-        />
-      </span>
-      <span className="engagement-industry">{work.industry}</span>
-      <span className="engagement-services">
-        {work.services.map((service) => serviceLabels[service]).join(" · ")}
-      </span>
-      <span className="engagement-metrics" data-odometer>
-        {work.metric.slice(0, 2).map((metric) => (
-          <span className="engagement-metric" key={metric.label}>
-            <span>{metric.label}</span>
-            <strong><Odometer value={metric.value} /></strong>
-          </span>
-        ))}
-      </span>
-    </>
+    <Link className="problem-case-row" href={`/works/${work.slug}`} data-row-reveal>
+      <span className="problem-case-number">{String(index + 1).padStart(2, "0")}</span>
+      <h3 className="case-problem">{work.problem}</h3>
+      <div className="case-move-column">
+        <p className="case-move">{work.move}</p>
+        {work.metric.length > 0 && (
+          <div className="problem-case-metrics" data-odometer>
+            {work.metric.slice(0, 3).map((metric) => (
+              <span key={metric.label}><small>{metric.label}</small><strong><Odometer value={metric.value} /></strong></span>
+            ))}
+          </div>
+        )}
+        <p className="problem-case-tags">{work.industry} · {work.services.map((service) => serviceLabels[service]).join(" · ")}</p>
+      </div>
+    </Link>
   );
 }
 
@@ -138,51 +117,57 @@ export default function WorksPage() {
 
       <main>
         <section className="works-title-card works-title-black" data-nav="dark">
-          <p className="works-overline" data-title-reveal><i />Works · Confidential engagement index</p>
-          <h1 data-split aria-label="Confidential Engagement Index">
-            <SplitWords words={["Confidential"]} />
-            <br />
-            <SplitWords words={["Engagement"]} />
-            <br />
-            <SplitWords words={["Index"]} />
-          </h1>
+          <p className="works-overline" data-title-reveal><i />CASE FILES · BY PROBLEM, NOT BY CLIENT</p>
+          <h1 data-split aria-label="課題から、たどる。"><span className="w"><SplitCharacters text="課題から、" /></span><span className="w"><SplitCharacters text="たどる。" /></span></h1>
           <div className="works-title-copy" data-title-reveal>
-            <p className="works-jp-title">数字で語る、<br />実績ケース。</p>
-            <p className="works-page-lead">戦略・AI・マーケティングを分断せず、構想から実装まで伴走した支援の記録です。守秘義務を優先し、公開可能な情報だけを匿名化して掲載します。</p>
+            <p className="works-jp-title">案件ではなく、<br />課題から。</p>
+            <p className="works-page-lead">クライアント名は伏せています。どんな課題に、どう向き合い、何が変わったか。その型だけを記録しています。</p>
           </div>
           <p className="works-page-index" data-title-reveal>01 / 04</p>
         </section>
 
-        <section className="engagement-index-scene" data-nav="light">
-          <header className="works-scene-head" data-reveal>
-            <p className="works-kicker">Engagement index</p>
-            <div>
-              <h2>成果の輪郭を、<br />匿名のまま。</h2>
-              <p>クライアント名は伏せ、業界・関与領域・実績値だけを記録しています。個別ケースは許諾が整い次第、順次公開します。</p>
-            </div>
-            <p className="index-status">{CASES_COMING_SOON ? "CASE FILES / PREPARING" : `${indexWorks.length} CASE FILES`}</p>
-          </header>
+        {CASES_COMING_SOON ? (
+          <section className="engagement-index-scene works-preparing-scene" data-nav="light">
+            <header className="works-scene-head" data-reveal>
+              <p className="works-kicker">Case files</p>
+              <div><h2>公開準備中。</h2><p>匿名化と掲載許諾の確認が完了したケースから、課題単位で公開します。</p></div>
+              <p className="index-status">CASE FILES / PREPARING</p>
+            </header>
+          </section>
+        ) : (
+          <>
+            <section className="theme-index-scene" data-nav="light" aria-labelledby="theme-index-heading">
+              <header className="works-scene-head" data-reveal>
+                <p className="works-kicker">Problem index</p>
+                <div><h2 id="theme-index-heading">課題の型から、<br />ケースを探す。</h2><p>似た業界ではなく、いま直面している課題に近い入口を選んでください。</p></div>
+                <p className="index-status">{visibleWorks.length} CASE FILES</p>
+              </header>
+              <nav className="theme-index-list" aria-label="課題テーマ">
+                {themeGroups.map((theme, index) => (
+                  <a className="theme-index-row" href={`#theme-${theme.id}`} data-row-reveal key={theme.id}>
+                    <span className="theme-index-number">{String(index + 1).padStart(2, "0")}</span>
+                    <h3 className="theme-index-title" data-split-slam aria-label={theme.label}><SplitCharacters text={theme.label} /></h3>
+                    <p>{theme.lead}</p>
+                    <span className="theme-index-count">{String(theme.works.length).padStart(2, "0")} CASES</span>
+                  </a>
+                ))}
+              </nav>
+            </section>
 
-          <div className="engagement-columns" aria-hidden="true">
-            <span>No.</span><span>Client</span><span>Industry</span><span>Services</span><span>Selected metrics</span>
-          </div>
-
-          <ol className="engagement-list">
-            {indexWorks.map((work, index) => (
-              <li className="engagement-row" data-row-reveal key={work.slug}>
-                {CASES_COMING_SOON ? (
-                  <div className="engagement-row-inner">
-                    <EngagementContent work={work} index={index} />
-                  </div>
-                ) : (
-                  <Link className="engagement-row-inner" href={`/works/${work.slug}`}>
-                    <EngagementContent work={work} index={index} />
-                  </Link>
-                )}
-              </li>
+            {themeGroups.map((theme, themeIndex) => (
+              <section className="problem-theme-section" id={`theme-${theme.id}`} data-nav={themeIndex % 2 ? "dark" : "light"} key={theme.id}>
+                <header className="problem-theme-head" data-reveal>
+                  <p className="works-kicker">Problem theme {String(themeIndex + 1).padStart(2, "0")}</p>
+                  <h2>{theme.label}</h2>
+                  <p>{theme.lead}</p>
+                </header>
+                <div className="problem-case-list">
+                  {theme.works.map((work, index) => <CaseRow work={work} index={index} key={work.slug} />)}
+                </div>
+              </section>
             ))}
-          </ol>
-        </section>
+          </>
+        )}
 
         <section className="engagement-areas-field" data-nav="dark" data-wipe>
           <header data-reveal>
@@ -193,26 +178,17 @@ export default function WorksPage() {
           <div className="engagement-area-grid">
             {engagementAreas.map((area) => (
               <article className="engagement-area" data-reveal key={area.number}>
-                <p className="area-number">{area.number}</p>
-                <p className="area-label">{area.label}</p>
-                <h3>{area.title}</h3>
-                <ul>
-                  {area.items.map((item) => <li key={item}>{item}</li>)}
-                </ul>
-                <p className="area-scale">対象規模：{area.scale}</p>
+                <p className="area-number">{area.number}</p><p className="area-label">{area.label}</p><h3>{area.title}</h3>
+                <ul>{area.items.map((item) => <li key={item}>{item}</li>)}</ul><p className="area-scale">{area.scale}</p>
               </article>
             ))}
           </div>
-          <p className="areas-note" data-reveal>類似案件の関与内容・成果は、守秘義務の範囲内で個別にご説明します。</p>
         </section>
 
         <section className="works-closing-field" data-nav="dark" data-wipe>
-          <p className="works-kicker">Build the next case</p>
-          <h2>次の成功事例を、<br />あなたと一緒に<br />つくりたい。</h2>
-          <div data-reveal>
-            <p>60分の無料相談で、事業の現在地と最初に動かすべき論点を整理します。</p>
-            <Link className="works-button" href="/contact">無料相談を申し込む</Link>
-          </div>
+          <p className="works-kicker">Your problem, next</p>
+          <h2>次のケースは、<br />あなたの事業かもしれない。</h2>
+          <div data-reveal><p>似た課題の進め方、必要な体制、最初に見るべき数字からお話しします。</p><Link className="works-button" href="/contact">無料相談を申し込む</Link></div>
         </section>
       </main>
     </div>

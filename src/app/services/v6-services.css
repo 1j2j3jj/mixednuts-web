@@ -67,6 +67,8 @@
 .services-v6 .case-row>div:last-child{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
 .services-v6 .case-row>div:last-child p{display:grid;gap:7px}
 .services-v6 .case-row b{font:900 32px/1 var(--grot);color:var(--service-accent)}
+.services-v6 .case-row>div:last-child{display:block}
+.services-v6 .case-row>div:last-child p{display:block;margin:0 0 16px;color:var(--ink);font-size:15px;font-weight:700;line-height:1.85}
 .services-v6 .detail-cta{padding:96px 56px 110px;background:var(--stone);display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr);gap:32px 56px;border-bottom:1px solid var(--hair)}
 .services-v6 .detail-cta .section-kicker{grid-column:1/-1}
 .services-v6 .detail-cta h2{font:900 clamp(38px,6.5vw,98px)/.98 var(--jp);letter-spacing:-.05em;max-width:12ch;text-wrap:balance;word-break:keep-all}

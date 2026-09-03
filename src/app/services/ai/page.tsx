@@ -48,7 +48,7 @@ const faqSchema = {
 
 const aiWorks = CASES_COMING_SOON
   ? []
-  : works.filter((work) => !work.hidden && work.services.includes("ai")).slice(0, 3);
+  : works.filter((work) => !work.hidden && work.services.includes("ai")).slice(0, 4);
 
 const serviceSchema = {
   "@context": "https://schema.org",

@@ -28,9 +28,9 @@ type DetailProps = {
   cases?: Array<{
     slug: string;
     industry: string;
-    title: string;
-    summary: string;
-    metric: Array<{ label: string; value: string }>;
+    problem: string;
+    move: string;
+    services: ("ai" | "strategy" | "marketing")[];
   }>;
   ctaTitle: ReactNode;
   ctaBody: string;
@@ -132,14 +132,14 @@ export default function ServiceDetailV6({
             <header className="editorial-head" data-reveal>
               <p className="section-kicker">Case studies</p>
               <h2>支援の実績。</h2>
-              <p>業種と成果指標を匿名で掲載しています。</p>
+              <p>クライアント名ではなく、課題とアプローチの組み合わせで掲載しています。</p>
             </header>
             <div className="case-rows" data-wipe>
               {cases.map((item, index) => (
                 <Link className="case-row" href={`/works/${item.slug}`} key={item.slug}>
                   <span>{String(index + 1).padStart(2, "0")}</span>
-                  <div><small>{item.industry}</small><h3>{item.title}</h3><p>{item.summary}</p></div>
-                  <div>{item.metric.slice(0, 2).map((metric) => <p key={metric.label}><b>{metric.value}</b><small>{metric.label}</small></p>)}</div>
+                  <div><small>{item.industry}</small><h3>{item.problem}</h3></div>
+                  <div><p>{item.move}</p><small>{item.services.map((service) => service.toUpperCase()).join(" · ")}</small></div>
                 </Link>
               ))}
             </div>

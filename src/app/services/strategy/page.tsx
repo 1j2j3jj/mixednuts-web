@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 
 const strategyWorks = CASES_COMING_SOON
   ? []
-  : works.filter((work) => !work.hidden && work.services.includes("strategy")).slice(0, 3);
+  : works.filter((work) => !work.hidden && work.services.includes("strategy")).slice(0, 4);
 
 const serviceSchema = {
   "@context": "https://schema.org",
