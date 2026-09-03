@@ -939,7 +939,7 @@ export const works: Work[] = [
     metric: [
       { label: "分析対象市場", value: "アジア主要国" },
       { label: "支援期間", value: "約1年" },
-      { label: "成果物", value: "市場選定・進出スキーム" },
+      { label: "成果物", value: "市場選定" },
     ],
     summary:
       "国内で磨き込まれたエンタメ小売モデルの海外展開にあたり、市場選定から進出スキーム、現地パートナー評価までを定量分析ベースで支援。",
@@ -1255,8 +1255,8 @@ export const works: Work[] = [
     services: ["ai", "strategy"],
     metric: [
       { label: "配信チャネル", value: "3媒体対応" },
-      { label: "実装基盤", value: "Cloudflare Workers" },
-      { label: "AI処理", value: "LLM 商品説明最適化" },
+      { label: "実装基盤", value: "エッジ配信" },
+      { label: "AI処理", value: "LLM 最適化" },
     ],
     summary:
       "Google Shopping / Meta / LINE Ads 向けに、商品カタログを LLM が媒体ごとに最適化して配信する AI フィード管理 SaaS を自社開発。Cloudflare Workers による Edge Injection で既存サイトのソースを書き換えずに構造化データと最適化フィードを注入。",
@@ -1333,9 +1333,9 @@ export const works: Work[] = [
     industry: "マーケティング／AI インフラ",
     services: ["ai", "marketing"],
     metric: [
-      { label: "対応媒体", value: "Google / Meta / Yahoo / Microsoft" },
-      { label: "データ統合", value: "GA4 / GSC / Shopify / ECCUBE" },
-      { label: "認証基盤", value: "Multi-tenant Better Auth" },
+      { label: "対応媒体", value: "4 媒体" },
+      { label: "データ統合", value: "4 ソース統合" },
+      { label: "認証基盤", value: "マルチテナント" },
     ],
     summary:
       "複数クライアント案件に共通のダッシュボード基盤を自社開発。GA4 / GSC / Google Ads / Yahoo / Meta / Microsoft / Shopify / ECCUBE を横串で統合し、日次で自動生成される 複数画面（サマリー / 広告詳細 / フィルター詳細 / 商品・検索）をクライアント別 slug で配信する Multi-tenant 構成。",
@@ -1414,8 +1414,8 @@ export const works: Work[] = [
     services: ["ai", "strategy"],
     metric: [
       { label: "対象企業", value: "EDINET 500社" },
-      { label: "分析軸", value: "ネットキャッシュ比率 × 収益性" },
-      { label: "AI 処理", value: "LLM 定性要約 × 定量スクリーニング" },
+      { label: "分析軸", value: "定量 × 定性" },
+      { label: "AI 処理", value: "LLM 定性要約" },
     ],
     summary:
       "EDINET から上場 500 社の有価証券報告書を自動取得し、清原式ネットキャッシュスクリーニング（時価総額 - ネットキャッシュの逆転銘柄発掘）と、LLM による事業定性評価を統合した投資リサーチ基盤を構築。個人投資運用で dogfooding しつつ、将来的な外販も視野。",
@@ -1492,8 +1492,8 @@ export const works: Work[] = [
     industry: "マーケティング／クリエイティブ",
     services: ["ai", "marketing"],
     metric: [
-      { label: "画像生成", value: "Imagen 3/4 Ultra" },
-      { label: "試作→本番", value: "Fast → Ultra の 2 段構成" },
+      { label: "画像生成", value: "Imagen" },
+      { label: "試作→本番", value: "2 段構成" },
       { label: "スタイル制御", value: "ブランドパレット強制" },
     ],
     summary:
@@ -1572,7 +1572,7 @@ export const works: Work[] = [
     services: ["marketing"],
     metric: [
       { label: "キャンペーン期間", value: "約半年" },
-      { label: "訴求軸", value: "ブランド認知＋需要喚起" },
+      { label: "訴求軸", value: "認知＋需要喚起" },
       { label: "市況", value: "コロナ禍の渡航制限下" },
     ],
     summary:
@@ -1730,7 +1730,7 @@ export const works: Work[] = [
     services: ["marketing", "strategy"],
     metric: [
       { label: "統合分析ソース", value: "POS + GA4" },
-      { label: "支援領域", value: "TV→Digital シフト" },
+      { label: "支援領域", value: "TV→Digital" },
       { label: "支援期間", value: "約1年" },
     ],
     summary:
@@ -1893,7 +1893,7 @@ export const works: Work[] = [
     services: ["marketing", "strategy", "ai"],
     metric: [
       { label: "月商", value: "目標比 +55%" },
-      { label: "分析対象", value: "約 2.7 万件の購買データ" },
+      { label: "分析対象", value: "約 2.7 万件" },
       { label: "Search ROAS", value: "1,000% 超" },
     ],
     summary:
@@ -1975,8 +1975,8 @@ export const works: Work[] = [
     industry: "B2B EC／業務用品",
     services: ["marketing", "strategy"],
     metric: [
-      { label: "ROAS", value: "業界水準を大きく上回る" },
-      { label: "新規購入率", value: "7% 台 → 18% 弱" },
+      { label: "ROAS", value: "業界水準超" },
+      { label: "新規購入率", value: "7%→18%" },
       { label: "売上 対目標", value: "140% 超" },
     ],
     summary:
@@ -2058,7 +2058,7 @@ export const works: Work[] = [
     services: ["marketing", "ai"],
     metric: [
       { label: "LP 別最高 CVR", value: "約 30%" },
-      { label: "LINE Ads CPA", value: "¥900 弱（勝ち面）" },
+      { label: "LINE Ads CPA", value: "¥900 弱" },
       { label: "DSA アトリビューション", value: "3ソース乖離解決" },
     ],
     summary:
@@ -2139,9 +2139,9 @@ export const works: Work[] = [
     industry: "デザイン／ブランディング",
     services: ["marketing", "strategy", "ai"],
     metric: [
-      { label: "重点 KW", value: "上位 10 位以内を維持" },
+      { label: "重点 KW", value: "上位 10 位内" },
       { label: "対応戦略", value: "AIO/AEO 統合" },
-      { label: "Schema 実装", value: "Article/Person 化" },
+      { label: "Schema 実装", value: "Article/Person" },
     ],
     summary:
       "独立系デザインエージェンシーの SEO を、AIO/AEO（ChatGPT / Perplexity への引用露出）を視野に入れた戦略に進化。Article / CreativeWork / Person schema を組み合わせ、デザイン実績を「一次データ」として LLM に拾わせる構造を設計。",
@@ -2365,9 +2365,9 @@ export const works: Work[] = [
     industry: "SaaS／AI プロダクト",
     services: ["ai", "strategy"],
     metric: [
-      { label: "実測対象", value: "想定テストベッド 2 サイト" },
+      { label: "実測対象", value: "2 サイト" },
       { label: "結論", value: "特化領域を再定義" },
-      { label: "段階", value: "Phase 1 開発中" },
+      { label: "段階", value: "開発中" },
     ],
     summary:
       "AI エージェントが EC サイトを読む時代に向けて、商品フィードと構造化データをエッジで配信する基盤を構想した。開発の前に想定テストベッドの本番サイトを直接 HTTP で確認したところ、主要 EC プラットフォームが同等の機能を標準で無償配布済みだと分かった。構想の一部を切り捨て、非対応 EC 向けの特化領域に絞り直した。",

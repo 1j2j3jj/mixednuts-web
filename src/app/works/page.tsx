@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
-import { Odometer } from "@/components/v6/KineticText";
+import { MetricValue, Odometer, Phrases } from "@/components/v6/KineticText";
 import { buildPageOg } from "@/lib/site-metadata";
 import { works, workThemes, CASES_COMING_SOON, type Work } from "@/data/works";
 import WorksMotionV6 from "./WorksMotionV6";
@@ -91,13 +91,13 @@ function CaseRow({ work, index }: { work: Work; index: number }) {
   return (
     <Link className="problem-case-row" href={`/works/${work.slug}`} data-row-reveal>
       <span className="problem-case-number">{String(index + 1).padStart(2, "0")}</span>
-      <h3 className="case-problem">{work.problem}</h3>
+      <h3 className="case-problem"><Phrases text={work.problem} /></h3>
       <div className="case-move-column">
         <p className="case-move">{work.move}</p>
         {work.metric.length > 0 && (
           <div className="problem-case-metrics" data-odometer>
             {work.metric.slice(0, 3).map((metric) => (
-              <span key={metric.label}><small>{metric.label}</small><strong><Odometer value={metric.value} /></strong></span>
+              <span key={metric.label}><small>{metric.label}</small><strong><MetricValue value={metric.value} /></strong></span>
             ))}
           </div>
         )}

@@ -183,3 +183,16 @@
 
 /* hero title: keep 「課題から、」「たどる。」 unbreakable so punctuation never starts a line (行頭禁則) */
 .works-v6 h1[data-split] .w{display:inline-block;white-space:nowrap}
+
+/* text metrics wrap inside their cell; numeric ones keep the odometer */
+.works-v6 .problem-case-metrics strong,.works-v6 .case-metrics-strip strong{min-width:0;white-space:normal}
+.works-v6 .metric-text{display:block;font:900 clamp(18px,1.6vw,26px)/1.1 var(--jp);letter-spacing:-.02em;overflow-wrap:anywhere}
+/* closing field: cap the headline and keep the CTA column clear of it on wide screens */
+.works-v6 .works-closing-field h2{max-width:min(11ch,100%);font-size:clamp(40px,4.6vw,88px)}
+@media(min-width:1600px){.works-v6 .works-closing-field{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(320px,.6fr);column-gap:64px;align-items:end}.works-v6 .works-closing-field .works-kicker{grid-column:1/-1}}
+.works-v6 .case-hero-metric strong{min-width:0;white-space:normal}
+/* detail hero: balance the problem headline and give it room on wide screens (no widow / no 行頭「ー」) */
+@media(min-width:1600px){.works-v6 .case-title-card h1{max-width:min(26ch,78vw)}}
+
+/* phrase chunks never break inside (文節折返し) */
+.works-v6 .ph{display:inline-block;max-width:100%;white-space:normal;overflow-wrap:anywhere}

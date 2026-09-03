@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
-import { Odometer } from "@/components/v6/KineticText";
+import { MetricValue, Odometer, Phrases, SplitPhrases } from "@/components/v6/KineticText";
 import { works, workThemes, type Work, CASES_COMING_SOON } from "@/data/works";
 import { buildPageOg } from "@/lib/site-metadata";
 import WorksMotionV6 from "../WorksMotionV6";
@@ -124,14 +124,14 @@ export default async function WorkDetailPage({ params }: Props) {
       <main>
         <section className="works-title-card case-title-card" data-nav="dark">
           <p className="works-overline" data-title-reveal><i />{theme.label}</p>
-          <h1 data-split aria-label={work.problem}><SplitCharacters text={work.problem} /></h1>
+          <h1 data-split aria-label={work.problem}><SplitPhrases text={work.problem} /></h1>
           <p className="case-project-title" data-title-reveal>{work.title}</p>
           <p className="case-summary" data-title-reveal>{work.move}</p>
           <p className="case-engagement-line" data-title-reveal><span>業種・関与</span>{work.client} · {work.industry} · {work.services.map((service) => serviceLabels[service]).join(" · ")}</p>
           {work.metric.length > 0 && (
             <div className="case-metrics-strip" data-odometer data-title-reveal>
               {work.metric.slice(0, 3).map((metric) => (
-                <div className="case-hero-metric" key={metric.label}><p>{metric.label}</p><strong><Odometer value={metric.value} /></strong></div>
+                <div className="case-hero-metric" key={metric.label}><p>{metric.label}</p><strong><MetricValue value={metric.value} /></strong></div>
               ))}
             </div>
           )}
@@ -184,7 +184,7 @@ export default async function WorkDetailPage({ params }: Props) {
             <div className="case-related-list">
               {related.map((item, index) => (
                 <Link href={`/works/${item.slug}`} className="case-related-row" data-row-reveal key={item.slug}>
-                  <span>{String(index + 1).padStart(2, "0")}</span><h3>{item.problem}</h3><p>{item.move}</p>
+                  <span>{String(index + 1).padStart(2, "0")}</span><h3><Phrases text={item.problem} /></h3><p>{item.move}</p>
                 </Link>
               ))}
             </div>

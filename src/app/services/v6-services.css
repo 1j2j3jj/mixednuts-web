@@ -138,3 +138,5 @@ body:has(.services-v6) .nav[data-theme="light"]{background:var(--stone)}
   .services-v6 .detail-intro > div,.services-v6 .detail-intro > p,.services-v6 .detail-intro > .detail-metric{grid-column:1 / -1 !important;grid-row:auto !important;grid-area:auto !important;max-width:100%;min-width:0}
   .services-v6 .detail-intro h2{margin:0;max-width:none}
 }
+
+.services-v6 .ph{display:inline-block;max-width:100%;white-space:normal;overflow-wrap:anywhere}

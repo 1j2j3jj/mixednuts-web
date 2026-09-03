@@ -1,3 +1,4 @@
+import { Phrases } from "@/components/v6/KineticText";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Odometer, SplitWords } from "@/components/v6/KineticText";
@@ -138,7 +139,7 @@ export default function ServiceDetailV6({
               {cases.map((item, index) => (
                 <Link className="case-row" href={`/works/${item.slug}`} key={item.slug}>
                   <span>{String(index + 1).padStart(2, "0")}</span>
-                  <div><small>{item.industry}</small><h3>{item.problem}</h3></div>
+                  <div><small>{item.industry}</small><h3><Phrases text={item.problem} /></h3></div>
                   <div><p>{item.move}</p><small>{item.services.map((service) => service.toUpperCase()).join(" · ")}</small></div>
                 </Link>
               ))}
