@@ -28,6 +28,14 @@ const memberRoster: Member[] = [
   { initial: "M.M.", role: "Ad Creative", division: "marketing", background: "バナー・広告クリエイティブ", bio: "" },
   { initial: "T.O.", role: "Ad Creative", division: "marketing", background: "バナー・広告クリエイティブ", bio: "" },
   { initial: "M.S.", role: "Ad Creative", division: "marketing", background: "構成案・広告クリエイティブ", bio: "" },
+  // ─── 仮置き（CEO 2026-09-03「戦略コンサル等もいるので既存 7 名も残す」）。実在者に差し替え次第、更新。───
+  { initial: "K.T.", role: "Strategy Lead", division: "strategy", background: "事業戦略・中期計画・FP&A 支援", bio: "" },
+  { initial: "Y.M.", role: "M&A / Investment", division: "strategy", background: "投資評価・DD・バリュエーション", bio: "" },
+  { initial: "R.S.", role: "Corporate Finance", division: "strategy", background: "予実管理・経営管理の仕組み化", bio: "" },
+  { initial: "A.H.", role: "AI Engineer", division: "ai", background: "エージェント設計・LLM 業務実装", bio: "" },
+  { initial: "M.K.", role: "Data / Platform", division: "ai", background: "データ基盤・計測・MCP 統合", bio: "" },
+  { initial: "S.O.", role: "Growth Marketing", division: "marketing", background: "広告運用・LTV / CAC 設計", bio: "" },
+  { initial: "J.W.", role: "SEO / AIO", division: "marketing", background: "検索・AI 検索対策・構造化データ", bio: "" },
 ];
 
 export const members = SHOW_MEMBER_ROSTER
