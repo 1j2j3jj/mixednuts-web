@@ -7,6 +7,8 @@
     "dev": "next dev",
     "prebuild": "velite build",
     "build": "next build",
+    "postbuild": "node scripts/seo-postbuild-check.mjs",
+    "check:seo": "node scripts/seo-postbuild-check.mjs",
     "start": "next start",
     "test": "vitest run"
   },
