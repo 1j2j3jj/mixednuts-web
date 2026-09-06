@@ -19,6 +19,13 @@ export const metadata: Metadata = {
   ...buildPageOg({ title: pageTitle, description: pageDescription, path: "/" }),
 };
 
+// Home shows `latestPosts` (top 3 Insights). Without this, the page is
+// static-forever (no revalidate = cached until the next full deploy), so a
+// scheduled post that just passed its JST-midnight publish instant would
+// not appear here until the next deploy even though ISR already refreshes
+// every other Insights surface every hour. Match that cadence for consistency.
+export const revalidate = 3600;
+
 const forces = [
   {
     className: "c-navy",
