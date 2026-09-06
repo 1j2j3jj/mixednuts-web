@@ -8,12 +8,15 @@ import V6PageMotion from "../about/V6PageMotion";
 import "./v6-team.css";
 import BreadcrumbNav from "@/components/BreadcrumbNav";
 
-const pageTitle = "チーム — 代表・AI・専門パートナーの編成";
+// 指名検索「ミックスナッツ株式会社」でトップページより先に /team が出ていた（2026-09-06 実測）。
+// ページ自体は残すが、title は社名単体ではなく「〜のメンバーと支援体制」で限定し、
+// bare brand token をトップページに譲る。
+const pageTitle = "Team｜ミックスナッツ株式会社のメンバーと支援体制";
 const pageDescription =
-  "代表が課題整理と意思決定に関わり、100体超のAIエージェント組織を調査・分析・運用の裏付けとして活用し、案件ごとの専門パートナーと必要な支援体制を編成します。";
+  "代表・AIエージェント組織・専門パートナーの3層で支援体制を編成します。代表が課題整理と意思決定に関わり、100体超のAIエージェントを調査・分析・運用の裏付けに使い、案件ごとに専門パートナーを組み合わせます。";
 
 export const metadata: Metadata = {
-  title: pageTitle,
+  title: { absolute: pageTitle },
   description: pageDescription,
   alternates: { canonical: "/team" },
   ...buildPageOg({ title: pageTitle, description: pageDescription, path: "/team" }),

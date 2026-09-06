@@ -7,9 +7,7 @@ import { publishedPosts as filterPublishedPosts } from "@/lib/insights";
 const SITE_URL = "https://mixednuts-inc.com";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const staticRoutes: Array<
-    [string, MetadataRoute.Sitemap[number]["changeFrequency"], number]
-  > = [
+  const staticRoutes: Array<[string, MetadataRoute.Sitemap[number]["changeFrequency"], number]> = [
     ["", "weekly", 1],
     ["/services", "monthly", 0.9],
     ["/services/strategy", "monthly", 0.8],
@@ -27,16 +25,26 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ["/privacy", "yearly", 0.3],
   ];
 
-  const staticEntries = staticRoutes.map(
-    ([path, changeFrequency, priority]) => ({
-      url: `${SITE_URL}${path}`,
-      lastModified: SITE_UPDATED,
-      changeFrequency,
-      priority,
-    }),
+  const publishedPosts = filterPublishedPosts(posts);
+
+  /** 記事の updated (無ければ date) の最大値。記事一覧・トップの lastmod を実際の更新に追従させる。 */
+  const latestPostUpdate = publishedPosts.reduce(
+    (latest, post) => {
+      const stamp = (post.updated ?? post.date).slice(0, 10);
+      return stamp > latest ? stamp : latest;
+    },
+    SITE_UPDATED,
   );
 
-  const publishedPosts = filterPublishedPosts(posts);
+  // 記事更新に追従させるルート。それ以外はサイト構造の更新日 (SITE_UPDATED) を使う。
+  const POST_DRIVEN_ROUTES = new Set(["", "/insights"]);
+
+  const staticEntries = staticRoutes.map(([path, changeFrequency, priority]) => ({
+    url: `${SITE_URL}${path}`,
+    lastModified: POST_DRIVEN_ROUTES.has(path) ? latestPostUpdate : SITE_UPDATED,
+    changeFrequency,
+    priority,
+  }));
   const articleEntries = publishedPosts.map((post) => ({
     url: `${SITE_URL}${post.permalink}`,
     lastModified: post.updated ?? post.date,
@@ -45,25 +53,32 @@ export default function sitemap(): MetadataRoute.Sitemap {
   }));
 
   // Case pages stay out of the sitemap while the roster is gated (they 404 until CASES_COMING_SOON is false).
-  const workEntries = (
-    CASES_COMING_SOON ? [] : works.filter((work) => !work.hidden)
-  ).map((work) => ({
+  const workEntries = (CASES_COMING_SOON ? [] : works.filter((work) => !work.hidden)).map((work) => ({
     url: `${SITE_URL}/works/${work.slug}`,
     lastModified: SITE_UPDATED,
     changeFrequency: "monthly" as const,
     priority: 0.6,
   }));
 
-  const tagCounts = new Map<string, number>();
+  // タグページの lastmod は、そのタグを持つ公開記事の updated の最大値に合わせる。
+  const tagCounts = new Map<string, { count: number; lastModified: string }>();
   for (const post of publishedPosts) {
-    for (const tag of post.tags)
-      tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+    const stamp = (post.updated ?? post.date).slice(0, 10);
+    for (const tag of post.tags) {
+      const current = tagCounts.get(tag);
+      if (current) {
+        current.count += 1;
+        if (stamp > current.lastModified) current.lastModified = stamp;
+      } else {
+        tagCounts.set(tag, { count: 1, lastModified: stamp });
+      }
+    }
   }
   const tagEntries = Array.from(tagCounts.entries())
-    .filter(([, count]) => count >= 2)
-    .map(([tag]) => ({
+    .filter(([, meta]) => meta.count >= 2)
+    .map(([tag, meta]) => ({
       url: `${SITE_URL}/insights/tag/${encodeURIComponent(tag)}`,
-      lastModified: SITE_UPDATED,
+      lastModified: meta.lastModified,
       changeFrequency: "monthly" as const,
       priority: 0.4,
     }));
