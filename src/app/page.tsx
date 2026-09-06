@@ -2,13 +2,14 @@ import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { posts } from "#site/content";
+import { publishedPosts } from "@/lib/insights";
 import { works } from "@/data/works";
 import SiteMotionV6 from "@/components/v6/SiteMotionV6";
 import { Odometer, RingItem, SplitWords } from "@/components/v6/KineticText";
 import { buildPageOg } from "@/lib/site-metadata";
 
-const pageTitle = "戦略・AI・マーケティングを実装まで支援 | mixednuts Inc.";
-const pageDescription = "事業戦略・経営管理、AIエージェントの業務実装、広告・SEOを含むグロースマーケティングを一つのチームで支援し、構想から運用改善までつなぐコンサルティング会社です。";
+const pageTitle = "ミックスナッツ株式会社 | 戦略・AI・マーケティングを実装まで支援するコンサルティング会社";
+const pageDescription = "ミックスナッツ株式会社（mixednuts Inc.）は、事業戦略・経営管理、AIエージェントの業務実装、広告・SEOを含むグロースマーケティングを一つのチームで支援する東京のコンサルティング会社です。構想から実装・運用改善までを一気通貫でつなぎます。";
 
 export const metadata: Metadata = {
   title: { absolute: pageTitle },
@@ -16,6 +17,13 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
   ...buildPageOg({ title: pageTitle, description: pageDescription, path: "/" }),
 };
+
+// Home shows `latestPosts` (top 3 Insights). Without this, the page is
+// static-forever (no revalidate = cached until the next full deploy), so a
+// scheduled post that just passed its JST-midnight publish instant would
+// not appear here until the next deploy even though ISR already refreshes
+// every other Insights surface every hour. Match that cadence for consistency.
+export const revalidate = 3600;
 
 const forces = [
   {
@@ -43,7 +51,7 @@ const stats = [
 ] as const;
 
 const engagementRows = works.filter((work) => !work.hidden);
-const latestPosts = [...posts].filter((post) => !post.hidden).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
+const latestPosts = publishedPosts([...posts]).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
 const ringWords = ["Strategy", "×", "AI", "×", "Marketing", "·", "Strategy", "×", "AI", "×", "Marketing", "·"];
 
 export default function HomePage() {
@@ -63,7 +71,7 @@ export default function HomePage() {
             <h1 data-split aria-label="Rethink growth. With AI."><SplitWords words={["Rethink", "growth."]} /><br /><SplitWords words={["With", "AI."]} accent="AI." /></h1>
             <div className="hero-foot">
               <div>
-                <p className="lead"><span className="en">Strategy · AI · Marketing — executed as one</span>戦略・AI・マーケティングを 3 軸で、上場企業から新規事業まで一気通貫で支援します。分厚い報告書ではなく、明日から動けるアクションを届けます。</p>
+                <p className="lead"><span className="en">Strategy · AI · Marketing — executed as one</span>ミックスナッツ株式会社（mixednuts Inc.）は、戦略・AI・マーケティングを実装まで支援する東京のコンサルティング会社です。上場企業から新規事業まで 3 軸を一気通貫で支援し、分厚い報告書ではなく明日から動けるアクションを届けます。</p>
                 <p className="chips"><span><b>100+</b> AI エージェントで運営</span><span><b>日次更新</b>の専用ダッシュボード</span><span><b>D+1</b> レポーティング</span></p>
               </div>
               <div className="btns"><Link className="btn" href="/contact">無料相談を申し込む</Link><Link className="btn alt" href="/works">Works</Link></div>
@@ -98,7 +106,7 @@ export default function HomePage() {
         </section>
 
         <section className="founder" id="founder" data-nav="dark">
-          <p className="mono" aria-hidden="true">N.I.</p><div><p className="k">Founder</p><h2>石井 希実</h2><p className="role">Founder &amp; CEO · mixednuts Inc.</p><p>デジタル広告代理店で金融・不動産・旅行業界の大手企業を担当し、チームマネージャーとして PL 責任を担う。グローバル IT 企業では広告事業のアカウントストラテジストとして大手企業のデジタル戦略を支援。国内 IT 企業の経営企画で事業計画・FP&amp;A・投資評価・取締役会付議資料を担当。2021 年に mixednuts を創業。早稲田大学大学院 経営管理研究科 修了（MBA）。</p><Link className="go" href="/team/ceo">Profile</Link></div>
+          <p className="mono" aria-hidden="true">N.I.</p><div><p className="k">Founder</p><h2>石井 希実</h2><p className="role">Founder &amp; CEO · ミックスナッツ株式会社（mixednuts Inc.）</p><p>デジタル広告代理店で金融・不動産・旅行業界の大手企業を担当し、チームマネージャーとして PL 責任を担う。グローバル IT 企業では広告事業のアカウントストラテジストとして大手企業のデジタル戦略を支援。国内 IT 企業の経営企画で事業計画・FP&amp;A・投資評価・取締役会付議資料を担当。2021 年に mixednuts を創業。早稲田大学大学院 経営管理研究科 修了（MBA）。</p><Link className="go" href="/team/ceo">Profile</Link></div>
         </section>
 
         <div className="endwrap"><section className="end" id="contact" data-nav="dark"><h2 data-split aria-label="Let's build growth."><SplitWords words={["Let's", "build", "growth."]} /></h2><div className="cols"><p>60分の無料相談で、貴社の事業に適したアプローチを共に設計しませんか。翌営業日までに、初回の論点整理をお戻しします。</p><Link className="btn" href="/contact">無料相談を申し込む</Link></div></section></div>
