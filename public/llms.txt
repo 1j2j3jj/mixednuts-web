@@ -21,6 +21,8 @@
 
 公開記事 16 本。すべて一次実装ログまたは一次監査データにもとづく解説です。新しい順。
 
+- [コンサル資料の『型』を官公庁 28 本から抽出する方法 — スライド文法 10 条と自動体裁チェック 3 項目](https://mixednuts-inc.com/insights/gov-consulting-slide-grammar-lint) (2026-08-19 公開): 「うちの資料は質が低い」を装飾の問題と決めつけず、公開されている官公庁向け調査報告資料 28 本・3,559 頁を実測した。装飾の規範はすでに実物と一致しており、欠けていたのは現在地表示だった。母集団と数え方、実物から採った文法 10 条、自動体裁チェックへ移した 3 項目、適用しない資料タイプを公開します。
+- [AI エージェントに運用ルールを守らせる方法 — 強制手段 3 種 × 6 レベルの対応表と、同種 2 件目で機械化する判定式](https://mixednuts-inc.com/insights/rule-enforcement-l1-l6-consent-gate) (2026-08-04 公開): 運用ルールは書いただけでは実行されない。mixednuts が自社の AI エージェント組織で使う「散文・手続き・機械」3 種の強制手段と L1〜L6 の対応表、いつ機械化へ上げるかの判定式、ルール自体の書き換えに置いた同意ゲートと単一障害点対策を公開します。
 - [2026 Core Update 総括 — Answer Engine 時代の SEO 戦略](https://mixednuts-inc.com/insights/core-update-2026-answer-engine) (2026-05-04 公開 / 2026-09-06 更新): 2026年のGoogle Core Updateを総括し、AI Overviews、Perplexity、ChatGPTなどAnswer Engine時代のSEO戦略を10原則と具体施策に整理します。
 - [AI Overviews で引用される 7 原則 — 複数サイト実装で分かった構造化データ戦略](https://mixednuts-inc.com/insights/ai-overviews-7-principles) (2026-05-02 公開 / 2026-09-06 更新): Google AI Overviews、Perplexity、ChatGPTに引用される記事を分ける7つの構造要素と、複数サイト監査で検証した構造化データ設計を、マーケティング責任者向けに解説します。
 - [広告運用 AI で ROAS を 2 倍にした — Google Ads × Claude の実装パターン](https://mixednuts-inc.com/insights/ads-roas-2x-google-claude) (2026-05-01 公開 / 2026-09-06 更新): 複数 EC クライアントで運用した Google Ads × AI の実装ログ。Smart Bidding の誤解と正しい使い方、AI クリエイティブ生成の運用設計、日次レビューを 4 時間 → 15 分に圧縮した自動化の詳細。
