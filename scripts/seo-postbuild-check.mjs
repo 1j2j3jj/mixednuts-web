@@ -15,7 +15,10 @@
  *  7. FAQPage JSON-LD は可視 FAQ があるページにだけ存在する
  *  8. 公開 Insights 記事すべてに Tldr / Answer / FAQ / Sources / Article JSON-LD が存在
  *  9. トップページの title / description / 本文に「ミックスナッツ株式会社」が入っている
- * 10. llms.txt の Insights 一覧が公開記事と過不足なく一致する
+ * 10. llms.txt（route handler の prerender 出力）の Insights 一覧が公開記事と過不足なく一致する
+ *     — `src/app/llms.txt/route.ts` が `publishedPosts` から生成し、build 時に
+ *     `.next/server/app/llms.txt.body` へ静的化される（ISR 3600s）。旧 `public/llms.txt`
+ *     が残っていると route を覆うので、その存在も NG にする。
  *
  * usage: node scripts/seo-postbuild-check.mjs
  */
@@ -170,27 +173,58 @@ for (const { file, route } of files) {
   }
 }
 
-// 10. llms.txt が公開記事一覧と一致しているか
-const llmsPath = path.join(ROOT, "public", "llms.txt");
-if (!fs.existsSync(llmsPath)) {
-  failures.push("public/llms.txt — ファイルが無い");
+// 10. llms.txt（route handler の prerender 出力）が公開記事一覧と一致しているか
+//     route.ts は build 時に静的化され、`.next/server/app/llms.txt.body`（本文）と
+//     `.next/server/app/llms.txt.meta`（status / headers）に落ちる。dynamic 化されて
+//     .body が無い場合は「予約公開に追随しない静的ファイル」へ戻す回帰なので NG。
+const LLMS_LABEL = "llms.txt";
+const llmsBodyPath = path.join(APP_DIR, "llms.txt.body");
+const legacyLlmsPath = path.join(ROOT, "public", "llms.txt");
+if (fs.existsSync(legacyLlmsPath)) {
+  failures.push(
+    `${LLMS_LABEL} — public/llms.txt が残っている（静的ファイルが src/app/llms.txt/route.ts を覆う。git rm すること）`,
+  );
+}
+if (!fs.existsSync(llmsBodyPath)) {
+  failures.push(
+    `${LLMS_LABEL} — .next/server/app/llms.txt.body が無い（src/app/llms.txt/route.ts が prerender されていない。dynamic API を使っていないか / revalidate を確認）`,
+  );
 } else {
-  const llms = fs.readFileSync(llmsPath, "utf8");
+  const llms = fs.readFileSync(llmsBodyPath, "utf8");
+  const metaPath = path.join(APP_DIR, "llms.txt.meta");
+  if (fs.existsSync(metaPath)) {
+    try {
+      const meta = JSON.parse(fs.readFileSync(metaPath, "utf8"));
+      if (meta.status && meta.status !== 200)
+        failures.push(`${LLMS_LABEL} — status が ${meta.status}（200 であること）`);
+      const contentType = meta.headers?.["content-type"] ?? "";
+      if (!/^text\/plain/i.test(contentType))
+        failures.push(`${LLMS_LABEL} — content-type が text/plain でない: "${contentType}"`);
+    } catch (error) {
+      failures.push(`${LLMS_LABEL} — llms.txt.meta が parse 不能: ${error.message}`);
+    }
+  }
   const articleRoutes = files
     .map(({ route }) => route)
     .filter((route) => route.startsWith("/insights/") && !route.startsWith("/insights/tag/"));
   for (const route of articleRoutes) {
     if (!llms.includes(`https://mixednuts-inc.com${route}`))
-      failures.push(`public/llms.txt — 公開記事 ${route} が未掲載`);
+      failures.push(`${LLMS_LABEL} — 公開記事 ${route} が未掲載`);
   }
   const listed = Array.from(llms.matchAll(/https:\/\/mixednuts-inc\.com(\/insights\/[^)\s]+)\)/g)).map(
     (match) => match[1],
   );
   for (const url of listed) {
     if (!articleRoutes.includes(url))
-      failures.push(`public/llms.txt — 非公開 or 存在しない記事 ${url} が掲載されている`);
+      failures.push(`${LLMS_LABEL} — 非公開 or 存在しない記事 ${url} が掲載されている`);
   }
-  if (!llms.includes(BRAND_JA)) failures.push(`public/llms.txt — 「${BRAND_JA}」が無い`);
+  const countMatch = llms.match(/公開記事 (\d+) 本/);
+  if (!countMatch) failures.push(`${LLMS_LABEL} — 「公開記事 N 本」の行が無い`);
+  else if (Number(countMatch[1]) !== listed.length)
+    failures.push(
+      `${LLMS_LABEL} — 「公開記事 ${countMatch[1]} 本」と掲載行数 ${listed.length} が不一致`,
+    );
+  if (!llms.includes(BRAND_JA)) failures.push(`${LLMS_LABEL} — 「${BRAND_JA}」が無い`);
 }
 
 console.log(`[seo-postbuild-check] 走査 ${files.length} ページ / ユニーク title ${titles.size} 件`);
