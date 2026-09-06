@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { works, CASES_COMING_SOON } from "@/data/works";
 import { SITE_UPDATED } from "@/data/site";
 import { posts } from "#site/content";
+import { publishedPosts as filterPublishedPosts } from "@/lib/insights";
 
 const SITE_URL = "https://mixednuts-inc.com";
 
@@ -24,7 +25,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ["/privacy", "yearly", 0.3],
   ];
 
-  const publishedPosts = posts.filter((post) => !post.hidden);
+  const publishedPosts = filterPublishedPosts(posts);
 
   /** 記事の updated (無ければ date) の最大値。記事一覧・トップの lastmod を実際の更新に追従させる。 */
   const latestPostUpdate = publishedPosts.reduce(
@@ -84,3 +85,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return [...staticEntries, ...workEntries, ...articleEntries, ...tagEntries];
 }
+
+// 予約公開（date が未来の記事）を再デプロイなしで反映するため、1 時間ごとに再生成する（2026-09-06）。
+export const revalidate = 3600;

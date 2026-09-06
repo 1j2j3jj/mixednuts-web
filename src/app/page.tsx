@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { posts } from "#site/content";
+import { publishedPosts } from "@/lib/insights";
 import { works } from "@/data/works";
 import SiteMotionV6 from "@/components/v6/SiteMotionV6";
 import { Odometer, RingItem, SplitWords } from "@/components/v6/KineticText";
@@ -16,6 +17,13 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
   ...buildPageOg({ title: pageTitle, description: pageDescription, path: "/" }),
 };
+
+// Home shows `latestPosts` (top 3 Insights). Without this, the page is
+// static-forever (no revalidate = cached until the next full deploy), so a
+// scheduled post that just passed its JST-midnight publish instant would
+// not appear here until the next deploy even though ISR already refreshes
+// every other Insights surface every hour. Match that cadence for consistency.
+export const revalidate = 3600;
 
 const forces = [
   {
@@ -43,7 +51,7 @@ const stats = [
 ] as const;
 
 const engagementRows = works.filter((work) => !work.hidden);
-const latestPosts = [...posts].filter((post) => !post.hidden).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
+const latestPosts = publishedPosts([...posts]).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
 const ringWords = ["Strategy", "×", "AI", "×", "Marketing", "·", "Strategy", "×", "AI", "×", "Marketing", "·"];
 
 export default function HomePage() {

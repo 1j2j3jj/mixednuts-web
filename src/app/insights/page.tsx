@@ -2,7 +2,12 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { posts } from "#site/content";
-import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
+import { isPublishedPost } from "@/lib/insights";
+import {
+  JsonLd,
+  buildBreadcrumbSchema,
+  buildWebPageSchema,
+} from "@/components/JsonLd";
 import { Odometer } from "@/components/v6/KineticText";
 import { buildPageOg } from "@/lib/site-metadata";
 import InsightsMotion from "./InsightsMotion";
@@ -96,7 +101,7 @@ const upcomingArticles: ListItem[] = [
 ];
 
 const publishedArticles: ListItem[] = [...posts]
-  .filter((post) => !post.hidden)
+  .filter((post) => isPublishedPost(post))
   .sort((a, b) => (a.date < b.date ? 1 : -1))
   .map((post) => ({
     slug: post.slug,
@@ -138,11 +143,24 @@ function SlamText({ children }: { children: string }) {
   // freely, whitespace becomes a `.space` — so "ROAS" never splits into "RO / AS".
   const tokens = children.match(/[A-Za-z0-9&+.%×#@'’\-]+|\s+|./gu) ?? [];
   return tokens.map((token, index) => {
-    if (/^\s+$/.test(token)) return <span className="c space" aria-hidden="true" key={index}>{"\u00a0"}</span>;
+    if (/^\s+$/.test(token))
+      return (
+        <span className="c space" aria-hidden="true" key={index}>
+          {"\u00a0"}
+        </span>
+      );
     const chars = Array.from(token).map((ch, j) => (
-      <span className="c" aria-hidden="true" key={`${index}-${j}`}>{ch}</span>
+      <span className="c" aria-hidden="true" key={`${index}-${j}`}>
+        {ch}
+      </span>
     ));
-    return token.length > 1 ? <span className="w" key={index}>{chars}</span> : chars[0];
+    return token.length > 1 ? (
+      <span className="w" key={index}>
+        {chars}
+      </span>
+    ) : (
+      chars[0]
+    );
   });
 }
 
@@ -164,7 +182,9 @@ function ArticleImage({ article }: { article: ListItem }) {
 export default function InsightsPage() {
   const featured = publishedArticles[0];
   const remaining = publishedArticles.slice(1);
-  const categories = Array.from(new Set(publishedArticles.map((article) => article.category)));
+  const categories = Array.from(
+    new Set(publishedArticles.map((article) => article.category)),
+  );
 
   return (
     <main className="mn-v6 insights-v6">
@@ -174,11 +194,24 @@ export default function InsightsPage() {
 
       <section className="insights-title" data-nav="dark">
         <div className="insights-title-top insights-title-meta">
-          <nav className="insights-breadcrumb" aria-label="パンくずリスト"><ol style={{ display: "contents" }}><li style={{ display: "contents" }}><Link href="/">Home</Link></li><li style={{ display: "contents" }}><span aria-hidden="true">/</span><span>Insights</span></li></ol></nav>
+          <nav className="insights-breadcrumb" aria-label="パンくずリスト">
+            <ol style={{ display: "contents" }}>
+              <li style={{ display: "contents" }}>
+                <Link href="/">Home</Link>
+              </li>
+              <li style={{ display: "contents" }}>
+                <span aria-hidden="true">/</span>
+                <span>Insights</span>
+              </li>
+            </ol>
+          </nav>
           <span className="insights-title-index">Knowledge / 06</span>
         </div>
 
-        <h1 className="insights-slam" aria-label="実践から生まれる知見を届ける。">
+        <h1
+          className="insights-slam"
+          aria-label="実践から生まれる知見を届ける。"
+        >
           <SlamText>実践から生まれる知見を届ける。</SlamText>
         </h1>
 
@@ -187,7 +220,9 @@ export default function InsightsPage() {
             戦略・AI・マーケティング・ファイナンスの最前線で得た知見を公開。
             「使えるノウハウ」だけを、実体験ベースで書いています。
           </p>
-          <span className="insights-title-word" aria-hidden="true">INSIGHTS</span>
+          <span className="insights-title-word" aria-hidden="true">
+            INSIGHTS
+          </span>
         </div>
       </section>
 
@@ -198,9 +233,13 @@ export default function InsightsPage() {
             <h2>Latest</h2>
           </div>
           <nav className="insights-tabs" aria-label="記事カテゴリ">
-            <Link className="insights-tab" href="/insights" aria-current="page">All</Link>
+            <Link className="insights-tab" href="/insights" aria-current="page">
+              All
+            </Link>
             {categories.map((category) => (
-              <span className="insights-tab" key={category}>{category}</span>
+              <span className="insights-tab" key={category}>
+                {category}
+              </span>
             ))}
           </nav>
         </header>
@@ -215,7 +254,9 @@ export default function InsightsPage() {
             <div className="insight-lead-visual">
               {featured.thumbNumber && (
                 <div className="insight-number">
-                  <strong><Odometer value={featured.thumbNumber} /></strong>
+                  <strong>
+                    <Odometer value={featured.thumbNumber} />
+                  </strong>
                   {featured.thumbLabel && <small>{featured.thumbLabel}</small>}
                 </div>
               )}
@@ -226,7 +267,9 @@ export default function InsightsPage() {
               <h3>{featured.title}</h3>
               <p>{featured.excerpt}</p>
               <div className="insight-meta">
-                <time dateTime={featured.date.replaceAll(".", "-")}>{featured.date}</time>
+                <time dateTime={featured.date.replaceAll(".", "-")}>
+                  {featured.date}
+                </time>
                 <span>{featured.readTime} read</span>
                 <span>{featured.author}</span>
               </div>
@@ -248,9 +291,14 @@ export default function InsightsPage() {
               <h3>{article.title}</h3>
               <p>{article.excerpt}</p>
               <div className="insight-meta">
-                <time dateTime={article.date.replaceAll(".", "-")}>{article.date}</time>
+                <time dateTime={article.date.replaceAll(".", "-")}>
+                  {article.date}
+                </time>
                 {article.thumbNumber && (
-                  <span>{article.thumbNumber}{article.thumbLabel ? ` / ${article.thumbLabel}` : ""}</span>
+                  <span>
+                    {article.thumbNumber}
+                    {article.thumbLabel ? ` / ${article.thumbLabel}` : ""}
+                  </span>
                 )}
               </div>
             </Link>
@@ -263,7 +311,9 @@ export default function InsightsPage() {
               <span className="insights-section-label">Editorial pipeline</span>
               <h2>Coming soon</h2>
             </div>
-            <p>現在編集中の記事です。公開時期は内容の検証完了後に決定します。</p>
+            <p>
+              現在編集中の記事です。公開時期は内容の検証完了後に決定します。
+            </p>
           </header>
           {upcomingArticles.map((article) => (
             <div className="upcoming-row" key={article.slug}>
@@ -281,3 +331,6 @@ export default function InsightsPage() {
     </main>
   );
 }
+
+// 予約公開（date が未来の記事）を再デプロイなしで反映するため、1 時間ごとに再生成する（2026-09-06）。
+export const revalidate = 3600;

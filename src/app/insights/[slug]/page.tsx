@@ -6,16 +6,31 @@ import * as runtime from "react/jsx-runtime";
 import fs from "node:fs";
 import path from "node:path";
 import { posts } from "#site/content";
+import { isPublishedPost, publishedPosts } from "@/lib/insights";
 import { mdxComponents } from "@/components/mdx-components";
-import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
-import { buildPageOg, compactTitle, OG_DEFAULT_IMAGE, SITE_URL } from "@/lib/site-metadata";
+import {
+  JsonLd,
+  buildBreadcrumbSchema,
+  buildWebPageSchema,
+} from "@/components/JsonLd";
+import {
+  buildPageOg,
+  compactTitle,
+  OG_DEFAULT_IMAGE,
+  SITE_URL,
+} from "@/lib/site-metadata";
 import { ReadingProgressBar } from "@/components/ReadingProgressBar";
 import { StickyToc } from "@/components/StickyToc";
 import InsightsMotion from "../InsightsMotion";
 import "../v6-insights.css";
 
 function extractFaqPairs(slug: string): { question: string; answer: string }[] {
-  const mdxPath = path.join(process.cwd(), "content", "insights", `${slug}.mdx`);
+  const mdxPath = path.join(
+    process.cwd(),
+    "content",
+    "insights",
+    `${slug}.mdx`,
+  );
   let raw = "";
   try {
     raw = fs.readFileSync(mdxPath, "utf-8");
@@ -39,7 +54,7 @@ function extractFaqPairs(slug: string): { question: string; answer: string }[] {
 type Params = { slug: string };
 
 export function generateStaticParams() {
-  return posts.filter((post) => !post.hidden).map((post) => ({ slug: post.slug }));
+  return publishedPosts(posts).map((post) => ({ slug: post.slug }));
 }
 
 export async function generateMetadata({
@@ -49,7 +64,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const post = posts.find((item) => item.slug === slug);
-  if (!post) return {};
+  if (!post || !isPublishedPost(post)) return {};
   const title = compactTitle(post.title);
   return {
     title,
@@ -59,7 +74,12 @@ export async function generateMetadata({
       title,
       description: post.excerpt,
       path: post.permalink,
-      article: { publishedTime: post.date, modifiedTime: post.updated ?? post.date, authors: [post.author], tags: post.tags },
+      article: {
+        publishedTime: post.date,
+        modifiedTime: post.updated ?? post.date,
+        authors: [post.author],
+        tags: post.tags,
+      },
     }),
   };
 }
@@ -75,11 +95,24 @@ function SlamText({ children }: { children: string }) {
   // freely, whitespace becomes a `.space` — so "ROAS" never splits into "RO / AS".
   const tokens = children.match(/[A-Za-z0-9&+.%×#@'’\-]+|\s+|./gu) ?? [];
   return tokens.map((token, index) => {
-    if (/^\s+$/.test(token)) return <span className="c space" aria-hidden="true" key={index}>{"\u00a0"}</span>;
+    if (/^\s+$/.test(token))
+      return (
+        <span className="c space" aria-hidden="true" key={index}>
+          {"\u00a0"}
+        </span>
+      );
     const chars = Array.from(token).map((ch, j) => (
-      <span className="c" aria-hidden="true" key={`${index}-${j}`}>{ch}</span>
+      <span className="c" aria-hidden="true" key={`${index}-${j}`}>
+        {ch}
+      </span>
     ));
-    return token.length > 1 ? <span className="w" key={index}>{chars}</span> : chars[0];
+    return token.length > 1 ? (
+      <span className="w" key={index}>
+        {chars}
+      </span>
+    ) : (
+      chars[0]
+    );
   });
 }
 
@@ -90,23 +123,46 @@ export default async function InsightsArticlePage({
 }) {
   const { slug } = await params;
   const post = posts.find((item) => item.slug === slug);
-  if (!post || post.hidden) return notFound();
+  if (!post || !isPublishedPost(post)) return notFound();
 
-  const visiblePosts = posts
-    .filter((item) => !item.hidden)
-    .sort((a, b) => (a.date < b.date ? 1 : -1));
-  const currentIndex = visiblePosts.findIndex((item) => item.slug === post.slug);
+  const visiblePosts = publishedPosts(posts).sort((a, b) =>
+    a.date < b.date ? 1 : -1,
+  );
+  const currentIndex = visiblePosts.findIndex(
+    (item) => item.slug === post.slug,
+  );
   const previous = currentIndex > 0 ? visiblePosts[currentIndex - 1] : null;
-  const next = currentIndex < visiblePosts.length - 1 ? visiblePosts[currentIndex + 1] : null;
+  const next =
+    currentIndex < visiblePosts.length - 1
+      ? visiblePosts[currentIndex + 1]
+      : null;
   const related = visiblePosts
     .filter((item) => item.slug !== post.slug)
-    .sort((a, b) => Number(b.category === post.category) - Number(a.category === post.category))
+    .sort(
+      (a, b) =>
+        Number(b.category === post.category) -
+        Number(a.category === post.category),
+    )
     .slice(0, 3);
   const formattedDate = post.date.slice(0, 10).replace(/-/g, ".");
-  const rawMdx = fs.readFileSync(path.join(process.cwd(), "content", "insights", `${post.slug}.mdx`), "utf-8");
-  const wordCount = rawMdx.replace(/^---[\s\S]*?---/m, "").replace(/<[^>]+>|[#*_`>[\]()!-]/g, " ").trim().split(/\s+/).filter(Boolean).length;
-  const articleImage = post.hero ? `${SITE_URL}${post.hero}` : `${SITE_URL}${OG_DEFAULT_IMAGE.url}`;
-  const webPageSchema = buildWebPageSchema({ path: post.permalink, name: post.title, description: post.excerpt });
+  const rawMdx = fs.readFileSync(
+    path.join(process.cwd(), "content", "insights", `${post.slug}.mdx`),
+    "utf-8",
+  );
+  const wordCount = rawMdx
+    .replace(/^---[\s\S]*?---/m, "")
+    .replace(/<[^>]+>|[#*_`>[\]()!-]/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+  const articleImage = post.hero
+    ? `${SITE_URL}${post.hero}`
+    : `${SITE_URL}${OG_DEFAULT_IMAGE.url}`;
+  const webPageSchema = buildWebPageSchema({
+    path: post.permalink,
+    name: post.title,
+    description: post.excerpt,
+  });
 
   const articleSchema = {
     "@context": "https://schema.org",
@@ -144,18 +200,19 @@ export default async function InsightsArticlePage({
   ]);
 
   const faqPairs = extractFaqPairs(post.slug);
-  const faqPageSchema = faqPairs.length > 0
-    ? {
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        "@id": `https://mixednuts-inc.com${post.permalink}#faq`,
-        mainEntity: faqPairs.map((pair) => ({
-          "@type": "Question",
-          name: pair.question,
-          acceptedAnswer: { "@type": "Answer", text: pair.answer },
-        })),
-      }
-    : null;
+  const faqPageSchema =
+    faqPairs.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "@id": `https://mixednuts-inc.com${post.permalink}#faq`,
+          mainEntity: faqPairs.map((pair) => ({
+            "@type": "Question",
+            name: pair.question,
+            acceptedAnswer: { "@type": "Answer", text: pair.answer },
+          })),
+        }
+      : null;
 
   return (
     <main className="mn-v6 insights-v6 article-v6">
@@ -168,8 +225,24 @@ export default async function InsightsArticlePage({
 
       <header className="insights-title navy" data-nav="dark">
         <div className="insights-title-top insights-title-meta">
-          <nav className="insights-breadcrumb" aria-label="パンくずリスト"><ol style={{ display: "contents" }}><li style={{ display: "contents" }}><Link href="/">Home</Link></li><li style={{ display: "contents" }}><span aria-hidden="true">/</span><Link href="/insights">Insights</Link></li><li style={{ display: "contents" }}><span aria-hidden="true">/</span><span>{post.category}</span></li></ol></nav>
-          <span className="insights-title-index">Article / {String(currentIndex + 1).padStart(2, "0")}</span>
+          <nav className="insights-breadcrumb" aria-label="パンくずリスト">
+            <ol style={{ display: "contents" }}>
+              <li style={{ display: "contents" }}>
+                <Link href="/">Home</Link>
+              </li>
+              <li style={{ display: "contents" }}>
+                <span aria-hidden="true">/</span>
+                <Link href="/insights">Insights</Link>
+              </li>
+              <li style={{ display: "contents" }}>
+                <span aria-hidden="true">/</span>
+                <span>{post.category}</span>
+              </li>
+            </ol>
+          </nav>
+          <span className="insights-title-index">
+            Article / {String(currentIndex + 1).padStart(2, "0")}
+          </span>
         </div>
 
         <h1 className="insights-slam" aria-label={post.title}>
@@ -178,7 +251,9 @@ export default async function InsightsArticlePage({
 
         <div className="insights-title-bottom insights-title-meta">
           <div className="article-hero-meta">
-            {post.subtitle && <p className="insights-title-lead">{post.subtitle}</p>}
+            {post.subtitle && (
+              <p className="insights-title-lead">{post.subtitle}</p>
+            )}
             <div className="article-hero-meta-line">
               <span>{post.category}</span>
               <time dateTime={post.date}>{formattedDate}</time>
@@ -189,7 +264,9 @@ export default async function InsightsArticlePage({
               <span>{post.author}</span>
             </div>
           </div>
-          <span className="insights-title-word" aria-hidden="true">READ</span>
+          <span className="insights-title-word" aria-hidden="true">
+            READ
+          </span>
         </div>
       </header>
 
@@ -230,22 +307,36 @@ export default async function InsightsArticlePage({
               ))}
             </div>
 
-            <section className="article-author" aria-labelledby="article-author-heading">
-              <div className="article-author-mark" aria-hidden="true">N.I.</div>
+            <section
+              className="article-author"
+              aria-labelledby="article-author-heading"
+            >
+              <div className="article-author-mark" aria-hidden="true">
+                N.I.
+              </div>
               <div>
                 <span className="article-author-role">Founder &amp; CEO</span>
                 <h2 id="article-author-heading">{post.author}</h2>
                 <p>mixednuts Inc. / Strategy × AI × Marketing</p>
               </div>
-              <Link href="/team/ceo" className="article-author-link">Profile</Link>
+              <Link href="/team/ceo" className="article-author-link">
+                Profile
+              </Link>
             </section>
 
-            <section className="article-cta" aria-labelledby="article-cta-heading">
+            <section
+              className="article-cta"
+              aria-labelledby="article-cta-heading"
+            >
               <div>
                 <h2 id="article-cta-heading">知見を、事業の実装へ。</h2>
-                <p>60分の無料相談で、貴社に適した論点と次の一手を整理します。</p>
+                <p>
+                  60分の無料相談で、貴社に適した論点と次の一手を整理します。
+                </p>
               </div>
-              <Link href="/contact" className="article-cta-link">相談を申し込む</Link>
+              <Link href="/contact" className="article-cta-link">
+                相談を申し込む
+              </Link>
             </section>
           </div>
         </div>
@@ -276,11 +367,18 @@ export default async function InsightsArticlePage({
               <h2 id="related-heading">Related</h2>
             </header>
             {related.map((item) => (
-              <Link href={item.permalink} className="related-row" key={item.slug} data-reveal>
+              <Link
+                href={item.permalink}
+                className="related-row"
+                key={item.slug}
+                data-reveal
+              >
                 <span className="insight-category">{item.category}</span>
                 <h3>{item.title}</h3>
                 <div className="insight-meta">
-                  <time dateTime={item.date}>{item.date.slice(0, 10).replace(/-/g, ".")}</time>
+                  <time dateTime={item.date}>
+                    {item.date.slice(0, 10).replace(/-/g, ".")}
+                  </time>
                   <span>{item.readTime}</span>
                 </div>
               </Link>
@@ -291,3 +389,6 @@ export default async function InsightsArticlePage({
     </main>
   );
 }
+
+// 予約公開（date が未来の記事）を再デプロイなしで反映するため、1 時間ごとに再生成する（2026-09-06）。
+export const revalidate = 3600;

@@ -2,7 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { posts } from "#site/content";
-import { JsonLd, buildBreadcrumbSchema, buildWebPageSchema } from "@/components/JsonLd";
+import { isPublishedPost } from "@/lib/insights";
+import {
+  JsonLd,
+  buildBreadcrumbSchema,
+  buildWebPageSchema,
+} from "@/components/JsonLd";
 import { buildPageOg } from "@/lib/site-metadata";
 import InsightsMotion from "../../InsightsMotion";
 import "../../v6-insights.css";
@@ -12,7 +17,7 @@ type Params = { tag: string };
 export function generateStaticParams() {
   const tags = new Set<string>();
   for (const post of posts) {
-    if (post.hidden) continue;
+    if (!isPublishedPost(post)) continue;
     for (const tag of post.tags) tags.add(tag);
   }
   return Array.from(tags).map((tag) => ({ tag }));
@@ -37,7 +42,7 @@ export async function generateMetadata({
   const description = `タグ「${name}」に関連するmixednutsの公開記事を、新しい順に一覧で紹介します。戦略、AI、経営管理、マーケティング、技術実装のうち、このテーマに紐づく実践知を確認できます。`;
   const path = `/insights/tag/${encodeURIComponent(name)}`;
   const visibleCount = posts.filter(
-    (post) => !post.hidden && post.tags.includes(name),
+    (post) => isPublishedPost(post) && post.tags.includes(name),
   ).length;
   return {
     title,
@@ -64,7 +69,7 @@ export default async function TagPage({ params }: { params: Promise<Params> }) {
   const { tag: raw } = await params;
   const tag = decodeTag(raw);
   const matched = posts
-    .filter((post) => !post.hidden && post.tags.includes(tag))
+    .filter((post) => isPublishedPost(post) && post.tags.includes(tag))
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 
   if (matched.length === 0) return notFound();
@@ -81,7 +86,12 @@ export default async function TagPage({ params }: { params: Promise<Params> }) {
     description: `タグ「${tag}」に関連するmixednutsの公開記事を、新しい順に一覧で紹介します。戦略、AI、経営管理、マーケティング、技術実装のうち、このテーマに紐づく実践知を確認できます。`,
     mainEntityList: {
       "@type": "ItemList",
-      itemListElement: matched.map((post, index) => ({ "@type": "ListItem", position: index + 1, url: `https://mixednuts-inc.com${post.permalink}`, name: post.title })),
+      itemListElement: matched.map((post, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        url: `https://mixednuts-inc.com${post.permalink}`,
+        name: post.title,
+      })),
     },
   });
 
@@ -93,8 +103,24 @@ export default async function TagPage({ params }: { params: Promise<Params> }) {
 
       <header className="insights-title enji" data-nav="dark">
         <div className="insights-title-top insights-title-meta">
-          <nav className="insights-breadcrumb" aria-label="パンくずリスト"><ol style={{ display: "contents" }}><li style={{ display: "contents" }}><Link href="/">Home</Link></li><li style={{ display: "contents" }}><span aria-hidden="true">/</span><Link href="/insights">Insights</Link></li><li style={{ display: "contents" }}><span aria-hidden="true">/</span><span>Tag</span></li></ol></nav>
-          <span className="insights-title-index">Tag index / {String(matched.length).padStart(2, "0")}</span>
+          <nav className="insights-breadcrumb" aria-label="パンくずリスト">
+            <ol style={{ display: "contents" }}>
+              <li style={{ display: "contents" }}>
+                <Link href="/">Home</Link>
+              </li>
+              <li style={{ display: "contents" }}>
+                <span aria-hidden="true">/</span>
+                <Link href="/insights">Insights</Link>
+              </li>
+              <li style={{ display: "contents" }}>
+                <span aria-hidden="true">/</span>
+                <span>Tag</span>
+              </li>
+            </ol>
+          </nav>
+          <span className="insights-title-index">
+            Tag index / {String(matched.length).padStart(2, "0")}
+          </span>
         </div>
 
         <h1 className="insights-slam" aria-label={`#${tag}`}>
@@ -106,7 +132,9 @@ export default async function TagPage({ params }: { params: Promise<Params> }) {
             タグ「{tag}」に紐づく公開記事 {matched.length} 件。
             実装と検証から得た知見を、新しい順にまとめています。
           </p>
-          <span className="insights-title-word" aria-hidden="true">TAG</span>
+          <span className="insights-title-word" aria-hidden="true">
+            TAG
+          </span>
         </div>
       </header>
 
@@ -118,14 +146,21 @@ export default async function TagPage({ params }: { params: Promise<Params> }) {
           </header>
 
           {matched.map((post) => (
-            <Link href={post.permalink} className="tag-row" key={post.slug} data-reveal>
+            <Link
+              href={post.permalink}
+              className="tag-row"
+              key={post.slug}
+              data-reveal
+            >
               <span className="insight-category">{post.category}</span>
               <div>
                 <h2>{post.title}</h2>
                 <p>{post.excerpt}</p>
               </div>
               <div className="insight-meta">
-                <time dateTime={post.date}>{post.date.slice(0, 10).replace(/-/g, ".")}</time>
+                <time dateTime={post.date}>
+                  {post.date.slice(0, 10).replace(/-/g, ".")}
+                </time>
                 <span>{post.readTime}</span>
               </div>
             </Link>
@@ -135,3 +170,6 @@ export default async function TagPage({ params }: { params: Promise<Params> }) {
     </main>
   );
 }
+
+// 予約公開（date が未来の記事）を再デプロイなしで反映するため、1 時間ごとに再生成する（2026-09-06）。
+export const revalidate = 3600;
