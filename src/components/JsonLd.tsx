@@ -27,8 +27,11 @@ export const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
   "@id": `${SITE_URL}/#organization`,
-  name: "mixednuts Inc.",
-  alternateName: "ミックスナッツ株式会社",
+  // name は和文正式名。指名検索「ミックスナッツ株式会社」に対して homepage を
+  // 第一候補にするため、エンティティの主表記を英語名から和文へ寄せる。
+  name: "ミックスナッツ株式会社",
+  // alternateName は表記ゆれ（英字 / Inc. 付き / カナのみ）を同一エンティティに束ねる
+  alternateName: ["mixednuts", "mixednuts Inc.", "ミックスナッツ"],
   legalName: "ミックスナッツ株式会社",
   url: SITE_URL,
   // logo は実ロゴ (1500x281 ワードマーク、両辺 112px 以上の Google 要件充足) を指す。
@@ -72,10 +75,11 @@ export const organizationSchema = {
     "LLM operations",
   ],
   slogan: "戦略 × AI × マーケティング",
-  // sameAs: E-E-A-T Authoritativeness のために外部 SNS/プロフィール URL を列挙
-  // 理由: 空配列はナレッジパネル化・AIO 引用の Authoritativeness 強化を阻害する
-  // GitHub は 1j2j3jj/mixednuts-web リポの所有者として確認済
-  // LinkedIn / Twitter は CEO 確認待ち — 確定後に追加すること
+  // TODO(CEO): sameAs に会社公式の外部プロフィール URL を追加する。
+  // 未確定のため推測 URL は書かない（誤 URL はエンティティ同定を壊し E-E-A-T をむしろ下げる）。
+  // 候補 = LinkedIn 会社ページ / X 公式アカウント / Google Business Profile / note・Wantedly 等、
+  //        実在と所有を確認できたものだけを列挙すること。
+  // GitHub は 1j2j3jj/mixednuts-web リポの所有者として確認済。
   sameAs: ["https://github.com/1j2j3jj"] as string[],
 };
 
@@ -84,7 +88,9 @@ export const webSiteSchema = {
   "@type": "WebSite",
   "@id": `${SITE_URL}/#website`,
   url: SITE_URL,
-  name: "mixednuts Inc.",
+  // WebSite.name も和文正式名へ。英語名だけだと指名検索クエリと表層一致しない
+  name: "ミックスナッツ株式会社",
+  alternateName: ["mixednuts", "mixednuts Inc.", "ミックスナッツ"],
   description:
     "戦略・AI・マーケティングを一気通貫で提供する AI-first コンサルティングファーム。",
   inLanguage: "ja",

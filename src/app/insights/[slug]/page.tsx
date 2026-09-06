@@ -182,6 +182,9 @@ export default async function InsightsArticlePage({
             <div className="article-hero-meta-line">
               <span>{post.category}</span>
               <time dateTime={post.date}>{formattedDate}</time>
+              {post.updated && post.updated.slice(0, 10) !== post.date.slice(0, 10) && (
+                <time dateTime={post.updated}>{post.updated.slice(0, 10)} 更新</time>
+              )}
               <span>{post.readTime} read</span>
               <span>{post.author}</span>
             </div>
